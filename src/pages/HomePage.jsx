@@ -5,7 +5,7 @@ function HomePage() {
     <section>
       <PageHeader
         eyebrow="Phase 1 foundation"
-        title="Village Quilters event registration"
+        title="Village Quilters event Managrment"
         description="A mobile-friendly PWA for browsing programs, registering for events, and supporting future Square Checkout payments."
       />
       <div className="feature-grid">
