@@ -199,6 +199,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             value={form.eventType}
             onChange={(event) => handleEventType(event.target.value)}
           >
+            <option aria-label="Select Event Type" value="" />
             {EVENT_TYPES.map((eventType) => (
               <option key={eventType} value={eventType}>
                 {eventType}
