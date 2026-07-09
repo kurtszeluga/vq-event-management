@@ -12,19 +12,19 @@ export const EVENT_TYPES = [
 export const EVENT_TIME_OPTIONS = [
   {
     value: 'half-day',
-    label: 'Half day classes are from 1:30 p.m. to 4:30 p.m.',
+    label: 'Half Day Classes Are From 1:30 P.M. To 4:30 P.M.',
     startTime: '13:30',
     endTime: '16:30'
   },
   {
     value: 'full-day',
-    label: 'Full day classes are from 9:30 a.m. to 4:30 p.m.',
+    label: 'Full Day Classes Are From 9:30 A.M. To 4:30 P.M.',
     startTime: '09:30',
     endTime: '16:30'
   },
   {
     value: 'workshop',
-    label: 'Workshops are from 9:30 a.m. to 4:30 p.m.',
+    label: 'Workshops Are From 9:30 A.M. To 4:30 P.M.',
     startTime: '09:30',
     endTime: '16:30'
   },
@@ -40,7 +40,7 @@ export const EVENT_LOCATIONS = [
   {
     value: 'chota-rec-center-room-a',
     label:
-      'Chota Rec Center Room "A", located at 145 Awohili Drive, Loudon, TN'
+      'Chota Rec Center Room "A", Located At 145 Awohili Drive, Loudon, TN'
   },
   {
     value: 'other',

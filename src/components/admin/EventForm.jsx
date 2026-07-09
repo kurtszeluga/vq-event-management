@@ -72,17 +72,16 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     const nextTimeOption = EVENT_TIME_OPTIONS.find(
       (item) => item.value === nextTimePreset
     );
+    const isClassOrWorkshop = Boolean(nextTimeOption);
 
     setForm((current) => ({
       ...current,
       eventType: value,
-      ...(nextTimeOption
-        ? {
-            timePreset: nextTimeOption.value,
-            startTime: nextTimeOption.startTime,
-            endTime: nextTimeOption.endTime
-          }
-        : {}),
+      location: isClassOrWorkshop ? EVENT_LOCATIONS[0].label : '',
+      locationPreset: isClassOrWorkshop ? EVENT_LOCATIONS[0].value : 'other',
+      timePreset: nextTimeOption?.value || 'other',
+      startTime: nextTimeOption?.startTime || '',
+      endTime: nextTimeOption?.endTime || '',
       supplyListUrl: supportsSupplyList(value) ? current.supplyListUrl : ''
     }));
     setFieldErrors((current) => {
@@ -134,9 +133,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 2),
       isPaid: Boolean(form.isPaid),
       listingMode: form.listingMode,
-      location: form.location.trim(),
+      location: toTitleCase(form.location.trim()),
       locationPreset: form.locationPreset,
-      presenter: form.presenter.trim(),
+      presenter: toTitleCase(form.presenter.trim()),
       registrationCloseAt: form.registrationCloseAt,
       registrationMode: form.registrationMode,
       registrationOpen: Boolean(form.registrationOpen),
@@ -146,7 +145,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       status: form.status,
       supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
       timePreset: form.timePreset,
-      title: form.title.trim(),
+      title: toTitleCase(form.title.trim()),
       type: form.eventType,
       visibleFrom: form.visibleFrom,
       visibleUntil: form.visibleUntil
@@ -174,10 +173,10 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   return (
     <form className="admin-form" noValidate onSubmit={handleSubmit}>
       <div className="form-section-header">
-        <h2>{isEditing ? 'Edit event' : 'Create event'}</h2>
+        <h2>{isEditing ? 'Edit Event' : 'Create Event'}</h2>
         {isEditing ? (
           <button className="text-button" type="button" onClick={onCancelEdit}>
-            Cancel edit
+            Cancel Edit
           </button>
         ) : null}
       </div>
@@ -189,11 +188,12 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             className={fieldErrors.title ? 'field-invalid' : ''}
             value={form.title}
             onChange={(event) => updateField('title', event.target.value)}
+            onBlur={(event) => updateField('title', toTitleCase(event.target.value))}
           />
         </label>
 
         <label>
-          <span>Event type *</span>
+          <span>Event Type *</span>
           <select
             className={fieldErrors.eventType ? 'field-invalid' : ''}
             value={form.eventType}
@@ -273,11 +273,14 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
         {form.locationPreset === 'other' ? (
           <label>
-            <span>Other location *</span>
+            <span>Other Location *</span>
             <input
               className={fieldErrors.location ? 'field-invalid' : ''}
               value={form.location}
               onChange={(event) => updateField('location', event.target.value)}
+              onBlur={(event) =>
+                updateField('location', toTitleCase(event.target.value))
+              }
             />
           </label>
         ) : null}
@@ -287,11 +290,14 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <input
             value={form.presenter}
             onChange={(event) => updateField('presenter', event.target.value)}
+            onBlur={(event) =>
+              updateField('presenter', toTitleCase(event.target.value))
+            }
           />
         </label>
 
         <label>
-          <span>Maximum capacity</span>
+          <span>Maximum Capacity</span>
           <input
             className={fieldErrors.capacity ? 'field-invalid' : ''}
             min="0"
@@ -314,11 +320,11 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </div>
 
       <div className="form-subsection">
-        <h3>Images and documents</h3>
+        <h3>Images And Documents</h3>
         <div className="form-grid">
           {[0, 1].map((index) => (
             <label key={index}>
-              <span>Event photo/image {index + 1}</span>
+              <span>Event Photo/Image {index + 1}</span>
               <input
                 placeholder="Image URL"
                 type="url"
@@ -352,7 +358,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               type="checkbox"
               onChange={(event) => updateField('isPaid', event.target.checked)}
             />
-            <span>Paid event</span>
+            <span>Paid Event</span>
           </label>
           <label>
             <span>Cost</span>
@@ -365,7 +371,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             />
           </label>
           <label>
-            <span>Service fee</span>
+            <span>Service Fee</span>
             <input
               min="0"
               step="0.01"
@@ -378,16 +384,16 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </div>
 
       <div className="form-subsection">
-        <h3>Listing and registration</h3>
+        <h3>Listing And Registration</h3>
         <div className="form-grid">
           <label>
-            <span>List on website</span>
+            <span>List On Website</span>
             <select
               value={form.listingMode}
               onChange={(event) => updateField('listingMode', event.target.value)}
             >
               <option value="now">Now</option>
-              <option value="future">In the future</option>
+              <option value="future">In The Future</option>
             </select>
           </label>
           <label>
@@ -405,7 +411,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           {form.listingMode === 'future' ? (
             <>
               <label>
-                <span>Post listing</span>
+                <span>Post Listing</span>
                 <input
                   className={fieldErrors.visibleFrom ? 'field-invalid' : ''}
                   type="datetime-local"
@@ -414,7 +420,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 />
               </label>
               <label>
-                <span>Remove listing</span>
+                <span>Remove Listing</span>
                 <input
                   className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
                   type="datetime-local"
@@ -425,7 +431,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             </>
           ) : null}
           <label>
-            <span>Enable event registration</span>
+            <span>Enable Event Registration</span>
             <select
               value={form.registrationMode}
               onChange={(event) =>
@@ -433,7 +439,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               }
             >
               <option value="now">Now</option>
-              <option value="future">In the future</option>
+              <option value="future">In The Future</option>
             </select>
           </label>
           <label className="checkbox-label">
@@ -444,12 +450,12 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 updateField('registrationOpen', event.target.checked)
               }
             />
-            <span>Registration open</span>
+            <span>Registration Open</span>
           </label>
           {form.registrationMode === 'future' ? (
             <>
               <label>
-                <span>Enable registration</span>
+                <span>Enable Registration</span>
                 <input
                   className={fieldErrors.registrationOpenAt ? 'field-invalid' : ''}
                   type="datetime-local"
@@ -460,7 +466,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 />
               </label>
               <label>
-                <span>Disable registration</span>
+                <span>Disable Registration</span>
                 <input
                   className={fieldErrors.registrationCloseAt ? 'field-invalid' : ''}
                   type="datetime-local"
@@ -477,7 +483,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
       {error ? <p className="form-error">{error}</p> : null}
       <button className="button-link button-reset" disabled={saving} type="submit">
-        {saving ? 'Saving...' : isEditing ? 'Save changes' : 'Create event'}
+        {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Event'}
       </button>
     </form>
   );
@@ -551,6 +557,16 @@ function validateEventForm(form) {
 
 function supportsSupplyList(eventType) {
   return eventType.startsWith('Class') || eventType === 'Workshop';
+}
+
+function toTitleCase(value) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\b([a-z])/g, (letter) => letter.toUpperCase())
+    .replace(/\bTn\b/g, 'TN')
+    .replace(/\bP\.m\./g, 'P.M.')
+    .replace(/\bA\.m\./g, 'A.M.');
 }
 
 export default EventForm;
