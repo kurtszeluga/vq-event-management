@@ -50,7 +50,7 @@ export const EVENT_LOCATIONS = [
 
 export const DEFAULT_EVENT_FORM = {
   additionalNotes: '',
-  capacity: '0',
+  capacity: '20',
   cost: '0',
   date: '',
   description: '',

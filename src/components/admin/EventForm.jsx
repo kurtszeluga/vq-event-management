@@ -7,11 +7,10 @@ import {
 } from '../../data/eventOptions.js';
 import { createEvent, updateEvent } from '../../services/eventService.js';
 
-const datePattern = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
-
 function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const isEditing = Boolean(editingEvent);
 
@@ -40,6 +39,15 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
+    setFieldErrors((current) => {
+      if (!current[name]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
   }
 
   function handleTimePreset(value) {
@@ -72,12 +80,15 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    const validationErrors = validateEventForm(form);
 
-    if (!datePattern.test(form.date)) {
-      setError('Event Date must use MM/DD/YYYY format.');
+    if (Object.keys(validationErrors).length) {
+      setFieldErrors(validationErrors);
+      setError('Please fix the highlighted fields.');
       return;
     }
 
+    setFieldErrors({});
     setSaving(true);
 
     const payload = {
@@ -143,6 +154,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <label>
           <span>Event type *</span>
           <select
+            className={fieldErrors.eventType ? 'field-invalid' : ''}
             required
             value={form.eventType}
             onChange={(event) => updateField('eventType', event.target.value)}
@@ -158,16 +170,19 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <label>
           <span>Event Date *</span>
           <input
-            placeholder="MM/DD/YYYY"
+            className={fieldErrors.date ? 'field-invalid' : ''}
             required
+            type="date"
             value={form.date}
             onChange={(event) => updateField('date', event.target.value)}
           />
+          {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
         </label>
 
         <label>
           <span>Event Time *</span>
           <select
+            className={fieldErrors.timePreset ? 'field-invalid' : ''}
             required
             value={form.timePreset}
             onChange={(event) => handleTimePreset(event.target.value)}
@@ -184,6 +199,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <label>
             <span>Start</span>
             <input
+              className={fieldErrors.startTime ? 'field-invalid' : ''}
               disabled={selectedTimeOption?.value !== 'other'}
               type="time"
               value={form.startTime}
@@ -193,6 +209,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <label>
             <span>End</span>
             <input
+              className={fieldErrors.endTime ? 'field-invalid' : ''}
               disabled={selectedTimeOption?.value !== 'other'}
               type="time"
               value={form.endTime}
@@ -204,6 +221,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <label>
           <span>Event Location *</span>
           <select
+            className={fieldErrors.locationPreset ? 'field-invalid' : ''}
             required
             value={form.locationPreset}
             onChange={(event) => handleLocationPreset(event.target.value)}
@@ -220,6 +238,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <label>
             <span>Other location *</span>
             <input
+              className={fieldErrors.location ? 'field-invalid' : ''}
               required
               value={form.location}
               onChange={(event) => updateField('location', event.target.value)}
@@ -230,6 +249,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <label>
           <span>Event Name *</span>
           <input
+            className={fieldErrors.title ? 'field-invalid' : ''}
             required
             value={form.title}
             onChange={(event) => updateField('title', event.target.value)}
@@ -247,6 +267,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <label>
           <span>Maximum capacity</span>
           <input
+            className={fieldErrors.capacity ? 'field-invalid' : ''}
             min="0"
             step="1"
             type="number"
@@ -258,6 +279,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <label className="form-span">
           <span>Event Description *</span>
           <textarea
+            className={fieldErrors.description ? 'field-invalid' : ''}
             required
             rows="5"
             value={form.description}
@@ -356,6 +378,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <label>
                 <span>Post listing</span>
                 <input
+                  className={fieldErrors.visibleFrom ? 'field-invalid' : ''}
                   type="datetime-local"
                   value={form.visibleFrom}
                   onChange={(event) => updateField('visibleFrom', event.target.value)}
@@ -364,6 +387,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <label>
                 <span>Remove listing</span>
                 <input
+                  className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
                   type="datetime-local"
                   value={form.visibleUntil}
                   onChange={(event) => updateField('visibleUntil', event.target.value)}
@@ -398,6 +422,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <label>
                 <span>Enable registration</span>
                 <input
+                  className={fieldErrors.registrationOpenAt ? 'field-invalid' : ''}
                   type="datetime-local"
                   value={form.registrationOpenAt}
                   onChange={(event) =>
@@ -408,6 +433,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <label>
                 <span>Disable registration</span>
                 <input
+                  className={fieldErrors.registrationCloseAt ? 'field-invalid' : ''}
                   type="datetime-local"
                   value={form.registrationCloseAt}
                   onChange={(event) =>
@@ -426,6 +452,72 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </button>
     </form>
   );
+}
+
+function validateEventForm(form) {
+  const errors = {};
+
+  if (!form.eventType) {
+    errors.eventType = 'Event type is required.';
+  }
+
+  if (!form.date) {
+    errors.date = 'Event date is required.';
+  }
+
+  if (!form.timePreset) {
+    errors.timePreset = 'Event time is required.';
+  }
+
+  if (!form.startTime) {
+    errors.startTime = 'Start time is required.';
+  }
+
+  if (!form.endTime) {
+    errors.endTime = 'End time is required.';
+  }
+
+  if (!form.locationPreset) {
+    errors.locationPreset = 'Location is required.';
+  }
+
+  if (!form.location.trim()) {
+    errors.location = 'Location is required.';
+  }
+
+  if (!form.title.trim()) {
+    errors.title = 'Event name is required.';
+  }
+
+  if (!form.description.trim()) {
+    errors.description = 'Event description is required.';
+  }
+
+  if (Number(form.capacity) < 0) {
+    errors.capacity = 'Maximum capacity cannot be negative.';
+  }
+
+  if (form.listingMode === 'future') {
+    if (!form.visibleFrom) {
+      errors.visibleFrom = 'Post listing date/time is required.';
+    }
+
+    if (!form.visibleUntil) {
+      errors.visibleUntil = 'Remove listing date/time is required.';
+    }
+  }
+
+  if (form.registrationMode === 'future') {
+    if (!form.registrationOpenAt) {
+      errors.registrationOpenAt = 'Registration enable date/time is required.';
+    }
+
+    if (!form.registrationCloseAt) {
+      errors.registrationCloseAt = 'Registration disable date/time is required.';
+    }
+  }
+
+  return errors;
 }
 
 export default EventForm;

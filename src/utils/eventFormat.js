@@ -11,6 +11,11 @@ export function formatEventDate(dateValue) {
     return 'Date TBD';
   }
 
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    const [year, month, day] = dateValue.split('-');
+    return `${month}/${day}/${year}`;
+  }
+
   return dateValue;
 }
 

@@ -338,6 +338,21 @@ a {
   outline: 3px solid #cfe3de;
 }
 
+.admin-form .field-invalid {
+  border-color: #b42318;
+  background: #fff6f3;
+}
+
+.admin-form .field-invalid:focus {
+  border-color: #b42318;
+  outline-color: #ffd7cc;
+}
+
+.admin-form small {
+  color: #b42318;
+  font-weight: 800;
+}
+
 .admin-form input:disabled {
   background: #eee8e1;
   color: #6d7471;
