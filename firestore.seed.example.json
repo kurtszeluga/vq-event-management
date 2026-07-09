@@ -1,0 +1,59 @@
+{
+  "events": {
+    "example-class-001": {
+      "eventId": "example-class-001",
+      "type": "Classes",
+      "title": "Example Quilt Class",
+      "description": "Example event record for local seeding only.",
+      "presenter": "Example Presenter",
+      "date": "2026-09-01",
+      "startTime": "10:00",
+      "endTime": "12:00",
+      "location": "Village Quilters",
+      "capacity": 20,
+      "isPaid": false,
+      "cost": 0,
+      "status": "Draft",
+      "registrationOpen": false,
+      "additionalNotes": "",
+      "createdBy": "seed",
+      "createdDate": "__SERVER_TIMESTAMP__",
+      "updatedDate": "__SERVER_TIMESTAMP__"
+    }
+  },
+  "registrations": {
+    "example-registration-001": {
+      "registrationId": "example-registration-001",
+      "eventId": "example-class-001",
+      "name": "Example Registrant",
+      "email": "member@example.com",
+      "phone": "555-0100",
+      "registrationDate": "__SERVER_TIMESTAMP__",
+      "paymentStatus": "Pending",
+      "status": "Registered"
+    }
+  },
+  "users": {
+    "firebase-auth-uid-goes-here": {
+      "userId": "firebase-auth-uid-goes-here",
+      "name": "Example Admin",
+      "email": "admin@example.com",
+      "phone": "555-0101",
+      "role": "Admin",
+      "status": "Active",
+      "createdDate": "__SERVER_TIMESTAMP__",
+      "updatedDate": "__SERVER_TIMESTAMP__"
+    }
+  },
+  "payments": {
+    "example-payment-001": {
+      "paymentId": "example-payment-001",
+      "registrationId": "example-registration-001",
+      "eventId": "example-class-001",
+      "amount": 0,
+      "squareTransactionId": "",
+      "paymentStatus": "Pending",
+      "paymentDate": "__SERVER_TIMESTAMP__"
+    }
+  }
+}

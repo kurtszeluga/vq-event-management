@@ -6,6 +6,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function validStatus(value, statuses) {
+      return value is string && value in statuses;
+    }
+
     function isAdmin() {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -13,23 +17,148 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'Active';
     }
 
+    function isOwner(userId) {
+      return signedIn() && userId == request.auth.uid;
+    }
+
+    function validEvent() {
+      return request.resource.data.keys().hasOnly([
+          'eventId',
+          'type',
+          'title',
+          'description',
+          'presenter',
+          'date',
+          'startTime',
+          'endTime',
+          'location',
+          'capacity',
+          'isPaid',
+          'cost',
+          'status',
+          'registrationOpen',
+          'additionalNotes',
+          'createdBy',
+          'createdDate',
+          'updatedDate'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.date is string
+        && request.resource.data.startTime is string
+        && request.resource.data.endTime is string
+        && request.resource.data.location is string
+        && request.resource.data.capacity is number
+        && request.resource.data.isPaid is bool
+        && request.resource.data.cost is number
+        && validStatus(request.resource.data.status, ['Draft', 'Published', 'Closed', 'Cancelled'])
+        && request.resource.data.registrationOpen is bool
+        && request.resource.data.createdBy is string
+        && request.resource.data.createdDate is timestamp;
+    }
+
+    function validRegistration() {
+      return request.resource.data.keys().hasOnly([
+          'registrationId',
+          'eventId',
+          'userId',
+          'name',
+          'email',
+          'phone',
+          'registrationDate',
+          'paymentStatus',
+          'status'
+        ])
+        && request.resource.data.eventId is string
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && request.resource.data.registrationDate is timestamp
+        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded'])
+        && validStatus(request.resource.data.status, ['Registered', 'Cancelled', 'Waitlisted'])
+        && (!('userId' in request.resource.data) || request.resource.data.userId is string)
+        && (!signedIn() || !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid);
+    }
+
+    function validUser() {
+      return request.resource.data.keys().hasOnly([
+          'userId',
+          'name',
+          'email',
+          'phone',
+          'role',
+          'status',
+          'createdDate',
+          'updatedDate'
+        ])
+        && request.resource.data.userId is string
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && validStatus(request.resource.data.role, ['Admin', 'User'])
+        && validStatus(request.resource.data.status, ['Active', 'Inactive'])
+        && request.resource.data.createdDate is timestamp;
+    }
+
+    function validSelfUserCreate(userId) {
+      return signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.role == 'User'
+        && request.resource.data.status == 'Active';
+    }
+
+    function validPayment() {
+      return request.resource.data.keys().hasOnly([
+          'paymentId',
+          'registrationId',
+          'eventId',
+          'amount',
+          'squareTransactionId',
+          'paymentStatus',
+          'paymentDate'
+        ])
+        && request.resource.data.registrationId is string
+        && request.resource.data.eventId is string
+        && request.resource.data.amount is number
+        && request.resource.data.squareTransactionId is string
+        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Failed', 'Refunded'])
+        && request.resource.data.paymentDate is timestamp;
+    }
+
     match /events/{eventId} {
       allow read: if resource.data.status == 'Published' || isAdmin();
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() && validEvent();
+      allow delete: if isAdmin();
     }
 
     match /registrations/{registrationId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+      allow create: if validRegistration();
+      allow read: if isAdmin() || isOwner(resource.data.userId);
+      allow update: if isAdmin() && validRegistration()
+        || isOwner(resource.data.userId)
+          && validRegistration()
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
+          && request.resource.data.status == 'Cancelled';
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId || isAdmin();
-      allow write: if isAdmin();
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() && validUser() || validSelfUserCreate(userId) && validUser();
+      allow update: if isAdmin() && validUser()
+        || isOwner(userId)
+          && validUser()
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.status == resource.data.status;
+      allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && validPayment();
+      allow delete: if isAdmin();
     }
   }
 }
