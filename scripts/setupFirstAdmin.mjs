@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
-import admin from 'firebase-admin';
+import { cert, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
 const {
   FIREBASE_SERVICE_ACCOUNT_PATH,
@@ -28,13 +30,13 @@ const name = required('FIRST_ADMIN_NAME', FIRST_ADMIN_NAME);
 
 const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+initializeApp({
+  credential: cert(serviceAccount),
   projectId: serviceAccount.project_id
 });
 
-const auth = admin.auth();
-const db = admin.firestore();
+const auth = getAuth();
+const db = getFirestore();
 
 let userRecord;
 
@@ -57,7 +59,7 @@ try {
 
 const userRef = db.collection('users').doc(userRecord.uid);
 const existingProfile = await userRef.get();
-const now = admin.firestore.FieldValue.serverTimestamp();
+const now = FieldValue.serverTimestamp();
 
 await userRef.set(
   {
