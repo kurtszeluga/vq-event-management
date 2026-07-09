@@ -42,6 +42,11 @@ let userRecord;
 
 try {
   userRecord = await auth.getUserByEmail(email);
+  userRecord = await auth.updateUser(userRecord.uid, {
+    displayName: name,
+    emailVerified: true,
+    password
+  });
   console.log(`Using existing Firebase Auth user: ${userRecord.uid}`);
 } catch (error) {
   if (error.code !== 'auth/user-not-found') {
