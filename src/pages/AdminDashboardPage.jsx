@@ -1,6 +1,9 @@
 import PageHeader from '../components/PageHeader.jsx';
+import { useAuth } from '../context/useAuth.js';
 
 function AdminDashboardPage() {
+  const { userProfile } = useAuth();
+
   return (
     <section>
       <PageHeader
@@ -8,6 +11,12 @@ function AdminDashboardPage() {
         title="Event management dashboard"
         description="Create, edit, publish, close, and report on events from here once Phase 2 business logic begins."
       />
+      <div className="status-panel">
+        <span className="status-dot good" />
+        <span>
+          Signed in as <strong>{userProfile?.name || userProfile?.email}</strong>.
+        </span>
+      </div>
       <div className="feature-grid">
         <article>
           <h2>Events</h2>

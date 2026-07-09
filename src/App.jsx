@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from './context/useAuth.js';
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -9,6 +10,8 @@ const navItems = [
 ];
 
 function App() {
+  const { currentUser, isAdmin, logOut } = useAuth();
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -32,8 +35,19 @@ function App() {
               {item.label}
             </NavLink>
           ))}
+          {currentUser ? (
+            <button className="nav-button" type="button" onClick={logOut}>
+              Sign out
+            </button>
+          ) : null}
         </nav>
       </header>
+      {currentUser ? (
+        <div className="auth-banner">
+          <span>{currentUser.email}</span>
+          <strong>{isAdmin ? 'Admin' : 'Signed in'}</strong>
+        </div>
+      ) : null}
       <main className="page-content">
         <Outlet />
       </main>

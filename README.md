@@ -66,3 +66,19 @@ Vercel should use:
 - `npm run build` creates a production build.
 - `npm run preview` previews the production build.
 - `npm run lint` runs ESLint.
+- `npm run setup:first-admin` creates or updates the first Firebase Auth admin user and matching Firestore profile.
+
+## First Admin Setup
+
+Enable the Email/Password provider in Firebase Authentication, create a Firebase service account key, then run:
+
+```sh
+FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json \
+FIRST_ADMIN_EMAIL=admin@example.com \
+FIRST_ADMIN_PASSWORD='replace-with-a-strong-password' \
+FIRST_ADMIN_NAME='Admin Name' \
+FIRST_ADMIN_PHONE='555-0101' \
+npm run setup:first-admin
+```
+
+Do not commit the service account key.

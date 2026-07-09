@@ -79,11 +79,15 @@ a {
 }
 
 .nav-link,
+.nav-button,
 .button-link {
+  background: transparent;
   border: 1px solid #c9bbb0;
   border-radius: 8px;
   color: #263632;
+  cursor: pointer;
   display: inline-flex;
+  font: inherit;
   font-weight: 700;
   padding: 10px 14px;
   text-decoration: none;
@@ -94,6 +98,36 @@ a {
   background: #225c56;
   border-color: #225c56;
   color: #fff;
+}
+
+.nav-button:hover,
+.nav-link:hover {
+  border-color: #225c56;
+}
+
+.button-reset {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.auth-banner {
+  align-items: center;
+  background: #e9f2ef;
+  border-bottom: 1px solid #ccdcd7;
+  color: #263632;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 8px clamp(18px, 4vw, 56px);
+}
+
+.auth-banner strong {
+  background: #225c56;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.78rem;
+  padding: 4px 9px;
 }
 
 .page-content {
@@ -177,6 +211,60 @@ a {
 
 .status-dot.good {
   background: #225c56;
+}
+
+.form-panel {
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  margin-top: 36px;
+  max-width: 520px;
+  padding: 24px;
+}
+
+.form-panel label {
+  display: grid;
+  gap: 8px;
+}
+
+.form-panel label span {
+  color: #3b4b48;
+  font-weight: 800;
+}
+
+.form-panel input {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.form-panel input:focus {
+  border-color: #225c56;
+  outline: 3px solid #cfe3de;
+}
+
+.form-panel button {
+  justify-content: center;
+}
+
+.form-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.form-error {
+  background: #fff1eb;
+  border: 1px solid #e4b39e;
+  border-radius: 8px;
+  color: #8f351d;
+  font-weight: 700;
+  margin: 0;
+  padding: 12px;
 }
 
 .not-found {

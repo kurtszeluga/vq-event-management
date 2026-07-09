@@ -9,6 +9,8 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
+import RequireAdmin from './components/RequireAdmin.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
 import './styles.css';
 
 const router = createBrowserRouter([
@@ -22,13 +24,22 @@ const router = createBrowserRouter([
       { path: 'events/:eventId', element: <EventDetailsPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'login', element: <LoginPage /> },
-      { path: 'admin', element: <AdminDashboardPage /> }
+      {
+        path: 'admin',
+        element: (
+          <RequireAdmin>
+            <AdminDashboardPage />
+          </RequireAdmin>
+        )
+      }
     ]
   }
 ]);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </React.StrictMode>
 );
