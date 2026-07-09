@@ -7,6 +7,12 @@ import {
 } from '../../data/eventOptions.js';
 import { createEvent, updateEvent } from '../../services/eventService.js';
 
+const eventTypeTimePresetMap = {
+  'Class (Half Day)': 'half-day',
+  'Class (Full Day)': 'full-day',
+  Workshop: 'workshop'
+};
+
 function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
   const [error, setError] = useState('');
@@ -36,6 +42,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     () => EVENT_TIME_OPTIONS.find((option) => option.value === form.timePreset),
     [form.timePreset]
   );
+  const showSupplyListUpload = supportsSupplyList(form.eventType);
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -58,6 +65,31 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       startTime: option?.startTime || current.startTime,
       endTime: option?.endTime || current.endTime
     }));
+  }
+
+  function handleEventType(value) {
+    const nextTimePreset = eventTypeTimePresetMap[value];
+    const nextTimeOption = EVENT_TIME_OPTIONS.find(
+      (item) => item.value === nextTimePreset
+    );
+
+    setForm((current) => ({
+      ...current,
+      eventType: value,
+      ...(nextTimeOption
+        ? {
+            timePreset: nextTimeOption.value,
+            startTime: nextTimeOption.startTime,
+            endTime: nextTimeOption.endTime
+          }
+        : {}),
+      supplyListUrl: supportsSupplyList(value) ? current.supplyListUrl : ''
+    }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.eventType;
+      return next;
+    });
   }
 
   function handleLocationPreset(value) {
@@ -112,7 +144,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       serviceFee: Number(form.serviceFee || 0),
       startTime: form.startTime,
       status: form.status,
-      supplyListUrl: form.supplyListUrl.trim(),
+      supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
       timePreset: form.timePreset,
       title: form.title.trim(),
       type: form.eventType,
@@ -140,7 +172,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   }
 
   return (
-    <form className="admin-form" onSubmit={handleSubmit}>
+    <form className="admin-form" noValidate onSubmit={handleSubmit}>
       <div className="form-section-header">
         <h2>{isEditing ? 'Edit event' : 'Create event'}</h2>
         {isEditing ? (
@@ -152,12 +184,20 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
       <div className="form-grid">
         <label>
+          <span>Event Name *</span>
+          <input
+            className={fieldErrors.title ? 'field-invalid' : ''}
+            value={form.title}
+            onChange={(event) => updateField('title', event.target.value)}
+          />
+        </label>
+
+        <label>
           <span>Event type *</span>
           <select
             className={fieldErrors.eventType ? 'field-invalid' : ''}
-            required
             value={form.eventType}
-            onChange={(event) => updateField('eventType', event.target.value)}
+            onChange={(event) => handleEventType(event.target.value)}
           >
             {EVENT_TYPES.map((eventType) => (
               <option key={eventType} value={eventType}>
@@ -171,7 +211,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <span>Event Date *</span>
           <input
             className={fieldErrors.date ? 'field-invalid' : ''}
-            required
             type="date"
             value={form.date}
             onChange={(event) => updateField('date', event.target.value)}
@@ -183,7 +222,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <span>Event Time *</span>
           <select
             className={fieldErrors.timePreset ? 'field-invalid' : ''}
-            required
             value={form.timePreset}
             onChange={(event) => handleTimePreset(event.target.value)}
           >
@@ -222,7 +260,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <span>Event Location *</span>
           <select
             className={fieldErrors.locationPreset ? 'field-invalid' : ''}
-            required
             value={form.locationPreset}
             onChange={(event) => handleLocationPreset(event.target.value)}
           >
@@ -239,22 +276,11 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             <span>Other location *</span>
             <input
               className={fieldErrors.location ? 'field-invalid' : ''}
-              required
               value={form.location}
               onChange={(event) => updateField('location', event.target.value)}
             />
           </label>
         ) : null}
-
-        <label>
-          <span>Event Name *</span>
-          <input
-            className={fieldErrors.title ? 'field-invalid' : ''}
-            required
-            value={form.title}
-            onChange={(event) => updateField('title', event.target.value)}
-          />
-        </label>
 
         <label>
           <span>Presenter/Instructor Name</span>
@@ -280,7 +306,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <span>Event Description *</span>
           <textarea
             className={fieldErrors.description ? 'field-invalid' : ''}
-            required
             rows="5"
             value={form.description}
             onChange={(event) => updateField('description', event.target.value)}
@@ -302,15 +327,19 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               />
             </label>
           ))}
-          <label className="form-span">
-            <span>Supply List Upload</span>
-            <input
-              placeholder="PDF link"
-              type="url"
-              value={form.supplyListUrl}
-              onChange={(event) => updateField('supplyListUrl', event.target.value)}
-            />
-          </label>
+          {showSupplyListUpload ? (
+            <label className="form-span">
+              <span>Supply List Upload</span>
+              <input
+                placeholder="PDF link"
+                type="url"
+                value={form.supplyListUrl}
+                onChange={(event) =>
+                  updateField('supplyListUrl', event.target.value)
+                }
+              />
+            </label>
+          ) : null}
         </div>
       </div>
 
@@ -518,6 +547,10 @@ function validateEventForm(form) {
   }
 
   return errors;
+}
+
+function supportsSupplyList(eventType) {
+  return eventType.startsWith('Class') || eventType === 'Workshop';
 }
 
 export default EventForm;
