@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VQ Events">
+  <rect width="512" height="512" rx="96" fill="#225c56"/>
+  <path d="M112 136h64l80 235 80-235h64L288 408h-64L112 136Z" fill="#fffaf5"/>
+  <path d="M320 346l48 48 40-40-48-48-40 40Z" fill="#d98b62"/>
+</svg>
