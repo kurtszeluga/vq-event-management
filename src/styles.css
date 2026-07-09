@@ -257,6 +257,239 @@ a {
   opacity: 0.62;
 }
 
+.admin-workspace {
+  display: grid;
+  gap: 28px;
+  margin-top: 36px;
+}
+
+.admin-form,
+.admin-list-panel,
+.detail-panel,
+.public-event-card {
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.form-section-header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.form-section-header h2,
+.form-subsection h3,
+.event-admin-card h3,
+.public-event-card h2 {
+  margin: 0;
+}
+
+.form-section-header span {
+  color: #687572;
+  font-weight: 800;
+}
+
+.form-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-grid.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.form-grid label,
+.form-row-pair label,
+.admin-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-form label span,
+.form-row-pair label span {
+  color: #3b4b48;
+  font-weight: 800;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.admin-form textarea {
+  resize: vertical;
+}
+
+.admin-form input:focus,
+.admin-form select:focus,
+.admin-form textarea:focus {
+  border-color: #225c56;
+  outline: 3px solid #cfe3de;
+}
+
+.admin-form input:disabled {
+  background: #eee8e1;
+  color: #6d7471;
+}
+
+.form-span {
+  grid-column: 1 / -1;
+}
+
+.form-row-pair {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-subsection {
+  border-top: 1px solid #e6ddd3;
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+  padding-top: 24px;
+}
+
+.checkbox-label {
+  align-content: center;
+  align-items: center;
+  display: flex !important;
+  flex-direction: row;
+  gap: 10px !important;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.text-button,
+.danger-button {
+  background: transparent;
+  border: 0;
+  color: #225c56;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.danger-button {
+  color: #9a341f;
+}
+
+.event-admin-list,
+.public-event-list {
+  display: grid;
+  gap: 16px;
+}
+
+.public-event-list {
+  margin-top: 36px;
+}
+
+.event-admin-card {
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 18px;
+}
+
+.event-admin-card p,
+.public-event-card p {
+  color: #5c6966;
+  line-height: 1.6;
+}
+
+.card-kicker {
+  align-items: center;
+  color: #9a4d2f;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 10px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.card-kicker strong {
+  background: #e9f2ef;
+  border-radius: 999px;
+  color: #225c56;
+  padding: 4px 9px;
+}
+
+.event-admin-card dl,
+.public-event-card dl,
+.detail-panel dl {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 18px 0 0;
+}
+
+.event-admin-card dt,
+.public-event-card dt,
+.detail-panel dt {
+  color: #687572;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.event-admin-card dd,
+.public-event-card dd,
+.detail-panel dd {
+  margin: 4px 0 0;
+}
+
+.card-actions {
+  align-content: start;
+  display: grid;
+  gap: 12px;
+}
+
+.public-event-card {
+  display: grid;
+  gap: 16px;
+}
+
+.event-detail-layout {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.65fr);
+  margin-top: 36px;
+}
+
+.event-image-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.event-image-grid img,
+.image-placeholder {
+  aspect-ratio: 4 / 3;
+  background: #eee8e1;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  object-fit: cover;
+  width: 100%;
+}
+
 .form-error {
   background: #fff1eb;
   border: 1px solid #e4b39e;
@@ -298,5 +531,16 @@ a {
 
   .feature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .event-admin-card,
+  .event-detail-layout,
+  .form-grid,
+  .form-grid.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .card-actions {
+    grid-template-columns: repeat(2, max-content);
   }
 }

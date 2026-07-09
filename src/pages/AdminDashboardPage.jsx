@@ -1,15 +1,50 @@
+import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
+import EventForm from '../components/admin/EventForm.jsx';
+import EventList from '../components/admin/EventList.jsx';
 import { useAuth } from '../context/useAuth.js';
+import {
+  deleteEvent,
+  subscribeToAdminEvents
+} from '../services/eventService.js';
 
 function AdminDashboardPage() {
   const { userProfile } = useAuth();
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [eventsError, setEventsError] = useState('');
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAdminEvents(
+      (snapshot) => {
+        setEvents(snapshot.docs.map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() })));
+        setEventsError('');
+        setLoadingEvents(false);
+      },
+      (error) => {
+        setEventsError(error.message);
+        setLoadingEvents(false);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  async function handleDelete(event) {
+    const confirmed = window.confirm(`Delete "${event.title}"?`);
+
+    if (confirmed) {
+      await deleteEvent(event.id);
+    }
+  }
 
   return (
     <section>
       <PageHeader
         eyebrow="Admin"
         title="Event management dashboard"
-        description="Create, edit, publish, close, and report on events from here once Phase 2 business logic begins."
+        description="Create classes, workshops, retreats, lectures, challenges, business listings, and sale listings."
       />
       <div className="status-panel">
         <span className="status-dot good" />
@@ -17,19 +52,26 @@ function AdminDashboardPage() {
           Signed in as <strong>{userProfile?.name || userProfile?.email}</strong>.
         </span>
       </div>
-      <div className="feature-grid">
-        <article>
-          <h2>Events</h2>
-          <p>Create, edit, delete, publish, unpublish, and close registration.</p>
-        </article>
-        <article>
-          <h2>Registrations</h2>
-          <p>View registrants, manage attendance, and prepare event rosters.</p>
-        </article>
-        <article>
-          <h2>Reports</h2>
-          <p>Export rosters, attendance, payments, and CSV reports in later phases.</p>
-        </article>
+      {eventsError ? <p className="form-error">{eventsError}</p> : null}
+      <div className="admin-workspace">
+        <EventForm
+          editingEvent={editingEvent}
+          onCancelEdit={() => setEditingEvent(null)}
+          onSaved={() => setEditingEvent(null)}
+          userProfile={userProfile}
+        />
+        <section className="admin-list-panel">
+          <div className="form-section-header">
+            <h2>Existing events</h2>
+            <span>{events.length} total</span>
+          </div>
+          <EventList
+            events={events}
+            loading={loadingEvents}
+            onDelete={handleDelete}
+            onEdit={setEditingEvent}
+          />
+        </section>
       </div>
     </section>
   );

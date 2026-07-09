@@ -117,17 +117,45 @@ Administrator Features
 
 Event Fields
 
-* Title
-* Description
-* Presenter
-* Date
-* Start Time
-* End Time
-* Location
+Required fields are marked with an asterisk.
+
+* Event Type *
+  * Class (Half Day)
+  * Class (Full Day)
+  * Workshop
+  * Retreat
+  * Lecture
+  * Challenges
+  * Business Listing
+  * For Sale
+* Event Date * in MM/DD/YYYY format
+* Event Time *
+  * Half day classes are from 1:30 p.m. to 4:30 p.m.
+  * Full day classes are from 9:30 a.m. to 4:30 p.m.
+  * Workshops are from 9:30 a.m. to 4:30 p.m.
+  * Other
+* Event Location *
+  * Chota Rec Center Room "A", located at 145 Awohili Drive, Loudon, TN
+  * Other
+* Event Name *
+* Presenter/Instructor Name
+* Event Description *
+* Event Photo/Image
+  * Classes allow a maximum of two images.
+  * If no image is supplied, that image slot remains blank.
+* Supply List Upload
+  * For classes and workshops.
+  * PDF format only.
+  * Display as a link in the event form.
+* Payment
+  * Cost of the event
+  * Service fee, default $1.00
+* Listing
+  * List the event on the website now or in the future.
+  * If listing in the future, store the date/time to post and remove the listing.
+  * Enable event registration now or in the future.
+  * If registration opens in the future, store the date/time to enable and disable registration.
 * Maximum Capacity
-* Free / Paid
-* Registration Cost
-* Registration Open/Closed
 * Additional Notes
 
 ⸻

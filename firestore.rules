@@ -25,34 +25,54 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
           'eventId',
           'type',
+          'eventType',
           'title',
           'description',
           'presenter',
           'date',
+          'timePreset',
           'startTime',
           'endTime',
+          'locationPreset',
           'location',
           'capacity',
           'isPaid',
           'cost',
+          'serviceFee',
           'status',
           'registrationOpen',
+          'registrationMode',
+          'registrationOpenAt',
+          'registrationCloseAt',
+          'listingMode',
+          'visibleFrom',
+          'visibleUntil',
+          'imageUrls',
+          'supplyListUrl',
           'additionalNotes',
           'createdBy',
           'createdDate',
           'updatedDate'
         ])
         && request.resource.data.title is string
+        && request.resource.data.eventType is string
         && request.resource.data.description is string
         && request.resource.data.date is string
+        && request.resource.data.timePreset is string
         && request.resource.data.startTime is string
         && request.resource.data.endTime is string
+        && request.resource.data.locationPreset is string
         && request.resource.data.location is string
         && request.resource.data.capacity is number
         && request.resource.data.isPaid is bool
         && request.resource.data.cost is number
+        && request.resource.data.serviceFee is number
         && validStatus(request.resource.data.status, ['Draft', 'Published', 'Closed', 'Cancelled'])
         && request.resource.data.registrationOpen is bool
+        && request.resource.data.registrationMode is string
+        && request.resource.data.listingMode is string
+        && request.resource.data.imageUrls is list
+        && request.resource.data.supplyListUrl is string
         && request.resource.data.createdBy is string
         && request.resource.data.createdDate is timestamp;
     }
