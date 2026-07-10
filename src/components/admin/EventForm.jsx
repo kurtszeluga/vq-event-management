@@ -207,7 +207,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   return (
     <form className="admin-form" noValidate onSubmit={handleSubmit}>
       <div className="form-section-header">
-        <h2>{isEditing ? 'Edit Event' : 'Create Event'}</h2>
+        <h2>{isEditing ? 'Edit Event' : 'Event Details'}</h2>
         {isEditing ? (
           <button className="text-button" type="button" onClick={onCancelEdit}>
             Cancel Edit
@@ -335,28 +335,30 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         </label>
 
         <div className="form-stack-group">
-          <label>
-            <span>Maximum Capacity</span>
-            <input
-              className={fieldErrors.capacity ? 'field-invalid' : ''}
-              disabled={form.capacityUnlimited}
-              min="0"
-              step="1"
-              type="number"
-              value={form.capacity}
-              onChange={(event) => updateField('capacity', event.target.value)}
-            />
-          </label>
-          <label className="checkbox-label">
-            <input
-              checked={form.capacityUnlimited}
-              type="checkbox"
-              onChange={(event) =>
-                updateField('capacityUnlimited', event.target.checked)
-              }
-            />
-            <span>Unlimited Capacity</span>
-          </label>
+          <div className="capacity-row">
+            <label className="checkbox-label">
+              <input
+                checked={form.capacityUnlimited}
+                type="checkbox"
+                onChange={(event) =>
+                  updateField('capacityUnlimited', event.target.checked)
+                }
+              />
+              <span>Unlimited Capacity</span>
+            </label>
+            <label>
+              <span>Maximum Capacity</span>
+              <input
+                className={fieldErrors.capacity ? 'field-invalid' : ''}
+                disabled={form.capacityUnlimited}
+                min="0"
+                step="1"
+                type="number"
+                value={form.capacity}
+                onChange={(event) => updateField('capacity', event.target.value)}
+              />
+            </label>
+          </div>
         </div>
 
         <label className="form-span">
@@ -371,7 +373,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </div>
 
       <div className="form-subsection">
-        <h3>Images And Documents</h3>
+        <h3>Images And Documents (Optional)</h3>
         <div className="form-grid">
           {[0].map((index) => (
             <label key={index}>
@@ -403,7 +405,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           ))}
           {showSupplyListUpload ? (
             <label className="form-span">
-              <span>Supply List PDF Link</span>
+              <span>Supply List PDF Link (Optional)</span>
               <input
                 placeholder="PDF Link"
                 type="url"

@@ -391,6 +391,13 @@ a {
   gap: 12px;
 }
 
+.capacity-row {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(180px, 0.45fr) minmax(0, 1fr);
+}
+
 .form-subsection {
   border-top: 1px solid #e6ddd3;
   display: grid;
@@ -598,6 +605,7 @@ a {
 
   .event-admin-card,
   .event-detail-layout,
+  .capacity-row,
   .form-grid,
   .form-grid.compact {
     grid-template-columns: 1fr;
