@@ -215,7 +215,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         ) : null}
       </div>
 
-      <div className="form-grid">
+      <div className="form-grid stacked">
         <label>
           <span>Event Name *</span>
           <input
@@ -253,72 +253,75 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
         </label>
 
-        <label>
-          <span>Event Time *</span>
-          <select
-            className={fieldErrors.timePreset ? 'field-invalid' : ''}
-            value={form.timePreset}
-            onChange={(event) => handleTimePreset(event.target.value)}
-          >
-            {EVENT_TIME_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="form-row-pair">
+        <div className="form-stack-group">
           <label>
-            <span>Start</span>
-            <input
-              className={fieldErrors.startTime ? 'field-invalid' : ''}
-              disabled={selectedTimeOption?.value !== 'other'}
-              type="time"
-              value={form.startTime}
-              onChange={(event) => updateField('startTime', event.target.value)}
-            />
+            <span>Event Time *</span>
+            <select
+              className={fieldErrors.timePreset ? 'field-invalid' : ''}
+              value={form.timePreset}
+              onChange={(event) => handleTimePreset(event.target.value)}
+            >
+              {EVENT_TIME_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
-          <label>
-            <span>End</span>
-            <input
-              className={fieldErrors.endTime ? 'field-invalid' : ''}
-              disabled={selectedTimeOption?.value !== 'other'}
-              type="time"
-              value={form.endTime}
-              onChange={(event) => updateField('endTime', event.target.value)}
-            />
-          </label>
+          <div className="form-row-pair">
+            <label>
+              <span>Start</span>
+              <input
+                className={fieldErrors.startTime ? 'field-invalid' : ''}
+                disabled={selectedTimeOption?.value !== 'other'}
+                type="time"
+                value={form.startTime}
+                onChange={(event) => updateField('startTime', event.target.value)}
+              />
+            </label>
+            <label>
+              <span>End</span>
+              <input
+                className={fieldErrors.endTime ? 'field-invalid' : ''}
+                disabled={selectedTimeOption?.value !== 'other'}
+                type="time"
+                value={form.endTime}
+                onChange={(event) => updateField('endTime', event.target.value)}
+              />
+            </label>
+          </div>
         </div>
 
-        <label>
-          <span>Event Location *</span>
-          <select
-            className={fieldErrors.locationPreset ? 'field-invalid' : ''}
-            value={form.locationPreset}
-            onChange={(event) => handleLocationPreset(event.target.value)}
-          >
-            {EVENT_LOCATIONS.map((location) => (
-              <option key={location.value} value={location.value}>
-                {location.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {form.locationPreset === 'other' ? (
+        <div className="form-stack-group">
           <label>
-            <span>Other Location *</span>
-            <input
-              className={fieldErrors.location ? 'field-invalid' : ''}
-              value={form.location}
-              onChange={(event) => updateField('location', event.target.value)}
-              onBlur={(event) =>
-                updateField('location', toTitleCase(event.target.value))
-              }
-            />
+            <span>Event Location *</span>
+            <select
+              className={fieldErrors.locationPreset ? 'field-invalid' : ''}
+              value={form.locationPreset}
+              onChange={(event) => handleLocationPreset(event.target.value)}
+            >
+              {EVENT_LOCATIONS.map((location) => (
+                <option key={location.value} value={location.value}>
+                  {location.label}
+                </option>
+              ))}
+            </select>
           </label>
-        ) : null}
+
+          {form.locationPreset === 'other' ? (
+            <label>
+              <span>Other Location *</span>
+              <input
+                className={fieldErrors.location ? 'field-invalid' : ''}
+                value={form.location}
+                onChange={(event) => updateField('location', event.target.value)}
+                onBlur={(event) =>
+                  updateField('location', toTitleCase(event.target.value))
+                }
+              />
+            </label>
+          ) : null}
+        </div>
 
         <label>
           <span>Presenter/Instructor Name</span>
@@ -331,28 +334,30 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           />
         </label>
 
-        <label>
-          <span>Maximum Capacity</span>
-          <input
-            className={fieldErrors.capacity ? 'field-invalid' : ''}
-            disabled={form.capacityUnlimited}
-            min="0"
-            step="1"
-            type="number"
-            value={form.capacity}
-            onChange={(event) => updateField('capacity', event.target.value)}
-          />
-        </label>
-        <label className="checkbox-label">
-          <input
-            checked={form.capacityUnlimited}
-            type="checkbox"
-            onChange={(event) =>
-              updateField('capacityUnlimited', event.target.checked)
-            }
-          />
-          <span>Unlimited Capacity</span>
-        </label>
+        <div className="form-stack-group">
+          <label>
+            <span>Maximum Capacity</span>
+            <input
+              className={fieldErrors.capacity ? 'field-invalid' : ''}
+              disabled={form.capacityUnlimited}
+              min="0"
+              step="1"
+              type="number"
+              value={form.capacity}
+              onChange={(event) => updateField('capacity', event.target.value)}
+            />
+          </label>
+          <label className="checkbox-label">
+            <input
+              checked={form.capacityUnlimited}
+              type="checkbox"
+              onChange={(event) =>
+                updateField('capacityUnlimited', event.target.checked)
+              }
+            />
+            <span>Unlimited Capacity</span>
+          </label>
+        </div>
 
         <label className="form-span">
           <span>Event Description *</span>
