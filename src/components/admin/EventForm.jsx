@@ -336,16 +336,21 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
         <div className="form-stack-group">
           <div className="capacity-row">
-            <label className="checkbox-label">
-              <input
-                checked={form.capacityUnlimited}
-                type="checkbox"
-                onChange={(event) =>
-                  updateField('capacityUnlimited', event.target.checked)
-                }
-              />
-              <span>Unlimited Capacity</span>
-            </label>
+            <div className="capacity-checkbox-field">
+              <span className="field-label-spacer" aria-hidden="true">
+                Capacity Option
+              </span>
+              <label className="checkbox-label">
+                <input
+                  checked={form.capacityUnlimited}
+                  type="checkbox"
+                  onChange={(event) =>
+                    updateField('capacityUnlimited', event.target.checked)
+                  }
+                />
+                <span>Unlimited Capacity</span>
+              </label>
+            </div>
             <label>
               <span>Maximum Capacity</span>
               <input
@@ -504,7 +509,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               </select>
             </label>
             {form.listingMode === 'future' ? (
-              <div className="form-row-pair">
+              <div className="form-row-pair nested-fields">
                 <label>
                   <span>Post Listing</span>
                   <input
@@ -546,7 +551,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               </select>
             </label>
             {form.registrationMode === 'future' ? (
-              <div className="form-row-pair">
+              <div className="form-row-pair nested-fields">
                 <label>
                   <span>Enable Registration</span>
                   <input

@@ -288,6 +288,14 @@ a {
   margin: 0;
 }
 
+.form-section-header h2 {
+  font-size: 1.55rem;
+}
+
+.form-subsection h3 {
+  font-size: 1.2rem;
+}
+
 .form-section-header span {
   color: #687572;
   font-weight: 800;
@@ -316,8 +324,10 @@ a {
 
 .admin-form label span,
 .form-row-pair label span,
-.radio-field > span {
+.radio-field > span,
+.field-label-spacer {
   color: #3b4b48;
+  font-size: 1rem;
   font-weight: 800;
 }
 
@@ -402,6 +412,15 @@ a {
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(180px, 0.45fr) minmax(0, 1fr);
+}
+
+.capacity-checkbox-field {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label-spacer {
+  visibility: hidden;
 }
 
 .form-subsection {
