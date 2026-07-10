@@ -601,6 +601,16 @@ a {
   padding: 12px;
 }
 
+.form-success {
+  background: #edf8f1;
+  border: 1px solid #b9dfc5;
+  border-radius: 8px;
+  color: #225c3d;
+  font-weight: 700;
+  margin: 0;
+  padding: 12px;
+}
+
 .not-found {
   display: grid;
   gap: 14px;

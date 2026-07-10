@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DEFAULT_EVENT_FORM,
   EVENT_LOCATIONS,
@@ -20,20 +20,18 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [pickingField, setPickingField] = useState('');
   const [saving, setSaving] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const isEditing = Boolean(editingEvent);
 
   useEffect(() => {
     setForm(getInitialForm(editingEvent));
   }, [editingEvent]);
 
-  const selectedTimeOption = useMemo(
-    () => EVENT_TIME_OPTIONS.find((option) => option.value === form.timePreset),
-    [form.timePreset]
-  );
   const eventLabel = form.eventType || 'Event';
   const showSupplyListUpload = supportsSupplyList(form.eventType);
 
   function updateField(name, value) {
+    setSuccessMessage('');
     setForm((current) => ({ ...current, [name]: value }));
     setFieldErrors((current) => {
       if (!current[name]) {
@@ -47,16 +45,18 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   }
 
   function handleTimePreset(value) {
+    setSuccessMessage('');
     const option = EVENT_TIME_OPTIONS.find((item) => item.value === value);
     setForm((current) => ({
       ...current,
       timePreset: value,
-      startTime: option?.startTime || current.startTime,
-      endTime: option?.endTime || current.endTime
+      startTime: option?.startTime || '',
+      endTime: option?.endTime || ''
     }));
   }
 
   function handleEventType(value) {
+    setSuccessMessage('');
     const nextTimePreset = eventTypeTimePresetMap[value];
     const nextTimeOption = EVENT_TIME_OPTIONS.find(
       (item) => item.value === nextTimePreset
@@ -85,6 +85,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   }
 
   function handleLocationPreset(value) {
+    setSuccessMessage('');
     const location = EVENT_LOCATIONS.find((item) => item.value === value);
     setForm((current) => ({
       ...current,
@@ -94,6 +95,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   }
 
   function handleImageUrl(index, value) {
+    setSuccessMessage('');
     setForm((current) => {
       const imageUrls = [...current.imageUrls];
       imageUrls[index] = value;
@@ -102,6 +104,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   }
 
   function handleFeeSelection(value) {
+    setSuccessMessage('');
     setForm((current) => ({
       ...current,
       isPaid: value,
@@ -119,10 +122,12 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setError('');
     setFieldErrors({});
     setPickingField('');
+    setSuccessMessage('The form has been reset.');
   }
 
   async function handleDriveSelection(fieldName, options = {}) {
     setError('');
+    setSuccessMessage('');
     setPickingField(fieldName);
 
     try {
@@ -149,6 +154,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    setSuccessMessage('');
     const validationErrors = validateEventForm(form);
 
     if (Object.keys(validationErrors).length) {
@@ -201,6 +207,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       }
 
       setForm(DEFAULT_EVENT_FORM);
+      setSuccessMessage(isEditing ? 'Event changes saved.' : 'Event created.');
       onSaved();
     } catch (saveError) {
       setError(saveError.message);
@@ -228,7 +235,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             value={form.eventType}
             onChange={(event) => handleEventType(event.target.value)}
           >
-            <option aria-label="Select Event Type" value="" />
+            <option value="">Select One</option>
             {EVENT_TYPES.map((eventType) => (
               <option key={eventType} value={eventType}>
                 {eventType}
@@ -266,7 +273,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               value={form.timePreset}
               onChange={(event) => handleTimePreset(event.target.value)}
             >
-              <option aria-label="Select Event Time" value="" />
+              <option value="">Select One</option>
               {EVENT_TIME_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -274,28 +281,30 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               ))}
             </select>
           </label>
-          <div className="form-row-pair nested-fields">
-            <label>
-              <span>Start</span>
-              <input
-                className={fieldErrors.startTime ? 'field-invalid' : ''}
-                disabled={selectedTimeOption?.value !== 'other'}
-                type="time"
-                value={form.startTime}
-                onChange={(event) => updateField('startTime', event.target.value)}
-              />
-            </label>
-            <label>
-              <span>End</span>
-              <input
-                className={fieldErrors.endTime ? 'field-invalid' : ''}
-                disabled={selectedTimeOption?.value !== 'other'}
-                type="time"
-                value={form.endTime}
-                onChange={(event) => updateField('endTime', event.target.value)}
-              />
-            </label>
-          </div>
+          {form.timePreset === 'other' ? (
+            <div className="form-row-pair nested-fields">
+              <label>
+                <span>Start</span>
+                <input
+                  className={fieldErrors.startTime ? 'field-invalid' : ''}
+                  type="time"
+                  value={form.startTime}
+                  onChange={(event) =>
+                    updateField('startTime', event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>End</span>
+                <input
+                  className={fieldErrors.endTime ? 'field-invalid' : ''}
+                  type="time"
+                  value={form.endTime}
+                  onChange={(event) => updateField('endTime', event.target.value)}
+                />
+              </label>
+            </div>
+          ) : null}
         </div>
 
         <div className="form-stack-group">
@@ -306,7 +315,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               value={form.locationPreset}
               onChange={(event) => handleLocationPreset(event.target.value)}
             >
-              <option aria-label="Select Event Location" value="" />
+              <option value="">Select One</option>
               {EVENT_LOCATIONS.map((location) => (
                 <option key={location.value} value={location.value}>
                   {location.label}
@@ -510,7 +519,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 value={form.listingMode}
                 onChange={(event) => updateField('listingMode', event.target.value)}
               >
-                <option aria-label="Select Listing Timing" value="" />
+                <option value="">Select One</option>
                 <option value="now">Now</option>
                 <option value="future">In The Future</option>
               </select>
@@ -552,7 +561,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   updateField('registrationMode', event.target.value)
                 }
               >
-                <option aria-label="Select Registration Timing" value="" />
+                <option value="">Select One</option>
                 <option value="now">Now</option>
                 <option value="future">In The Future</option>
               </select>
@@ -592,6 +601,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </div>
 
       {error ? <p className="form-error">{error}</p> : null}
+      {successMessage ? <p className="form-success">{successMessage}</p> : null}
       <div className="form-actions">
         <button
           className="button-link button-reset"
@@ -623,11 +633,11 @@ function validateEventForm(form) {
     errors.timePreset = 'Event time is required.';
   }
 
-  if (!form.startTime) {
+  if (form.timePreset === 'other' && !form.startTime) {
     errors.startTime = 'Start time is required.';
   }
 
-  if (!form.endTime) {
+  if (form.timePreset === 'other' && !form.endTime) {
     errors.endTime = 'End time is required.';
   }
 
