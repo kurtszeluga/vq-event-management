@@ -27,6 +27,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setForm(getInitialForm(editingEvent));
   }, [editingEvent]);
 
+  const eventTypeSelected = Boolean(form.eventType);
   const eventLabel = form.eventType || 'Event';
   const showSupplyListUpload = supportsSupplyList(form.eventType);
 
@@ -248,7 +249,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         </label>
 
         <label>
-          <span>{eventLabel} Name *</span>
+          <span>{eventLabel} Title *</span>
           <input
             className={fieldErrors.title ? 'field-invalid' : ''}
             value={form.title}
@@ -273,6 +274,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             <span>{eventLabel} Time *</span>
             <select
               className={fieldErrors.timePreset ? 'field-invalid' : ''}
+              disabled={!eventTypeSelected}
               value={form.timePreset}
               onChange={(event) => handleTimePreset(event.target.value)}
             >
@@ -284,7 +286,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               ))}
             </select>
             <span className="form-help">
-              Class and workshop times fill in automatically.
+              Chose Other to enter a specific time.
             </span>
           </label>
           {form.timePreset === 'other' ? (
@@ -293,6 +295,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 <span>Start</span>
                 <input
                   className={fieldErrors.startTime ? 'field-invalid' : ''}
+                  disabled={!eventTypeSelected}
                   type="time"
                   value={form.startTime}
                   onChange={(event) =>
@@ -304,6 +307,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 <span>End</span>
                 <input
                   className={fieldErrors.endTime ? 'field-invalid' : ''}
+                  disabled={!eventTypeSelected}
                   type="time"
                   value={form.endTime}
                   onChange={(event) => updateField('endTime', event.target.value)}
@@ -318,6 +322,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             <span>{eventLabel} Location *</span>
             <select
               className={fieldErrors.locationPreset ? 'field-invalid' : ''}
+              disabled={!eventTypeSelected}
               value={form.locationPreset}
               onChange={(event) => handleLocationPreset(event.target.value)}
             >
@@ -338,6 +343,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <span>{eventLabel} Other Location *</span>
               <input
                 className={fieldErrors.location ? 'field-invalid' : ''}
+                disabled={!eventTypeSelected}
                 value={form.location}
                 onChange={(event) => updateField('location', event.target.value)}
                 onBlur={(event) =>
@@ -368,6 +374,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <label className="checkbox-label">
                 <input
                   checked={form.capacityUnlimited}
+                  disabled={!eventTypeSelected}
                   type="checkbox"
                   onChange={(event) =>
                     updateField('capacityUnlimited', event.target.checked)
@@ -380,7 +387,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <span>{eventLabel} Maximum Capacity</span>
               <input
                 className={fieldErrors.capacity ? 'field-invalid' : ''}
-                disabled={form.capacityUnlimited}
+                disabled={!eventTypeSelected || form.capacityUnlimited}
                 min="0"
                 step="1"
                 type="number"
@@ -422,6 +429,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               </span>
               <button
                 className="text-button"
+                disabled={!eventTypeSelected || Boolean(pickingField)}
                 type="button"
                 onClick={() =>
                   handleDriveSelection(`image-${index}`, {
@@ -452,6 +460,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               />
               <button
                 className="text-button"
+                disabled={!eventTypeSelected || Boolean(pickingField)}
                 type="button"
                 onClick={() =>
                   handleDriveSelection('supplyListUrl', {
@@ -483,6 +492,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <label className="checkbox-label">
                 <input
                   checked={form.isPaid === true}
+                  disabled={!eventTypeSelected}
                   name="isPaid"
                   type="radio"
                   onChange={() => handleFeeSelection(true)}
@@ -492,6 +502,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <label className="checkbox-label">
                 <input
                   checked={form.isPaid === false}
+                  disabled={!eventTypeSelected}
                   name="isPaid"
                   type="radio"
                   onChange={() => handleFeeSelection(false)}
@@ -543,6 +554,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <span>List On Website</span>
               <select
                 className={fieldErrors.listingMode ? 'field-invalid' : ''}
+                disabled={!eventTypeSelected}
                 value={form.listingMode}
                 onChange={(event) => updateField('listingMode', event.target.value)}
               >
@@ -560,6 +572,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   <span>Post Listing</span>
                   <input
                     className={fieldErrors.visibleFrom ? 'field-invalid' : ''}
+                    disabled={!eventTypeSelected}
                     type="datetime-local"
                     value={form.visibleFrom}
                     onChange={(event) =>
@@ -571,6 +584,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   <span>Remove Listing</span>
                   <input
                     className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
+                    disabled={!eventTypeSelected}
                     type="datetime-local"
                     value={form.visibleUntil}
                     onChange={(event) =>
@@ -586,6 +600,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <span>Enable Event Registration</span>
               <select
                 className={fieldErrors.registrationMode ? 'field-invalid' : ''}
+                disabled={!eventTypeSelected}
                 value={form.registrationMode}
                 onChange={(event) =>
                   updateField('registrationMode', event.target.value)
@@ -607,6 +622,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     className={
                       fieldErrors.registrationOpenAt ? 'field-invalid' : ''
                     }
+                    disabled={!eventTypeSelected}
                     type="datetime-local"
                     value={form.registrationOpenAt}
                     onChange={(event) =>
@@ -620,6 +636,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     className={
                       fieldErrors.registrationCloseAt ? 'field-invalid' : ''
                     }
+                    disabled={!eventTypeSelected}
                     type="datetime-local"
                     value={form.registrationCloseAt}
                     onChange={(event) =>
@@ -683,7 +700,7 @@ function validateEventForm(form) {
   }
 
   if (!form.title.trim()) {
-    errors.title = 'Event name is required.';
+    errors.title = 'Event title is required.';
   }
 
   if (!form.description.trim()) {

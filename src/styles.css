@@ -381,7 +381,8 @@ a {
   font-weight: 700;
 }
 
-.admin-form input:disabled {
+.admin-form input:disabled,
+.admin-form select:disabled {
   background: #eee8e1;
   color: #6d7471;
 }
@@ -488,6 +489,12 @@ a {
 
 .danger-button {
   color: #9a341f;
+}
+
+.text-button:disabled,
+.danger-button:disabled {
+  color: #8b9693;
+  cursor: not-allowed;
 }
 
 .event-admin-list,
