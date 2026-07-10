@@ -307,7 +307,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   return (
     <form className="admin-form" noValidate onSubmit={handleSubmit}>
       <div className="form-section-header">
-        <h2>{isEditing ? 'Edit Event' : 'Event Details'}</h2>
+        <h2>{isEditing ? 'Edit Event' : 'Event/Activity Details'}</h2>
         {isEditing ? (
           <button className="text-button" type="button" onClick={onCancelEdit}>
             Cancel Edit
@@ -716,10 +716,10 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       ) : null}
 
       <div className="form-subsection">
-        <h3>Event Fees</h3>
+        <h3>Event/Activity Fees</h3>
         <div className="form-grid compact">
           <div className={`radio-field ${fieldErrors.isPaid ? 'field-invalid' : ''}`}>
-            <span>Is There A Fee For This Event? *</span>
+            <span>Is There a Fee For This Event or Activity? *</span>
             <span className="form-help">
               Choose No for free events.
             </span>

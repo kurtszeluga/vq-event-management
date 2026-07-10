@@ -93,7 +93,7 @@ Initial Pages
 
 * Home
 * Events
-* Event Details
+* Event/Activity Details
 * Register
 * Login
 * Admin Dashboard
