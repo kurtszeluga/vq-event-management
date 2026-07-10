@@ -119,16 +119,10 @@ function EventDetailsPage() {
           )}
         </div>
         <div className="event-image-grid">
-          {[0, 1].map((index) =>
-            event.imageUrls?.[index] ? (
-              <img
-                alt={`${event.title} image ${index + 1}`}
-                key={index}
-                src={event.imageUrls[index]}
-              />
-            ) : (
-              <div className="image-placeholder" key={index} />
-            )
+          {event.imageUrls?.[0] ? (
+            <img alt={`${event.title} image`} src={event.imageUrls[0]} />
+          ) : (
+            <div className="image-placeholder" />
           )}
         </div>
       </div>

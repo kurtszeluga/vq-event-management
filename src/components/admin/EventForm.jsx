@@ -151,7 +151,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       description: form.description.trim(),
       endTime: form.endTime,
       eventType: form.eventType,
-      imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 2),
+      imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
       isPaid: Boolean(form.isPaid),
       listingMode: form.listingMode,
       location: toTitleCase(form.location.trim()),
@@ -355,9 +355,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       <div className="form-subsection">
         <h3>Images And Documents</h3>
         <div className="form-grid">
-          {[0, 1].map((index) => (
+          {[0].map((index) => (
             <label key={index}>
-              <span>Event Photo/Image {index + 1}</span>
+              <span>Event Photo/Image</span>
               <input
                 placeholder="Image URL"
                 type="url"
@@ -643,8 +643,7 @@ function getInitialForm(editingEvent) {
     capacityUnlimited: Boolean(editingEvent.capacityUnlimited),
     cost: String(editingEvent.cost ?? 0),
     imageUrls: [
-      editingEvent.imageUrls?.[0] || '',
-      editingEvent.imageUrls?.[1] || ''
+      editingEvent.imageUrls?.[0] || ''
     ],
     serviceFee: String(editingEvent.serviceFee ?? '1.00')
   };
