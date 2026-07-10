@@ -454,7 +454,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             <div className="image-upload-field" key={index}>
               <span className="field-label">Photo/Image Upload</span>
               <input
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 className="visually-hidden-file"
                 disabled={!eventTypeSelected || Boolean(uploadingField)}
                 ref={imageInputRef}
@@ -478,7 +478,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 </div>
               )}
               <span className="form-help">
-                Choose JPG, PNG, or WebP. The app resizes it before saving.
+                Choose an image from your device. The app resizes it before saving.
               </span>
               {uploadingField === `image-${index}` ? (
                 <span className="form-help">Uploading image...</span>

@@ -519,8 +519,7 @@ a {
   width: 1px !important;
 }
 
-.uploaded-image-preview,
-.uploaded-image-placeholder {
+.uploaded-image-preview {
   aspect-ratio: 4 / 3;
   border: 1px solid #ded5ca;
   border-radius: 8px;
@@ -536,11 +535,17 @@ a {
 .uploaded-image-placeholder {
   align-items: center;
   background: #eee8e1;
+  border: 1px dashed #c9bbb0;
+  border-radius: 8px;
   color: #687572;
   display: flex;
+  font-size: 0.92rem;
   font-weight: 800;
   justify-content: center;
-  min-height: 220px;
+  min-height: 72px;
+  max-width: 220px;
+  padding: 14px;
+  width: 100%;
 }
 
 .file-action-row {

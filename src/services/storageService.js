@@ -11,8 +11,8 @@ export async function uploadEventImage(file, userProfile) {
     throw new Error('Firebase Storage is not configured.');
   }
 
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file?.type)) {
-    throw new Error('Choose a JPG, PNG, or WebP image.');
+  if (!file?.type?.startsWith('image/')) {
+    throw new Error('Choose an image file.');
   }
 
   const resizedImage = await resizeImage(file);
@@ -56,19 +56,19 @@ export async function deleteEventFile(fileUrl) {
 }
 
 async function resizeImage(file) {
-  const bitmap = await createImageBitmap(file);
+  const image = await decodeImage(file);
   const scale = Math.min(
-    IMAGE_MAX_WIDTH / bitmap.width,
-    IMAGE_MAX_HEIGHT / bitmap.height,
+    IMAGE_MAX_WIDTH / image.width,
+    IMAGE_MAX_HEIGHT / image.height,
     1
   );
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
+  canvas.width = Math.round(image.width * scale);
+  canvas.height = Math.round(image.height * scale);
 
   const context = canvas.getContext('2d');
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
+  context.drawImage(image.source, 0, 0, canvas.width, canvas.height);
+  image.close?.();
 
   for (let quality = 0.85; quality >= 0.55; quality -= 0.1) {
     const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
@@ -82,6 +82,45 @@ async function resizeImage(file) {
   }
 
   throw new Error('Image is too large. Choose a smaller image.');
+}
+
+async function decodeImage(file) {
+  if ('createImageBitmap' in window) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      return {
+        close: () => bitmap.close(),
+        height: bitmap.height,
+        source: bitmap,
+        width: bitmap.width
+      };
+    } catch {
+      // Some mobile browsers do not decode every photo-library format here.
+    }
+  }
+
+  return loadImageElement(file);
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const imageUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      resolve({
+        close: () => URL.revokeObjectURL(imageUrl),
+        height: image.naturalHeight,
+        source: image,
+        width: image.naturalWidth
+      });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl);
+      reject(new Error('Image could not be opened. Choose a JPG, PNG, or WebP image.'));
+    };
+    image.src = imageUrl;
+  });
 }
 
 function canvasToBlob(canvas, type, quality) {
@@ -101,7 +140,12 @@ function canvasToBlob(canvas, type, quality) {
 }
 
 function getAssetPath(folder, fileName, userProfile) {
-  const userId = userProfile?.userId || userProfile?.id || 'admin';
+  const userId = userProfile?.userId || userProfile?.id;
+
+  if (!userId) {
+    throw new Error('Your admin profile is still loading. Try the upload again.');
+  }
+
   const safeFileName = slugify(fileName);
   return `${folder}/${userId}/${Date.now()}-${safeFileName}`;
 }
