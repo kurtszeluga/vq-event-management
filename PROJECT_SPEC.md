@@ -143,6 +143,8 @@ Required fields are marked with an asterisk.
 * Photo/Image Upload
   * Allow one event image.
   * Resize uploaded images to a maximum of 1600 x 1200 pixels and 1 MB.
+  * Show an uploaded image preview large enough for administrators to confirm the correct image.
+  * Allow administrators to change or remove the uploaded image.
   * If no image is supplied, that image slot remains blank.
 * Supporting Document Upload
   * For classes and workshops.

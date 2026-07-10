@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_EVENT_FORM,
   EVENT_LOCATIONS,
@@ -7,6 +7,7 @@ import {
 } from '../../data/eventOptions.js';
 import { createEvent, updateEvent } from '../../services/eventService.js';
 import {
+  deleteEventFile,
   uploadEventImage,
   uploadEventPdf
 } from '../../services/storageService.js';
@@ -18,6 +19,7 @@ const eventTypeTimePresetMap = {
 };
 
 function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
+  const imageInputRef = useRef(null);
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
@@ -139,18 +141,47 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setUploadingField(fieldName);
 
     try {
+      const previousImageUrl = options.imageIndex !== undefined
+        ? form.imageUrls[options.imageIndex]
+        : '';
       const fileUrl = options.imageIndex !== undefined
         ? await uploadEventImage(file, userProfile)
         : await uploadEventPdf(file, userProfile);
 
       if (options.imageIndex !== undefined) {
         handleImageUrl(options.imageIndex, fileUrl);
+        if (previousImageUrl && previousImageUrl !== fileUrl) {
+          await deleteEventFile(previousImageUrl).catch(() => {});
+        }
       } else {
         updateField(fieldName, fileUrl);
       }
       setSuccessMessage('File uploaded.');
     } catch (pickerError) {
       setError(pickerError.message);
+    } finally {
+      setUploadingField('');
+    }
+  }
+
+  async function handleRemoveImage(index) {
+    const imageUrl = form.imageUrls[index];
+
+    if (!imageUrl) {
+      return;
+    }
+
+    setError('');
+    setSuccessMessage('');
+    setUploadingField(`remove-image-${index}`);
+
+    try {
+      await deleteEventFile(imageUrl);
+      handleImageUrl(index, '');
+      setSuccessMessage('Image removed.');
+    } catch (deleteError) {
+      handleImageUrl(index, '');
+      setError(`Image removed from the event, but the stored file could not be deleted. ${deleteError.message}`);
     } finally {
       setUploadingField('');
     }
@@ -420,30 +451,67 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <h3>Images And Documents (Optional)</h3>
         <div className="form-grid">
           {[0].map((index) => (
-            <label key={index}>
-              <span>Photo/Image Upload</span>
+            <div className="image-upload-field" key={index}>
+              <span className="field-label">Photo/Image Upload</span>
               <input
                 accept="image/jpeg,image/png,image/webp"
+                className="visually-hidden-file"
                 disabled={!eventTypeSelected || Boolean(uploadingField)}
+                ref={imageInputRef}
                 type="file"
-                onChange={(event) =>
-                  handleFileUpload(`image-${index}`, event.target.files?.[0], {
+                onChange={async (event) => {
+                  await handleFileUpload(`image-${index}`, event.target.files?.[0], {
                     imageIndex: index
-                  })
-                }
+                  });
+                  event.target.value = '';
+                }}
               />
+              {form.imageUrls[index] ? (
+                <img
+                  alt="Uploaded event preview"
+                  className="uploaded-image-preview"
+                  src={form.imageUrls[index]}
+                />
+              ) : (
+                <div className="uploaded-image-placeholder">
+                  No Image Selected
+                </div>
+              )}
               <span className="form-help">
                 Choose JPG, PNG, or WebP. The app resizes it before saving.
               </span>
               {uploadingField === `image-${index}` ? (
                 <span className="form-help">Uploading image...</span>
               ) : null}
-              {form.imageUrls[index] ? (
-                <a className="text-button" href={form.imageUrls[index]}>
-                  View Uploaded Image
-                </a>
+              {uploadingField === `remove-image-${index}` ? (
+                <span className="form-help">Removing image...</span>
               ) : null}
-            </label>
+              <div className="file-action-row">
+                <button
+                  className="text-button"
+                  disabled={!eventTypeSelected || Boolean(uploadingField)}
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  {form.imageUrls[index] ? 'Change Image' : 'Choose Image'}
+                </button>
+                {form.imageUrls[index] ? (
+                  <>
+                    <a className="text-button" href={form.imageUrls[index]}>
+                      View Full Size
+                    </a>
+                    <button
+                      className="danger-button"
+                      disabled={!eventTypeSelected || Boolean(uploadingField)}
+                      type="button"
+                      onClick={() => handleRemoveImage(index)}
+                    >
+                      Remove Image
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
           ))}
           {showSupplyListUpload ? (
             <label className="form-span">

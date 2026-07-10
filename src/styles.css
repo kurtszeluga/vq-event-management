@@ -351,6 +351,7 @@ a {
 }
 
 .admin-form label span,
+.admin-form .field-label,
 .form-row-pair label span,
 .radio-field > span,
 .field-label-spacer {
@@ -501,6 +502,52 @@ a {
 .checkbox-label input {
   height: auto;
   width: auto;
+}
+
+.image-upload-field {
+  display: grid;
+  gap: 10px;
+}
+
+.visually-hidden-file {
+  height: 1px !important;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 !important;
+  position: absolute;
+  pointer-events: none;
+  width: 1px !important;
+}
+
+.uploaded-image-preview,
+.uploaded-image-placeholder {
+  aspect-ratio: 4 / 3;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  max-width: 360px;
+  width: 100%;
+}
+
+.uploaded-image-preview {
+  background: #eee8e1;
+  object-fit: cover;
+}
+
+.uploaded-image-placeholder {
+  align-items: center;
+  background: #eee8e1;
+  color: #687572;
+  display: flex;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.file-action-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
 .text-button,

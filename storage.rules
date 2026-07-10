@@ -25,12 +25,14 @@ service firebase.storage {
 
     match /event-images/{userId}/{fileName} {
       allow read: if true;
-      allow write: if isAdmin() && request.auth.uid == userId && validImageUpload();
+      allow create, update: if isAdmin() && request.auth.uid == userId && validImageUpload();
+      allow delete: if isAdmin() && request.auth.uid == userId;
     }
 
     match /event-documents/{userId}/{fileName} {
       allow read: if true;
-      allow write: if isAdmin() && request.auth.uid == userId && validPdfUpload();
+      allow create, update: if isAdmin() && request.auth.uid == userId && validPdfUpload();
+      allow delete: if isAdmin() && request.auth.uid == userId;
     }
   }
 }

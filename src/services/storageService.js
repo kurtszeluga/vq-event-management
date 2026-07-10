@@ -1,4 +1,4 @@
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { storage } from '../lib/firebase.js';
 
 const IMAGE_MAX_WIDTH = 1600;
@@ -45,6 +45,14 @@ export async function uploadEventPdf(file, userProfile) {
   });
 
   return getDownloadURL(snapshot.ref);
+}
+
+export async function deleteEventFile(fileUrl) {
+  if (!storage || !fileUrl) {
+    return;
+  }
+
+  await deleteObject(ref(storage, fileUrl));
 }
 
 async function resizeImage(file) {
