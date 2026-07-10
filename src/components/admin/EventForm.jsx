@@ -25,6 +25,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [previewFile, setPreviewFile] = useState(null);
+  const [uploadMessage, setUploadMessage] = useState('');
   const [uploadingField, setUploadingField] = useState('');
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -131,6 +132,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setForm(getInitialForm(editingEvent));
     setError('');
     setFieldErrors({});
+    setUploadMessage('');
     setUploadingField('');
     setSuccessMessage('The form has been reset.');
   }
@@ -141,6 +143,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     }
 
     setError('');
+    setUploadMessage('');
     setSuccessMessage('');
     setUploadingField(fieldName);
 
@@ -161,16 +164,20 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           await deleteEventFile(previousImageUrl).catch(() => {});
         }
       } else {
-        updateField(fieldName, fileUrl.url);
-        updateField('supplyListFileName', fileUrl.fileName);
-        if (!form.supplyListTitle.trim()) {
-          updateField('supplyListTitle', toTitleCase(stripFileExtension(fileUrl.fileName)));
-        }
+        const nextTitle = form.supplyListTitle.trim()
+          ? form.supplyListTitle
+          : toTitleCase(stripFileExtension(fileUrl.fileName));
+        setForm((current) => ({
+          ...current,
+          [fieldName]: fileUrl.url,
+          supplyListFileName: fileUrl.fileName,
+          supplyListTitle: nextTitle
+        }));
         if (previousFileUrl && previousFileUrl !== fileUrl.url) {
           await deleteEventFile(previousFileUrl).catch(() => {});
         }
       }
-      setSuccessMessage('File uploaded.');
+      setUploadMessage(options.imageIndex !== undefined ? 'Image uploaded.' : 'Document uploaded.');
     } catch (pickerError) {
       setError(pickerError.message);
     } finally {
@@ -186,13 +193,14 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     }
 
     setError('');
+    setUploadMessage('');
     setSuccessMessage('');
     setUploadingField(`remove-image-${index}`);
 
     try {
       await deleteEventFile(imageUrl);
       handleImageUrl(index, '');
-      setSuccessMessage('Image removed.');
+      setUploadMessage('Image removed.');
     } catch (deleteError) {
       handleImageUrl(index, '');
       setError(`Image removed from the event, but the stored file could not be deleted. ${deleteError.message}`);
@@ -209,6 +217,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     }
 
     setError('');
+    setUploadMessage('');
     setSuccessMessage('');
     setUploadingField('remove-supplyListUrl');
 
@@ -218,7 +227,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       updateField('supplyListFileName', '');
       updateField('supplyListTitle', '');
       setPreviewFile(null);
-      setSuccessMessage('Document removed.');
+      setUploadMessage('Document removed.');
     } catch (deleteError) {
       updateField('supplyListUrl', '');
       updateField('supplyListFileName', '');
@@ -233,6 +242,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    setUploadMessage('');
     setSuccessMessage('');
     const validationErrors = validateEventForm(form);
 
@@ -554,6 +564,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   {uploadingField === `remove-image-${index}` ? (
                     <span className="form-help">Removing image...</span>
                   ) : null}
+                  {uploadMessage.includes('Image') ? (
+                    <span className="upload-inline-success">{uploadMessage}</span>
+                  ) : null}
                 </div>
                 {form.imageUrls[index] ? (
                   <img
@@ -658,6 +671,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               ) : null}
               {uploadingField === 'remove-supplyListUrl' ? (
                 <span className="form-help">Removing PDF...</span>
+              ) : null}
+              {uploadMessage.includes('Document') ? (
+                <span className="upload-inline-success">{uploadMessage}</span>
               ) : null}
             </div>
           ) : null}

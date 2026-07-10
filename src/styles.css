@@ -621,6 +621,12 @@ a {
   max-width: 100%;
 }
 
+.upload-inline-success {
+  color: #225c3d;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
 .file-action-row {
   align-items: start;
   display: grid;
