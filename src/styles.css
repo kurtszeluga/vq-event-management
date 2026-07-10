@@ -567,6 +567,10 @@ a {
   gap: 10px;
 }
 
+.upload-wide-help {
+  max-width: 100%;
+}
+
 .file-action-row {
   align-items: start;
   display: grid;

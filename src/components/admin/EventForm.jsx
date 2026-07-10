@@ -501,15 +501,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               />
               <div className="upload-preview-layout">
                 <div className="upload-control-panel">
-                  <span className="form-help">
-                    Choose an image from your device. The app resizes it before saving.
-                  </span>
-                  {uploadingField === `image-${index}` ? (
-                    <span className="form-help">Uploading image...</span>
-                  ) : null}
-                  {uploadingField === `remove-image-${index}` ? (
-                    <span className="form-help">Removing image...</span>
-                  ) : null}
                   <div className="file-action-row">
                     <button
                       className="text-button"
@@ -545,6 +536,12 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                       </button>
                     ) : null}
                   </div>
+                  {uploadingField === `image-${index}` ? (
+                    <span className="form-help">Uploading image...</span>
+                  ) : null}
+                  {uploadingField === `remove-image-${index}` ? (
+                    <span className="form-help">Removing image...</span>
+                  ) : null}
                 </div>
                 {form.imageUrls[index] ? (
                   <img
@@ -558,6 +555,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   </div>
                 )}
               </div>
+              <span className="form-help upload-wide-help">
+                Choose an image from your device. The app resizes it before saving.
+              </span>
             </div>
           ))}
           {showSupplyListUpload ? (
@@ -576,15 +576,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   event.target.value = '';
                 }}
               />
-              <span className="form-help">
-                Choose one PDF file. The app saves the member link.
-              </span>
-              {uploadingField === 'supplyListUrl' ? (
-                <span className="form-help">Uploading PDF...</span>
-              ) : null}
-              {uploadingField === 'remove-supplyListUrl' ? (
-                <span className="form-help">Removing PDF...</span>
-              ) : null}
               <div className="file-action-row">
                 <button
                   className="text-button"
@@ -620,6 +611,15 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   </>
                 ) : null}
               </div>
+              <span className="form-help">
+                Choose one PDF file. The app saves the member link.
+              </span>
+              {uploadingField === 'supplyListUrl' ? (
+                <span className="form-help">Uploading PDF...</span>
+              ) : null}
+              {uploadingField === 'remove-supplyListUrl' ? (
+                <span className="form-help">Removing PDF...</span>
+              ) : null}
             </div>
           ) : null}
         </div>
