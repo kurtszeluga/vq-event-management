@@ -172,7 +172,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       presenter: toTitleCase(form.presenter.trim()),
       registrationCloseAt: form.registrationCloseAt,
       registrationMode: form.registrationMode,
-      registrationOpen: Boolean(form.registrationOpen),
+      registrationOpen: form.registrationMode === 'now',
       registrationOpenAt: form.registrationOpenAt,
       serviceFee: form.isPaid ? Number(form.serviceFee || 0) : 0,
       startTime: form.startTime,
@@ -481,7 +481,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </div>
 
       <div className="form-subsection">
-        <h3>Listing And Registration</h3>
+        <h3>Website Listing and Event Registration</h3>
         <div className="form-grid">
           <label>
             <span>List On Website</span>
@@ -538,16 +538,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <option value="now">Now</option>
               <option value="future">In The Future</option>
             </select>
-          </label>
-          <label className="checkbox-label">
-            <input
-              checked={form.registrationOpen}
-              type="checkbox"
-              onChange={(event) =>
-                updateField('registrationOpen', event.target.checked)
-              }
-            />
-            <span>Registration Open</span>
           </label>
           {form.registrationMode === 'future' ? (
             <>
