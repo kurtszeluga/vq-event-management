@@ -71,6 +71,7 @@ function App() {
 }
 
 function usePullToRefresh() {
+  const startXRef = useRef(0);
   const startYRef = useRef(0);
   const pullingRef = useRef(false);
   const readyRef = useRef(false);
@@ -79,15 +80,22 @@ function usePullToRefresh() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const maxPull = 112;
-    const refreshThreshold = 82;
+    const maxPull = 118;
+    const refreshThreshold = 58;
 
     function handleTouchStart(event) {
-      if (!isMobileViewport() || window.scrollY > 0 || isInteractive(event.target)) {
+      if (
+        !isMobileViewport() ||
+        !isAtPageTop() ||
+        isInteractive(event.target) ||
+        event.touches.length !== 1
+      ) {
         pullingRef.current = false;
         return;
       }
 
+      readyRef.current = false;
+      startXRef.current = event.touches[0].clientX;
       startYRef.current = event.touches[0].clientY;
       pullingRef.current = true;
     }
@@ -97,7 +105,17 @@ function usePullToRefresh() {
         return;
       }
 
-      const pullDistance = event.touches[0].clientY - startYRef.current;
+      const touch = event.touches[0];
+      const pullDistance = touch.clientY - startYRef.current;
+      const sideDistance = Math.abs(touch.clientX - startXRef.current);
+
+      if (sideDistance > Math.max(22, pullDistance * 0.85)) {
+        pullingRef.current = false;
+        readyRef.current = false;
+        setOffset(-64);
+        setReady(false);
+        return;
+      }
 
       if (pullDistance <= 0) {
         readyRef.current = false;
@@ -107,7 +125,7 @@ function usePullToRefresh() {
       }
 
       event.preventDefault();
-      const dampenedPull = Math.min(maxPull, Math.round(pullDistance * 0.55));
+      const dampenedPull = Math.min(maxPull, Math.round(pullDistance * 0.62));
       const nextReady = dampenedPull >= refreshThreshold;
       readyRef.current = nextReady;
       setOffset(dampenedPull - 64);
@@ -150,6 +168,16 @@ function usePullToRefresh() {
 
 function isMobileViewport() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+}
+
+function isAtPageTop() {
+  const scrollTop =
+    window.scrollY ||
+    document.documentElement.scrollTop ||
+    document.body.scrollTop ||
+    0;
+
+  return scrollTop <= 8;
 }
 
 function isInteractive(target) {
