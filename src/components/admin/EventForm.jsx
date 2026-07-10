@@ -30,6 +30,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     () => EVENT_TIME_OPTIONS.find((option) => option.value === form.timePreset),
     [form.timePreset]
   );
+  const eventLabel = form.eventType || 'Event';
   const showSupplyListUpload = supportsSupplyList(form.eventType);
 
   function updateField(name, value) {
@@ -237,7 +238,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         </label>
 
         <label>
-          <span>Event Name *</span>
+          <span>{eventLabel} Name *</span>
           <input
             className={fieldErrors.title ? 'field-invalid' : ''}
             value={form.title}
@@ -247,7 +248,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         </label>
 
         <label>
-          <span>Event Date *</span>
+          <span>{eventLabel} Date *</span>
           <input
             className={fieldErrors.date ? 'field-invalid' : ''}
             type="date"
@@ -259,7 +260,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
         <div className="form-stack-group">
           <label>
-            <span>Event Time *</span>
+            <span>{eventLabel} Time *</span>
             <select
               className={fieldErrors.timePreset ? 'field-invalid' : ''}
               value={form.timePreset}
@@ -299,7 +300,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
         <div className="form-stack-group">
           <label>
-            <span>Event Location *</span>
+            <span>{eventLabel} Location *</span>
             <select
               className={fieldErrors.locationPreset ? 'field-invalid' : ''}
               value={form.locationPreset}
@@ -316,7 +317,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
           {form.locationPreset === 'other' ? (
             <label className="nested-fields">
-              <span>Other Location *</span>
+              <span>{eventLabel} Other Location *</span>
               <input
                 className={fieldErrors.location ? 'field-invalid' : ''}
                 value={form.location}
@@ -330,7 +331,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         </div>
 
         <label>
-          <span>Presenter/Instructor Name</span>
+          <span>{eventLabel} Presenter/Instructor Name</span>
           <input
             value={form.presenter}
             onChange={(event) => updateField('presenter', event.target.value)}
@@ -358,7 +359,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               </label>
             </div>
             <label>
-              <span>Maximum Capacity</span>
+              <span>{eventLabel} Maximum Capacity</span>
               <input
                 className={fieldErrors.capacity ? 'field-invalid' : ''}
                 disabled={form.capacityUnlimited}
@@ -373,7 +374,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         </div>
 
         <label className="form-span">
-          <span>Event Description *</span>
+          <span>{eventLabel} Description *</span>
           <textarea
             className={fieldErrors.description ? 'field-invalid' : ''}
             rows="5"
