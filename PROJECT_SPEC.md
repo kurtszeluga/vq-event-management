@@ -147,7 +147,7 @@ Required fields are marked with an asterisk.
   * Allow administrators to change or remove the uploaded image.
   * View full-size images inside the form with a close button.
   * If no image is supplied, that image slot remains blank.
-* Supporting Document Upload
+* Supporting Document Upload (i.e. Supply List)
   * For classes and workshops.
   * PDF format only.
   * Display as a link in the event form.

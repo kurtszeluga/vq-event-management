@@ -510,6 +510,12 @@ a {
   gap: 10px;
 }
 
+.document-upload-field {
+  border-top: 2px solid #e6ddd3;
+  margin-top: 22px;
+  padding-top: 30px;
+}
+
 .visually-hidden-file {
   height: 1px !important;
   opacity: 0;

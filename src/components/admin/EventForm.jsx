@@ -562,7 +562,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           ))}
           {showSupplyListUpload ? (
             <div className="document-upload-field form-span">
-              <span className="field-label">Supporting Document Upload</span>
+              <span className="field-label">
+                Supporting Document Upload (i.e. Supply List)
+              </span>
               <input
                 accept="application/pdf"
                 className="visually-hidden-file"
