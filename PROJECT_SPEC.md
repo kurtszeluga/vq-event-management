@@ -140,11 +140,11 @@ Required fields are marked with an asterisk.
 * Event Name *
 * Presenter/Instructor Name
 * Event Description *
-* Event Photo/Image
+* Photo/Image Upload
   * Allow one event image.
   * Resize uploaded images to a maximum of 1600 x 1200 pixels and 1 MB.
   * If no image is supplied, that image slot remains blank.
-* Supply List Upload
+* Supporting Document Upload
   * For classes and workshops.
   * PDF format only.
   * Display as a link in the event form.

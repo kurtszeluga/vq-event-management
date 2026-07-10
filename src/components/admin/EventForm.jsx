@@ -421,7 +421,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <div className="form-grid">
           {[0].map((index) => (
             <label key={index}>
-              <span>Event Photo/Image</span>
+              <span>Photo/Image Upload</span>
               <input
                 accept="image/jpeg,image/png,image/webp"
                 disabled={!eventTypeSelected || Boolean(uploadingField)}
@@ -447,7 +447,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           ))}
           {showSupplyListUpload ? (
             <label className="form-span">
-              <span>Supply List PDF Link (Optional)</span>
+              <span>Supporting Document Upload</span>
               <input
                 accept="application/pdf"
                 disabled={!eventTypeSelected || Boolean(uploadingField)}
