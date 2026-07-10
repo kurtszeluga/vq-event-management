@@ -6,33 +6,33 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return signedIn()
-        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'Admin'
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'Active';
-    }
-
     function validImageUpload() {
       return request.resource.size < 2 * 1024 * 1024
-        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+        && request.resource.contentType.matches('image/.*');
     }
 
     function validPdfUpload() {
       return request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType == 'application/pdf';
+        && (
+          request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'application/octet-stream'
+        );
+    }
+
+    function ownsFolder(userId) {
+      return signedIn() && request.auth.uid == userId;
     }
 
     match /event-images/{userId}/{fileName} {
       allow read: if true;
-      allow create, update: if isAdmin() && request.auth.uid == userId && validImageUpload();
-      allow delete: if isAdmin() && request.auth.uid == userId;
+      allow create, update: if ownsFolder(userId) && validImageUpload();
+      allow delete: if ownsFolder(userId);
     }
 
     match /event-documents/{userId}/{fileName} {
       allow read: if true;
-      allow create, update: if isAdmin() && request.auth.uid == userId && validPdfUpload();
-      allow delete: if isAdmin() && request.auth.uid == userId;
+      allow create, update: if ownsFolder(userId) && validPdfUpload();
+      allow delete: if ownsFolder(userId);
     }
   }
 }
