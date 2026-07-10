@@ -316,12 +316,9 @@ a {
   margin: 0;
 }
 
-.form-section-header h2 {
-  font-size: 1.55rem;
-}
-
+.form-section-header h2,
 .form-subsection h3 {
-  font-size: 1.2rem;
+  font-size: 1.55rem;
 }
 
 .form-section-header span {
@@ -356,7 +353,7 @@ a {
 .radio-field > span,
 .field-label-spacer {
   color: #3b4b48;
-  font-size: 1rem;
+  font-size: 1.06rem;
   font-weight: 800;
 }
 
