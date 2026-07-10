@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'Admin'
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'Active';
+    }
+
+    function validImageUpload() {
+      return request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    function validPdfUpload() {
+      return request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    match /event-images/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && request.auth.uid == userId && validImageUpload();
+    }
+
+    match /event-documents/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && request.auth.uid == userId && validPdfUpload();
+    }
+  }
+}

@@ -6,7 +6,10 @@ import {
   EVENT_TYPES
 } from '../../data/eventOptions.js';
 import { createEvent, updateEvent } from '../../services/eventService.js';
-import { pickGoogleDriveFile } from '../../services/googleDrivePicker.js';
+import {
+  uploadEventImage,
+  uploadEventPdf
+} from '../../services/storageService.js';
 
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
@@ -18,7 +21,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
-  const [pickingField, setPickingField] = useState('');
+  const [uploadingField, setUploadingField] = useState('');
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const isEditing = Boolean(editingEvent);
@@ -122,33 +125,34 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setForm(getInitialForm(editingEvent));
     setError('');
     setFieldErrors({});
-    setPickingField('');
+    setUploadingField('');
     setSuccessMessage('The form has been reset.');
   }
 
-  async function handleDriveSelection(fieldName, options = {}) {
+  async function handleFileUpload(fieldName, file, options = {}) {
+    if (!file) {
+      return;
+    }
+
     setError('');
     setSuccessMessage('');
-    setPickingField(fieldName);
+    setUploadingField(fieldName);
 
     try {
-      const selectedFile = await pickGoogleDriveFile({
-        mimeTypes: options.mimeTypes
-      });
-
-      if (!selectedFile) {
-        return;
-      }
+      const fileUrl = options.imageIndex !== undefined
+        ? await uploadEventImage(file, userProfile)
+        : await uploadEventPdf(file, userProfile);
 
       if (options.imageIndex !== undefined) {
-        handleImageUrl(options.imageIndex, selectedFile.imageUrl);
+        handleImageUrl(options.imageIndex, fileUrl);
       } else {
-        updateField(fieldName, selectedFile.url);
+        updateField(fieldName, fileUrl);
       }
+      setSuccessMessage('File uploaded.');
     } catch (pickerError) {
       setError(pickerError.message);
     } finally {
-      setPickingField('');
+      setUploadingField('');
     }
   }
 
@@ -419,62 +423,50 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             <label key={index}>
               <span>Event Photo/Image</span>
               <input
-                placeholder="Image URL"
-                type="url"
-                value={form.imageUrls[index]}
-                onChange={(event) => handleImageUrl(index, event.target.value)}
-              />
-              <span className="form-help">
-                Use JPG or WebP, 1600 x 1200 pixels max, 1 MB max.
-              </span>
-              <button
-                className="text-button"
-                disabled={!eventTypeSelected || Boolean(pickingField)}
-                type="button"
-                onClick={() =>
-                  handleDriveSelection(`image-${index}`, {
-                    imageIndex: index,
-                    mimeTypes: 'image/png,image/jpeg,image/gif,image/webp'
+                accept="image/jpeg,image/png,image/webp"
+                disabled={!eventTypeSelected || Boolean(uploadingField)}
+                type="file"
+                onChange={(event) =>
+                  handleFileUpload(`image-${index}`, event.target.files?.[0], {
+                    imageIndex: index
                   })
                 }
-              >
-                {pickingField === `image-${index}`
-                  ? 'Opening Google Drive...'
-                  : 'Select From Google Drive'}
-              </button>
+              />
               <span className="form-help">
-                Drive files must be shared so visitors can view them.
+                Choose JPG, PNG, or WebP. The app resizes it before saving.
               </span>
+              {uploadingField === `image-${index}` ? (
+                <span className="form-help">Uploading image...</span>
+              ) : null}
+              {form.imageUrls[index] ? (
+                <a className="text-button" href={form.imageUrls[index]}>
+                  View Uploaded Image
+                </a>
+              ) : null}
             </label>
           ))}
           {showSupplyListUpload ? (
             <label className="form-span">
               <span>Supply List PDF Link (Optional)</span>
               <input
-                placeholder="PDF Link"
-                type="url"
-                value={form.supplyListUrl}
+                accept="application/pdf"
+                disabled={!eventTypeSelected || Boolean(uploadingField)}
+                type="file"
                 onChange={(event) =>
-                  updateField('supplyListUrl', event.target.value)
+                  handleFileUpload('supplyListUrl', event.target.files?.[0])
                 }
               />
-              <button
-                className="text-button"
-                disabled={!eventTypeSelected || Boolean(pickingField)}
-                type="button"
-                onClick={() =>
-                  handleDriveSelection('supplyListUrl', {
-                    mimeTypes: 'application/pdf'
-                  })
-                }
-              >
-                {pickingField === 'supplyListUrl'
-                  ? 'Opening Google Drive...'
-                  : 'Select From Google Drive'}
-              </button>
               <span className="form-help">
-                Use a PDF link that members can open.
+                Choose one PDF file. The app saves the member link.
               </span>
+              {uploadingField === 'supplyListUrl' ? (
+                <span className="form-help">Uploading PDF...</span>
+              ) : null}
+              {form.supplyListUrl ? (
+                <a className="text-button" href={form.supplyListUrl}>
+                  View Uploaded PDF
+                </a>
+              ) : null}
             </label>
           ) : null}
         </div>
@@ -655,7 +647,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       <div className="form-actions">
         <button
           className="button-link button-reset"
-          disabled={saving || Boolean(pickingField)}
+          disabled={saving || Boolean(uploadingField)}
           type="submit"
         >
           {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Event'}

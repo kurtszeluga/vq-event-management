@@ -9,8 +9,7 @@ This project follows `PROJECT_SPEC.md` as the source of truth.
 - React + Vite
 - React Router
 - Progressive Web App
-- Firebase Authentication and Firestore
-- Google Drive Picker for event images and documents
+- Firebase Authentication, Firestore, and Storage
 - Vercel deployment
 - Future Square-hosted Checkout payments
 
@@ -22,7 +21,7 @@ This project follows `PROJECT_SPEC.md` as the source of truth.
    npm install
    ```
 
-2. Copy the environment template and fill in Firebase and Google web app values:
+2. Copy the environment template and fill in Firebase web app values:
 
    ```sh
    cp .env.example .env.local
@@ -38,26 +37,20 @@ This project follows `PROJECT_SPEC.md` as the source of truth.
 
 ### Firebase
 
-Create or select a Firebase project for this app, enable Authentication and Firestore, then add a web app. Copy the web app config values into Vercel environment variables using the names in `.env.example`.
+Create or select a Firebase project for this app, enable Authentication, Firestore, and Storage, then add a web app. Copy the web app config values into Vercel environment variables using the names in `.env.example`.
 
 The repo includes:
 
 - `firebase.json`
 - `firestore.rules`
 - `firestore.indexes.json`
+- `storage.rules`
 
-Firebase Storage is not required for event assets.
+Event images and supply-list PDFs upload to Firebase Storage from the admin event form.
 
-### Google Drive
+### Event Files
 
-The admin event form can select image and PDF files from Google Drive. Configure a Google API key and OAuth client ID, then add these variables locally and in Vercel:
-
-- `VITE_GOOGLE_API_KEY`
-- `VITE_GOOGLE_CLIENT_ID`
-
-Drive files selected for public events must be shared so visitors can view them.
-
-Event images should be JPG or WebP, no larger than 1600 x 1200 pixels and 1 MB.
+Event images should be JPG, PNG, or WebP. The app resizes images to a maximum of 1600 x 1200 pixels and compresses them to 1 MB or less before upload. Supply lists must be PDF files no larger than 10 MB.
 
 ### GitHub
 

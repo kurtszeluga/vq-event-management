@@ -46,7 +46,7 @@ Backend
 
 * Firebase Authentication
 * Firestore Database
-* Firebase Storage (future)
+* Firebase Storage
 
 Deployment
 
@@ -141,12 +141,14 @@ Required fields are marked with an asterisk.
 * Presenter/Instructor Name
 * Event Description *
 * Event Photo/Image
-  * Classes allow a maximum of two images.
+  * Allow one event image.
+  * Resize uploaded images to a maximum of 1600 x 1200 pixels and 1 MB.
   * If no image is supplied, that image slot remains blank.
 * Supply List Upload
   * For classes and workshops.
   * PDF format only.
   * Display as a link in the event form.
+  * Store uploaded files in Firebase Storage.
 * Payment
   * Cost of the event
   * Service fee, default $1.00
