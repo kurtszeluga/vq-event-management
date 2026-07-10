@@ -486,9 +486,11 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <label>
             <span>List On Website</span>
             <select
+              className={fieldErrors.listingMode ? 'field-invalid' : ''}
               value={form.listingMode}
               onChange={(event) => updateField('listingMode', event.target.value)}
             >
+              <option aria-label="Select Listing Timing" value="" />
               <option value="now">Now</option>
               <option value="future">In The Future</option>
             </select>
@@ -530,11 +532,13 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <label>
             <span>Enable Event Registration</span>
             <select
+              className={fieldErrors.registrationMode ? 'field-invalid' : ''}
               value={form.registrationMode}
               onChange={(event) =>
                 updateField('registrationMode', event.target.value)
               }
             >
+              <option aria-label="Select Registration Timing" value="" />
               <option value="now">Now</option>
               <option value="future">In The Future</option>
             </select>
@@ -632,6 +636,10 @@ function validateEventForm(form) {
     errors.capacity = 'Maximum capacity cannot be negative.';
   }
 
+  if (!form.listingMode) {
+    errors.listingMode = 'Select when to list this event.';
+  }
+
   if (form.listingMode === 'future') {
     if (!form.visibleFrom) {
       errors.visibleFrom = 'Post listing date/time is required.';
@@ -640,6 +648,10 @@ function validateEventForm(form) {
     if (!form.visibleUntil) {
       errors.visibleUntil = 'Remove listing date/time is required.';
     }
+  }
+
+  if (!form.registrationMode) {
+    errors.registrationMode = 'Select when to enable registration.';
   }
 
   if (form.registrationMode === 'future') {
