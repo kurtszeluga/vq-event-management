@@ -317,20 +317,25 @@ a {
 }
 
 .admin-form input,
-.admin-form select,
-.admin-form textarea {
+.admin-form select {
   border: 1px solid #c9bbb0;
   border-radius: 8px;
   color: #1d2927;
   font: inherit;
-  min-height: 48px;
+  height: 48px;
   padding: 12px 14px;
   width: 100%;
 }
 
 .admin-form textarea {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
   min-height: 142px;
+  padding: 12px 14px;
   resize: vertical;
+  width: 100%;
 }
 
 .admin-form input:focus,
