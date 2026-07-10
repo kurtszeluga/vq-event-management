@@ -251,7 +251,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setError('');
     setUploadMessage('');
     setSuccessMessage('');
-    const validationErrors = asDraft ? {} : validateEventForm(form);
+    const validationErrors = asDraft
+      ? validateDraftEventForm(form)
+      : validateEventForm(form);
 
     if (Object.keys(validationErrors).length) {
       setFieldErrors(validationErrors);
@@ -978,6 +980,20 @@ function validateEventForm(form) {
     if (!form.registrationCloseAt) {
       errors.registrationCloseAt = 'Registration disable date/time is required.';
     }
+  }
+
+  return errors;
+}
+
+function validateDraftEventForm(form) {
+  const errors = {};
+
+  if (!form.eventType) {
+    errors.eventType = 'Event type is required for a draft.';
+  }
+
+  if (!form.title.trim()) {
+    errors.title = 'Event title is required for a draft.';
   }
 
   return errors;

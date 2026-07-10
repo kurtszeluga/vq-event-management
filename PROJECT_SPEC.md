@@ -108,7 +108,7 @@ Administrator Features
 
 * Secure administrator login
 * Create events
-* Save incomplete events as Drafts
+* Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events
 * Delete events
 * Publish/unpublish events
