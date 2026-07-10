@@ -482,81 +482,93 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
       <div className="form-subsection">
         <h3>Website Listing and Event Registration</h3>
-        <div className="form-grid">
-          <label>
-            <span>List On Website</span>
-            <select
-              className={fieldErrors.listingMode ? 'field-invalid' : ''}
-              value={form.listingMode}
-              onChange={(event) => updateField('listingMode', event.target.value)}
-            >
-              <option aria-label="Select Listing Timing" value="" />
-              <option value="now">Now</option>
-              <option value="future">In The Future</option>
-            </select>
-          </label>
-          {form.listingMode === 'future' ? (
-            <>
-              <label>
-                <span>Post Listing</span>
-                <input
-                  className={fieldErrors.visibleFrom ? 'field-invalid' : ''}
-                  type="datetime-local"
-                  value={form.visibleFrom}
-                  onChange={(event) => updateField('visibleFrom', event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Remove Listing</span>
-                <input
-                  className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
-                  type="datetime-local"
-                  value={form.visibleUntil}
-                  onChange={(event) => updateField('visibleUntil', event.target.value)}
-                />
-              </label>
-            </>
-          ) : null}
-          <label>
-            <span>Enable Event Registration</span>
-            <select
-              className={fieldErrors.registrationMode ? 'field-invalid' : ''}
-              value={form.registrationMode}
-              onChange={(event) =>
-                updateField('registrationMode', event.target.value)
-              }
-            >
-              <option aria-label="Select Registration Timing" value="" />
-              <option value="now">Now</option>
-              <option value="future">In The Future</option>
-            </select>
-          </label>
-          {form.registrationMode === 'future' ? (
-            <>
-              <label>
-                <span>Enable Registration</span>
-                <input
-                  className={fieldErrors.registrationOpenAt ? 'field-invalid' : ''}
-                  type="datetime-local"
-                  value={form.registrationOpenAt}
-                  onChange={(event) =>
-                    updateField('registrationOpenAt', event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                <span>Disable Registration</span>
-                <input
-                  className={fieldErrors.registrationCloseAt ? 'field-invalid' : ''}
-                  type="datetime-local"
-                  value={form.registrationCloseAt}
-                  onChange={(event) =>
-                    updateField('registrationCloseAt', event.target.value)
-                  }
-                />
-              </label>
-            </>
-          ) : null}
+        <div className="form-grid stacked">
+          <div className="form-stack-group">
+            <label>
+              <span>List On Website</span>
+              <select
+                className={fieldErrors.listingMode ? 'field-invalid' : ''}
+                value={form.listingMode}
+                onChange={(event) => updateField('listingMode', event.target.value)}
+              >
+                <option aria-label="Select Listing Timing" value="" />
+                <option value="now">Now</option>
+                <option value="future">In The Future</option>
+              </select>
+            </label>
+            {form.listingMode === 'future' ? (
+              <div className="form-row-pair">
+                <label>
+                  <span>Post Listing</span>
+                  <input
+                    className={fieldErrors.visibleFrom ? 'field-invalid' : ''}
+                    type="datetime-local"
+                    value={form.visibleFrom}
+                    onChange={(event) =>
+                      updateField('visibleFrom', event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Remove Listing</span>
+                  <input
+                    className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
+                    type="datetime-local"
+                    value={form.visibleUntil}
+                    onChange={(event) =>
+                      updateField('visibleUntil', event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+            ) : null}
+          </div>
+          <div className="form-stack-group">
+            <label>
+              <span>Enable Event Registration</span>
+              <select
+                className={fieldErrors.registrationMode ? 'field-invalid' : ''}
+                value={form.registrationMode}
+                onChange={(event) =>
+                  updateField('registrationMode', event.target.value)
+                }
+              >
+                <option aria-label="Select Registration Timing" value="" />
+                <option value="now">Now</option>
+                <option value="future">In The Future</option>
+              </select>
+            </label>
+            {form.registrationMode === 'future' ? (
+              <div className="form-row-pair">
+                <label>
+                  <span>Enable Registration</span>
+                  <input
+                    className={
+                      fieldErrors.registrationOpenAt ? 'field-invalid' : ''
+                    }
+                    type="datetime-local"
+                    value={form.registrationOpenAt}
+                    onChange={(event) =>
+                      updateField('registrationOpenAt', event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Disable Registration</span>
+                  <input
+                    className={
+                      fieldErrors.registrationCloseAt ? 'field-invalid' : ''
+                    }
+                    type="datetime-local"
+                    value={form.registrationCloseAt}
+                    onChange={(event) =>
+                      updateField('registrationCloseAt', event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
