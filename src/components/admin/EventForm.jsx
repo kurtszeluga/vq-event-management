@@ -96,6 +96,19 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     });
   }
 
+  function handleFeeSelection(value) {
+    setForm((current) => ({
+      ...current,
+      isPaid: value,
+      ...(value ? {} : { cost: '0', serviceFee: '0' })
+    }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.isPaid;
+      return next;
+    });
+  }
+
   function resetForm() {
     setForm(getInitialForm(editingEvent));
     setError('');
@@ -146,7 +159,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       additionalNotes: form.additionalNotes.trim(),
       capacity: form.capacityUnlimited ? 0 : Number(form.capacity || 0),
       capacityUnlimited: Boolean(form.capacityUnlimited),
-      cost: Number(form.cost || 0),
+      cost: form.isPaid ? Number(form.cost || 0) : 0,
       date: form.date,
       description: form.description.trim(),
       endTime: form.endTime,
@@ -161,7 +174,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       registrationMode: form.registrationMode,
       registrationOpen: Boolean(form.registrationOpen),
       registrationOpenAt: form.registrationOpenAt,
-      serviceFee: Number(form.serviceFee || 0),
+      serviceFee: form.isPaid ? Number(form.serviceFee || 0) : 0,
       startTime: form.startTime,
       status: form.status,
       supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
@@ -423,7 +436,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   checked={form.isPaid === true}
                   name="isPaid"
                   type="radio"
-                  onChange={() => updateField('isPaid', true)}
+                  onChange={() => handleFeeSelection(true)}
                 />
                 <span>Yes</span>
               </label>
@@ -432,32 +445,38 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   checked={form.isPaid === false}
                   name="isPaid"
                   type="radio"
-                  onChange={() => updateField('isPaid', false)}
+                  onChange={() => handleFeeSelection(false)}
                 />
                 <span>No</span>
               </label>
             </div>
           </div>
-          <label>
-            <span>Cost</span>
-            <input
-              min="0"
-              step="0.01"
-              type="number"
-              value={form.cost}
-              onChange={(event) => updateField('cost', event.target.value)}
-            />
-          </label>
-          <label>
-            <span>Service Fee</span>
-            <input
-              min="0"
-              step="0.01"
-              type="number"
-              value={form.serviceFee}
-              onChange={(event) => updateField('serviceFee', event.target.value)}
-            />
-          </label>
+          {form.isPaid === true ? (
+            <>
+              <label>
+                <span>Cost</span>
+                <input
+                  min="0"
+                  step="0.01"
+                  type="number"
+                  value={form.cost}
+                  onChange={(event) => updateField('cost', event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Service Fee</span>
+                <input
+                  min="0"
+                  step="0.01"
+                  type="number"
+                  value={form.serviceFee}
+                  onChange={(event) =>
+                    updateField('serviceFee', event.target.value)
+                  }
+                />
+              </label>
+            </>
+          ) : null}
         </div>
       </div>
 
