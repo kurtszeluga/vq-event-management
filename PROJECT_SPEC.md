@@ -350,6 +350,7 @@ The application should be:
 
 * Responsive
 * Mobile-friendly
+* Support pull-down refresh on mobile devices
 * Easy to learn
 * Fast
 * Accessible
