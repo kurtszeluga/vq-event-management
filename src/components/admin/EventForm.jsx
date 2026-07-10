@@ -199,12 +199,12 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
     try {
       if (isEditing) {
-        await updateEvent(editingEvent.id, payload);
+        await updateEvent(editingEvent.id, payload, userProfile);
       } else {
         await createEvent({
           ...payload,
           createdBy: userProfile?.email || userProfile?.userId || 'admin'
-        });
+        }, userProfile);
       }
 
       setForm(DEFAULT_EVENT_FORM);

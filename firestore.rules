@@ -148,6 +148,42 @@ service cloud.firestore {
         && request.resource.data.paymentDate is timestamp;
     }
 
+    function validAuditLog() {
+      return request.resource.data.keys().hasOnly([
+          'action',
+          'actorEmail',
+          'actorName',
+          'actorRole',
+          'actorUserId',
+          'after',
+          'before',
+          'createdDate',
+          'entityId',
+          'entityType',
+          'summary'
+        ])
+        && validStatus(request.resource.data.action, [
+          'Create',
+          'Update',
+          'Delete',
+          'Register',
+          'Cancel',
+          'Pay',
+          'Refund',
+          'Attendance Update'
+        ])
+        && request.resource.data.actorEmail is string
+        && request.resource.data.actorName is string
+        && request.resource.data.actorRole is string
+        && request.resource.data.actorUserId is string
+        && request.resource.data.after is map
+        && request.resource.data.before is map
+        && request.resource.data.createdDate is timestamp
+        && request.resource.data.entityId is string
+        && request.resource.data.entityType is string
+        && request.resource.data.summary is string;
+    }
+
     match /events/{eventId} {
       allow read: if resource.data.status == 'Published' || isAdmin();
       allow create, update: if isAdmin() && validEvent();
@@ -181,6 +217,12 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && validPayment();
       allow delete: if isAdmin();
+    }
+
+    match /auditLogs/{auditLogId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && validAuditLog();
+      allow update, delete: if false;
     }
   }
 }

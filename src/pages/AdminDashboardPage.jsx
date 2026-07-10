@@ -35,7 +35,7 @@ function AdminDashboardPage() {
     const confirmed = window.confirm(`Delete "${event.title}"?`);
 
     if (confirmed) {
-      await deleteEvent(event.id);
+      await deleteEvent(event.id, userProfile);
     }
   }
 

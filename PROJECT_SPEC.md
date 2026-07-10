@@ -206,6 +206,14 @@ Reports
 * Payment report
 * CSV export
 
+Audit And Transaction History
+
+* Keep a complete transaction history for important actions.
+* Record who made the change, what changed, when it happened, and which record was affected.
+* Event create, update, and delete actions must create audit log entries.
+* Registration, payment, refund, and attendance actions should also create audit log entries as those features are added.
+* Audit history should be read-only from the application after it is created.
+
 ⸻
 
 Firebase Collections
@@ -270,6 +278,24 @@ paymentDate	Timestamp
 
 ⸻
 
+auditLogs
+
+Field	Description
+auditLogId	Unique ID
+entityType	Event, Registration, Payment, User, or Attendance
+entityId	Linked record ID
+action	Create, Update, Delete, Register, Cancel, Pay, Refund, or Attendance Update
+summary	Short readable description of the action
+before	Snapshot of the record before the action
+after	Snapshot of the record after the action
+actorUserId	Firebase UID for the administrator or user
+actorName	Name of the person who performed the action
+actorEmail	Email of the person who performed the action
+actorRole	Admin or User
+createdDate	Timestamp
+
+⸻
+
 Recommended Project Structure
 
 src/
@@ -312,6 +338,7 @@ Security Requirements
 * Firestore Security Rules must enforce authorization.
 * Administrative functions require authenticated administrator access.
 * Users may only modify their own registrations.
+* Audit log entries may be created by authorized actions, but may not be edited or deleted from the application.
 
 ⸻
 

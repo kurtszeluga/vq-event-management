@@ -1,19 +1,18 @@
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  updateDoc,
+  writeBatch,
   where
 } from 'firebase/firestore';
 import { db } from '../lib/firebase.js';
 
 const eventsCollection = () => collection(db, 'events');
+const auditLogsCollection = () => collection(db, 'auditLogs');
 
 export function subscribeToAdminEvents(onNext, onError) {
   const eventsQuery = query(eventsCollection(), orderBy('date', 'asc'));
@@ -29,27 +28,70 @@ export function subscribeToPublishedEvents(onNext, onError) {
   return onSnapshot(eventsQuery, onNext, onError);
 }
 
-export async function createEvent(eventData) {
-  const docRef = await addDoc(eventsCollection(), {
+export async function createEvent(eventData, actorProfile) {
+  const batch = writeBatch(db);
+  const docRef = doc(eventsCollection());
+  const eventPayload = {
     ...eventData,
+    eventId: docRef.id,
     createdDate: serverTimestamp(),
     updatedDate: serverTimestamp()
+  };
+
+  batch.set(docRef, eventPayload);
+  addAuditLog(batch, {
+    action: 'Create',
+    actorProfile,
+    after: eventData,
+    before: {},
+    entityId: docRef.id,
+    summary: `Created event "${eventData.title}"`
   });
 
-  await updateDoc(docRef, { eventId: docRef.id });
+  await batch.commit();
 
   return docRef.id;
 }
 
-export function updateEvent(eventId, eventData) {
-  return updateDoc(doc(db, 'events', eventId), {
+export async function updateEvent(eventId, eventData, actorProfile) {
+  const eventRef = doc(db, 'events', eventId);
+  const eventSnap = await getDoc(eventRef);
+  const batch = writeBatch(db);
+
+  batch.update(eventRef, {
     ...eventData,
     updatedDate: serverTimestamp()
   });
+
+  addAuditLog(batch, {
+    action: 'Update',
+    actorProfile,
+    after: eventData,
+    before: eventSnap.exists() ? eventSnap.data() : {},
+    entityId: eventId,
+    summary: `Updated event "${eventData.title}"`
+  });
+
+  return batch.commit();
 }
 
-export function deleteEvent(eventId) {
-  return deleteDoc(doc(db, 'events', eventId));
+export async function deleteEvent(eventId, actorProfile) {
+  const eventRef = doc(db, 'events', eventId);
+  const eventSnap = await getDoc(eventRef);
+  const eventData = eventSnap.exists() ? eventSnap.data() : {};
+  const batch = writeBatch(db);
+
+  batch.delete(eventRef);
+  addAuditLog(batch, {
+    action: 'Delete',
+    actorProfile,
+    after: {},
+    before: eventData,
+    entityId: eventId,
+    summary: `Deleted event "${eventData.title || eventId}"`
+  });
+
+  return batch.commit();
 }
 
 export async function getEvent(eventId) {
@@ -60,4 +102,32 @@ export async function getEvent(eventId) {
   }
 
   return { id: eventSnap.id, ...eventSnap.data() };
+}
+
+function addAuditLog(batch, { action, actorProfile, after, before, entityId, summary }) {
+  const auditRef = doc(auditLogsCollection());
+  const actor = getAuditActor(actorProfile);
+
+  batch.set(auditRef, {
+    action,
+    actorEmail: actor.email,
+    actorName: actor.name,
+    actorRole: actor.role,
+    actorUserId: actor.userId,
+    after,
+    before,
+    createdDate: serverTimestamp(),
+    entityId,
+    entityType: 'Event',
+    summary
+  });
+}
+
+function getAuditActor(actorProfile) {
+  return {
+    email: actorProfile?.email || '',
+    name: actorProfile?.name || actorProfile?.email || 'Unknown Admin',
+    role: actorProfile?.role || '',
+    userId: actorProfile?.userId || actorProfile?.id || ''
+  };
 }
