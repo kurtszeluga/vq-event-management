@@ -495,18 +495,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <option value="future">In The Future</option>
             </select>
           </label>
-          <label>
-            <span>Status</span>
-            <select
-              value={form.status}
-              onChange={(event) => updateField('status', event.target.value)}
-            >
-              <option value="Draft">Draft</option>
-              <option value="Published">Published</option>
-              <option value="Closed">Closed</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-          </label>
           {form.listingMode === 'future' ? (
             <>
               <label>
