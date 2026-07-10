@@ -56,6 +56,7 @@ export const DEFAULT_EVENT_FORM = {
   description: '',
   endTime: '',
   eventType: '',
+  capacityUnlimited: false,
   imageUrls: ['', ''],
   isPaid: false,
   listingMode: 'now',

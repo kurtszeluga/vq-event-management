@@ -36,6 +36,7 @@ service cloud.firestore {
           'locationPreset',
           'location',
           'capacity',
+          'capacityUnlimited',
           'isPaid',
           'cost',
           'serviceFee',
@@ -64,6 +65,7 @@ service cloud.firestore {
         && request.resource.data.locationPreset is string
         && request.resource.data.location is string
         && request.resource.data.capacity is number
+        && request.resource.data.capacityUnlimited is bool
         && request.resource.data.isPaid is bool
         && request.resource.data.cost is number
         && request.resource.data.serviceFee is number

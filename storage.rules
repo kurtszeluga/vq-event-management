@@ -2,6 +2,27 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'Admin'
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'Active';
+    }
+
+    match /event-assets/{userId}/{folder}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.size < 10 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf'
+        );
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

@@ -378,6 +378,14 @@ a {
   padding-top: 24px;
 }
 
+.form-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 22px;
+}
+
 .checkbox-label {
   align-content: center;
   align-items: center;

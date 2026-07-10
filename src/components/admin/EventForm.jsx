@@ -6,6 +6,7 @@ import {
   EVENT_TYPES
 } from '../../data/eventOptions.js';
 import { createEvent, updateEvent } from '../../services/eventService.js';
+import { uploadEventFile } from '../../services/fileUploadService.js';
 
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
@@ -18,24 +19,11 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [uploadingField, setUploadingField] = useState('');
   const isEditing = Boolean(editingEvent);
 
   useEffect(() => {
-    if (editingEvent) {
-      setForm({
-        ...DEFAULT_EVENT_FORM,
-        ...editingEvent,
-        capacity: String(editingEvent.capacity ?? 0),
-        cost: String(editingEvent.cost ?? 0),
-        imageUrls: [
-          editingEvent.imageUrls?.[0] || '',
-          editingEvent.imageUrls?.[1] || ''
-        ],
-        serviceFee: String(editingEvent.serviceFee ?? '1.00')
-      });
-    } else {
-      setForm(DEFAULT_EVENT_FORM);
-    }
+    setForm(getInitialForm(editingEvent));
   }, [editingEvent]);
 
   const selectedTimeOption = useMemo(
@@ -108,6 +96,48 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     });
   }
 
+  function resetForm() {
+    setForm(getInitialForm(editingEvent));
+    setError('');
+    setFieldErrors({});
+    setUploadingField('');
+  }
+
+  async function handleFileSelection(event, fieldName, options = {}) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (options.accepts && !options.accepts(file)) {
+      setError(options.errorMessage);
+      return;
+    }
+
+    setError('');
+    setUploadingField(fieldName);
+
+    try {
+      const downloadUrl = await uploadEventFile(
+        file,
+        options.folder,
+        userProfile?.userId || userProfile?.email
+      );
+
+      if (options.imageIndex !== undefined) {
+        handleImageUrl(options.imageIndex, downloadUrl);
+      } else {
+        updateField(fieldName, downloadUrl);
+      }
+    } catch (uploadError) {
+      setError(uploadError.message);
+    } finally {
+      setUploadingField('');
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
@@ -124,7 +154,8 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
     const payload = {
       additionalNotes: form.additionalNotes.trim(),
-      capacity: Number(form.capacity || 0),
+      capacity: form.capacityUnlimited ? 0 : Number(form.capacity || 0),
+      capacityUnlimited: Boolean(form.capacityUnlimited),
       cost: Number(form.cost || 0),
       date: form.date,
       description: form.description.trim(),
@@ -301,12 +332,23 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           <span>Maximum Capacity</span>
           <input
             className={fieldErrors.capacity ? 'field-invalid' : ''}
+            disabled={form.capacityUnlimited}
             min="0"
             step="1"
             type="number"
             value={form.capacity}
             onChange={(event) => updateField('capacity', event.target.value)}
           />
+        </label>
+        <label className="checkbox-label">
+          <input
+            checked={form.capacityUnlimited}
+            type="checkbox"
+            onChange={(event) =>
+              updateField('capacityUnlimited', event.target.checked)
+            }
+          />
+          <span>Unlimited Capacity</span>
         </label>
 
         <label className="form-span">
@@ -332,6 +374,19 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 value={form.imageUrls[index]}
                 onChange={(event) => handleImageUrl(index, event.target.value)}
               />
+              <input
+                accept="image/*"
+                type="file"
+                onChange={(event) =>
+                  handleFileSelection(event, `image-${index}`, {
+                    accepts: (file) => file.type.startsWith('image/'),
+                    errorMessage: 'Please select an image file.',
+                    folder: 'images',
+                    imageIndex: index
+                  })
+                }
+              />
+              {uploadingField === `image-${index}` ? <small>Uploading...</small> : null}
             </label>
           ))}
           {showSupplyListUpload ? (
@@ -345,6 +400,18 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   updateField('supplyListUrl', event.target.value)
                 }
               />
+              <input
+                accept="application/pdf"
+                type="file"
+                onChange={(event) =>
+                  handleFileSelection(event, 'supplyListUrl', {
+                    accepts: (file) => file.type === 'application/pdf',
+                    errorMessage: 'Please select a PDF file.',
+                    folder: 'documents'
+                  })
+                }
+              />
+              {uploadingField === 'supplyListUrl' ? <small>Uploading...</small> : null}
             </label>
           ) : null}
         </div>
@@ -483,9 +550,18 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </div>
 
       {error ? <p className="form-error">{error}</p> : null}
-      <button className="button-link button-reset" disabled={saving} type="submit">
-        {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Event'}
-      </button>
+      <div className="form-actions">
+        <button
+          className="button-link button-reset"
+          disabled={saving || Boolean(uploadingField)}
+          type="submit"
+        >
+          {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Event'}
+        </button>
+        <button className="text-button" disabled={saving} type="button" onClick={resetForm}>
+          Reset Form
+        </button>
+      </div>
     </form>
   );
 }
@@ -529,7 +605,7 @@ function validateEventForm(form) {
     errors.description = 'Event description is required.';
   }
 
-  if (Number(form.capacity) < 0) {
+  if (!form.capacityUnlimited && Number(form.capacity) < 0) {
     errors.capacity = 'Maximum capacity cannot be negative.';
   }
 
@@ -558,6 +634,28 @@ function validateEventForm(form) {
 
 function supportsSupplyList(eventType) {
   return eventType.startsWith('Class') || eventType === 'Workshop';
+}
+
+function getInitialForm(editingEvent) {
+  if (!editingEvent) {
+    return {
+      ...DEFAULT_EVENT_FORM,
+      imageUrls: [...DEFAULT_EVENT_FORM.imageUrls]
+    };
+  }
+
+  return {
+    ...DEFAULT_EVENT_FORM,
+    ...editingEvent,
+    capacity: String(editingEvent.capacity ?? 0),
+    capacityUnlimited: Boolean(editingEvent.capacityUnlimited),
+    cost: String(editingEvent.cost ?? 0),
+    imageUrls: [
+      editingEvent.imageUrls?.[0] || '',
+      editingEvent.imageUrls?.[1] || ''
+    ],
+    serviceFee: String(editingEvent.serviceFee ?? '1.00')
+  };
 }
 
 function toTitleCase(value) {
