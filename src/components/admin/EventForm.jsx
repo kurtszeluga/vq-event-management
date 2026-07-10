@@ -152,7 +152,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       endTime: form.endTime,
       eventType: form.eventType,
       imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
-      isPaid: Boolean(form.isPaid),
+      isPaid: form.isPaid === true,
       listingMode: form.listingMode,
       location: toTitleCase(form.location.trim()),
       locationPreset: form.locationPreset,
@@ -413,16 +413,31 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       </div>
 
       <div className="form-subsection">
-        <h3>Payment</h3>
+        <h3>Event Fees</h3>
         <div className="form-grid compact">
-          <label className="checkbox-label">
-            <input
-              checked={form.isPaid}
-              type="checkbox"
-              onChange={(event) => updateField('isPaid', event.target.checked)}
-            />
-            <span>Paid Event</span>
-          </label>
+          <div className={`radio-field ${fieldErrors.isPaid ? 'field-invalid' : ''}`}>
+            <span>Is There A Fee For This Event? *</span>
+            <div className="radio-options">
+              <label className="checkbox-label">
+                <input
+                  checked={form.isPaid === true}
+                  name="isPaid"
+                  type="radio"
+                  onChange={() => updateField('isPaid', true)}
+                />
+                <span>Yes</span>
+              </label>
+              <label className="checkbox-label">
+                <input
+                  checked={form.isPaid === false}
+                  name="isPaid"
+                  type="radio"
+                  onChange={() => updateField('isPaid', false)}
+                />
+                <span>No</span>
+              </label>
+            </div>
+          </div>
           <label>
             <span>Cost</span>
             <input
@@ -598,6 +613,10 @@ function validateEventForm(form) {
 
   if (!form.description.trim()) {
     errors.description = 'Event description is required.';
+  }
+
+  if (form.isPaid === null) {
+    errors.isPaid = 'Select whether this event has a fee.';
   }
 
   if (!form.capacityUnlimited && Number(form.capacity) < 0) {

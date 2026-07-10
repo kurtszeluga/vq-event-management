@@ -58,7 +58,7 @@ export const DEFAULT_EVENT_FORM = {
   eventType: '',
   capacityUnlimited: false,
   imageUrls: [''],
-  isPaid: false,
+  isPaid: null,
   listingMode: 'now',
   location: '',
   locationPreset: 'other',

@@ -311,7 +311,8 @@ a {
 }
 
 .admin-form label span,
-.form-row-pair label span {
+.form-row-pair label span,
+.radio-field > span {
   color: #3b4b48;
   font-weight: 800;
 }
@@ -397,6 +398,22 @@ a {
   margin-top: 22px;
 }
 
+.radio-field {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 0;
+}
+
+.radio-options {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-height: 48px;
+}
+
 .checkbox-label {
   align-content: center;
   align-items: center;
@@ -406,6 +423,7 @@ a {
 }
 
 .checkbox-label input {
+  height: auto;
   width: auto;
 }
 
