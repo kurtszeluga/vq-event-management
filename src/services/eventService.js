@@ -45,7 +45,7 @@ export async function createEvent(eventData, actorProfile) {
     after: eventData,
     before: {},
     entityId: docRef.id,
-    summary: `Created event "${eventData.title}"`
+    summary: `Created event "${getEventAuditTitle(eventData)}"`
   });
 
   await batch.commit();
@@ -69,7 +69,7 @@ export async function updateEvent(eventId, eventData, actorProfile) {
     after: eventData,
     before: eventSnap.exists() ? eventSnap.data() : {},
     entityId: eventId,
-    summary: `Updated event "${eventData.title}"`
+    summary: `Updated event "${getEventAuditTitle(eventData)}"`
   });
 
   return batch.commit();
@@ -130,4 +130,8 @@ function getAuditActor(actorProfile) {
     role: actorProfile?.role || '',
     userId: actorProfile?.userId || actorProfile?.id || ''
   };
+}
+
+function getEventAuditTitle(eventData) {
+  return eventData.title || eventData.eventType || 'Untitled Draft';
 }

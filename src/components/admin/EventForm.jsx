@@ -28,6 +28,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadingField, setUploadingField] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const isEditing = Boolean(editingEvent);
 
@@ -134,6 +135,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setFieldErrors({});
     setUploadMessage('');
     setUploadingField('');
+    setSavingAction('');
     setSuccessMessage('The form has been reset.');
   }
 
@@ -238,10 +240,18 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    await saveEvent({ asDraft: false });
+  }
+
+  async function handleSaveDraft() {
+    await saveEvent({ asDraft: true });
+  }
+
+  async function saveEvent({ asDraft }) {
     setError('');
     setUploadMessage('');
     setSuccessMessage('');
-    const validationErrors = validateEventForm(form);
+    const validationErrors = asDraft ? {} : validateEventForm(form);
 
     if (Object.keys(validationErrors).length) {
       setFieldErrors(validationErrors);
@@ -251,38 +261,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
     setFieldErrors({});
     setSaving(true);
+    setSavingAction(asDraft ? 'draft' : 'submit');
 
-    const payload = {
-      additionalNotes: form.additionalNotes.trim(),
-      capacity: form.capacityUnlimited ? 0 : Number(form.capacity || 0),
-      capacityUnlimited: Boolean(form.capacityUnlimited),
-      cost: form.isPaid ? Number(form.cost || 0) : 0,
-      date: form.date,
-      description: form.description.trim(),
-      endTime: form.endTime,
-      eventType: form.eventType,
-      imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
-      isPaid: form.isPaid === true,
-      listingMode: form.listingMode,
-      location: toTitleCase(form.location.trim()),
-      locationPreset: form.locationPreset,
-      presenter: toTitleCase(form.presenter.trim()),
-      registrationCloseAt: form.registrationCloseAt,
-      registrationMode: form.registrationMode,
-      registrationOpen: form.registrationMode === 'now',
-      registrationOpenAt: form.registrationOpenAt,
-      serviceFee: form.isPaid ? Number(form.serviceFee || 0) : 0,
-      startTime: form.startTime,
-      status: form.status,
-      supplyListFileName: showSupplyListUpload ? form.supplyListFileName.trim() : '',
-      supplyListTitle: showSupplyListUpload ? form.supplyListTitle.trim() : '',
-      supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
-      timePreset: form.timePreset,
-      title: toTitleCase(form.title.trim()),
-      type: form.eventType,
-      visibleFrom: form.visibleFrom,
-      visibleUntil: form.visibleUntil
-    };
+    const payload = buildEventPayload(form, showSupplyListUpload, asDraft);
 
     try {
       if (isEditing) {
@@ -295,12 +276,19 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       }
 
       setForm(DEFAULT_EVENT_FORM);
-      setSuccessMessage(isEditing ? 'Event changes saved.' : 'Event created.');
+      setSuccessMessage(
+        asDraft
+          ? 'Draft saved.'
+          : isEditing
+            ? 'Event changes saved.'
+            : 'Event submitted and saved.'
+      );
       onSaved();
     } catch (saveError) {
       setError(saveError.message);
     } finally {
       setSaving(false);
+      setSavingAction('');
     }
   }
 
@@ -522,7 +510,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 <div className="upload-control-panel">
                   <div className="file-action-row">
                     <button
-                      className="text-button"
+                      className="button-link button-reset"
                       disabled={!eventTypeSelected || Boolean(uploadingField)}
                       type="button"
                       onClick={() => imageInputRef.current?.click()}
@@ -602,7 +590,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 <div className="upload-control-panel">
                   <div className="file-action-row">
                     <button
-                      className="text-button"
+                      className="button-link button-reset"
                       disabled={!eventTypeSelected || Boolean(uploadingField)}
                       type="button"
                       onClick={() => pdfInputRef.current?.click()}
@@ -679,11 +667,11 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                       No Document Selected
                     </div>
                   )}
-                  <span className="form-help upload-wide-help">
-                    Choose one PDF file. The app saves the member link.
-                  </span>
                 </div>
               </div>
+              <span className="form-help upload-wide-help">
+                Choose one PDF file. The app saves the member link.
+              </span>
             </div>
           ) : null}
         </div>
@@ -895,7 +883,15 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           disabled={saving || Boolean(uploadingField)}
           type="submit"
         >
-          {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Event'}
+          {saving && savingAction === 'submit' ? 'Saving...' : 'Submit/Save'}
+        </button>
+        <button
+          className="button-link button-reset secondary-action"
+          disabled={saving || Boolean(uploadingField)}
+          type="button"
+          onClick={handleSaveDraft}
+        >
+          {saving && savingAction === 'draft' ? 'Saving Draft...' : 'Save As Draft'}
         </button>
         <button className="text-button" disabled={saving} type="button" onClick={resetForm}>
           Reset Form
@@ -985,6 +981,40 @@ function validateEventForm(form) {
   }
 
   return errors;
+}
+
+function buildEventPayload(form, showSupplyListUpload, asDraft) {
+  return {
+    additionalNotes: form.additionalNotes.trim(),
+    capacity: form.capacityUnlimited ? 0 : Number(form.capacity || 0),
+    capacityUnlimited: Boolean(form.capacityUnlimited),
+    cost: form.isPaid ? Number(form.cost || 0) : 0,
+    date: form.date,
+    description: form.description.trim(),
+    endTime: form.endTime,
+    eventType: form.eventType,
+    imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
+    isPaid: form.isPaid === true,
+    listingMode: form.listingMode,
+    location: toTitleCase(form.location.trim()),
+    locationPreset: form.locationPreset,
+    presenter: toTitleCase(form.presenter.trim()),
+    registrationCloseAt: form.registrationCloseAt,
+    registrationMode: form.registrationMode,
+    registrationOpen: form.registrationMode === 'now',
+    registrationOpenAt: form.registrationOpenAt,
+    serviceFee: form.isPaid ? Number(form.serviceFee || 0) : 0,
+    startTime: form.startTime,
+    status: asDraft ? 'Draft' : 'Published',
+    supplyListFileName: showSupplyListUpload ? form.supplyListFileName.trim() : '',
+    supplyListTitle: showSupplyListUpload ? form.supplyListTitle.trim() : '',
+    supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
+    timePreset: form.timePreset,
+    title: toTitleCase(form.title.trim()),
+    type: form.eventType,
+    visibleFrom: form.visibleFrom,
+    visibleUntil: form.visibleUntil
+  };
 }
 
 function supportsSupplyList(eventType) {

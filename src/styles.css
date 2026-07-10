@@ -128,6 +128,12 @@ a {
   color: #fff;
 }
 
+.button-link.secondary-action {
+  background: #fffdfa;
+  border-color: #225c56;
+  color: #225c56;
+}
+
 .nav-button:hover,
 .nav-link:hover {
   border-color: #225c56;

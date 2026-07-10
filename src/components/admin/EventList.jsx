@@ -25,11 +25,11 @@ function EventList({ events, loading, onDelete, onEdit }) {
         <article className="event-admin-card" key={event.id}>
           <div>
             <div className="card-kicker">
-              <span>{event.eventType}</span>
+              <span>{event.eventType || 'Type TBD'}</span>
               <strong>{event.status}</strong>
             </div>
-            <h3>{event.title}</h3>
-            <p>{event.description}</p>
+            <h3>{event.title || 'Untitled Draft'}</h3>
+            <p>{event.description || 'Description TBD'}</p>
             <dl>
               <div>
                 <dt>Date</dt>
@@ -41,7 +41,7 @@ function EventList({ events, loading, onDelete, onEdit }) {
               </div>
               <div>
                 <dt>Location</dt>
-                <dd>{event.location}</dd>
+                <dd>{event.location || 'Location TBD'}</dd>
               </div>
               <div>
                 <dt>Cost</dt>
