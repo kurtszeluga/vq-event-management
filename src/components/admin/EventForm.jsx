@@ -164,14 +164,11 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           await deleteEventFile(previousImageUrl).catch(() => {});
         }
       } else {
-        const nextTitle = form.supplyListTitle.trim()
-          ? form.supplyListTitle
-          : toTitleCase(stripFileExtension(fileUrl.fileName));
         setForm((current) => ({
           ...current,
           [fieldName]: fileUrl.url,
           supplyListFileName: fileUrl.fileName,
-          supplyListTitle: nextTitle
+          supplyListTitle: ''
         }));
         if (previousFileUrl && previousFileUrl !== fileUrl.url) {
           await deleteEventFile(previousFileUrl).catch(() => {});
@@ -601,80 +598,90 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   event.target.value = '';
                 }}
               />
-              <label>
-                <span>Document Display Title</span>
-                <input
-                  disabled={!eventTypeSelected}
-                  placeholder="Supply List"
-                  value={form.supplyListTitle}
-                  onChange={(event) =>
-                    updateField('supplyListTitle', event.target.value)
-                  }
-                  onBlur={(event) =>
-                    updateField('supplyListTitle', toTitleCase(event.target.value))
-                  }
-                />
-              </label>
-              <div className="file-action-row">
-                <button
-                  className="text-button"
-                  disabled={!eventTypeSelected || Boolean(uploadingField)}
-                  type="button"
-                  onClick={() => pdfInputRef.current?.click()}
-                >
-                  {form.supplyListUrl ? 'Change Document' : 'Choose Document'}
-                </button>
-                {form.supplyListUrl ? (
-                  <>
+              <div className="upload-preview-layout">
+                <div className="upload-control-panel">
+                  <div className="file-action-row">
                     <button
                       className="text-button"
-                      type="button"
-                      onClick={() =>
-                        setPreviewFile({
-                          title: form.supplyListTitle || 'Supporting Document',
-                          type: 'pdf',
-                          url: form.supplyListUrl
-                        })
-                      }
-                    >
-                      View PDF
-                    </button>
-                    <button
-                      className="danger-button"
                       disabled={!eventTypeSelected || Boolean(uploadingField)}
                       type="button"
-                      onClick={handleRemoveDocument}
+                      onClick={() => pdfInputRef.current?.click()}
                     >
-                      Remove Document
+                      {form.supplyListUrl ? 'Change Document' : 'Choose Document'}
                     </button>
-                  </>
-                ) : null}
-              </div>
-              {form.supplyListUrl ? (
-                <div className="uploaded-document-card">
-                  <span className="document-file-icon">PDF</span>
-                  <span>
-                    <strong>{form.supplyListTitle || 'Supporting Document'}</strong>
-                    <small>{form.supplyListFileName || getFileNameFromUrl(form.supplyListUrl)}</small>
+                    {form.supplyListUrl ? (
+                      <>
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() =>
+                            setPreviewFile({
+                              title: form.supplyListTitle || 'Supporting Document',
+                              type: 'pdf',
+                              url: form.supplyListUrl
+                            })
+                          }
+                        >
+                          View PDF
+                        </button>
+                        <button
+                          className="danger-button"
+                          disabled={!eventTypeSelected || Boolean(uploadingField)}
+                          type="button"
+                          onClick={handleRemoveDocument}
+                        >
+                          Remove Document
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                  {form.supplyListUrl ? (
+                    <label>
+                      <span>Document Display Title *</span>
+                      <input
+                        className={fieldErrors.supplyListTitle ? 'field-invalid' : ''}
+                        disabled={!eventTypeSelected}
+                        placeholder="Supply List"
+                        value={form.supplyListTitle}
+                        onChange={(event) =>
+                          updateField('supplyListTitle', event.target.value)
+                        }
+                        onBlur={(event) =>
+                          updateField('supplyListTitle', toTitleCase(event.target.value))
+                        }
+                      />
+                      {fieldErrors.supplyListTitle ? (
+                        <small>{fieldErrors.supplyListTitle}</small>
+                      ) : null}
+                    </label>
+                  ) : null}
+                  <span className="form-help">
+                    Choose one PDF file. The app saves the member link.
                   </span>
+                  {uploadingField === 'supplyListUrl' ? (
+                    <span className="form-help">Uploading PDF...</span>
+                  ) : null}
+                  {uploadingField === 'remove-supplyListUrl' ? (
+                    <span className="form-help">Removing PDF...</span>
+                  ) : null}
+                  {uploadMessage.includes('Document') ? (
+                    <span className="upload-inline-success">{uploadMessage}</span>
+                  ) : null}
                 </div>
-              ) : (
-                <div className="uploaded-document-placeholder">
-                  No Document Selected
-                </div>
-              )}
-              <span className="form-help">
-                Choose one PDF file. The app saves the member link.
-              </span>
-              {uploadingField === 'supplyListUrl' ? (
-                <span className="form-help">Uploading PDF...</span>
-              ) : null}
-              {uploadingField === 'remove-supplyListUrl' ? (
-                <span className="form-help">Removing PDF...</span>
-              ) : null}
-              {uploadMessage.includes('Document') ? (
-                <span className="upload-inline-success">{uploadMessage}</span>
-              ) : null}
+                {form.supplyListUrl ? (
+                  <div className="uploaded-document-card">
+                    <span className="document-file-icon">PDF</span>
+                    <span>
+                      <strong>{form.supplyListTitle || 'Document Title Required'}</strong>
+                      <small>{form.supplyListFileName || getFileNameFromUrl(form.supplyListUrl)}</small>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="uploaded-document-placeholder">
+                    No Document Selected
+                  </div>
+                )}
+              </div>
             </div>
           ) : null}
         </div>
@@ -935,6 +942,10 @@ function validateEventForm(form) {
     errors.description = 'Event description is required.';
   }
 
+  if (form.supplyListUrl && !form.supplyListTitle.trim()) {
+    errors.supplyListTitle = 'Document display title is required.';
+  }
+
   if (form.isPaid === null) {
     errors.isPaid = 'Select whether this event has a fee.';
   }
@@ -1007,10 +1018,6 @@ function toTitleCase(value) {
     .replace(/\bTn\b/g, 'TN')
     .replace(/\bP\.m\./g, 'P.M.')
     .replace(/\bA\.m\./g, 'A.M.');
-}
-
-function stripFileExtension(fileName) {
-  return fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
 }
 
 function getFileNameFromUrl(fileUrl) {
