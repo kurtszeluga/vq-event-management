@@ -242,6 +242,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               </option>
             ))}
           </select>
+          <span className="form-help">
+            Choose this first so the form can show the right fields.
+          </span>
         </label>
 
         <label>
@@ -280,6 +283,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 </option>
               ))}
             </select>
+            <span className="form-help">
+              Class and workshop times fill in automatically.
+            </span>
           </label>
           {form.timePreset === 'other' ? (
             <div className="form-row-pair nested-fields">
@@ -322,6 +328,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 </option>
               ))}
             </select>
+            <span className="form-help">
+              Choose Other only if the event is somewhere else.
+            </span>
           </label>
 
           {form.locationPreset === 'other' ? (
@@ -379,6 +388,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 onChange={(event) => updateField('capacity', event.target.value)}
               />
             </label>
+            <span className="form-help">
+              Check Unlimited Capacity if there is no registration limit.
+            </span>
           </div>
         </div>
 
@@ -422,6 +434,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   ? 'Opening Google Drive...'
                   : 'Select From Google Drive'}
               </button>
+              <span className="form-help">
+                Drive files must be shared so visitors can view them.
+              </span>
             </label>
           ))}
           {showSupplyListUpload ? (
@@ -448,6 +463,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   ? 'Opening Google Drive...'
                   : 'Select From Google Drive'}
               </button>
+              <span className="form-help">
+                Use a PDF link that members can open.
+              </span>
             </label>
           ) : null}
         </div>
@@ -458,6 +476,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         <div className="form-grid compact">
           <div className={`radio-field ${fieldErrors.isPaid ? 'field-invalid' : ''}`}>
             <span>Is There A Fee For This Event? *</span>
+            <span className="form-help">
+              Choose No for free events.
+            </span>
             <div className="radio-options">
               <label className="checkbox-label">
                 <input
@@ -490,6 +511,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   value={form.cost}
                   onChange={(event) => updateField('cost', event.target.value)}
                 />
+                <span className="form-help">
+                  Enter the event price before any service fee.
+                </span>
               </label>
               <label>
                 <span>Service Fee</span>
@@ -502,6 +526,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     updateField('serviceFee', event.target.value)
                   }
                 />
+                <span className="form-help">
+                  Leave the default unless the fee changes.
+                </span>
               </label>
             </>
           ) : null}
@@ -523,6 +550,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 <option value="now">Now</option>
                 <option value="future">In The Future</option>
               </select>
+              <span className="form-help">
+                Choose Now to show the listing as soon as it is saved.
+              </span>
             </label>
             {form.listingMode === 'future' ? (
               <div className="form-row-pair nested-fields">
@@ -565,6 +595,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 <option value="now">Now</option>
                 <option value="future">In The Future</option>
               </select>
+              <span className="form-help">
+                Choose Now to let members register as soon as it is saved.
+              </span>
             </label>
             {form.registrationMode === 'future' ? (
               <div className="form-row-pair nested-fields">
