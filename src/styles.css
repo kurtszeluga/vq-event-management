@@ -555,6 +555,56 @@ a {
   width: 100%;
 }
 
+.uploaded-document-card,
+.uploaded-document-placeholder {
+  align-items: center;
+  border-radius: 8px;
+  display: inline-flex;
+  gap: 12px;
+  max-width: 420px;
+  padding: 14px;
+  width: 100%;
+}
+
+.uploaded-document-card {
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+}
+
+.uploaded-document-placeholder {
+  background: #eee8e1;
+  border: 1px dashed #c9bbb0;
+  color: #687572;
+  font-weight: 800;
+  max-width: 240px;
+}
+
+.document-file-icon {
+  align-items: center;
+  background: #9a4d2f;
+  border-radius: 8px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 900;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.uploaded-document-card strong,
+.uploaded-document-card small {
+  display: block;
+}
+
+.uploaded-document-card small {
+  color: #687572;
+  font-weight: 700;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
 .upload-preview-layout {
   align-items: start;
   display: grid;

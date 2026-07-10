@@ -83,6 +83,8 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       timePreset: value ? nextTimeOption?.value || 'other' : '',
       startTime: nextTimeOption?.startTime || '',
       endTime: nextTimeOption?.endTime || '',
+      supplyListFileName: supportsSupplyList(value) ? current.supplyListFileName : '',
+      supplyListTitle: supportsSupplyList(value) ? current.supplyListTitle : '',
       supplyListUrl: supportsSupplyList(value) ? current.supplyListUrl : ''
     }));
     setFieldErrors((current) => {
@@ -159,8 +161,12 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           await deleteEventFile(previousImageUrl).catch(() => {});
         }
       } else {
-        updateField(fieldName, fileUrl);
-        if (previousFileUrl && previousFileUrl !== fileUrl) {
+        updateField(fieldName, fileUrl.url);
+        updateField('supplyListFileName', fileUrl.fileName);
+        if (!form.supplyListTitle.trim()) {
+          updateField('supplyListTitle', toTitleCase(stripFileExtension(fileUrl.fileName)));
+        }
+        if (previousFileUrl && previousFileUrl !== fileUrl.url) {
           await deleteEventFile(previousFileUrl).catch(() => {});
         }
       }
@@ -209,10 +215,14 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     try {
       await deleteEventFile(documentUrl);
       updateField('supplyListUrl', '');
+      updateField('supplyListFileName', '');
+      updateField('supplyListTitle', '');
       setPreviewFile(null);
       setSuccessMessage('Document removed.');
     } catch (deleteError) {
       updateField('supplyListUrl', '');
+      updateField('supplyListFileName', '');
+      updateField('supplyListTitle', '');
       setPreviewFile(null);
       setError(`Document removed from the event, but the stored file could not be deleted. ${deleteError.message}`);
     } finally {
@@ -257,6 +267,8 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       serviceFee: form.isPaid ? Number(form.serviceFee || 0) : 0,
       startTime: form.startTime,
       status: form.status,
+      supplyListFileName: showSupplyListUpload ? form.supplyListFileName.trim() : '',
+      supplyListTitle: showSupplyListUpload ? form.supplyListTitle.trim() : '',
       supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
       timePreset: form.timePreset,
       title: toTitleCase(form.title.trim()),
@@ -576,6 +588,20 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   event.target.value = '';
                 }}
               />
+              <label>
+                <span>Document Display Title</span>
+                <input
+                  disabled={!eventTypeSelected}
+                  placeholder="Supply List"
+                  value={form.supplyListTitle}
+                  onChange={(event) =>
+                    updateField('supplyListTitle', event.target.value)
+                  }
+                  onBlur={(event) =>
+                    updateField('supplyListTitle', toTitleCase(event.target.value))
+                  }
+                />
+              </label>
               <div className="file-action-row">
                 <button
                   className="text-button"
@@ -592,7 +618,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                       type="button"
                       onClick={() =>
                         setPreviewFile({
-                          title: 'Supporting Document',
+                          title: form.supplyListTitle || 'Supporting Document',
                           type: 'pdf',
                           url: form.supplyListUrl
                         })
@@ -611,6 +637,19 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   </>
                 ) : null}
               </div>
+              {form.supplyListUrl ? (
+                <div className="uploaded-document-card">
+                  <span className="document-file-icon">PDF</span>
+                  <span>
+                    <strong>{form.supplyListTitle || 'Supporting Document'}</strong>
+                    <small>{form.supplyListFileName || getFileNameFromUrl(form.supplyListUrl)}</small>
+                  </span>
+                </div>
+              ) : (
+                <div className="uploaded-document-placeholder">
+                  No Document Selected
+                </div>
+              )}
               <span className="form-help">
                 Choose one PDF file. The app saves the member link.
               </span>
@@ -952,6 +991,19 @@ function toTitleCase(value) {
     .replace(/\bTn\b/g, 'TN')
     .replace(/\bP\.m\./g, 'P.M.')
     .replace(/\bA\.m\./g, 'A.M.');
+}
+
+function stripFileExtension(fileName) {
+  return fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+}
+
+function getFileNameFromUrl(fileUrl) {
+  try {
+    const decodedPath = decodeURIComponent(new URL(fileUrl).pathname);
+    return decodedPath.split('/').pop() || 'Uploaded PDF';
+  } catch {
+    return 'Uploaded PDF';
+  }
 }
 
 export default EventForm;

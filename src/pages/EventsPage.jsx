@@ -86,7 +86,7 @@ function EventsPage() {
             </dl>
             {event.supplyListUrl ? (
               <a className="text-button" href={event.supplyListUrl}>
-                Supply list
+                {event.supplyListTitle || event.supplyListFileName || 'Supply list'}
               </a>
             ) : null}
             <Link className="button-link" to={`/events/${event.id}`}>

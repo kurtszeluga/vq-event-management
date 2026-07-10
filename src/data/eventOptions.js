@@ -70,6 +70,8 @@ export const DEFAULT_EVENT_FORM = {
   serviceFee: '1.00',
   startTime: '',
   status: 'Published',
+  supplyListFileName: '',
+  supplyListTitle: '',
   supplyListUrl: '',
   timePreset: '',
   title: '',

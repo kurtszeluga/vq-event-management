@@ -107,7 +107,7 @@ function EventDetailsPage() {
           </dl>
           {event.supplyListUrl ? (
             <a className="text-button" href={event.supplyListUrl}>
-              Supply list PDF
+              {event.supplyListTitle || event.supplyListFileName || 'Supply list PDF'}
             </a>
           ) : null}
           {event.registrationOpen ? (

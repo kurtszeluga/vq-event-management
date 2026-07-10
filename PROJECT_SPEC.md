@@ -152,6 +152,8 @@ Required fields are marked with an asterisk.
   * PDF format only.
   * Display as a link in the event form.
   * Store uploaded files in Firebase Storage.
+  * Show the uploaded PDF file name in the form.
+  * Allow administrators to set a display title for the document link.
   * Allow administrators to view, change, or remove the uploaded document.
   * View PDFs inside the form with a close button.
 * Payment

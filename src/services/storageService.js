@@ -44,7 +44,10 @@ export async function uploadEventPdf(file, userProfile) {
     contentType: 'application/pdf'
   });
 
-  return getDownloadURL(snapshot.ref);
+  return {
+    fileName: file.name,
+    url: await getDownloadURL(snapshot.ref)
+  };
 }
 
 export async function deleteEventFile(fileUrl) {

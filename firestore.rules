@@ -49,6 +49,8 @@ service cloud.firestore {
           'visibleFrom',
           'visibleUntil',
           'imageUrls',
+          'supplyListFileName',
+          'supplyListTitle',
           'supplyListUrl',
           'additionalNotes',
           'createdBy',
@@ -74,6 +76,8 @@ service cloud.firestore {
         && request.resource.data.registrationMode is string
         && request.resource.data.listingMode is string
         && request.resource.data.imageUrls is list
+        && request.resource.data.supplyListFileName is string
+        && request.resource.data.supplyListTitle is string
         && request.resource.data.supplyListUrl is string
         && request.resource.data.createdBy is string
         && request.resource.data.createdDate is timestamp;
