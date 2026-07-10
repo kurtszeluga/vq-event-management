@@ -614,6 +614,11 @@ a {
   gap: 10px;
 }
 
+.upload-preview-panel {
+  display: grid;
+  gap: 8px;
+}
+
 .upload-wide-help {
   max-width: 100%;
 }

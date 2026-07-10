@@ -655,9 +655,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                       ) : null}
                     </label>
                   ) : null}
-                  <span className="form-help">
-                    Choose one PDF file. The app saves the member link.
-                  </span>
                   {uploadingField === 'supplyListUrl' ? (
                     <span className="form-help">Uploading PDF...</span>
                   ) : null}
@@ -668,19 +665,24 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     <span className="upload-inline-success">{uploadMessage}</span>
                   ) : null}
                 </div>
-                {form.supplyListUrl ? (
-                  <div className="uploaded-document-card">
-                    <span className="document-file-icon">PDF</span>
-                    <span>
-                      <strong>{form.supplyListTitle || 'Document Title Required'}</strong>
-                      <small>{form.supplyListFileName || getFileNameFromUrl(form.supplyListUrl)}</small>
-                    </span>
-                  </div>
-                ) : (
-                  <div className="uploaded-document-placeholder">
-                    No Document Selected
-                  </div>
-                )}
+                <div className="upload-preview-panel">
+                  {form.supplyListUrl ? (
+                    <div className="uploaded-document-card">
+                      <span className="document-file-icon">PDF</span>
+                      <span>
+                        <strong>{form.supplyListTitle || 'Document Title Required'}</strong>
+                        <small>{form.supplyListFileName || getFileNameFromUrl(form.supplyListUrl)}</small>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="uploaded-document-placeholder">
+                      No Document Selected
+                    </div>
+                  )}
+                  <span className="form-help upload-wide-help">
+                    Choose one PDF file. The app saves the member link.
+                  </span>
+                </div>
               </div>
             </div>
           ) : null}
