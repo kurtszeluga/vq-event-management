@@ -268,7 +268,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               ))}
             </select>
           </label>
-          <div className="form-row-pair">
+          <div className="form-row-pair nested-fields">
             <label>
               <span>Start</span>
               <input
@@ -309,7 +309,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           </label>
 
           {form.locationPreset === 'other' ? (
-            <label>
+            <label className="nested-fields">
               <span>Other Location *</span>
               <input
                 className={fieldErrors.location ? 'field-invalid' : ''}
