@@ -355,6 +355,12 @@ a {
   font-weight: 800;
 }
 
+.admin-form .form-help {
+  color: #5c6966;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .admin-form input:disabled {
   background: #eee8e1;
   color: #6d7471;

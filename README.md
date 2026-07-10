@@ -57,6 +57,8 @@ The admin event form can select image and PDF files from Google Drive. Configure
 
 Drive files selected for public events must be shared so visitors can view them.
 
+Event images should be JPG or WebP, no larger than 1600 x 1200 pixels and 1 MB.
+
 ### GitHub
 
 The local branch is `main`. Add a GitHub remote named `origin`, push `main`, and connect that repository to Vercel.

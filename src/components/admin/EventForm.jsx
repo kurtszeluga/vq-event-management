@@ -364,6 +364,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 value={form.imageUrls[index]}
                 onChange={(event) => handleImageUrl(index, event.target.value)}
               />
+              <span className="form-help">
+                Use JPG or WebP, 1600 x 1200 pixels max, 1 MB max.
+              </span>
               <button
                 className="text-button"
                 type="button"
