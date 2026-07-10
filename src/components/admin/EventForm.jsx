@@ -20,9 +20,11 @@ const eventTypeTimePresetMap = {
 
 function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const imageInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [previewFile, setPreviewFile] = useState(null);
   const [uploadingField, setUploadingField] = useState('');
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -144,6 +146,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       const previousImageUrl = options.imageIndex !== undefined
         ? form.imageUrls[options.imageIndex]
         : '';
+      const previousFileUrl = options.imageIndex === undefined
+        ? form[fieldName]
+        : '';
       const fileUrl = options.imageIndex !== undefined
         ? await uploadEventImage(file, userProfile)
         : await uploadEventPdf(file, userProfile);
@@ -155,6 +160,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         }
       } else {
         updateField(fieldName, fileUrl);
+        if (previousFileUrl && previousFileUrl !== fileUrl) {
+          await deleteEventFile(previousFileUrl).catch(() => {});
+        }
       }
       setSuccessMessage('File uploaded.');
     } catch (pickerError) {
@@ -182,6 +190,31 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     } catch (deleteError) {
       handleImageUrl(index, '');
       setError(`Image removed from the event, but the stored file could not be deleted. ${deleteError.message}`);
+    } finally {
+      setUploadingField('');
+    }
+  }
+
+  async function handleRemoveDocument() {
+    const documentUrl = form.supplyListUrl;
+
+    if (!documentUrl) {
+      return;
+    }
+
+    setError('');
+    setSuccessMessage('');
+    setUploadingField('remove-supplyListUrl');
+
+    try {
+      await deleteEventFile(documentUrl);
+      updateField('supplyListUrl', '');
+      setPreviewFile(null);
+      setSuccessMessage('Document removed.');
+    } catch (deleteError) {
+      updateField('supplyListUrl', '');
+      setPreviewFile(null);
+      setError(`Document removed from the event, but the stored file could not be deleted. ${deleteError.message}`);
     } finally {
       setUploadingField('');
     }
@@ -466,63 +499,80 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   event.target.value = '';
                 }}
               />
-              {form.imageUrls[index] ? (
-                <img
-                  alt="Uploaded event preview"
-                  className="uploaded-image-preview"
-                  src={form.imageUrls[index]}
-                />
-              ) : (
-                <div className="uploaded-image-placeholder">
-                  No Image Selected
-                </div>
-              )}
-              <span className="form-help">
-                Choose an image from your device. The app resizes it before saving.
-              </span>
-              {uploadingField === `image-${index}` ? (
-                <span className="form-help">Uploading image...</span>
-              ) : null}
-              {uploadingField === `remove-image-${index}` ? (
-                <span className="form-help">Removing image...</span>
-              ) : null}
-              <div className="file-action-row">
-                <button
-                  className="text-button"
-                  disabled={!eventTypeSelected || Boolean(uploadingField)}
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                >
-                  {form.imageUrls[index] ? 'Change Image' : 'Choose Image'}
-                </button>
-                {form.imageUrls[index] ? (
-                  <>
-                    <a className="text-button" href={form.imageUrls[index]}>
-                      View Full Size
-                    </a>
+              <div className="upload-preview-layout">
+                <div className="upload-control-panel">
+                  <span className="form-help">
+                    Choose an image from your device. The app resizes it before saving.
+                  </span>
+                  {uploadingField === `image-${index}` ? (
+                    <span className="form-help">Uploading image...</span>
+                  ) : null}
+                  {uploadingField === `remove-image-${index}` ? (
+                    <span className="form-help">Removing image...</span>
+                  ) : null}
+                  <div className="file-action-row">
                     <button
-                      className="danger-button"
+                      className="text-button"
                       disabled={!eventTypeSelected || Boolean(uploadingField)}
                       type="button"
-                      onClick={() => handleRemoveImage(index)}
+                      onClick={() => imageInputRef.current?.click()}
                     >
-                      Remove Image
+                      {form.imageUrls[index] ? 'Change Image' : 'Choose Image'}
                     </button>
-                  </>
-                ) : null}
+                    {form.imageUrls[index] ? (
+                      <button
+                        className="text-button"
+                        type="button"
+                        onClick={() =>
+                          setPreviewFile({
+                            title: 'Uploaded Image',
+                            type: 'image',
+                            url: form.imageUrls[index]
+                          })
+                        }
+                      >
+                        View Full Size
+                      </button>
+                    ) : null}
+                    {form.imageUrls[index] ? (
+                      <button
+                        className="danger-button"
+                        disabled={!eventTypeSelected || Boolean(uploadingField)}
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                      >
+                        Remove Image
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                {form.imageUrls[index] ? (
+                  <img
+                    alt="Uploaded event preview"
+                    className="uploaded-image-preview"
+                    src={form.imageUrls[index]}
+                  />
+                ) : (
+                  <div className="uploaded-image-placeholder">
+                    No Image Selected
+                  </div>
+                )}
               </div>
             </div>
           ))}
           {showSupplyListUpload ? (
-            <label className="form-span">
-              <span>Supporting Document Upload</span>
+            <div className="document-upload-field form-span">
+              <span className="field-label">Supporting Document Upload</span>
               <input
                 accept="application/pdf"
+                className="visually-hidden-file"
                 disabled={!eventTypeSelected || Boolean(uploadingField)}
+                ref={pdfInputRef}
                 type="file"
-                onChange={(event) =>
-                  handleFileUpload('supplyListUrl', event.target.files?.[0])
-                }
+                onChange={async (event) => {
+                  await handleFileUpload('supplyListUrl', event.target.files?.[0]);
+                  event.target.value = '';
+                }}
               />
               <span className="form-help">
                 Choose one PDF file. The app saves the member link.
@@ -530,15 +580,76 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               {uploadingField === 'supplyListUrl' ? (
                 <span className="form-help">Uploading PDF...</span>
               ) : null}
-              {form.supplyListUrl ? (
-                <a className="text-button" href={form.supplyListUrl}>
-                  View Uploaded PDF
-                </a>
+              {uploadingField === 'remove-supplyListUrl' ? (
+                <span className="form-help">Removing PDF...</span>
               ) : null}
-            </label>
+              <div className="file-action-row">
+                <button
+                  className="text-button"
+                  disabled={!eventTypeSelected || Boolean(uploadingField)}
+                  type="button"
+                  onClick={() => pdfInputRef.current?.click()}
+                >
+                  {form.supplyListUrl ? 'Change Document' : 'Choose Document'}
+                </button>
+                {form.supplyListUrl ? (
+                  <>
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() =>
+                        setPreviewFile({
+                          title: 'Supporting Document',
+                          type: 'pdf',
+                          url: form.supplyListUrl
+                        })
+                      }
+                    >
+                      View PDF
+                    </button>
+                    <button
+                      className="danger-button"
+                      disabled={!eventTypeSelected || Boolean(uploadingField)}
+                      type="button"
+                      onClick={handleRemoveDocument}
+                    >
+                      Remove Document
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
           ) : null}
         </div>
       </div>
+
+      {previewFile ? (
+        <div className="file-preview-panel">
+          <div className="file-preview-header">
+            <h3>{previewFile.title}</h3>
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => setPreviewFile(null)}
+            >
+              Close Preview
+            </button>
+          </div>
+          {previewFile.type === 'image' ? (
+            <img
+              alt="Full size uploaded preview"
+              className="file-preview-image"
+              src={previewFile.url}
+            />
+          ) : (
+            <iframe
+              className="file-preview-frame"
+              src={previewFile.url}
+              title={previewFile.title}
+            />
+          )}
+        </div>
+      ) : null}
 
       <div className="form-subsection">
         <h3>Event Fees</h3>

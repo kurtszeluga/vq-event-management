@@ -145,12 +145,15 @@ Required fields are marked with an asterisk.
   * Resize uploaded images to a maximum of 1600 x 1200 pixels and 1 MB.
   * Show an uploaded image preview large enough for administrators to confirm the correct image.
   * Allow administrators to change or remove the uploaded image.
+  * View full-size images inside the form with a close button.
   * If no image is supplied, that image slot remains blank.
 * Supporting Document Upload
   * For classes and workshops.
   * PDF format only.
   * Display as a link in the event form.
   * Store uploaded files in Firebase Storage.
+  * Allow administrators to view, change, or remove the uploaded document.
+  * View PDFs inside the form with a close button.
 * Payment
   * Cost of the event
   * Service fee, default $1.00
