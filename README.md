@@ -9,7 +9,8 @@ This project follows `PROJECT_SPEC.md` as the source of truth.
 - React + Vite
 - React Router
 - Progressive Web App
-- Firebase Authentication, Firestore, and future Storage
+- Firebase Authentication and Firestore
+- Google Drive Picker for event images and documents
 - Vercel deployment
 - Future Square-hosted Checkout payments
 
@@ -21,7 +22,7 @@ This project follows `PROJECT_SPEC.md` as the source of truth.
    npm install
    ```
 
-2. Copy the environment template and fill in Firebase web app values:
+2. Copy the environment template and fill in Firebase and Google web app values:
 
    ```sh
    cp .env.example .env.local
@@ -44,7 +45,17 @@ The repo includes:
 - `firebase.json`
 - `firestore.rules`
 - `firestore.indexes.json`
-- `storage.rules`
+
+Firebase Storage is not required for event assets.
+
+### Google Drive
+
+The admin event form can select image and PDF files from Google Drive. Configure a Google API key and OAuth client ID, then add these variables locally and in Vercel:
+
+- `VITE_GOOGLE_API_KEY`
+- `VITE_GOOGLE_CLIENT_ID`
+
+Drive files selected for public events must be shared so visitors can view them.
 
 ### GitHub
 

@@ -6,7 +6,7 @@ import {
   EVENT_TYPES
 } from '../../data/eventOptions.js';
 import { createEvent, updateEvent } from '../../services/eventService.js';
-import { uploadEventFile } from '../../services/fileUploadService.js';
+import { pickGoogleDriveFile } from '../../services/googleDrivePicker.js';
 
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
@@ -18,8 +18,8 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [pickingField, setPickingField] = useState('');
   const [saving, setSaving] = useState(false);
-  const [uploadingField, setUploadingField] = useState('');
   const isEditing = Boolean(editingEvent);
 
   useEffect(() => {
@@ -100,41 +100,31 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setForm(getInitialForm(editingEvent));
     setError('');
     setFieldErrors({});
-    setUploadingField('');
+    setPickingField('');
   }
 
-  async function handleFileSelection(event, fieldName, options = {}) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-
-    if (!file) {
-      return;
-    }
-
-    if (options.accepts && !options.accepts(file)) {
-      setError(options.errorMessage);
-      return;
-    }
-
+  async function handleDriveSelection(fieldName, options = {}) {
     setError('');
-    setUploadingField(fieldName);
+    setPickingField(fieldName);
 
     try {
-      const downloadUrl = await uploadEventFile(
-        file,
-        options.folder,
-        userProfile?.userId || userProfile?.email
-      );
+      const selectedFile = await pickGoogleDriveFile({
+        mimeTypes: options.mimeTypes
+      });
+
+      if (!selectedFile) {
+        return;
+      }
 
       if (options.imageIndex !== undefined) {
-        handleImageUrl(options.imageIndex, downloadUrl);
+        handleImageUrl(options.imageIndex, selectedFile.imageUrl);
       } else {
-        updateField(fieldName, downloadUrl);
+        updateField(fieldName, selectedFile.url);
       }
-    } catch (uploadError) {
-      setError(uploadError.message);
+    } catch (pickerError) {
+      setError(pickerError.message);
     } finally {
-      setUploadingField('');
+      setPickingField('');
     }
   }
 
@@ -374,44 +364,46 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 value={form.imageUrls[index]}
                 onChange={(event) => handleImageUrl(index, event.target.value)}
               />
-              <input
-                accept="image/*"
-                type="file"
-                onChange={(event) =>
-                  handleFileSelection(event, `image-${index}`, {
-                    accepts: (file) => file.type.startsWith('image/'),
-                    errorMessage: 'Please select an image file.',
-                    folder: 'images',
-                    imageIndex: index
+              <button
+                className="text-button"
+                type="button"
+                onClick={() =>
+                  handleDriveSelection(`image-${index}`, {
+                    imageIndex: index,
+                    mimeTypes: 'image/png,image/jpeg,image/gif,image/webp'
                   })
                 }
-              />
-              {uploadingField === `image-${index}` ? <small>Uploading...</small> : null}
+              >
+                {pickingField === `image-${index}`
+                  ? 'Opening Google Drive...'
+                  : 'Select From Google Drive'}
+              </button>
             </label>
           ))}
           {showSupplyListUpload ? (
             <label className="form-span">
-              <span>Supply List Upload</span>
+              <span>Supply List PDF Link</span>
               <input
-                placeholder="PDF link"
+                placeholder="PDF Link"
                 type="url"
                 value={form.supplyListUrl}
                 onChange={(event) =>
                   updateField('supplyListUrl', event.target.value)
                 }
               />
-              <input
-                accept="application/pdf"
-                type="file"
-                onChange={(event) =>
-                  handleFileSelection(event, 'supplyListUrl', {
-                    accepts: (file) => file.type === 'application/pdf',
-                    errorMessage: 'Please select a PDF file.',
-                    folder: 'documents'
+              <button
+                className="text-button"
+                type="button"
+                onClick={() =>
+                  handleDriveSelection('supplyListUrl', {
+                    mimeTypes: 'application/pdf'
                   })
                 }
-              />
-              {uploadingField === 'supplyListUrl' ? <small>Uploading...</small> : null}
+              >
+                {pickingField === 'supplyListUrl'
+                  ? 'Opening Google Drive...'
+                  : 'Select From Google Drive'}
+              </button>
             </label>
           ) : null}
         </div>
@@ -553,7 +545,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       <div className="form-actions">
         <button
           className="button-link button-reset"
-          disabled={saving || Boolean(uploadingField)}
+          disabled={saving || Boolean(pickingField)}
           type="submit"
         >
           {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Event'}
