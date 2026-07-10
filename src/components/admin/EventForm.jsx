@@ -66,8 +66,12 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       ...current,
       eventType: value,
       location: isClassOrWorkshop ? EVENT_LOCATIONS[0].label : '',
-      locationPreset: isClassOrWorkshop ? EVENT_LOCATIONS[0].value : 'other',
-      timePreset: nextTimeOption?.value || 'other',
+      locationPreset: value
+        ? isClassOrWorkshop
+          ? EVENT_LOCATIONS[0].value
+          : 'other'
+        : '',
+      timePreset: value ? nextTimeOption?.value || 'other' : '',
       startTime: nextTimeOption?.startTime || '',
       endTime: nextTimeOption?.endTime || '',
       supplyListUrl: supportsSupplyList(value) ? current.supplyListUrl : ''
@@ -217,16 +221,6 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
       <div className="form-grid stacked">
         <label>
-          <span>Event Name *</span>
-          <input
-            className={fieldErrors.title ? 'field-invalid' : ''}
-            value={form.title}
-            onChange={(event) => updateField('title', event.target.value)}
-            onBlur={(event) => updateField('title', toTitleCase(event.target.value))}
-          />
-        </label>
-
-        <label>
           <span>Event Type *</span>
           <select
             className={fieldErrors.eventType ? 'field-invalid' : ''}
@@ -240,6 +234,16 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               </option>
             ))}
           </select>
+        </label>
+
+        <label>
+          <span>Event Name *</span>
+          <input
+            className={fieldErrors.title ? 'field-invalid' : ''}
+            value={form.title}
+            onChange={(event) => updateField('title', event.target.value)}
+            onBlur={(event) => updateField('title', toTitleCase(event.target.value))}
+          />
         </label>
 
         <label>
@@ -261,6 +265,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               value={form.timePreset}
               onChange={(event) => handleTimePreset(event.target.value)}
             >
+              <option aria-label="Select Event Time" value="" />
               {EVENT_TIME_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -300,6 +305,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               value={form.locationPreset}
               onChange={(event) => handleLocationPreset(event.target.value)}
             >
+              <option aria-label="Select Event Location" value="" />
               {EVENT_LOCATIONS.map((location) => (
                 <option key={location.value} value={location.value}>
                   {location.label}

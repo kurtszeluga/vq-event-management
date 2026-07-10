@@ -61,7 +61,7 @@ export const DEFAULT_EVENT_FORM = {
   isPaid: null,
   listingMode: '',
   location: '',
-  locationPreset: 'other',
+  locationPreset: '',
   presenter: '',
   registrationCloseAt: '',
   registrationMode: '',
@@ -71,7 +71,7 @@ export const DEFAULT_EVENT_FORM = {
   startTime: '',
   status: 'Published',
   supplyListUrl: '',
-  timePreset: 'other',
+  timePreset: '',
   title: '',
   visibleFrom: '',
   visibleUntil: ''
