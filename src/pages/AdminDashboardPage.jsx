@@ -43,7 +43,7 @@ function AdminDashboardPage() {
     <section>
       <PageHeader
         eyebrow="Admin"
-        title="Event management dashboard"
+        title="Event/Activities Management Dashboard"
         description="Create classes, workshops, retreats, lectures, challenges, business listings, and sale listings."
       />
       <div className="status-panel">
