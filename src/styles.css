@@ -272,7 +272,8 @@ a {
   font-weight: 800;
 }
 
-.form-panel input {
+.form-panel input,
+.form-panel select {
   border: 1px solid #c9bbb0;
   border-radius: 8px;
   color: #1d2927;
@@ -281,7 +282,8 @@ a {
   width: 100%;
 }
 
-.form-panel input:focus {
+.form-panel input:focus,
+.form-panel select:focus {
   border-color: #225c56;
   outline: 3px solid #cfe3de;
 }
@@ -805,6 +807,7 @@ a {
 
 .user-edit-grid label,
 .permission-panel,
+.password-panel,
 .profile-address-panel {
   display: grid;
   gap: 8px;
@@ -822,6 +825,7 @@ a {
 }
 
 .permission-panel,
+.password-panel,
 .profile-address-panel {
   grid-column: 1 / -1;
 }
@@ -846,13 +850,56 @@ a {
   white-space: nowrap;
 }
 
-.profile-address-panel {
+.profile-address-panel,
+.password-panel {
   border-top: 1px solid #e6ddd3;
   padding-top: 14px;
 }
 
 .profile-address-panel label {
   max-width: 520px;
+}
+
+.user-table-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.user-table {
+  border-collapse: collapse;
+  min-width: 860px;
+  width: 100%;
+}
+
+.user-table th,
+.user-table td {
+  border-bottom: 1px solid #e6ddd3;
+  padding: 14px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.user-table th {
+  color: #3b4b48;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.user-table td {
+  color: #263632;
+  line-height: 1.45;
+}
+
+.user-table td strong,
+.user-table td span {
+  display: block;
+}
+
+.user-table td span {
+  color: #687572;
+  font-size: 0.88rem;
+  font-weight: 800;
+  margin-top: 3px;
 }
 
 .card-actions {
@@ -961,6 +1008,45 @@ a {
 
   .card-actions {
     grid-template-columns: repeat(2, max-content);
+  }
+
+  .user-table {
+    min-width: 0;
+  }
+
+  .user-table thead {
+    display: none;
+  }
+
+  .user-table,
+  .user-table tbody,
+  .user-table tr,
+  .user-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .user-table tr {
+    border: 1px solid #e6ddd3;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 10px;
+  }
+
+  .user-table td {
+    border-bottom: 0;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: 112px minmax(0, 1fr);
+    padding: 8px 4px;
+  }
+
+  .user-table td::before {
+    color: #687572;
+    content: attr(data-label);
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
   }
 
   .nested-fields {

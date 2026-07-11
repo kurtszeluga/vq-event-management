@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  getProfileTagSummary,
+  normalizeProfileTags,
+  PROFILE_TAG_OPTIONS
+} from '../../data/profileTags.js';
 import { US_STATES } from '../../data/usStates.js';
 import {
   DEFAULT_USER_PERMISSIONS,
@@ -10,6 +15,7 @@ import {
 import {
   createUserByAdmin,
   subscribeToUsers,
+  updateUserPasswordByAdmin,
   updateUserProfile
 } from '../../services/userService.js';
 import {
@@ -71,6 +77,7 @@ function UserControlPanel({
       name: '',
       permissions: DEFAULT_USER_PERMISSIONS,
       phone: '',
+      profileTags: [],
       role: 'General User',
       status: 'Active',
       temporaryPassword: '',
@@ -101,8 +108,10 @@ function UserControlPanel({
       name: user.name || '',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
+      profileTags: normalizeProfileTags(user.profileTags),
       role: user.role || 'General User',
       status: user.status || 'Active',
+      temporaryPassword: '',
       userId: user.userId || user.id
     });
   }
@@ -121,6 +130,20 @@ function UserControlPanel({
         [permissionKey]: value
       }
     }));
+  }
+
+  function updateProfileTag(tagKey, value) {
+    setSuccessMessage('');
+    setForm((current) => {
+      const currentTags = normalizeProfileTags(current.profileTags);
+
+      return {
+        ...current,
+        profileTags: value
+          ? [...new Set([...currentTags, tagKey])]
+          : currentTags.filter((tag) => tag !== tagKey)
+      };
+    });
   }
 
   function updateBillingAddressField(name, value) {
@@ -161,6 +184,7 @@ function UserControlPanel({
             ? normalizePermissions(form.permissions)
             : DEFAULT_USER_PERMISSIONS,
         phone: formatPhoneNumber(form.phone),
+        profileTags: normalizeProfileTags(form.profileTags),
         role: form.role,
         status: form.status,
         userId: form.userId
@@ -174,6 +198,9 @@ function UserControlPanel({
         setSuccessMessage(`User added. Temporary password: ${result.temporaryPassword}`);
       } else {
         await updateUserProfile(user.id, payload, currentUserProfile);
+        if (canManageAdminUsers && form.temporaryPassword) {
+          await updateUserPasswordByAdmin(user.userId || user.id, form.temporaryPassword);
+        }
         setSuccessMessage('User profile saved.');
       }
 
@@ -357,6 +384,7 @@ function UserControlPanel({
                     onChange={updatePermission}
                   />
                 ) : null}
+                <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
               </div>
             </div>
             <div className="card-actions">
@@ -382,12 +410,20 @@ function UserControlPanel({
             </div>
           </article>
         ) : null}
+        {!editingUserId ? (
+          <UserTable
+            canManageAdminUsers={canManageAdminUsers}
+            currentUserProfile={currentUserProfile}
+            users={users}
+            onEdit={startEdit}
+          />
+        ) : null}
         {users.map((user) => {
           const isEditing = editingUserId === user.id;
-          const isCurrentUser =
-            user.id === currentUserProfile?.id ||
-            user.userId === currentUserProfile?.userId;
-          const displayPermissions = normalizePermissions(user.permissions);
+
+          if (!isEditing) {
+            return null;
+          }
 
           return (
             <article className="user-admin-card" key={user.id}>
@@ -396,8 +432,7 @@ function UserControlPanel({
                   <span>{user.role || 'General User'}</span>
                   <strong>{user.status || 'Active'}</strong>
                 </div>
-                {isEditing ? (
-                  <div className="user-edit-grid">
+                <div className="user-edit-grid">
                     <label>
                       <span>Name</span>
                       <input
@@ -522,68 +557,47 @@ function UserControlPanel({
                         onChange={updatePermission}
                       />
                     ) : null}
-                  </div>
-                ) : (
-                  <>
-                    <h3>{user.name || 'Unnamed User'}</h3>
-                    <p>{user.email}</p>
-                    <dl>
-                      <div>
-                        <dt>Phone</dt>
-                        <dd>{user.phone || 'Phone TBD'}</dd>
+                    <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
+                    {canManageAdminUsers ? (
+                      <div className="password-panel">
+                        <span className="field-label">Change Password</span>
+                        <label>
+                          <span>New Temporary Password</span>
+                          <input
+                            minLength={8}
+                            placeholder="Leave blank to keep current password"
+                            type="text"
+                            value={form.temporaryPassword}
+                            onChange={(event) =>
+                              updateFormField('temporaryPassword', event.target.value)
+                            }
+                          />
+                        </label>
+                        <span className="form-help">Use at least 8 characters.</span>
                       </div>
-                      <div>
-                        <dt>Billing Address</dt>
-                        <dd>{formatBillingAddress(user.billingAddress)}</dd>
-                      </div>
-                      <div>
-                        <dt>Permissions</dt>
-                        <dd>
-                          {user.role === 'Super User'
-                            ? 'All Permissions'
-                            : getPermissionSummary(displayPermissions)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </>
-                )}
+                    ) : null}
+                </div>
               </div>
               <div className="card-actions">
-                {isEditing ? (
-                  <>
-                    <button
-                      className="button-link button-reset"
-                      disabled={Boolean(savingUserId)}
-                      type="button"
-                      onClick={() => handleSave(user)}
-                    >
-                      {savingUserId === user.id ? 'Saving...' : 'Save User'}
-                    </button>
-                    <button
-                      className="text-button"
-                      disabled={Boolean(savingUserId)}
-                      type="button"
-                      onClick={() => {
-                        setEditingUserId('');
-                        setForm(null);
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : isCurrentUser ? (
-                  <span className="form-help">Current User</span>
-                ) : !canEditUser(user, canManageAdminUsers) ? (
-                  <span className="form-help">Admin Profile</span>
-                ) : (
-                  <button
-                    className="button-link button-reset"
-                    type="button"
-                    onClick={() => startEdit(user)}
-                  >
-                    Edit User
-                  </button>
-                )}
+                <button
+                  className="button-link button-reset"
+                  disabled={Boolean(savingUserId)}
+                  type="button"
+                  onClick={() => handleSave(user)}
+                >
+                  {savingUserId === user.id ? 'Saving...' : 'Save User'}
+                </button>
+                <button
+                  className="text-button"
+                  disabled={Boolean(savingUserId)}
+                  type="button"
+                  onClick={() => {
+                    setEditingUserId('');
+                    setForm(null);
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
             </article>
           );
@@ -599,6 +613,67 @@ function getPermissionSummary(permissions) {
     .map((permission) => permission.label);
 
   return selectedPermissions.length ? selectedPermissions.join(', ') : 'No Admin Permissions';
+}
+
+function UserTable({ canManageAdminUsers, currentUserProfile, users, onEdit }) {
+  return (
+    <div className="user-table-wrap">
+      <table className="user-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Permissions</th>
+            <th>Tags</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => {
+            const isCurrentUser =
+              user.id === currentUserProfile?.id ||
+              user.userId === currentUserProfile?.userId;
+            const displayPermissions = normalizePermissions(user.permissions);
+
+            return (
+              <tr key={user.id}>
+                <td data-label="Name">
+                  <strong>{user.name || 'Unnamed User'}</strong>
+                  <span>{user.role || 'General User'}</span>
+                </td>
+                <td data-label="Email">{user.email || 'Email TBD'}</td>
+                <td data-label="Phone">{user.phone || 'Phone TBD'}</td>
+                <td data-label="Permissions">
+                  {user.role === 'Super User'
+                    ? 'All Permissions'
+                    : getPermissionSummary(displayPermissions)}
+                </td>
+                <td data-label="Tags">
+                  {getProfileTagSummary(normalizeProfileTags(user.profileTags))}
+                </td>
+                <td data-label="Action">
+                  {isCurrentUser ? (
+                    <span className="form-help">Current User</span>
+                  ) : canEditUser(user, canManageAdminUsers) ? (
+                    <button
+                      className="button-link button-reset"
+                      type="button"
+                      onClick={() => onEdit(user)}
+                    >
+                      Edit
+                    </button>
+                  ) : (
+                    <span className="form-help">Admin Profile</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function PermissionPanel({ permissions, role, onChange }) {
@@ -620,22 +695,28 @@ function PermissionPanel({ permissions, role, onChange }) {
   );
 }
 
-function canEditUser(user, canManageAdminUsers) {
-  return canManageAdminUsers || user.role === 'General User';
+function ProfileTagPanel({ profileTags, onChange }) {
+  const normalizedTags = normalizeProfileTags(profileTags);
+
+  return (
+    <div className="permission-panel">
+      <span className="field-label">Profile Tags</span>
+      {PROFILE_TAG_OPTIONS.map((tag) => (
+        <label className="checkbox-label" key={tag.key}>
+          <input
+            checked={normalizedTags.includes(tag.key)}
+            type="checkbox"
+            onChange={(event) => onChange(tag.key, event.target.checked)}
+          />
+          <span>{tag.label}</span>
+        </label>
+      ))}
+    </div>
+  );
 }
 
-function formatBillingAddress(billingAddress = {}) {
-  const lineOne = billingAddress.street;
-  const lineTwo = [
-    billingAddress.city,
-    billingAddress.state,
-    billingAddress.postalCode
-  ]
-    .filter(Boolean)
-    .join(', ');
-  const lines = [lineOne, lineTwo, billingAddress.country].filter(Boolean);
-
-  return lines.length ? lines.join(' | ') : 'Billing Address TBD';
+function canEditUser(user, canManageAdminUsers) {
+  return canManageAdminUsers || user.role === 'General User';
 }
 
 export default UserControlPanel;

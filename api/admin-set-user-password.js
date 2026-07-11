@@ -1,0 +1,97 @@
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+
+function initializeAdminApp() {
+  if (getApps().length) {
+    return;
+  }
+
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
+  if (!serviceAccountJson) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured.');
+  }
+
+  initializeApp({
+    credential: cert(JSON.parse(serviceAccountJson))
+  });
+}
+
+export default async function handler(request, response) {
+  if (request.method !== 'POST') {
+    response.setHeader('Allow', 'POST');
+    response.status(405).json({ error: 'Method not allowed.' });
+    return;
+  }
+
+  try {
+    initializeAdminApp();
+
+    const authHeader = request.headers.authorization || '';
+    const idToken = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : '';
+
+    if (!idToken) {
+      response.status(401).json({ error: 'Missing authorization token.' });
+      return;
+    }
+
+    const { password, userId } = request.body || {};
+
+    if (!userId || typeof userId !== 'string') {
+      response.status(400).json({ error: 'User ID is required.' });
+      return;
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      response.status(400).json({ error: 'Password must be at least 8 characters.' });
+      return;
+    }
+
+    const auth = getAuth();
+    const db = getFirestore();
+    const decodedToken = await auth.verifyIdToken(idToken);
+    const actorSnap = await db.collection('users').doc(decodedToken.uid).get();
+    const actorProfile = actorSnap.exists ? actorSnap.data() : {};
+
+    if (actorProfile.role !== 'Super User' || actorProfile.status !== 'Active') {
+      response.status(403).json({ error: 'Only active Super Users can change user passwords.' });
+      return;
+    }
+
+    const userRef = db.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      response.status(404).json({ error: 'User profile was not found.' });
+      return;
+    }
+
+    const userProfile = userSnap.data();
+    await auth.updateUser(userProfile.userId || userId, { password });
+
+    await db.collection('auditLogs').doc().set({
+      action: 'Update',
+      actorEmail: actorProfile.email || '',
+      actorName: actorProfile.name || actorProfile.email || 'Unknown Admin',
+      actorRole: actorProfile.role || '',
+      actorUserId: actorProfile.userId || decodedToken.uid,
+      after: {
+        passwordChanged: true,
+        userEmail: userProfile.email || '',
+        userName: userProfile.name || ''
+      },
+      before: {},
+      createdDate: FieldValue.serverTimestamp(),
+      entityId: userId,
+      entityType: 'User',
+      summary: `Changed password for user "${userProfile.name || userProfile.email || userId}"`
+    });
+
+    response.status(200).json({ ok: true });
+  } catch (error) {
+    response.status(500).json({ error: error.message });
+  }
+}

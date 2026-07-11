@@ -65,6 +65,7 @@ function SignupPage() {
         name: displayName,
         permissions: DEFAULT_USER_PERMISSIONS,
         phone: formatPhoneNumber(phone),
+        profileTags: [],
         role: 'General User',
         status: 'Active',
         updatedDate: serverTimestamp(),

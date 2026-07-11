@@ -133,6 +133,7 @@ service cloud.firestore {
           'email',
           'phone',
           'permissions',
+          'profileTags',
           'role',
           'status',
           'createdDate',
@@ -157,6 +158,15 @@ service cloud.firestore {
         && request.resource.data.email is string
         && request.resource.data.phone is string
         && request.resource.data.permissions is map
+        && (!('profileTags' in request.resource.data)
+          || request.resource.data.profileTags is list
+            && request.resource.data.profileTags.size() <= 20
+            && request.resource.data.profileTags.hasOnly([
+              'vqBooking',
+              'vqHosting',
+              'teacher',
+              'volunteer'
+            ]))
         && request.resource.data.permissions.keys().hasOnly([
           'manageEvents',
           'viewRegistrations',
@@ -187,6 +197,13 @@ service cloud.firestore {
         && request.resource.data.permissions.managePayments == false
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers == false);
+    }
+
+    function profileTagsUnchanged() {
+      return !('profileTags' in resource.data) && !('profileTags' in request.resource.data)
+        || 'profileTags' in resource.data
+          && 'profileTags' in request.resource.data
+          && request.resource.data.profileTags == resource.data.profileTags;
     }
 
     function validPayment() {
@@ -276,7 +293,8 @@ service cloud.firestore {
           && validUser()
           && request.resource.data.role == resource.data.role
           && request.resource.data.status == resource.data.status
-          && request.resource.data.permissions == resource.data.permissions;
+          && request.resource.data.permissions == resource.data.permissions
+          && profileTagsUnchanged();
       allow delete: if isSuperUser();
     }
 

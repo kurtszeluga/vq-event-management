@@ -101,6 +101,7 @@ await userRef.set(
     name,
     email,
     phone: formatPhoneNumber(FIRST_ADMIN_PHONE),
+    profileTags: existingProfile.exists ? existingProfile.data().profileTags || [] : [],
     permissions: {
       addUsers: true,
       manageEvents: true,

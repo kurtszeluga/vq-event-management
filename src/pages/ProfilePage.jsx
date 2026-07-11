@@ -1,14 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
   updatePassword,
   updateProfile
 } from 'firebase/auth';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
+import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles.js';
 import { US_STATES } from '../data/usStates.js';
 import { db, firebaseConfigured } from '../lib/firebase.js';
 import {
@@ -26,7 +25,6 @@ function ProfilePage() {
   const [billingStreet, setBillingStreet] = useState('');
   const [formError, setFormError] = useState('');
   const [name, setName] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -36,8 +34,9 @@ function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => {
+  const resetProfileForm = useCallback(() => {
     const billingAddress = userProfile?.billingAddress || {};
+
     setBillingCity(billingAddress.city || '');
     setBillingCountry(billingAddress.country || 'United States');
     setBillingPostalCode(billingAddress.postalCode || '');
@@ -45,7 +44,13 @@ function ProfilePage() {
     setBillingStreet(billingAddress.street || '');
     setName(userProfile?.name || currentUser?.displayName || '');
     setPhone(userProfile?.phone || '');
+    setFormError('');
+    setSuccessMessage('');
   }, [currentUser, userProfile]);
+
+  useEffect(() => {
+    resetProfileForm();
+  }, [resetProfileForm]);
 
   if (!firebaseConfigured) {
     return (
@@ -110,11 +115,6 @@ function ProfilePage() {
     setPasswordError('');
     setPasswordSuccessMessage('');
 
-    if (!currentPassword) {
-      setPasswordError('Current password is required.');
-      return;
-    }
-
     if (newPassword.length < 8) {
       setPasswordError('New password must be at least 8 characters.');
       return;
@@ -128,10 +128,7 @@ function ProfilePage() {
     setSavingPassword(true);
 
     try {
-      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
-      await reauthenticateWithCredential(currentUser, credential);
       await updatePassword(currentUser, newPassword);
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setPasswordSuccessMessage('Password changed.');
@@ -159,6 +156,17 @@ function ProfilePage() {
         </div>
       ) : (
         <>
+          {userProfile?.role === 'Admin' || userProfile?.role === 'Super User' ? (
+            <div className="status-panel">
+              <span className="status-dot good" />
+              <span>
+                <strong>{userProfile.role}</strong> permissions:{' '}
+                {userProfile.role === 'Super User'
+                  ? 'All Permissions'
+                  : getPermissionSummary(normalizePermissions(userProfile.permissions))}
+              </span>
+            </div>
+          ) : null}
           <form className="form-panel" onSubmit={handleSubmit}>
           <label>
             <span>Name *</span>
@@ -246,25 +254,24 @@ function ProfilePage() {
           </div>
           {formError ? <p className="form-error">{formError}</p> : null}
           {successMessage ? <p className="form-success">{successMessage}</p> : null}
-          <button className="button-link button-reset" disabled={saving} type="submit">
-            {saving ? 'Saving...' : 'Save Profile'}
-          </button>
+          <div className="form-actions">
+            <button className="button-link button-reset" disabled={saving} type="submit">
+              {saving ? 'Saving...' : 'Save Profile'}
+            </button>
+            <button
+              className="text-button"
+              disabled={saving}
+              type="button"
+              onClick={resetProfileForm}
+            >
+              Cancel
+            </button>
+          </div>
           </form>
           <form className="form-panel" onSubmit={handlePasswordSubmit}>
           <div className="form-section-header">
             <h2>Change Password</h2>
           </div>
-          <label>
-            <span>Current Password *</span>
-            <input
-              autoComplete="current-password"
-              disabled={savingPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              required
-              type="password"
-              value={currentPassword}
-            />
-          </label>
           <label>
             <span>New Password *</span>
             <input
@@ -305,10 +312,6 @@ function ProfilePage() {
 }
 
 function getPasswordErrorMessage(error) {
-  if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
-    return 'Current password is not correct.';
-  }
-
   if (error.code === 'auth/weak-password') {
     return 'New password must be at least 8 characters.';
   }
@@ -318,6 +321,14 @@ function getPasswordErrorMessage(error) {
   }
 
   return error.message;
+}
+
+function getPermissionSummary(permissions) {
+  const selectedPermissions = USER_PERMISSION_OPTIONS
+    .filter((permission) => permissions[permission.key])
+    .map((permission) => permission.label);
+
+  return selectedPermissions.length ? selectedPermissions.join(', ') : 'No Admin Permissions';
 }
 
 export default ProfilePage;

@@ -12,6 +12,7 @@ import {
 import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
 import { normalizePermissions } from '../data/userRoles.js';
+import { normalizeProfileTags } from '../data/profileTags.js';
 
 const usersCollection = () => collection(db, 'users');
 const auditLogsCollection = () => collection(db, 'auditLogs');
@@ -32,7 +33,8 @@ export async function updateUserProfile(userId, updates, actorProfile) {
   const userPayload = {
     ...before,
     ...updates,
-    permissions: normalizePermissions(updates.permissions)
+    permissions: normalizePermissions(updates.permissions),
+    profileTags: normalizeProfileTags(updates.profileTags)
   };
 
   batch.update(userRef, {
@@ -69,6 +71,30 @@ export async function createUserByAdmin(userData) {
 
   if (!response.ok) {
     throw new Error(result.error || 'User could not be added.');
+  }
+
+  return result;
+}
+
+export async function updateUserPasswordByAdmin(userId, password) {
+  const idToken = await auth.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('You must be signed in to change user passwords.');
+  }
+
+  const response = await fetch('/api/admin-set-user-password', {
+    body: JSON.stringify({ password, userId }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Password could not be changed.');
   }
 
   return result;

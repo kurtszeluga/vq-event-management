@@ -72,6 +72,7 @@ export default async function handler(request, response) {
       name: payload.name,
       permissions: getPermissionsForRole(payload.role, payload.permissions),
       phone: payload.phone,
+      profileTags: payload.profileTags,
       role: payload.role,
       status: payload.status,
       updatedDate: now,
@@ -155,6 +156,7 @@ function sanitizePayload(payload, actorProfile) {
     name: cleanText(payload.name),
     permissions: payload.permissions || {},
     phone: cleanText(payload.phone),
+    profileTags: normalizeProfileTags(payload.profileTags),
     role: isSuperUser ? requestedRole : 'General User',
     status: payload.status === 'Inactive' ? 'Inactive' : 'Active',
     temporaryPassword:
@@ -178,6 +180,14 @@ function getPermissionsForRole(role, permissions = {}) {
     viewRegistrations: false,
     addUsers: false
   };
+}
+
+function normalizeProfileTags(profileTags = []) {
+  const allowedTags = ['vqBooking', 'vqHosting', 'teacher', 'volunteer'];
+
+  return Array.isArray(profileTags)
+    ? profileTags.filter((tag) => allowedTags.includes(tag))
+    : [];
 }
 
 async function assertActorCanCreateOrUpdateProfile(auth, db, actorProfile, email) {
