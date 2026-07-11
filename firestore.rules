@@ -44,9 +44,18 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
           'eventId',
           'type',
+          'address',
+          'askingPrice',
+          'businessName',
+          'contactEmail',
+          'contactName',
+          'contactPhone',
           'eventType',
           'title',
           'description',
+          'documentFileName',
+          'documentTitle',
+          'documentUrl',
           'presenter',
           'date',
           'timePreset',
@@ -68,6 +77,8 @@ service cloud.firestore {
           'visibleFrom',
           'visibleUntil',
           'imageUrls',
+          'ownerName',
+          'specialty',
           'supplyListFileName',
           'supplyListTitle',
           'supplyListUrl',
@@ -77,8 +88,17 @@ service cloud.firestore {
           'updatedDate'
         ])
         && request.resource.data.title is string
+        && (!('address' in request.resource.data) || request.resource.data.address is string)
+        && (!('askingPrice' in request.resource.data) || request.resource.data.askingPrice is number)
+        && (!('businessName' in request.resource.data) || request.resource.data.businessName is string)
+        && (!('contactEmail' in request.resource.data) || request.resource.data.contactEmail is string)
+        && (!('contactName' in request.resource.data) || request.resource.data.contactName is string)
+        && (!('contactPhone' in request.resource.data) || request.resource.data.contactPhone is string)
         && request.resource.data.eventType is string
         && request.resource.data.description is string
+        && (!('documentFileName' in request.resource.data) || request.resource.data.documentFileName is string)
+        && (!('documentTitle' in request.resource.data) || request.resource.data.documentTitle is string)
+        && (!('documentUrl' in request.resource.data) || request.resource.data.documentUrl is string)
         && request.resource.data.date is string
         && request.resource.data.timePreset is string
         && request.resource.data.startTime is string
@@ -95,6 +115,8 @@ service cloud.firestore {
         && request.resource.data.registrationMode is string
         && request.resource.data.listingMode is string
         && request.resource.data.imageUrls is list
+        && (!('ownerName' in request.resource.data) || request.resource.data.ownerName is string)
+        && (!('specialty' in request.resource.data) || request.resource.data.specialty is string)
         && request.resource.data.supplyListFileName is string
         && request.resource.data.supplyListTitle is string
         && request.resource.data.supplyListUrl is string

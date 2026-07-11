@@ -19,6 +19,7 @@ const eventTypeTimePresetMap = {
 };
 
 function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
+  const documentInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const pdfInputRef = useRef(null);
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
@@ -38,7 +39,16 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
   const eventTypeSelected = Boolean(form.eventType);
   const eventLabel = form.eventType || 'Event';
+  const isBusinessListing = form.eventType === 'Business Listing';
+  const isForSale = form.eventType === 'For Sale';
+  const isChallenge = form.eventType === 'Challenges';
+  const isListingOnly = isBusinessListing || isForSale;
+  const showEventScheduleFields = eventTypeSelected && !isListingOnly && !isChallenge;
+  const showImageUpload = eventTypeSelected && !isChallenge;
+  const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
+  const showRegistrationSection = eventTypeSelected && !isListingOnly;
+  const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge;
 
   function updateField(name, value) {
     setSuccessMessage('');
@@ -85,9 +95,17 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       timePreset: value ? nextTimeOption?.value || 'other' : '',
       startTime: nextTimeOption?.startTime || '',
       endTime: nextTimeOption?.endTime || '',
-      supplyListFileName: supportsSupplyList(value) ? current.supplyListFileName : '',
-      supplyListTitle: supportsSupplyList(value) ? current.supplyListTitle : '',
-      supplyListUrl: supportsSupplyList(value) ? current.supplyListUrl : ''
+      supplyListFileName: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListFileName : '',
+      supplyListTitle: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListTitle : '',
+      supplyListUrl: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListUrl : '',
+      documentFileName: value === 'Challenges' ? current.documentFileName : '',
+      documentTitle: value === 'Challenges' ? current.documentTitle : '',
+      documentUrl: value === 'Challenges' ? current.documentUrl : '',
+      isPaid: value === 'Business Listing' || value === 'For Sale' || value === 'Challenges'
+        ? false
+        : current.isPaid,
+      registrationMode: value === 'Business Listing' || value === 'For Sale' ? 'none' : current.registrationMode,
+      registrationOpen: false
     }));
     setFieldErrors((current) => {
       const next = { ...current };
@@ -166,11 +184,18 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           await deleteEventFile(previousImageUrl).catch(() => {});
         }
       } else {
+        const fileNameField = fieldName === 'documentUrl'
+          ? 'documentFileName'
+          : 'supplyListFileName';
+        const titleField = fieldName === 'documentUrl'
+          ? 'documentTitle'
+          : 'supplyListTitle';
+
         setForm((current) => ({
           ...current,
           [fieldName]: fileUrl.url,
-          supplyListFileName: fileUrl.fileName,
-          supplyListTitle: ''
+          [fileNameField]: fileUrl.fileName,
+          [titleField]: ''
         }));
         if (previousFileUrl && previousFileUrl !== fileUrl.url) {
           await deleteEventFile(previousFileUrl).catch(() => {});
@@ -231,6 +256,36 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       updateField('supplyListUrl', '');
       updateField('supplyListFileName', '');
       updateField('supplyListTitle', '');
+      setPreviewFile(null);
+      setError(`Document removed from the event, but the stored file could not be deleted. ${deleteError.message}`);
+    } finally {
+      setUploadingField('');
+    }
+  }
+
+  async function handleRemoveChallengeDocument() {
+    const documentUrl = form.documentUrl;
+
+    if (!documentUrl) {
+      return;
+    }
+
+    setError('');
+    setUploadMessage('');
+    setSuccessMessage('');
+    setUploadingField('remove-documentUrl');
+
+    try {
+      await deleteEventFile(documentUrl);
+      updateField('documentUrl', '');
+      updateField('documentFileName', '');
+      updateField('documentTitle', '');
+      setPreviewFile(null);
+      setUploadMessage('Document removed.');
+    } catch (deleteError) {
+      updateField('documentUrl', '');
+      updateField('documentFileName', '');
+      updateField('documentTitle', '');
       setPreviewFile(null);
       setError(`Document removed from the event, but the stored file could not be deleted. ${deleteError.message}`);
     } finally {
@@ -325,158 +380,263 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           </span>
         </label>
 
-        <label>
-          <span>{eventLabel} Title *</span>
-          <input
-            className={fieldErrors.title ? 'field-invalid' : ''}
-            value={form.title}
-            onChange={(event) => updateField('title', event.target.value)}
-            onBlur={(event) => updateField('title', toTitleCase(event.target.value))}
-          />
-        </label>
-
-        <label>
-          <span>{eventLabel} Date *</span>
-          <input
-            className={fieldErrors.date ? 'field-invalid' : ''}
-            type="date"
-            value={form.date}
-            onChange={(event) => updateField('date', event.target.value)}
-          />
-          {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
-        </label>
-
-        <div className="form-stack-group">
+        {!isBusinessListing ? (
           <label>
-            <span>{eventLabel} Time *</span>
-            <select
-              className={fieldErrors.timePreset ? 'field-invalid' : ''}
-              disabled={!eventTypeSelected}
-              value={form.timePreset}
-              onChange={(event) => handleTimePreset(event.target.value)}
-            >
-              <option value="">Select One</option>
-              {EVENT_TIME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <span className="form-help">
-              Chose Other to enter a specific time.
-            </span>
+            <span>{eventLabel} Title *</span>
+            <input
+              className={fieldErrors.title ? 'field-invalid' : ''}
+              value={form.title}
+              onChange={(event) => updateField('title', event.target.value)}
+              onBlur={(event) => updateField('title', toTitleCase(event.target.value))}
+            />
           </label>
-          {form.timePreset === 'other' ? (
-            <div className="form-row-pair nested-fields">
-              <label>
-                <span>Start</span>
-                <input
-                  className={fieldErrors.startTime ? 'field-invalid' : ''}
-                  disabled={!eventTypeSelected}
-                  type="time"
-                  value={form.startTime}
-                  onChange={(event) =>
-                    updateField('startTime', event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                <span>End</span>
-                <input
-                  className={fieldErrors.endTime ? 'field-invalid' : ''}
-                  disabled={!eventTypeSelected}
-                  type="time"
-                  value={form.endTime}
-                  onChange={(event) => updateField('endTime', event.target.value)}
-                />
-              </label>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
-        <div className="form-stack-group">
-          <label>
-            <span>{eventLabel} Location *</span>
-            <select
-              className={fieldErrors.locationPreset ? 'field-invalid' : ''}
-              disabled={!eventTypeSelected}
-              value={form.locationPreset}
-              onChange={(event) => handleLocationPreset(event.target.value)}
-            >
-              <option value="">Select One</option>
-              {EVENT_LOCATIONS.map((location) => (
-                <option key={location.value} value={location.value}>
-                  {location.label}
-                </option>
-              ))}
-            </select>
-            <span className="form-help">
-              Choose Other only if the event is somewhere else.
-            </span>
-          </label>
-
-          {form.locationPreset === 'other' ? (
-            <label className="nested-fields">
-              <span>{eventLabel} Other Location *</span>
+        {isBusinessListing ? (
+          <>
+            <label>
+              <span>Owner Name *</span>
               <input
-                className={fieldErrors.location ? 'field-invalid' : ''}
-                disabled={!eventTypeSelected}
-                value={form.location}
-                onChange={(event) => updateField('location', event.target.value)}
+                className={fieldErrors.ownerName ? 'field-invalid' : ''}
+                value={form.ownerName}
+                onChange={(event) => updateField('ownerName', event.target.value)}
+                onBlur={(event) => updateField('ownerName', toTitleCase(event.target.value))}
+              />
+            </label>
+            <label>
+              <span>Business Name *</span>
+              <input
+                className={fieldErrors.businessName ? 'field-invalid' : ''}
+                value={form.businessName}
+                onChange={(event) => updateField('businessName', event.target.value)}
+                onBlur={(event) => updateField('businessName', toTitleCase(event.target.value))}
+              />
+            </label>
+            <label>
+              <span>Specialty *</span>
+              <input
+                className={fieldErrors.specialty ? 'field-invalid' : ''}
+                value={form.specialty}
+                onChange={(event) => updateField('specialty', event.target.value)}
+                onBlur={(event) => updateField('specialty', toTitleCase(event.target.value))}
+              />
+            </label>
+            <label>
+              <span>Email *</span>
+              <input
+                className={fieldErrors.contactEmail ? 'field-invalid' : ''}
+                type="email"
+                value={form.contactEmail}
+                onChange={(event) => updateField('contactEmail', event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Phone *</span>
+              <input
+                className={fieldErrors.contactPhone ? 'field-invalid' : ''}
+                value={form.contactPhone}
+                onChange={(event) => updateField('contactPhone', event.target.value)}
+              />
+            </label>
+            <label className="form-span">
+              <span>Address *</span>
+              <input
+                className={fieldErrors.address ? 'field-invalid' : ''}
+                value={form.address}
+                onChange={(event) => updateField('address', event.target.value)}
+                onBlur={(event) => updateField('address', toTitleCase(event.target.value))}
+              />
+            </label>
+          </>
+        ) : null}
+
+        {isForSale ? (
+          <>
+            <label>
+              <span>Asking Price *</span>
+              <input
+                className={fieldErrors.askingPrice ? 'field-invalid' : ''}
+                min="0"
+                step="0.01"
+                type="number"
+                value={form.askingPrice}
+                onChange={(event) => updateField('askingPrice', event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Contact Name *</span>
+              <input
+                className={fieldErrors.contactName ? 'field-invalid' : ''}
+                value={form.contactName}
+                onChange={(event) => updateField('contactName', event.target.value)}
+                onBlur={(event) => updateField('contactName', toTitleCase(event.target.value))}
+              />
+            </label>
+            <label>
+              <span>Contact Email</span>
+              <input
+                type="email"
+                value={form.contactEmail}
+                onChange={(event) => updateField('contactEmail', event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Contact Phone *</span>
+              <input
+                className={fieldErrors.contactPhone ? 'field-invalid' : ''}
+                value={form.contactPhone}
+                onChange={(event) => updateField('contactPhone', event.target.value)}
+              />
+            </label>
+          </>
+        ) : null}
+
+        {showEventScheduleFields ? (
+          <>
+            <label>
+              <span>{eventLabel} Date *</span>
+              <input
+                className={fieldErrors.date ? 'field-invalid' : ''}
+                type="date"
+                value={form.date}
+                onChange={(event) => updateField('date', event.target.value)}
+              />
+              {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
+            </label>
+
+            <div className="form-stack-group">
+              <label>
+                <span>{eventLabel} Time *</span>
+                <select
+                  className={fieldErrors.timePreset ? 'field-invalid' : ''}
+                  disabled={!eventTypeSelected}
+                  value={form.timePreset}
+                  onChange={(event) => handleTimePreset(event.target.value)}
+                >
+                  <option value="">Select One</option>
+                  {EVENT_TIME_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="form-help">
+                  Chose Other to enter a specific time.
+                </span>
+              </label>
+              {form.timePreset === 'other' ? (
+                <div className="form-row-pair nested-fields">
+                  <label>
+                    <span>Start</span>
+                    <input
+                      className={fieldErrors.startTime ? 'field-invalid' : ''}
+                      disabled={!eventTypeSelected}
+                      type="time"
+                      value={form.startTime}
+                      onChange={(event) =>
+                        updateField('startTime', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>End</span>
+                    <input
+                      className={fieldErrors.endTime ? 'field-invalid' : ''}
+                      disabled={!eventTypeSelected}
+                      type="time"
+                      value={form.endTime}
+                      onChange={(event) => updateField('endTime', event.target.value)}
+                    />
+                  </label>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="form-stack-group">
+              <label>
+                <span>{eventLabel} Location *</span>
+                <select
+                  className={fieldErrors.locationPreset ? 'field-invalid' : ''}
+                  disabled={!eventTypeSelected}
+                  value={form.locationPreset}
+                  onChange={(event) => handleLocationPreset(event.target.value)}
+                >
+                  <option value="">Select One</option>
+                  {EVENT_LOCATIONS.map((location) => (
+                    <option key={location.value} value={location.value}>
+                      {location.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="form-help">
+                  Choose Other only if the event is somewhere else.
+                </span>
+              </label>
+
+              {form.locationPreset === 'other' ? (
+                <label className="nested-fields">
+                  <span>{eventLabel} Other Location *</span>
+                  <input
+                    className={fieldErrors.location ? 'field-invalid' : ''}
+                    disabled={!eventTypeSelected}
+                    value={form.location}
+                    onChange={(event) => updateField('location', event.target.value)}
+                    onBlur={(event) =>
+                      updateField('location', toTitleCase(event.target.value))
+                    }
+                  />
+                </label>
+              ) : null}
+            </div>
+
+            <label>
+              <span>{eventLabel} Presenter/Instructor Name</span>
+              <input
+                value={form.presenter}
+                onChange={(event) => updateField('presenter', event.target.value)}
                 onBlur={(event) =>
-                  updateField('location', toTitleCase(event.target.value))
+                  updateField('presenter', toTitleCase(event.target.value))
                 }
               />
             </label>
-          ) : null}
-        </div>
 
-        <label>
-          <span>{eventLabel} Presenter/Instructor Name</span>
-          <input
-            value={form.presenter}
-            onChange={(event) => updateField('presenter', event.target.value)}
-            onBlur={(event) =>
-              updateField('presenter', toTitleCase(event.target.value))
-            }
-          />
-        </label>
-
-        <div className="form-stack-group">
-          <div className="capacity-row">
-            <div className="capacity-checkbox-field">
-              <span className="field-label-spacer" aria-hidden="true">
-                Capacity Option
-              </span>
-              <label className="checkbox-label">
-                <input
-                  checked={form.capacityUnlimited}
-                  disabled={!eventTypeSelected}
-                  type="checkbox"
-                  onChange={(event) =>
-                    updateField('capacityUnlimited', event.target.checked)
-                  }
-                />
-                <span>Unlimited Capacity</span>
-              </label>
+            <div className="form-stack-group">
+              <div className="capacity-row">
+                <div className="capacity-checkbox-field">
+                  <span className="field-label-spacer" aria-hidden="true">
+                    Capacity Option
+                  </span>
+                  <label className="checkbox-label">
+                    <input
+                      checked={form.capacityUnlimited}
+                      disabled={!eventTypeSelected}
+                      type="checkbox"
+                      onChange={(event) =>
+                        updateField('capacityUnlimited', event.target.checked)
+                      }
+                    />
+                    <span>Unlimited Capacity</span>
+                  </label>
+                </div>
+                <label>
+                  <span>{eventLabel} Maximum Capacity</span>
+                  <input
+                    className={fieldErrors.capacity ? 'field-invalid' : ''}
+                    disabled={!eventTypeSelected || form.capacityUnlimited}
+                    min="0"
+                    step="1"
+                    type="number"
+                    value={form.capacity}
+                    onChange={(event) => updateField('capacity', event.target.value)}
+                  />
+                </label>
+                <span className="form-help">
+                  Check Unlimited Capacity if there is no registration limit.
+                </span>
+              </div>
             </div>
-            <label>
-              <span>{eventLabel} Maximum Capacity</span>
-              <input
-                className={fieldErrors.capacity ? 'field-invalid' : ''}
-                disabled={!eventTypeSelected || form.capacityUnlimited}
-                min="0"
-                step="1"
-                type="number"
-                value={form.capacity}
-                onChange={(event) => updateField('capacity', event.target.value)}
-              />
-            </label>
-            <span className="form-help">
-              Check Unlimited Capacity if there is no registration limit.
-            </span>
-          </div>
-        </div>
+          </>
+        ) : null}
 
         <label className="form-span">
           <span>{eventLabel} Description *</span>
@@ -492,7 +652,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       <div className="form-subsection">
         <h3>Images And Documents (Optional)</h3>
         <div className="form-grid">
-          {[0].map((index) => (
+          {showImageUpload ? [0].map((index) => (
             <div className="image-upload-field" key={index}>
               <span className="field-label">Photo/Image Upload</span>
               <input
@@ -571,11 +731,113 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 Choose an image from your device. The app resizes it before saving.
               </span>
             </div>
-          ))}
-          {showSupplyListUpload ? (
+          )) : null}
+          {showDocumentUpload ? (
+            <div className="document-upload-field form-span">
+              <span className="field-label">Challenge PDF Upload</span>
+              <input
+                accept="application/pdf"
+                className="visually-hidden-file"
+                disabled={!eventTypeSelected || Boolean(uploadingField)}
+                ref={documentInputRef}
+                type="file"
+                onChange={async (event) => {
+                  await handleFileUpload('documentUrl', event.target.files?.[0]);
+                  event.target.value = '';
+                }}
+              />
+              <div className="upload-preview-layout">
+                <div className="upload-control-panel">
+                  <div className="file-action-row">
+                    <button
+                      className="button-link button-reset"
+                      disabled={!eventTypeSelected || Boolean(uploadingField)}
+                      type="button"
+                      onClick={() => documentInputRef.current?.click()}
+                    >
+                      {form.documentUrl ? 'Change PDF' : 'Choose PDF'}
+                    </button>
+                    {form.documentUrl ? (
+                      <>
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() =>
+                            setPreviewFile({
+                              title: form.documentTitle || 'Challenge PDF',
+                              type: 'pdf',
+                              url: form.documentUrl
+                            })
+                          }
+                        >
+                          View PDF
+                        </button>
+                        <button
+                          className="danger-button"
+                          disabled={!eventTypeSelected || Boolean(uploadingField)}
+                          type="button"
+                          onClick={handleRemoveChallengeDocument}
+                        >
+                          Remove PDF
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                  {form.documentUrl ? (
+                    <label>
+                      <span>PDF Display Title *</span>
+                      <input
+                        className={fieldErrors.documentTitle ? 'field-invalid' : ''}
+                        disabled={!eventTypeSelected}
+                        placeholder="Challenge Details"
+                        value={form.documentTitle}
+                        onChange={(event) =>
+                          updateField('documentTitle', event.target.value)
+                        }
+                        onBlur={(event) =>
+                          updateField('documentTitle', toTitleCase(event.target.value))
+                        }
+                      />
+                      {fieldErrors.documentTitle ? (
+                        <small>{fieldErrors.documentTitle}</small>
+                      ) : null}
+                    </label>
+                  ) : null}
+                  {uploadingField === 'documentUrl' ? (
+                    <span className="form-help">Uploading PDF...</span>
+                  ) : null}
+                  {uploadingField === 'remove-documentUrl' ? (
+                    <span className="form-help">Removing PDF...</span>
+                  ) : null}
+                  {uploadMessage.includes('Document') ? (
+                    <span className="upload-inline-success">{uploadMessage}</span>
+                  ) : null}
+                </div>
+                <div className="upload-preview-panel">
+                  {form.documentUrl ? (
+                    <div className="uploaded-document-card">
+                      <span className="document-file-icon">PDF</span>
+                      <span>
+                        <strong>{form.documentTitle || 'PDF Title Required'}</strong>
+                        <small>{form.documentFileName || getFileNameFromUrl(form.documentUrl)}</small>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="uploaded-document-placeholder">
+                      No PDF Selected
+                    </div>
+                  )}
+                </div>
+              </div>
+              <span className="form-help upload-wide-help">
+                Choose one PDF file for the challenge details.
+              </span>
+            </div>
+          ) : null}
+          {showSupplyListUpload || isChallenge ? (
             <div className="document-upload-field form-span">
               <span className="field-label">
-                Supporting Document Upload (i.e. Supply List)
+                Supply List Upload
               </span>
               <input
                 accept="application/pdf"
@@ -707,7 +969,8 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
         </div>
       ) : null}
 
-      <div className="form-subsection">
+      {showFeesSection ? (
+        <div className="form-subsection">
         <h3>Event/Activity Fees</h3>
         <div className="form-grid compact">
           <div className={`radio-field ${fieldErrors.isPaid ? 'field-invalid' : ''}`}>
@@ -772,6 +1035,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           ) : null}
         </div>
       </div>
+      ) : null}
 
       <div className="form-subsection">
         <h3>Website Listing and Event Registration</h3>
@@ -793,22 +1057,24 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 Choose Now to show the listing as soon as it is saved.
               </span>
             </label>
-            {form.listingMode === 'future' ? (
+            {form.listingMode === 'future' || isChallenge || isForSale ? (
               <div className="form-row-pair nested-fields">
+                {form.listingMode === 'future' ? (
+                  <label>
+                    <span>Post Listing</span>
+                    <input
+                      className={fieldErrors.visibleFrom ? 'field-invalid' : ''}
+                      disabled={!eventTypeSelected}
+                      type="datetime-local"
+                      value={form.visibleFrom}
+                      onChange={(event) =>
+                        updateField('visibleFrom', event.target.value)
+                      }
+                    />
+                  </label>
+                ) : null}
                 <label>
-                  <span>Post Listing</span>
-                  <input
-                    className={fieldErrors.visibleFrom ? 'field-invalid' : ''}
-                    disabled={!eventTypeSelected}
-                    type="datetime-local"
-                    value={form.visibleFrom}
-                    onChange={(event) =>
-                      updateField('visibleFrom', event.target.value)
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Remove Listing</span>
+                  <span>{isForSale ? 'Remove Listing' : 'Remove Listing *'}</span>
                   <input
                     className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
                     disabled={!eventTypeSelected}
@@ -818,11 +1084,17 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                       updateField('visibleUntil', event.target.value)
                     }
                   />
+                  {isForSale ? (
+                    <span className="form-help">
+                      Leave blank to auto-expire six months after posting.
+                    </span>
+                  ) : null}
                 </label>
               </div>
             ) : null}
           </div>
-          <div className="form-stack-group">
+          {showRegistrationSection ? (
+            <div className="form-stack-group">
             <label>
               <span>Enable Event Registration</span>
               <select
@@ -874,6 +1146,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               </div>
             ) : null}
           </div>
+          ) : null}
         </div>
       </div>
 
@@ -905,36 +1178,42 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
 function validateEventForm(form) {
   const errors = {};
+  const isBusinessListing = form.eventType === 'Business Listing';
+  const isForSale = form.eventType === 'For Sale';
+  const isChallenge = form.eventType === 'Challenges';
+  const requiresSchedule = form.eventType && !isBusinessListing && !isForSale && !isChallenge;
+  const requiresRegistration = form.eventType && !isBusinessListing && !isForSale;
+  const requiresFees = requiresSchedule;
 
   if (!form.eventType) {
     errors.eventType = 'Event type is required.';
   }
 
-  if (!form.date) {
+  if (requiresSchedule && !form.date) {
     errors.date = 'Event date is required.';
   }
 
-  if (!form.timePreset) {
+  if (requiresSchedule && !form.timePreset) {
     errors.timePreset = 'Event time is required.';
   }
 
-  if (form.timePreset === 'other' && !form.startTime) {
+  if (requiresSchedule && form.timePreset === 'other' && !form.startTime) {
     errors.startTime = 'Start time is required.';
   }
 
-  if (form.timePreset === 'other' && !form.endTime) {
+  if (requiresSchedule && form.timePreset === 'other' && !form.endTime) {
     errors.endTime = 'End time is required.';
   }
 
-  if (!form.locationPreset) {
+  if (requiresSchedule && !form.locationPreset) {
     errors.locationPreset = 'Location is required.';
   }
 
-  if (!form.location.trim()) {
+  if (requiresSchedule && !form.location.trim()) {
     errors.location = 'Location is required.';
   }
 
-  if (!form.title.trim()) {
+  if (!isBusinessListing && !form.title.trim()) {
     errors.title = 'Event title is required.';
   }
 
@@ -942,15 +1221,59 @@ function validateEventForm(form) {
     errors.description = 'Event description is required.';
   }
 
+  if (isBusinessListing) {
+    if (!form.ownerName.trim()) {
+      errors.ownerName = 'Owner name is required.';
+    }
+
+    if (!form.businessName.trim()) {
+      errors.businessName = 'Business name is required.';
+    }
+
+    if (!form.specialty.trim()) {
+      errors.specialty = 'Specialty is required.';
+    }
+
+    if (!form.contactEmail.trim()) {
+      errors.contactEmail = 'Email is required.';
+    }
+
+    if (!form.contactPhone.trim()) {
+      errors.contactPhone = 'Phone is required.';
+    }
+
+    if (!form.address.trim()) {
+      errors.address = 'Address is required.';
+    }
+  }
+
+  if (isForSale) {
+    if (Number(form.askingPrice) < 0 || form.askingPrice === '') {
+      errors.askingPrice = 'Asking price is required.';
+    }
+
+    if (!form.contactName.trim()) {
+      errors.contactName = 'Contact name is required.';
+    }
+
+    if (!form.contactPhone.trim()) {
+      errors.contactPhone = 'Contact phone is required.';
+    }
+  }
+
+  if (form.documentUrl && !form.documentTitle.trim()) {
+    errors.documentTitle = 'PDF display title is required.';
+  }
+
   if (form.supplyListUrl && !form.supplyListTitle.trim()) {
     errors.supplyListTitle = 'Document display title is required.';
   }
 
-  if (form.isPaid === null) {
+  if (requiresFees && form.isPaid === null) {
     errors.isPaid = 'Select whether this event has a fee.';
   }
 
-  if (!form.capacityUnlimited && Number(form.capacity) < 0) {
+  if (requiresSchedule && !form.capacityUnlimited && Number(form.capacity) < 0) {
     errors.capacity = 'Maximum capacity cannot be negative.';
   }
 
@@ -963,16 +1286,20 @@ function validateEventForm(form) {
       errors.visibleFrom = 'Post listing date/time is required.';
     }
 
-    if (!form.visibleUntil) {
+    if (!isForSale && !form.visibleUntil) {
       errors.visibleUntil = 'Remove listing date/time is required.';
     }
   }
 
-  if (!form.registrationMode) {
+  if (isChallenge && !form.visibleUntil) {
+    errors.visibleUntil = 'Remove listing date/time is required.';
+  }
+
+  if (requiresRegistration && !form.registrationMode) {
     errors.registrationMode = 'Select when to enable registration.';
   }
 
-  if (form.registrationMode === 'future') {
+  if (requiresRegistration && form.registrationMode === 'future') {
     if (!form.registrationOpenAt) {
       errors.registrationOpenAt = 'Registration enable date/time is required.';
     }
@@ -992,7 +1319,9 @@ function validateDraftEventForm(form) {
     errors.eventType = 'Event type is required for a draft.';
   }
 
-  if (!form.title.trim()) {
+  if (form.eventType === 'Business Listing' && !form.businessName.trim()) {
+    errors.businessName = 'Business name is required for a draft.';
+  } else if (!form.title.trim()) {
     errors.title = 'Event title is required for a draft.';
   }
 
@@ -1000,36 +1329,57 @@ function validateDraftEventForm(form) {
 }
 
 function buildEventPayload(form, showSupplyListUpload, asDraft) {
+  const isBusinessListing = form.eventType === 'Business Listing';
+  const isForSale = form.eventType === 'For Sale';
+  const isChallenge = form.eventType === 'Challenges';
+  const isListingOnly = isBusinessListing || isForSale;
+  const title = isBusinessListing ? form.businessName : form.title;
+  const visibleFrom = form.visibleFrom;
+  const visibleUntil = isForSale && !form.visibleUntil
+    ? getDefaultForSaleExpiration(visibleFrom)
+    : form.visibleUntil;
+
   return {
     additionalNotes: form.additionalNotes.trim(),
-    capacity: form.capacityUnlimited ? 0 : Number(form.capacity || 0),
-    capacityUnlimited: Boolean(form.capacityUnlimited),
-    cost: form.isPaid ? Number(form.cost || 0) : 0,
-    date: form.date,
+    address: toTitleCase(form.address.trim()),
+    askingPrice: isForSale ? Number(form.askingPrice || 0) : 0,
+    businessName: toTitleCase(form.businessName.trim()),
+    capacity: isListingOnly || isChallenge || form.capacityUnlimited ? 0 : Number(form.capacity || 0),
+    capacityUnlimited: isListingOnly || isChallenge ? true : Boolean(form.capacityUnlimited),
+    contactEmail: form.contactEmail.trim(),
+    contactName: toTitleCase(form.contactName.trim()),
+    contactPhone: form.contactPhone.trim(),
+    cost: form.isPaid && !isListingOnly && !isChallenge ? Number(form.cost || 0) : 0,
+    date: isListingOnly || isChallenge ? '' : form.date,
     description: form.description.trim(),
-    endTime: form.endTime,
+    documentFileName: isChallenge ? form.documentFileName.trim() : '',
+    documentTitle: isChallenge ? form.documentTitle.trim() : '',
+    documentUrl: isChallenge ? form.documentUrl.trim() : '',
+    endTime: isListingOnly || isChallenge ? '' : form.endTime,
     eventType: form.eventType,
     imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
-    isPaid: form.isPaid === true,
+    isPaid: form.isPaid === true && !isListingOnly && !isChallenge,
     listingMode: form.listingMode,
-    location: toTitleCase(form.location.trim()),
-    locationPreset: form.locationPreset,
-    presenter: toTitleCase(form.presenter.trim()),
-    registrationCloseAt: form.registrationCloseAt,
-    registrationMode: form.registrationMode,
-    registrationOpen: form.registrationMode === 'now',
-    registrationOpenAt: form.registrationOpenAt,
-    serviceFee: form.isPaid ? Number(form.serviceFee || 0) : 0,
-    startTime: form.startTime,
+    location: isListingOnly || isChallenge ? '' : toTitleCase(form.location.trim()),
+    locationPreset: isListingOnly || isChallenge ? '' : form.locationPreset,
+    ownerName: toTitleCase(form.ownerName.trim()),
+    presenter: isListingOnly || isChallenge ? '' : toTitleCase(form.presenter.trim()),
+    registrationCloseAt: isListingOnly ? '' : form.registrationCloseAt,
+    registrationMode: isListingOnly ? 'none' : form.registrationMode,
+    registrationOpen: !isListingOnly && form.registrationMode === 'now',
+    registrationOpenAt: isListingOnly ? '' : form.registrationOpenAt,
+    serviceFee: form.isPaid && !isListingOnly && !isChallenge ? Number(form.serviceFee || 0) : 0,
+    specialty: toTitleCase(form.specialty.trim()),
+    startTime: isListingOnly || isChallenge ? '' : form.startTime,
     status: asDraft ? 'Draft' : 'Published',
-    supplyListFileName: showSupplyListUpload ? form.supplyListFileName.trim() : '',
-    supplyListTitle: showSupplyListUpload ? form.supplyListTitle.trim() : '',
-    supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
-    timePreset: form.timePreset,
-    title: toTitleCase(form.title.trim()),
+    supplyListFileName: showSupplyListUpload || isChallenge ? form.supplyListFileName.trim() : '',
+    supplyListTitle: showSupplyListUpload || isChallenge ? form.supplyListTitle.trim() : '',
+    supplyListUrl: showSupplyListUpload || isChallenge ? form.supplyListUrl.trim() : '',
+    timePreset: isListingOnly || isChallenge ? '' : form.timePreset,
+    title: toTitleCase(title.trim()),
     type: form.eventType,
-    visibleFrom: form.visibleFrom,
-    visibleUntil: form.visibleUntil
+    visibleFrom,
+    visibleUntil
   };
 }
 
@@ -1075,6 +1425,28 @@ function getFileNameFromUrl(fileUrl) {
   } catch {
     return 'Uploaded PDF';
   }
+}
+
+function getDefaultForSaleExpiration(visibleFrom) {
+  const startDate = visibleFrom ? new Date(visibleFrom) : new Date();
+
+  if (Number.isNaN(startDate.getTime())) {
+    return '';
+  }
+
+  startDate.setMonth(startDate.getMonth() + 6);
+
+  return toDateTimeLocalValue(startDate);
+}
+
+function toDateTimeLocalValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 export default EventForm;

@@ -6,14 +6,6 @@ export const PROFILE_TAG_OPTIONS = [
   {
     key: 'vqHosting',
     label: 'VQ Hosting'
-  },
-  {
-    key: 'teacher',
-    label: 'Teacher'
-  },
-  {
-    key: 'volunteer',
-    label: 'Volunteer'
   }
 ];
 

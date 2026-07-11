@@ -114,7 +114,7 @@ Administrator Features
 * Public account creation for new General User profiles
 * Signed-in users can edit their own profile name, phone number, billing address, and password
 * All user profile types include billing address fields for future payment processing
-* User profiles can be tagged for VQ Booking, VQ Hosting, teaching, and volunteer functions
+* User profiles can be tagged for VQ Booking and VQ Hosting functions
 * Phone numbers should be formatted consistently as users enter them
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
@@ -153,6 +153,9 @@ Required fields are marked with an asterisk.
 * Photo/Image Upload
   * Allow one event image.
   * Resize uploaded images to a maximum of 1600 x 1200 pixels and 1 MB.
+* Challenges use title, description, challenge PDF upload, supply list PDF upload, posting start/end, and registration.
+* Business Listings use image upload, owner name, business name, specialty, email, phone, address, and description. Registration is not enabled.
+* For Sale listings use title, description, asking price, photo upload, contact info, and posting start/end. Registration is not enabled and listings auto-expire after six months.
   * Show an uploaded image preview large enough for administrators to confirm the correct image.
   * Allow administrators to change or remove the uploaded image.
   * View full-size images inside the form with a close button.
@@ -282,7 +285,7 @@ phone	Phone
 billingAddress	Billing address for future payment processing
 role	Super User, Admin, or General User
 permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments, addUsers
-profileTags	Functional tags such as vqBooking, vqHosting, teacher, volunteer
+profileTags	Functional tags such as vqBooking and vqHosting
 status	Active or Inactive
 
 ⸻
