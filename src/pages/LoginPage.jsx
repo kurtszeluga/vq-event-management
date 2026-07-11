@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { auth } from '../lib/firebase.js';
@@ -11,6 +11,10 @@ function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState('');
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,6 +36,30 @@ function LoginPage() {
       setFormError(error.message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    const resetEmail = email.trim();
+    setRecoveryError('');
+    setRecoveryMessage('');
+
+    if (!resetEmail) {
+      setRecoveryError('Enter your email address above first.');
+      return;
+    }
+
+    setSendingReset(true);
+
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setRecoveryMessage(
+        'If that email has an account, Firebase will send password reset instructions.'
+      );
+    } catch (error) {
+      setRecoveryError(getPasswordResetErrorMessage(error));
+    } finally {
+      setSendingReset(false);
     }
   }
 
@@ -72,6 +100,9 @@ function LoginPage() {
               type="email"
               value={email}
             />
+            <span className="form-help">
+              Your username is the email address used for your account.
+            </span>
           </label>
           <label>
             <span>Password</span>
@@ -84,6 +115,42 @@ function LoginPage() {
               value={password}
             />
           </label>
+          <div className="login-recovery">
+            <button
+              className="text-button"
+              disabled={!firebaseConfigured || submitting}
+              type="button"
+              onClick={() => {
+                setRecoveryOpen((current) => !current);
+                setRecoveryError('');
+                setRecoveryMessage('');
+              }}
+            >
+              Forgot password or username?
+            </button>
+            {recoveryOpen ? (
+              <div className="login-recovery-panel">
+                <p>
+                  Your username is your email address. To reset your password,
+                  enter your email above and send reset instructions.
+                </p>
+                {recoveryError ? (
+                  <p className="form-error">{recoveryError}</p>
+                ) : null}
+                {recoveryMessage ? (
+                  <p className="form-success">{recoveryMessage}</p>
+                ) : null}
+                <button
+                  className="button-link button-reset secondary-action"
+                  disabled={!firebaseConfigured || sendingReset}
+                  type="button"
+                  onClick={handlePasswordReset}
+                >
+                  {sendingReset ? 'Sending...' : 'Send Password Reset Email'}
+                </button>
+              </div>
+            ) : null}
+          </div>
           {formError ? <p className="form-error">{formError}</p> : null}
           <button
             className="button-link button-reset"
@@ -99,6 +166,18 @@ function LoginPage() {
       )}
     </section>
   );
+}
+
+function getPasswordResetErrorMessage(error) {
+  if (error.code === 'auth/invalid-email') {
+    return 'Enter a valid email address.';
+  }
+
+  if (error.code === 'auth/too-many-requests') {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+
+  return 'Password reset could not be started. Please check the email address and try again.';
 }
 
 export default LoginPage;

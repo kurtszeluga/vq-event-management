@@ -107,6 +107,7 @@ Phase 2 – Administrative Event Management
 Administrator Features
 
 * Secure administrator login
+* Login page supports forgot password and username help. The username is the account email address, and password reset instructions are sent through Firebase Authentication.
 * User control module for Super User role and permissions management
 * Super Users can add user accounts for non-computer-savvy members
 * Admins with Add New Users permission can add and edit General User profiles, but cannot edit Admin or Super User profiles

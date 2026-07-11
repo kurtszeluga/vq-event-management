@@ -739,6 +739,27 @@ a {
   cursor: not-allowed;
 }
 
+.login-recovery {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.login-recovery-panel {
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  width: 100%;
+}
+
+.login-recovery-panel p {
+  color: #5c6966;
+  margin: 0;
+}
+
 .event-admin-list,
 .public-event-list {
   display: grid;
