@@ -958,6 +958,21 @@ a {
   color: #5c6966;
 }
 
+.configuration-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.configuration-summary span {
+  background: #e9f2ef;
+  border: 1px solid #cfe3de;
+  border-radius: 999px;
+  color: #225c56;
+  font-weight: 900;
+  padding: 7px 12px;
+}
+
 .configuration-form-grid {
   display: grid;
   gap: 16px;

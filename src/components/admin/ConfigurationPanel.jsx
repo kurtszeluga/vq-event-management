@@ -61,6 +61,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
+  const memberCounts = getMemberCounts(members);
 
   useEffect(() => {
     let pendingLoads = 4;
@@ -273,6 +274,11 @@ function ConfigurationPanel({ currentUserProfile }) {
             CSV columns can use Name, First Name, Last Name, Email, Phone, Status,
             and Notes.
           </p>
+        </div>
+        <div className="configuration-summary" aria-label="Member list totals">
+          <span>Active: {memberCounts.active}</span>
+          <span>Inactive: {memberCounts.inactive}</span>
+          <span>Total: {memberCounts.total}</span>
         </div>
         <div className="configuration-actions">
           <input
@@ -690,6 +696,22 @@ function ConfigurationTable({ columns, emptyText, rows }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function getMemberCounts(members) {
+  return members.reduce(
+    (counts, member) => {
+      if (member.status === 'Inactive') {
+        counts.inactive += 1;
+      } else {
+        counts.active += 1;
+      }
+
+      counts.total += 1;
+      return counts;
+    },
+    { active: 0, inactive: 0, total: 0 }
   );
 }
 
