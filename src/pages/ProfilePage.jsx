@@ -5,6 +5,11 @@ import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { db, firebaseConfigured } from '../lib/firebase.js';
+import {
+  buildBillingAddress,
+  formatPhoneNumber,
+  toTitleCase
+} from '../utils/profileFormat.js';
 
 function ProfilePage() {
   const { currentUser, loading, profileError, userProfile } = useAuth();
@@ -68,16 +73,16 @@ function ProfilePage() {
       const displayName = toTitleCase(name);
       await updateProfile(currentUser, { displayName });
       await updateDoc(doc(db, 'users', currentUser.uid), {
-        billingAddress: {
-          city: toTitleCase(billingCity),
-          country: toTitleCase(billingCountry) || 'United States',
-          postalCode: billingPostalCode.trim(),
-          state: billingState.trim().toUpperCase(),
-          street: toTitleCase(billingStreet)
-        },
+        billingAddress: buildBillingAddress({
+          city: billingCity,
+          country: billingCountry,
+          postalCode: billingPostalCode,
+          state: billingState,
+          street: billingStreet
+        }),
         email: currentUser.email || userProfile?.email || '',
         name: displayName,
-        phone: phone.trim(),
+        phone: formatPhoneNumber(phone),
         updatedDate: serverTimestamp()
       });
       setSuccessMessage('Profile saved.');
@@ -126,7 +131,7 @@ function ProfilePage() {
             <input
               autoComplete="tel"
               disabled={saving}
-              onChange={(event) => setPhone(event.target.value)}
+              onChange={(event) => setPhone(formatPhoneNumber(event.target.value))}
               type="tel"
               value={phone}
             />
@@ -193,13 +198,6 @@ function ProfilePage() {
       )}
     </section>
   );
-}
-
-function toTitleCase(value) {
-  return value
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
 }
 
 export default ProfilePage;

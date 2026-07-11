@@ -7,6 +7,11 @@ import {
   normalizePermissions
 } from '../../data/userRoles.js';
 import { subscribeToUsers, updateUserProfile } from '../../services/userService.js';
+import {
+  buildBillingAddress,
+  formatPhoneNumber,
+  toTitleCase
+} from '../../utils/profileFormat.js';
 
 function UserControlPanel({ currentUserProfile }) {
   const [editingUserId, setEditingUserId] = useState('');
@@ -34,13 +39,22 @@ function UserControlPanel({ currentUserProfile }) {
   }, []);
 
   function startEdit(user) {
+    const billingAddress = user.billingAddress || {};
+
     setEditingUserId(user.id);
     setSuccessMessage('');
     setForm({
+      billingAddress: {
+        city: billingAddress.city || '',
+        country: billingAddress.country || 'United States',
+        postalCode: billingAddress.postalCode || '',
+        state: billingAddress.state || '',
+        street: billingAddress.street || ''
+      },
       email: user.email || '',
       name: user.name || '',
       permissions: normalizePermissions(user.permissions),
-      phone: user.phone || '',
+      phone: formatPhoneNumber(user.phone || ''),
       role: user.role || 'General User',
       status: user.status || 'Active',
       userId: user.userId || user.id
@@ -63,6 +77,17 @@ function UserControlPanel({ currentUserProfile }) {
     }));
   }
 
+  function updateBillingAddressField(name, value) {
+    setSuccessMessage('');
+    setForm((current) => ({
+      ...current,
+      billingAddress: {
+        ...current.billingAddress,
+        [name]: value
+      }
+    }));
+  }
+
   async function handleSave(user) {
     setError('');
     setSuccessMessage('');
@@ -72,13 +97,14 @@ function UserControlPanel({ currentUserProfile }) {
       await updateUserProfile(
         user.id,
         {
+          billingAddress: buildBillingAddress(form.billingAddress),
           email: form.email.trim(),
           name: toTitleCase(form.name),
           permissions:
             form.role === 'Admin'
               ? normalizePermissions(form.permissions)
               : DEFAULT_USER_PERMISSIONS,
-          phone: form.phone.trim(),
+          phone: formatPhoneNumber(form.phone),
           role: form.role,
           status: form.status,
           userId: form.userId
@@ -154,9 +180,75 @@ function UserControlPanel({ currentUserProfile }) {
                       <span>Phone</span>
                       <input
                         value={form.phone}
-                        onChange={(event) => updateFormField('phone', event.target.value)}
+                        onChange={(event) =>
+                          updateFormField('phone', formatPhoneNumber(event.target.value))
+                        }
                       />
                     </label>
+                    <div className="profile-address-panel">
+                      <span className="field-label">Billing Address</span>
+                      <label>
+                        <span>Street Address</span>
+                        <input
+                          value={form.billingAddress.street}
+                          onBlur={(event) =>
+                            updateBillingAddressField('street', toTitleCase(event.target.value))
+                          }
+                          onChange={(event) =>
+                            updateBillingAddressField('street', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>City</span>
+                        <input
+                          value={form.billingAddress.city}
+                          onBlur={(event) =>
+                            updateBillingAddressField('city', toTitleCase(event.target.value))
+                          }
+                          onChange={(event) =>
+                            updateBillingAddressField('city', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>State</span>
+                        <input
+                          maxLength={2}
+                          value={form.billingAddress.state}
+                          onBlur={(event) =>
+                            updateBillingAddressField(
+                              'state',
+                              event.target.value.trim().toUpperCase()
+                            )
+                          }
+                          onChange={(event) =>
+                            updateBillingAddressField('state', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>ZIP Code</span>
+                        <input
+                          value={form.billingAddress.postalCode}
+                          onChange={(event) =>
+                            updateBillingAddressField('postalCode', event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Country</span>
+                        <input
+                          value={form.billingAddress.country}
+                          onBlur={(event) =>
+                            updateBillingAddressField('country', toTitleCase(event.target.value))
+                          }
+                          onChange={(event) =>
+                            updateBillingAddressField('country', event.target.value)
+                          }
+                        />
+                      </label>
+                    </div>
                     <label>
                       <span>Role</span>
                       <select
@@ -288,13 +380,6 @@ function formatBillingAddress(billingAddress = {}) {
   const lines = [lineOne, lineTwo, billingAddress.country].filter(Boolean);
 
   return lines.length ? lines.join(' | ') : 'Billing Address TBD';
-}
-
-function toTitleCase(value) {
-  return value
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
 }
 
 export default UserControlPanel;

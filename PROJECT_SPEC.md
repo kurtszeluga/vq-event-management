@@ -110,7 +110,8 @@ Administrator Features
 * User control module for Super User role and permissions management
 * Public account creation for new General User profiles
 * Signed-in users can edit their own profile name and phone number
-* User profiles include billing address fields for future payment processing
+* All user profile types include billing address fields for future payment processing
+* Phone numbers should be formatted consistently as users enter them
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events

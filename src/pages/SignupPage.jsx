@@ -5,6 +5,11 @@ import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
 import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
+import {
+  buildBillingAddress,
+  formatPhoneNumber,
+  toTitleCase
+} from '../utils/profileFormat.js';
 
 function SignupPage() {
   const [billingCity, setBillingCity] = useState('');
@@ -47,18 +52,18 @@ function SignupPage() {
 
       await updateProfile(user, { displayName });
       await setDoc(doc(db, 'users', user.uid), {
-        billingAddress: {
-          city: toTitleCase(billingCity),
-          country: toTitleCase(billingCountry) || 'United States',
-          postalCode: billingPostalCode.trim(),
-          state: billingState.trim().toUpperCase(),
-          street: toTitleCase(billingStreet)
-        },
+        billingAddress: buildBillingAddress({
+          city: billingCity,
+          country: billingCountry,
+          postalCode: billingPostalCode,
+          state: billingState,
+          street: billingStreet
+        }),
         createdDate: serverTimestamp(),
         email: email.trim(),
         name: displayName,
         permissions: DEFAULT_USER_PERMISSIONS,
-        phone: phone.trim(),
+        phone: formatPhoneNumber(phone),
         role: 'General User',
         status: 'Active',
         updatedDate: serverTimestamp(),
@@ -115,7 +120,7 @@ function SignupPage() {
           <input
             autoComplete="tel"
             disabled={!firebaseConfigured || submitting}
-            onChange={(event) => setPhone(event.target.value)}
+            onChange={(event) => setPhone(formatPhoneNumber(event.target.value))}
             type="tel"
             value={phone}
           />
@@ -197,13 +202,6 @@ function SignupPage() {
       </form>
     </section>
   );
-}
-
-function toTitleCase(value) {
-  return value
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
 }
 
 function getSignupErrorMessage(error) {

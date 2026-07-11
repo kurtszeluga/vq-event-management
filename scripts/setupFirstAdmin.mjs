@@ -38,6 +38,20 @@ initializeApp({
 const auth = getAuth();
 const db = getFirestore();
 
+function formatPhoneNumber(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 10);
+
+  if (digits.length <= 3) {
+    return digits;
+  }
+
+  if (digits.length <= 6) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  }
+
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 let userRecord;
 
 try {
@@ -86,7 +100,7 @@ await userRef.set(
     userId: userRecord.uid,
     name,
     email,
-    phone: FIRST_ADMIN_PHONE,
+    phone: formatPhoneNumber(FIRST_ADMIN_PHONE),
     permissions: {
       manageEvents: true,
       managePayments: true,
