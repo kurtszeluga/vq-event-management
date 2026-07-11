@@ -739,8 +739,21 @@ function parseMemberCsv(text) {
       headers.forEach((header, index) => {
         record[header] = row[index] || '';
       });
-      const firstName = getCsvValue(record, ['firstName', 'first']);
-      const lastName = getCsvValue(record, ['lastName', 'last', 'surname']);
+      const firstName = getCsvValue(record, [
+        'firstName',
+        'firstname',
+        'first',
+        'givenName',
+        'givenname'
+      ]);
+      const lastName = getCsvValue(record, [
+        'lastName',
+        'lastname',
+        'last',
+        'surname',
+        'familyName',
+        'familyname'
+      ]);
       const fullName = getCsvValue(record, [
         'name',
         'member',

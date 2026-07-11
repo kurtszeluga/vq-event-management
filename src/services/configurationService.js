@@ -110,7 +110,10 @@ export async function saveMember(member, actorProfile) {
 }
 
 export async function importMembersFromCsvRows(rows, actorProfile) {
-  const members = rows.map((row) => buildMemberPayload(row, doc(membersCollection()).id));
+  const members = rows.map((row) => {
+    const memberId = makeMemberDocumentId(row) || doc(membersCollection()).id;
+    return buildMemberPayload(row, memberId);
+  });
   const chunkSize = 400;
 
   for (let startIndex = 0; startIndex < members.length; startIndex += chunkSize) {
@@ -248,6 +251,22 @@ function buildMemberPayload(member, memberId) {
     status: member.status === 'Inactive' ? 'Inactive' : 'Active',
     updatedDate: serverTimestamp()
   };
+}
+
+function makeMemberDocumentId(member) {
+  const email = cleanText(member.email).toLowerCase();
+  const phone = normalizePhone(cleanText(member.phone));
+  const name = cleanText(member.name).toLowerCase();
+  const source = email || phone || name;
+
+  if (!source) {
+    return '';
+  }
+
+  return source
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120);
 }
 
 function addConfigurationAuditLog(
