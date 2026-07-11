@@ -117,6 +117,14 @@ Administrator Features
 * All user profile types include billing address fields for future payment processing
 * User profiles can be tagged for VQ Booking and VQ Hosting functions
 * Phone numbers should be formatted consistently as users enter them
+* Super Users can manage a Configuration module.
+  * Enable or disable membership checks for new users.
+  * Configure membership matching by email and/or phone.
+  * Configure whether admins may skip the membership check.
+  * Upload a CSV file of members.
+  * Manually add, edit, or remove members from the membership list.
+  * Manage default event/activity locations.
+  * Manage default event/activity start/end time choices.
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events

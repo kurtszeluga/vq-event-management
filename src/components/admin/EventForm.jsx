@@ -11,6 +11,10 @@ import {
   uploadEventImage,
   uploadEventPdf
 } from '../../services/storageService.js';
+import {
+  subscribeToActiveEventLocationDefaults,
+  subscribeToActiveEventTimeDefaults
+} from '../../services/configurationService.js';
 
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
@@ -31,14 +35,34 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const [saving, setSaving] = useState(false);
   const [savingAction, setSavingAction] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [configuredLocations, setConfiguredLocations] = useState([]);
+  const [configuredTimeOptions, setConfiguredTimeOptions] = useState([]);
   const isEditing = Boolean(editingEvent);
 
   useEffect(() => {
     setForm(getInitialForm(editingEvent));
   }, [editingEvent]);
 
+  useEffect(() => {
+    const unsubscribeLocations = subscribeToActiveEventLocationDefaults(
+      setConfiguredLocations,
+      () => setConfiguredLocations([])
+    );
+    const unsubscribeTimes = subscribeToActiveEventTimeDefaults(
+      setConfiguredTimeOptions,
+      () => setConfiguredTimeOptions([])
+    );
+
+    return () => {
+      unsubscribeLocations();
+      unsubscribeTimes();
+    };
+  }, []);
+
   const eventTypeSelected = Boolean(form.eventType);
   const eventLabel = form.eventType || 'Event';
+  const eventLocations = mergeOptionLists(configuredLocations, EVENT_LOCATIONS);
+  const eventTimeOptions = mergeOptionLists(configuredTimeOptions, EVENT_TIME_OPTIONS);
   const isBusinessListing = form.eventType === 'Business Listing';
   const isForSale = form.eventType === 'For Sale';
   const isChallenge = form.eventType === 'Challenges';
@@ -72,7 +96,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
   function handleTimePreset(value) {
     setSuccessMessage('');
-    const option = EVENT_TIME_OPTIONS.find((item) => item.value === value);
+    const option = eventTimeOptions.find((item) => item.value === value);
     setForm((current) => ({
       ...current,
       timePreset: value,
@@ -84,7 +108,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   function handleEventType(value) {
     setSuccessMessage('');
     const nextTimePreset = eventTypeTimePresetMap[value];
-    const nextTimeOption = EVENT_TIME_OPTIONS.find(
+    const nextTimeOption = eventTimeOptions.find(
       (item) => item.value === nextTimePreset
     );
     const isClassOrWorkshop = Boolean(nextTimeOption);
@@ -106,10 +130,10 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setForm((current) => ({
       ...current,
       eventType: value,
-      location: isClassOrWorkshop ? EVENT_LOCATIONS[0].label : '',
+      location: isClassOrWorkshop ? eventLocations[0].label : '',
       locationPreset: value
         ? isClassOrWorkshop
-          ? EVENT_LOCATIONS[0].value
+          ? eventLocations[0].value
           : 'other'
         : '',
       timePreset: value && !isLectureType ? nextTimeOption?.value || 'other' : '',
@@ -136,7 +160,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
 
   function handleLocationPreset(value) {
     setSuccessMessage('');
-    const location = EVENT_LOCATIONS.find((item) => item.value === value);
+    const location = eventLocations.find((item) => item.value === value);
     setForm((current) => ({
       ...current,
       location: value === 'other' ? '' : location?.label || '',
@@ -539,7 +563,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     onChange={(event) => handleTimePreset(event.target.value)}
                   >
                     <option value="">Select One</option>
-                    {EVENT_TIME_OPTIONS.map((option) => (
+                    {eventTimeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -615,7 +639,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   onChange={(event) => handleLocationPreset(event.target.value)}
                 >
                   <option value="">Select One</option>
-                  {EVENT_LOCATIONS.map((location) => (
+                  {eventLocations.map((location) => (
                     <option key={location.value} value={location.value}>
                       {location.label}
                     </option>
@@ -1491,6 +1515,16 @@ function getEventTypeCardTitle(eventType) {
   }
 
   return 'General Event/Activity Details';
+}
+
+function mergeOptionLists(configuredOptions, fallbackOptions) {
+  const options = configuredOptions.length ? configuredOptions : [];
+  const configuredValues = new Set(options.map((option) => option.value));
+
+  return [
+    ...options,
+    ...fallbackOptions.filter((option) => !configuredValues.has(option.value))
+  ];
 }
 
 function getInitialForm(editingEvent) {

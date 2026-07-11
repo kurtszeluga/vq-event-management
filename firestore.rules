@@ -282,6 +282,84 @@ service cloud.firestore {
         && request.resource.data.summary is string;
     }
 
+    function validMembershipSettings() {
+      return request.resource.data.keys().hasOnly([
+          'allowAdminSkipMembershipCheck',
+          'matchByEmail',
+          'matchByPhone',
+          'requireMembershipCheck',
+          'updatedDate'
+        ])
+        && request.resource.data.allowAdminSkipMembershipCheck is bool
+        && request.resource.data.matchByEmail is bool
+        && request.resource.data.matchByPhone is bool
+        && request.resource.data.requireMembershipCheck is bool
+        && request.resource.data.updatedDate is timestamp;
+    }
+
+    function validMember() {
+      return request.resource.data.keys().hasOnly([
+          'email',
+          'memberId',
+          'name',
+          'normalizedEmail',
+          'normalizedPhone',
+          'notes',
+          'phone',
+          'status',
+          'updatedDate'
+        ])
+        && request.resource.data.email is string
+        && request.resource.data.memberId is string
+        && request.resource.data.name is string
+        && request.resource.data.normalizedEmail is string
+        && request.resource.data.normalizedPhone is string
+        && request.resource.data.notes is string
+        && request.resource.data.phone is string
+        && validStatus(request.resource.data.status, ['Active', 'Inactive'])
+        && request.resource.data.updatedDate is timestamp;
+    }
+
+    function validEventLocationDefault() {
+      return request.resource.data.keys().hasOnly([
+          'address',
+          'eventLocationId',
+          'isActive',
+          'label',
+          'sortOrder',
+          'updatedDate',
+          'value'
+        ])
+        && request.resource.data.address is string
+        && request.resource.data.eventLocationId is string
+        && request.resource.data.isActive is bool
+        && request.resource.data.label is string
+        && request.resource.data.sortOrder is number
+        && request.resource.data.updatedDate is timestamp
+        && request.resource.data.value is string;
+    }
+
+    function validEventTimeDefault() {
+      return request.resource.data.keys().hasOnly([
+          'endTime',
+          'eventTimeId',
+          'isActive',
+          'label',
+          'sortOrder',
+          'startTime',
+          'updatedDate',
+          'value'
+        ])
+        && request.resource.data.endTime is string
+        && request.resource.data.eventTimeId is string
+        && request.resource.data.isActive is bool
+        && request.resource.data.label is string
+        && request.resource.data.sortOrder is number
+        && request.resource.data.startTime is string
+        && request.resource.data.updatedDate is timestamp
+        && request.resource.data.value is string;
+    }
+
     match /events/{eventId} {
       allow read: if resource.data.status == 'Published' || hasPermission('manageEvents');
       allow create, update: if hasPermission('manageEvents') && validEvent();
@@ -330,6 +408,32 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAdmin() && validAuditLog();
       allow update, delete: if false;
+    }
+
+    match /appSettings/{settingId} {
+      allow read: if isAdmin();
+      allow create, update: if isSuperUser()
+        && settingId == 'membership'
+        && validMembershipSettings();
+      allow delete: if isSuperUser();
+    }
+
+    match /members/{memberId} {
+      allow read: if isSuperUser();
+      allow create, update: if isSuperUser() && validMember();
+      allow delete: if isSuperUser();
+    }
+
+    match /eventLocationDefaults/{eventLocationId} {
+      allow read: if isAdmin();
+      allow create, update: if isSuperUser() && validEventLocationDefault();
+      allow delete: if isSuperUser();
+    }
+
+    match /eventTimeDefaults/{eventTimeId} {
+      allow read: if isAdmin();
+      allow create, update: if isSuperUser() && validEventTimeDefault();
+      allow delete: if isSuperUser();
     }
   }
 }

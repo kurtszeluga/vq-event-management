@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
+import ConfigurationPanel from '../components/admin/ConfigurationPanel.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
 import EventList from '../components/admin/EventList.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
@@ -111,6 +112,17 @@ function AdminDashboardPage() {
             Add User
           </button>
         ) : null}
+        {isSuperUser ? (
+          <button
+            className={`button-link button-reset ${
+              activeModule === 'configuration' ? '' : 'secondary-action'
+            }`}
+            type="button"
+            onClick={() => setActiveModule('configuration')}
+          >
+            Configuration
+          </button>
+        ) : null}
       </nav>
       {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
@@ -151,6 +163,9 @@ function AdminDashboardPage() {
             currentUserProfile={userProfile}
             key={activeModule}
           />
+        ) : null}
+        {isSuperUser && activeModule === 'configuration' ? (
+          <ConfigurationPanel currentUserProfile={userProfile} />
         ) : null}
         {!canManageEvents && !isSuperUser && !canAddUsers ? (
           <div className="empty-state">

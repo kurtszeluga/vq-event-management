@@ -936,6 +936,61 @@ a {
   margin-top: 3px;
 }
 
+.configuration-panel {
+  display: grid;
+  gap: 26px;
+}
+
+.configuration-section {
+  border-top: 1px solid #e6ddd3;
+  display: grid;
+  gap: 16px;
+  padding-top: 22px;
+}
+
+.configuration-section h3,
+.configuration-section p {
+  margin: 0;
+}
+
+.configuration-section p,
+.empty-inline {
+  color: #5c6966;
+}
+
+.configuration-form-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.configuration-form-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.configuration-form-grid input,
+.configuration-form-grid select {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
+  height: 48px;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.configuration-span {
+  grid-column: 1 / -1;
+}
+
+.configuration-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .card-actions {
   align-content: start;
   display: grid;
@@ -1036,6 +1091,7 @@ a {
   .capacity-row,
   .form-grid,
   .form-grid.compact,
+  .configuration-form-grid,
   .user-edit-grid {
     grid-template-columns: 1fr;
   }
