@@ -14,6 +14,7 @@ import {
   subscribeToMembers,
   subscribeToMembershipSettings
 } from '../../services/configurationService.js';
+import { formatClockTime } from '../../utils/eventFormat.js';
 import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
 
 const EMPTY_MEMBER_FORM = {
@@ -629,7 +630,7 @@ function ConfigurationPanel({ currentUserProfile }) {
                 <strong>{timeOption.label}</strong>
                 <span>{timeOption.value}</span>
               </>,
-              `${timeOption.startTime || '-'} / ${timeOption.endTime || '-'}`,
+              formatConfigurationTimeRange(timeOption.startTime, timeOption.endTime),
               timeOption.isActive === false ? 'Inactive' : 'Active',
               <RowActions
                 key={timeOption.id}
@@ -713,6 +714,17 @@ function getMemberCounts(members) {
     },
     { active: 0, inactive: 0, total: 0 }
   );
+}
+
+function formatConfigurationTimeRange(startTime, endTime) {
+  const formattedStart = formatClockTime(startTime);
+  const formattedEnd = formatClockTime(endTime);
+
+  if (!formattedStart && !formattedEnd) {
+    return '-';
+  }
+
+  return [formattedStart || '-', formattedEnd || '-'].join(' / ');
 }
 
 function parseMemberCsv(text) {

@@ -27,7 +27,11 @@ export function formatTimeRange(startTime, endTime) {
   return `${formatClockTime(startTime)} - ${formatClockTime(endTime)}`;
 }
 
-function formatClockTime(value) {
+export function formatClockTime(value) {
+  if (!value) {
+    return '';
+  }
+
   const [hourText, minuteText] = value.split(':');
   const hour = Number(hourText);
   const suffix = hour >= 12 ? 'p.m.' : 'a.m.';

@@ -15,6 +15,7 @@ import {
   subscribeToActiveEventLocationDefaults,
   subscribeToActiveEventTimeDefaults
 } from '../../services/configurationService.js';
+import { formatTimeRange } from '../../utils/eventFormat.js';
 
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
@@ -1544,7 +1545,9 @@ function getTimeOptionDisplay(option) {
     return '';
   }
 
-  const timeRange = [option.startTime, option.endTime].filter(Boolean).join(' - ');
+  const timeRange = option.startTime && option.endTime
+    ? formatTimeRange(option.startTime, option.endTime)
+    : '';
 
   return timeRange ? `${option.label} (${timeRange})` : option.label;
 }
