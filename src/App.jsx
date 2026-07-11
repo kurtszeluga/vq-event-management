@@ -52,6 +52,16 @@ function App() {
             </NavLink>
           ))}
           {currentUser ? (
+            <NavLink
+              to="/profile"
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              My Profile
+            </NavLink>
+          ) : null}
+          {currentUser ? (
             <button className="nav-button" type="button" onClick={logOut}>
               Sign out
             </button>
