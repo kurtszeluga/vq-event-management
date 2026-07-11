@@ -123,6 +123,7 @@ Administrator Features
   * Configure whether admins may skip the membership check.
   * Upload a CSV file of members.
   * CSV imports support common headers including Name, First Name, Last Name, Email, Phone, Status, and Notes.
+  * Member records store First Name and Last Name as separate fields.
   * Manually add, edit, or remove members from the membership list.
   * Manage default event/activity locations.
   * Manage default event/activity start/end time choices.

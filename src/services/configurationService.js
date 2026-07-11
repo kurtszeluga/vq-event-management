@@ -238,12 +238,17 @@ export async function deleteEventTimeDefault(timeOption, actorProfile) {
 
 function buildMemberPayload(member, memberId) {
   const email = cleanText(member.email).toLowerCase();
+  const firstName = cleanText(member.firstName);
+  const lastName = cleanText(member.lastName);
+  const name = cleanText(member.name || [firstName, lastName].filter(Boolean).join(' '));
   const phone = cleanText(member.phone);
 
   return {
     email,
+    firstName,
+    lastName,
     memberId,
-    name: cleanText(member.name),
+    name,
     normalizedEmail: email,
     normalizedPhone: normalizePhone(phone),
     notes: cleanText(member.notes),
@@ -256,7 +261,9 @@ function buildMemberPayload(member, memberId) {
 function makeMemberDocumentId(member) {
   const email = cleanText(member.email).toLowerCase();
   const phone = normalizePhone(cleanText(member.phone));
-  const name = cleanText(member.name).toLowerCase();
+  const name = cleanText(
+    member.name || [member.firstName, member.lastName].filter(Boolean).join(' ')
+  ).toLowerCase();
   const source = email || phone || name;
 
   if (!source) {

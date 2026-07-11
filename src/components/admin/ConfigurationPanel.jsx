@@ -19,7 +19,9 @@ import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
 
 const EMPTY_MEMBER_FORM = {
   email: '',
+  firstName: '',
   id: '',
+  lastName: '',
   name: '',
   notes: '',
   phone: '',
@@ -111,16 +113,26 @@ function ConfigurationPanel({ currentUserProfile }) {
   async function handleSaveMember(event) {
     event.preventDefault();
 
-    if (!memberForm.name.trim() && !memberForm.email.trim() && !memberForm.phone.trim()) {
+    if (
+      !memberForm.firstName.trim()
+      && !memberForm.lastName.trim()
+      && !memberForm.name.trim()
+      && !memberForm.email.trim()
+      && !memberForm.phone.trim()
+    ) {
       setError('Enter at least a name, email, or phone number for the member.');
       return;
     }
 
     await runSave('member', async () => {
+      const firstName = toTitleCase(memberForm.firstName);
+      const lastName = toTitleCase(memberForm.lastName);
       await saveMember(
         {
           ...memberForm,
-          name: toTitleCase(memberForm.name)
+          firstName,
+          lastName,
+          name: toTitleCase(memberForm.name || [firstName, lastName].filter(Boolean).join(' '))
         },
         currentUserProfile
       );
@@ -272,8 +284,8 @@ function ConfigurationPanel({ currentUserProfile }) {
           <h3>Member List</h3>
           <p>Upload a CSV or manually add members for email/phone matching.</p>
           <p>
-            CSV columns can use Name, First Name, Last Name, Email, Phone, Status,
-            and Notes.
+            CSV columns should use First Name, Last Name, Email, and Phone. Status
+            and Notes are optional.
           </p>
         </div>
         <div className="configuration-summary" aria-label="Member list totals">
@@ -312,14 +324,26 @@ function ConfigurationPanel({ currentUserProfile }) {
         {memberFormOpen ? (
           <form className="configuration-form-grid" onSubmit={handleSaveMember}>
             <label>
-              <span>Member Name</span>
+              <span>First Name</span>
               <input
-                value={memberForm.name}
+                value={memberForm.firstName}
                 onBlur={(event) =>
-                  setMemberForm((current) => ({ ...current, name: toTitleCase(event.target.value) }))
+                  setMemberForm((current) => ({ ...current, firstName: toTitleCase(event.target.value) }))
                 }
                 onChange={(event) =>
-                  setMemberForm((current) => ({ ...current, name: event.target.value }))
+                  setMemberForm((current) => ({ ...current, firstName: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Last Name</span>
+              <input
+                value={memberForm.lastName}
+                onBlur={(event) =>
+                  setMemberForm((current) => ({ ...current, lastName: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setMemberForm((current) => ({ ...current, lastName: event.target.value }))
                 }
               />
             </label>
@@ -385,12 +409,13 @@ function ConfigurationPanel({ currentUserProfile }) {
           </form>
         ) : null}
         <ConfigurationTable
-          columns={['Name', 'Email', 'Phone', 'Status', 'Actions']}
+          columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
           emptyText="No members have been added yet."
           rows={members.map((member) => ({
             id: member.id,
             cells: [
-              member.name || '-',
+              member.firstName || getFirstNameFallback(member.name) || '-',
+              member.lastName || getLastNameFallback(member.name) || '-',
               member.email || '-',
               member.phone || '-',
               member.status || 'Active',
@@ -716,6 +741,16 @@ function getMemberCounts(members) {
   );
 }
 
+function getFirstNameFallback(name = '') {
+  return name.trim().split(/\s+/)[0] || '';
+}
+
+function getLastNameFallback(name = '') {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  return parts.length > 1 ? parts.slice(1).join(' ') : '';
+}
+
 function formatConfigurationTimeRange(startTime, endTime) {
   const formattedStart = formatClockTime(startTime);
   const formattedEnd = formatClockTime(endTime);
@@ -764,6 +799,8 @@ function parseMemberCsv(text) {
 
       return {
         email: getCsvValue(record, ['email', 'emailAddress', 'eMail']),
+        firstName: toTitleCase(firstName),
+        lastName: toTitleCase(lastName),
         name: toTitleCase(fullName || [firstName, lastName].filter(Boolean).join(' ')),
         notes: getCsvValue(record, ['notes', 'note', 'comments']),
         phone: formatPhoneNumber(getCsvValue(record, ['phone', 'phoneNumber', 'telephone', 'mobile'])),

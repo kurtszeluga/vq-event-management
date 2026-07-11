@@ -300,6 +300,8 @@ service cloud.firestore {
     function validMember() {
       return request.resource.data.keys().hasOnly([
           'email',
+          'firstName',
+          'lastName',
           'memberId',
           'name',
           'normalizedEmail',
@@ -310,6 +312,8 @@ service cloud.firestore {
           'updatedDate'
         ])
         && request.resource.data.email is string
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string
         && request.resource.data.memberId is string
         && request.resource.data.name is string
         && request.resource.data.normalizedEmail is string
