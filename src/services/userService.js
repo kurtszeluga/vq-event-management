@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
+import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
 import { normalizePermissions } from '../data/userRoles.js';
 
@@ -43,6 +44,30 @@ export async function updateUserProfile(userId, updates, actorProfile) {
   });
 
   return batch.commit();
+}
+
+export async function createUserByAdmin(userData) {
+  const idToken = await auth.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('You must be signed in to add users.');
+  }
+
+  const response = await fetch('/api/admin-create-user', {
+    body: JSON.stringify(userData),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'User could not be added.');
+  }
+
+  return result;
 }
 
 function addAuditLog(batch, { actorProfile, after, before, entityId, summary }) {

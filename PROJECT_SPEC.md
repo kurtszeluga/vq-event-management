@@ -108,6 +108,7 @@ Administrator Features
 
 * Secure administrator login
 * User control module for Super User role and permissions management
+* Super Users can add user accounts for non-computer-savvy members
 * Public account creation for new General User profiles
 * Signed-in users can edit their own profile name and phone number
 * All user profile types include billing address fields for future payment processing

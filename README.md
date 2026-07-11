@@ -63,6 +63,7 @@ Vercel should use:
 - Build command: `npm run build`
 - Output directory: `dist`
 - Framework preset: Vite
+- Server-side API environment variable: `FIREBASE_SERVICE_ACCOUNT_JSON`
 
 `vercel.json` includes the SPA rewrite needed for React Router.
 

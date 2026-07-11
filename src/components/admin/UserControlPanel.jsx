@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { US_STATES } from '../../data/usStates.js';
 import {
   DEFAULT_USER_PERMISSIONS,
   USER_PERMISSION_OPTIONS,
@@ -6,7 +7,11 @@ import {
   USER_STATUSES,
   normalizePermissions
 } from '../../data/userRoles.js';
-import { subscribeToUsers, updateUserProfile } from '../../services/userService.js';
+import {
+  createUserByAdmin,
+  subscribeToUsers,
+  updateUserProfile
+} from '../../services/userService.js';
 import {
   buildBillingAddress,
   formatPhoneNumber,
@@ -61,6 +66,28 @@ function UserControlPanel({ currentUserProfile }) {
     });
   }
 
+  function startAddUser() {
+    setEditingUserId('new');
+    setSuccessMessage('');
+    setForm({
+      billingAddress: {
+        city: '',
+        country: 'United States',
+        postalCode: '',
+        state: '',
+        street: ''
+      },
+      email: '',
+      name: '',
+      permissions: DEFAULT_USER_PERMISSIONS,
+      phone: '',
+      role: 'General User',
+      status: 'Active',
+      temporaryPassword: '',
+      userId: ''
+    });
+  }
+
   function updateFormField(name, value) {
     setSuccessMessage('');
     setForm((current) => ({ ...current, [name]: value }));
@@ -94,26 +121,33 @@ function UserControlPanel({ currentUserProfile }) {
     setSavingUserId(user.id);
 
     try {
-      await updateUserProfile(
-        user.id,
-        {
-          billingAddress: buildBillingAddress(form.billingAddress),
-          email: form.email.trim(),
-          name: toTitleCase(form.name),
-          permissions:
-            form.role === 'Admin'
-              ? normalizePermissions(form.permissions)
-              : DEFAULT_USER_PERMISSIONS,
-          phone: formatPhoneNumber(form.phone),
-          role: form.role,
-          status: form.status,
-          userId: form.userId
-        },
-        currentUserProfile
-      );
+      const payload = {
+        billingAddress: buildBillingAddress(form.billingAddress),
+        email: form.email.trim(),
+        name: toTitleCase(form.name),
+        permissions:
+          form.role === 'Admin'
+            ? normalizePermissions(form.permissions)
+            : DEFAULT_USER_PERMISSIONS,
+        phone: formatPhoneNumber(form.phone),
+        role: form.role,
+        status: form.status,
+        userId: form.userId
+      };
+
+      if (user.id === 'new') {
+        const result = await createUserByAdmin({
+          ...payload,
+          temporaryPassword: form.temporaryPassword
+        });
+        setSuccessMessage(`User added. Temporary password: ${result.temporaryPassword}`);
+      } else {
+        await updateUserProfile(user.id, payload, currentUserProfile);
+        setSuccessMessage('User profile saved.');
+      }
+
       setEditingUserId('');
       setForm(null);
-      setSuccessMessage('User profile saved.');
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -136,14 +170,200 @@ function UserControlPanel({ currentUserProfile }) {
     <section className="admin-list-panel" id="user-controls-card">
       <div className="form-section-header">
         <h2>User Controls</h2>
-        <span>{users.length} total</span>
+        <button
+          className="button-link button-reset"
+          disabled={Boolean(savingUserId)}
+          type="button"
+          onClick={startAddUser}
+        >
+          Add User
+        </button>
       </div>
+      <span className="form-help">{users.length} total profiles</span>
       <p className="form-help">
         Super Users control profile roles and admin permissions.
       </p>
       {error ? <p className="form-error">{error}</p> : null}
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
       <div className="event-admin-list">
+        {editingUserId === 'new' ? (
+          <article className="user-admin-card">
+            <div>
+              <div className="card-kicker">
+                <span>New User</span>
+                <strong>{form.status}</strong>
+              </div>
+              <div className="user-edit-grid">
+                <label>
+                  <span>Name</span>
+                  <input
+                    required
+                    value={form.name}
+                    onChange={(event) => updateFormField('name', event.target.value)}
+                    onBlur={(event) => updateFormField('name', toTitleCase(event.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input
+                    required
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => updateFormField('email', event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>Phone</span>
+                  <input
+                    value={form.phone}
+                    onChange={(event) =>
+                      updateFormField('phone', formatPhoneNumber(event.target.value))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Temporary Password</span>
+                  <input
+                    placeholder="Leave blank to generate"
+                    minLength={8}
+                    type="text"
+                    value={form.temporaryPassword}
+                    onChange={(event) =>
+                      updateFormField('temporaryPassword', event.target.value)
+                    }
+                  />
+                </label>
+                <div className="profile-address-panel">
+                  <span className="field-label">Billing Address</span>
+                  <label>
+                    <span>Street Address</span>
+                    <input
+                      value={form.billingAddress.street}
+                      onBlur={(event) =>
+                        updateBillingAddressField('street', toTitleCase(event.target.value))
+                      }
+                      onChange={(event) =>
+                        updateBillingAddressField('street', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>City</span>
+                    <input
+                      value={form.billingAddress.city}
+                      onBlur={(event) =>
+                        updateBillingAddressField('city', toTitleCase(event.target.value))
+                      }
+                      onChange={(event) =>
+                        updateBillingAddressField('city', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>State</span>
+                    <select
+                      value={form.billingAddress.state}
+                      onChange={(event) =>
+                        updateBillingAddressField('state', event.target.value)
+                      }
+                    >
+                      <option value="">Select State</option>
+                      {US_STATES.map((state) => (
+                        <option key={state.value} value={state.value}>
+                          {state.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>ZIP Code</span>
+                    <input
+                      value={form.billingAddress.postalCode}
+                      onChange={(event) =>
+                        updateBillingAddressField('postalCode', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Country</span>
+                    <input
+                      value={form.billingAddress.country}
+                      onBlur={(event) =>
+                        updateBillingAddressField('country', toTitleCase(event.target.value))
+                      }
+                      onChange={(event) =>
+                        updateBillingAddressField('country', event.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+                <label>
+                  <span>Role</span>
+                  <select
+                    value={form.role}
+                    onChange={(event) => updateFormField('role', event.target.value)}
+                  >
+                    {USER_ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={form.status}
+                    onChange={(event) => updateFormField('status', event.target.value)}
+                  >
+                    {USER_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="permission-panel">
+                  <span className="field-label">Admin Permissions</span>
+                  {USER_PERMISSION_OPTIONS.map((permission) => (
+                    <label className="checkbox-label" key={permission.key}>
+                      <input
+                        checked={Boolean(form.permissions[permission.key])}
+                        disabled={form.role !== 'Admin'}
+                        type="checkbox"
+                        onChange={(event) =>
+                          updatePermission(permission.key, event.target.checked)
+                        }
+                      />
+                      <span>{permission.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="card-actions">
+              <button
+                className="button-link button-reset"
+                disabled={Boolean(savingUserId)}
+                type="button"
+                onClick={() => handleSave({ id: 'new' })}
+              >
+                {savingUserId === 'new' ? 'Adding...' : 'Add User'}
+              </button>
+              <button
+                className="text-button"
+                disabled={Boolean(savingUserId)}
+                type="button"
+                onClick={() => {
+                  setEditingUserId('');
+                  setForm(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </article>
+        ) : null}
         {users.map((user) => {
           const isEditing = editingUserId === user.id;
           const isCurrentUser =
@@ -213,19 +433,19 @@ function UserControlPanel({ currentUserProfile }) {
                       </label>
                       <label>
                         <span>State</span>
-                        <input
-                          maxLength={2}
+                        <select
                           value={form.billingAddress.state}
-                          onBlur={(event) =>
-                            updateBillingAddressField(
-                              'state',
-                              event.target.value.trim().toUpperCase()
-                            )
-                          }
                           onChange={(event) =>
                             updateBillingAddressField('state', event.target.value)
                           }
-                        />
+                        >
+                          <option value="">Select State</option>
+                          {US_STATES.map((state) => (
+                            <option key={state.value} value={state.value}>
+                              {state.label}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                       <label>
                         <span>ZIP Code</span>

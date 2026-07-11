@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
+import { US_STATES } from '../data/usStates.js';
 import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import {
@@ -149,14 +150,19 @@ function SignupPage() {
           </label>
           <label>
             <span>State</span>
-            <input
+            <select
               autoComplete="billing address-level1"
               disabled={!firebaseConfigured || submitting}
-              maxLength={2}
-              onBlur={(event) => setBillingState(event.target.value.trim().toUpperCase())}
               onChange={(event) => setBillingState(event.target.value)}
               value={billingState}
-            />
+            >
+              <option value="">Select State</option>
+              {US_STATES.map((state) => (
+                <option key={state.value} value={state.value}>
+                  {state.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             <span>ZIP Code</span>

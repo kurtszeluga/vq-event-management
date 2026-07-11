@@ -4,6 +4,7 @@ import { updateProfile } from 'firebase/auth';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
+import { US_STATES } from '../data/usStates.js';
 import { db, firebaseConfigured } from '../lib/firebase.js';
 import {
   buildBillingAddress,
@@ -160,14 +161,19 @@ function ProfilePage() {
             </label>
             <label>
               <span>State</span>
-              <input
+              <select
                 autoComplete="billing address-level1"
                 disabled={saving}
-                maxLength={2}
-                onBlur={(event) => setBillingState(event.target.value.trim().toUpperCase())}
                 onChange={(event) => setBillingState(event.target.value)}
                 value={billingState}
-              />
+              >
+                <option value="">Select State</option>
+                {US_STATES.map((state) => (
+                  <option key={state.value} value={state.value}>
+                    {state.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               <span>ZIP Code</span>

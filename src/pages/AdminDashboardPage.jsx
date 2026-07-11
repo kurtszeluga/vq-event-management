@@ -75,7 +75,7 @@ function AdminDashboardPage() {
               type="button"
               onClick={() => setActiveModule('event-details')}
             >
-              Event/Activity Details
+              Create New Event/Activity
             </button>
             <button
               className={`button-link button-reset ${
