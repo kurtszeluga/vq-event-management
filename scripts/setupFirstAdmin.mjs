@@ -68,6 +68,21 @@ const now = FieldValue.serverTimestamp();
 
 await userRef.set(
   {
+    billingAddress: existingProfile.exists
+      ? existingProfile.data().billingAddress || {
+          city: '',
+          country: 'United States',
+          postalCode: '',
+          state: '',
+          street: ''
+        }
+      : {
+          city: '',
+          country: 'United States',
+          postalCode: '',
+          state: '',
+          street: ''
+        },
     userId: userRecord.uid,
     name,
     email,

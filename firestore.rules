@@ -128,6 +128,7 @@ service cloud.firestore {
     function validUser() {
       return request.resource.data.keys().hasOnly([
           'userId',
+          'billingAddress',
           'name',
           'email',
           'phone',
@@ -138,6 +139,20 @@ service cloud.firestore {
           'updatedDate'
         ])
         && request.resource.data.userId is string
+        && (!('billingAddress' in request.resource.data)
+          || request.resource.data.billingAddress is map
+            && request.resource.data.billingAddress.keys().hasOnly([
+              'street',
+              'city',
+              'state',
+              'postalCode',
+              'country'
+            ])
+            && request.resource.data.billingAddress.street is string
+            && request.resource.data.billingAddress.city is string
+            && request.resource.data.billingAddress.state is string
+            && request.resource.data.billingAddress.postalCode is string
+            && request.resource.data.billingAddress.country is string)
         && request.resource.data.name is string
         && request.resource.data.email is string
         && request.resource.data.phone is string

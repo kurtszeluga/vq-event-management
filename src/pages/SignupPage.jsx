@@ -7,6 +7,11 @@ import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 
 function SignupPage() {
+  const [billingCity, setBillingCity] = useState('');
+  const [billingCountry, setBillingCountry] = useState('United States');
+  const [billingPostalCode, setBillingPostalCode] = useState('');
+  const [billingState, setBillingState] = useState('');
+  const [billingStreet, setBillingStreet] = useState('');
   const [email, setEmail] = useState('');
   const [formError, setFormError] = useState('');
   const [name, setName] = useState('');
@@ -42,6 +47,13 @@ function SignupPage() {
 
       await updateProfile(user, { displayName });
       await setDoc(doc(db, 'users', user.uid), {
+        billingAddress: {
+          city: toTitleCase(billingCity),
+          country: toTitleCase(billingCountry) || 'United States',
+          postalCode: billingPostalCode.trim(),
+          state: billingState.trim().toUpperCase(),
+          street: toTitleCase(billingStreet)
+        },
         createdDate: serverTimestamp(),
         email: email.trim(),
         name: displayName,
@@ -108,6 +120,59 @@ function SignupPage() {
             value={phone}
           />
         </label>
+        <div className="form-subsection compact-subsection">
+          <h3>Billing Address</h3>
+          <label>
+            <span>Street Address</span>
+            <input
+              autoComplete="billing street-address"
+              disabled={!firebaseConfigured || submitting}
+              onBlur={(event) => setBillingStreet(toTitleCase(event.target.value))}
+              onChange={(event) => setBillingStreet(event.target.value)}
+              value={billingStreet}
+            />
+          </label>
+          <label>
+            <span>City</span>
+            <input
+              autoComplete="billing address-level2"
+              disabled={!firebaseConfigured || submitting}
+              onBlur={(event) => setBillingCity(toTitleCase(event.target.value))}
+              onChange={(event) => setBillingCity(event.target.value)}
+              value={billingCity}
+            />
+          </label>
+          <label>
+            <span>State</span>
+            <input
+              autoComplete="billing address-level1"
+              disabled={!firebaseConfigured || submitting}
+              maxLength={2}
+              onBlur={(event) => setBillingState(event.target.value.trim().toUpperCase())}
+              onChange={(event) => setBillingState(event.target.value)}
+              value={billingState}
+            />
+          </label>
+          <label>
+            <span>ZIP Code</span>
+            <input
+              autoComplete="billing postal-code"
+              disabled={!firebaseConfigured || submitting}
+              onChange={(event) => setBillingPostalCode(event.target.value)}
+              value={billingPostalCode}
+            />
+          </label>
+          <label>
+            <span>Country</span>
+            <input
+              autoComplete="billing country-name"
+              disabled={!firebaseConfigured || submitting}
+              onBlur={(event) => setBillingCountry(toTitleCase(event.target.value))}
+              onChange={(event) => setBillingCountry(event.target.value)}
+              value={billingCountry}
+            />
+          </label>
+        </div>
         <label>
           <span>Password *</span>
           <input

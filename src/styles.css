@@ -482,6 +482,17 @@ a {
   padding-top: 24px;
 }
 
+.compact-subsection {
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 18px;
+}
+
+.compact-subsection h3 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
 .form-actions {
   align-items: center;
   display: flex;
@@ -814,6 +825,9 @@ a {
 }
 
 .permission-panel .checkbox-label {
+  align-items: center;
+  display: inline-flex !important;
+  gap: 8px !important;
   justify-content: flex-start;
   justify-self: start;
   text-align: left;
@@ -826,6 +840,7 @@ a {
 
 .permission-panel .checkbox-label span {
   text-align: left;
+  white-space: nowrap;
 }
 
 .card-actions {

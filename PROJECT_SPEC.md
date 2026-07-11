@@ -110,6 +110,7 @@ Administrator Features
 * User control module for Super User role and permissions management
 * Public account creation for new General User profiles
 * Signed-in users can edit their own profile name and phone number
+* User profiles include billing address fields for future payment processing
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events
@@ -273,6 +274,7 @@ userId	Firebase UID
 name	Full name
 email	Email
 phone	Phone
+billingAddress	Billing address for future payment processing
 role	Super User, Admin, or General User
 permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments
 status	Active or Inactive

@@ -210,6 +210,10 @@ function UserControlPanel({ currentUserProfile }) {
                         <dd>{user.phone || 'Phone TBD'}</dd>
                       </div>
                       <div>
+                        <dt>Billing Address</dt>
+                        <dd>{formatBillingAddress(user.billingAddress)}</dd>
+                      </div>
+                      <div>
                         <dt>Permissions</dt>
                         <dd>
                           {user.role === 'Super User'
@@ -270,6 +274,20 @@ function getPermissionSummary(permissions) {
     .map((permission) => permission.label);
 
   return selectedPermissions.length ? selectedPermissions.join(', ') : 'No Admin Permissions';
+}
+
+function formatBillingAddress(billingAddress = {}) {
+  const lineOne = billingAddress.street;
+  const lineTwo = [
+    billingAddress.city,
+    billingAddress.state,
+    billingAddress.postalCode
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const lines = [lineOne, lineTwo, billingAddress.country].filter(Boolean);
+
+  return lines.length ? lines.join(' | ') : 'Billing Address TBD';
 }
 
 function toTitleCase(value) {
