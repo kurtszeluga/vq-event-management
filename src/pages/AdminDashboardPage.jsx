@@ -59,17 +59,36 @@ function AdminDashboardPage() {
           Signed in as <strong>{userProfile?.name || userProfile?.email}</strong>.
         </span>
       </div>
+      <nav className="admin-module-nav" aria-label="Admin dashboard modules">
+        {canManageEvents ? (
+          <>
+            <a className="button-link" href="#event-details-card">
+              Event/Activity Details
+            </a>
+            <a className="button-link secondary-action" href="#existing-events-card">
+              Existing Events
+            </a>
+          </>
+        ) : null}
+        {isSuperUser ? (
+          <a className="button-link secondary-action" href="#user-controls-card">
+            User Controls
+          </a>
+        ) : null}
+      </nav>
       {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
         {canManageEvents ? (
           <>
-            <EventForm
-              editingEvent={editingEvent}
-              onCancelEdit={() => setEditingEvent(null)}
-              onSaved={() => setEditingEvent(null)}
-              userProfile={userProfile}
-            />
-            <section className="admin-list-panel">
+            <div id="event-details-card">
+              <EventForm
+                editingEvent={editingEvent}
+                onCancelEdit={() => setEditingEvent(null)}
+                onSaved={() => setEditingEvent(null)}
+                userProfile={userProfile}
+              />
+            </div>
+            <section className="admin-list-panel" id="existing-events-card">
               <div className="form-section-header">
                 <h2>Existing events</h2>
                 <span>{events.length} total</span>

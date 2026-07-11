@@ -297,6 +297,20 @@ a {
   margin-top: 36px;
 }
 
+.admin-module-nav {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+#event-details-card,
+#existing-events-card,
+#user-controls-card {
+  scroll-margin-top: 96px;
+}
+
 .admin-form,
 .admin-list-panel,
 .detail-panel,
@@ -799,6 +813,21 @@ a {
 
 .permission-panel {
   grid-column: 1 / -1;
+}
+
+.permission-panel .checkbox-label {
+  justify-content: flex-start;
+  justify-self: start;
+  text-align: left;
+  width: auto;
+}
+
+.permission-panel .checkbox-label input {
+  margin: 0;
+}
+
+.permission-panel .checkbox-label span {
+  text-align: left;
 }
 
 .card-actions {

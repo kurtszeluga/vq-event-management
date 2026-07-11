@@ -107,7 +107,7 @@ function UserControlPanel({ currentUserProfile }) {
   }
 
   return (
-    <section className="admin-list-panel">
+    <section className="admin-list-panel" id="user-controls-card">
       <div className="form-section-header">
         <h2>User Controls</h2>
         <span>{users.length} total</span>
