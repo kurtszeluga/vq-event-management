@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  EVENT_LOCATIONS,
+  EVENT_TIME_OPTIONS
+} from '../../data/eventOptions.js';
+import {
   DEFAULT_MEMBERSHIP_SETTINGS,
   deleteEventLocationDefault,
   deleteEventTimeDefault,
@@ -52,6 +56,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [importMessage, setImportMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
+  const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
   const [members, setMembers] = useState([]);
   const [savingSection, setSavingSection] = useState('');
@@ -120,6 +125,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         currentUserProfile
       );
       setMemberForm(EMPTY_MEMBER_FORM);
+      setMemberFormOpen(false);
       setSuccessMessage('Member saved.');
     });
   }
@@ -173,6 +179,51 @@ function ConfigurationPanel({ currentUserProfile }) {
       await saveEventTimeDefault(timeForm, currentUserProfile);
       setTimeForm(EMPTY_TIME_FORM);
       setSuccessMessage('Default time saved.');
+    });
+  }
+
+  async function handleAddBuiltInLocationDefaults() {
+    await runSave('location-defaults', async () => {
+      const defaults = EVENT_LOCATIONS.filter((location) => location.value !== 'other');
+
+      for (const [index, location] of defaults.entries()) {
+        await saveEventLocationDefault(
+          {
+            address: '',
+            id: location.value,
+            isActive: true,
+            label: location.label,
+            sortOrder: index,
+            value: location.value
+          },
+          currentUserProfile
+        );
+      }
+
+      setSuccessMessage('Built-in location defaults added.');
+    });
+  }
+
+  async function handleAddBuiltInTimeDefaults() {
+    await runSave('time-defaults', async () => {
+      const defaults = EVENT_TIME_OPTIONS.filter((timeOption) => timeOption.value !== 'other');
+
+      for (const [index, timeOption] of defaults.entries()) {
+        await saveEventTimeDefault(
+          {
+            endTime: timeOption.endTime,
+            id: timeOption.value,
+            isActive: true,
+            label: timeOption.label,
+            sortOrder: index,
+            startTime: timeOption.startTime,
+            value: timeOption.value
+          },
+          currentUserProfile
+        );
+      }
+
+      setSuccessMessage('Built-in time defaults added.');
     });
   }
 
@@ -263,11 +314,15 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div>
           <h3>Member List</h3>
           <p>Upload a CSV or manually add members for email/phone matching.</p>
+          <p>
+            CSV columns can use Name, First Name, Last Name, Email, Phone, Status,
+            and Notes.
+          </p>
         </div>
         <div className="configuration-actions">
           <input
             accept=".csv,text/csv"
-            className="visually-hidden"
+            className="visually-hidden-file"
             ref={csvInputRef}
             type="file"
             onChange={handleCsvUpload}
@@ -280,80 +335,93 @@ function ConfigurationPanel({ currentUserProfile }) {
           >
             {savingSection === 'csv' ? 'Importing...' : 'Upload Member CSV'}
           </button>
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={() => {
+              setMemberForm(EMPTY_MEMBER_FORM);
+              setMemberFormOpen(true);
+            }}
+          >
+            Add Member
+          </button>
           {importMessage ? <span className="form-help">{importMessage}</span> : null}
         </div>
-        <form className="configuration-form-grid" onSubmit={handleSaveMember}>
-          <label>
-            <span>Member Name</span>
-            <input
-              value={memberForm.name}
-              onBlur={(event) =>
-                setMemberForm((current) => ({ ...current, name: toTitleCase(event.target.value) }))
-              }
-              onChange={(event) =>
-                setMemberForm((current) => ({ ...current, name: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>Email</span>
-            <input
-              type="email"
-              value={memberForm.email}
-              onChange={(event) =>
-                setMemberForm((current) => ({ ...current, email: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>Phone</span>
-            <input
-              type="tel"
-              value={memberForm.phone}
-              onChange={(event) =>
-                setMemberForm((current) => ({
-                  ...current,
-                  phone: formatPhoneNumber(event.target.value)
-                }))
-              }
-            />
-          </label>
-          <label>
-            <span>Status</span>
-            <select
-              value={memberForm.status}
-              onChange={(event) =>
-                setMemberForm((current) => ({ ...current, status: event.target.value }))
-              }
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </label>
-          <label className="configuration-span">
-            <span>Notes</span>
-            <input
-              value={memberForm.notes}
-              onChange={(event) =>
-                setMemberForm((current) => ({ ...current, notes: event.target.value }))
-              }
-            />
-          </label>
-          <div className="configuration-actions configuration-span">
-            <button className="button-link button-reset" disabled={savingSection === 'member'} type="submit">
-              {savingSection === 'member' ? 'Saving...' : memberForm.id ? 'Save Member' : 'Add Member'}
-            </button>
-            {memberForm.id ? (
+        {memberFormOpen ? (
+          <form className="configuration-form-grid" onSubmit={handleSaveMember}>
+            <label>
+              <span>Member Name</span>
+              <input
+                value={memberForm.name}
+                onBlur={(event) =>
+                  setMemberForm((current) => ({ ...current, name: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setMemberForm((current) => ({ ...current, name: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Email</span>
+              <input
+                type="email"
+                value={memberForm.email}
+                onChange={(event) =>
+                  setMemberForm((current) => ({ ...current, email: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Phone</span>
+              <input
+                type="tel"
+                value={memberForm.phone}
+                onChange={(event) =>
+                  setMemberForm((current) => ({
+                    ...current,
+                    phone: formatPhoneNumber(event.target.value)
+                  }))
+                }
+              />
+            </label>
+            <label>
+              <span>Status</span>
+              <select
+                value={memberForm.status}
+                onChange={(event) =>
+                  setMemberForm((current) => ({ ...current, status: event.target.value }))
+                }
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </label>
+            <label className="configuration-span">
+              <span>Notes</span>
+              <input
+                value={memberForm.notes}
+                onChange={(event) =>
+                  setMemberForm((current) => ({ ...current, notes: event.target.value }))
+                }
+              />
+            </label>
+            <div className="configuration-actions configuration-span">
+              <button className="button-link button-reset" disabled={savingSection === 'member'} type="submit">
+                {savingSection === 'member' ? 'Saving...' : memberForm.id ? 'Save Member' : 'Save New Member'}
+              </button>
               <button
                 className="text-button"
                 type="button"
-                onClick={() => setMemberForm(EMPTY_MEMBER_FORM)}
+                onClick={() => {
+                  setMemberForm(EMPTY_MEMBER_FORM);
+                  setMemberFormOpen(false);
+                }}
               >
-                Cancel Edit
+                Cancel
               </button>
-            ) : null}
-          </div>
-        </form>
+            </div>
+          </form>
+        ) : null}
         <ConfigurationTable
           columns={['Name', 'Email', 'Phone', 'Status', 'Actions']}
           emptyText="No members have been added yet."
@@ -367,7 +435,10 @@ function ConfigurationPanel({ currentUserProfile }) {
               <RowActions
                 key={member.id}
                 onDelete={() => deleteMember(member, currentUserProfile)}
-                onEdit={() => setMemberForm({ ...EMPTY_MEMBER_FORM, ...member })}
+                onEdit={() => {
+                  setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
+                  setMemberFormOpen(true);
+                }}
               />
             ]
           }))}
@@ -378,6 +449,18 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div>
           <h3>Default Locations</h3>
           <p>These locations appear in the event/activity location dropdown.</p>
+        </div>
+        <div className="configuration-actions">
+          <button
+            className="button-link button-reset secondary-action"
+            disabled={savingSection === 'location-defaults'}
+            type="button"
+            onClick={handleAddBuiltInLocationDefaults}
+          >
+            {savingSection === 'location-defaults'
+              ? 'Adding...'
+              : 'Add Current Default Location'}
+          </button>
         </div>
         <form className="configuration-form-grid" onSubmit={handleSaveLocation}>
           <label>
@@ -475,6 +558,18 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div>
           <h3>Default Start/End Times</h3>
           <p>These time blocks appear in the event/activity time dropdown.</p>
+        </div>
+        <div className="configuration-actions">
+          <button
+            className="button-link button-reset secondary-action"
+            disabled={savingSection === 'time-defaults'}
+            type="button"
+            onClick={handleAddBuiltInTimeDefaults}
+          >
+            {savingSection === 'time-defaults'
+              ? 'Adding...'
+              : 'Add Current Class/Workshop Times'}
+          </button>
         </div>
         <form className="configuration-form-grid" onSubmit={handleSaveTime}>
           <label>
@@ -634,7 +729,7 @@ function ConfigurationTable({ columns, emptyText, rows }) {
 function parseMemberCsv(text) {
   const rows = parseCsvRows(text);
   const [headerRow = [], ...dataRows] = rows;
-  const headers = headerRow.map((header) => header.trim().toLowerCase());
+  const headers = headerRow.map(normalizeCsvHeader);
 
   return dataRows
     .map((row) => {
@@ -643,16 +738,46 @@ function parseMemberCsv(text) {
       headers.forEach((header, index) => {
         record[header] = row[index] || '';
       });
+      const firstName = getCsvValue(record, ['firstName', 'first']);
+      const lastName = getCsvValue(record, ['lastName', 'last', 'surname']);
+      const fullName = getCsvValue(record, [
+        'name',
+        'member',
+        'memberName',
+        'fullName',
+        'displayName'
+      ]);
 
       return {
-        email: record.email || record['email address'] || '',
-        name: record.name || record.member || record['member name'] || '',
-        notes: record.notes || '',
-        phone: formatPhoneNumber(record.phone || record['phone number'] || ''),
-        status: record.status === 'Inactive' ? 'Inactive' : 'Active'
+        email: getCsvValue(record, ['email', 'emailAddress', 'eMail']),
+        name: toTitleCase(fullName || [firstName, lastName].filter(Boolean).join(' ')),
+        notes: getCsvValue(record, ['notes', 'note', 'comments']),
+        phone: formatPhoneNumber(getCsvValue(record, ['phone', 'phoneNumber', 'telephone', 'mobile'])),
+        status: getCsvValue(record, ['status']).toLowerCase() === 'inactive'
+          ? 'Inactive'
+          : 'Active'
       };
     })
     .filter((row) => row.name || row.email || row.phone);
+}
+
+function normalizeCsvHeader(header) {
+  return header
+    .trim()
+    .replace(/^\uFEFF/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+([a-z0-9])/g, (_, character) => character.toUpperCase())
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function getCsvValue(record, keys) {
+  for (const key of keys) {
+    if (record[key]) {
+      return record[key].trim();
+    }
+  }
+
+  return '';
 }
 
 function parseCsvRows(text) {

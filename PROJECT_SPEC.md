@@ -122,9 +122,11 @@ Administrator Features
   * Configure membership matching by email and/or phone.
   * Configure whether admins may skip the membership check.
   * Upload a CSV file of members.
+  * CSV imports support common headers including Name, First Name, Last Name, Email, Phone, Status, and Notes.
   * Manually add, edit, or remove members from the membership list.
   * Manage default event/activity locations.
   * Manage default event/activity start/end time choices.
+  * Super Users can seed the current Chota location and class/workshop time defaults into the configurable defaults.
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events
