@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  EVENT_LOCATIONS,
-  EVENT_TIME_OPTIONS
-} from '../../data/eventOptions.js';
-import {
   DEFAULT_MEMBERSHIP_SETTINGS,
   deleteEventLocationDefault,
   deleteEventTimeDefault,
@@ -55,6 +51,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [locationFormOpen, setLocationFormOpen] = useState(false);
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
@@ -62,6 +59,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [savingSection, setSavingSection] = useState('');
   const [settings, setSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const [successMessage, setSuccessMessage] = useState('');
+  const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
 
   useEffect(() => {
@@ -163,6 +161,7 @@ function ConfigurationPanel({ currentUserProfile }) {
     await runSave('location', async () => {
       await saveEventLocationDefault(locationForm, currentUserProfile);
       setLocationForm(EMPTY_LOCATION_FORM);
+      setLocationFormOpen(false);
       setSuccessMessage('Default location saved.');
     });
   }
@@ -178,52 +177,8 @@ function ConfigurationPanel({ currentUserProfile }) {
     await runSave('time', async () => {
       await saveEventTimeDefault(timeForm, currentUserProfile);
       setTimeForm(EMPTY_TIME_FORM);
+      setTimeFormOpen(false);
       setSuccessMessage('Default time saved.');
-    });
-  }
-
-  async function handleAddBuiltInLocationDefaults() {
-    await runSave('location-defaults', async () => {
-      const defaults = EVENT_LOCATIONS.filter((location) => location.value !== 'other');
-
-      for (const [index, location] of defaults.entries()) {
-        await saveEventLocationDefault(
-          {
-            address: '',
-            id: location.value,
-            isActive: true,
-            label: location.label,
-            sortOrder: index,
-            value: location.value
-          },
-          currentUserProfile
-        );
-      }
-
-      setSuccessMessage('Built-in location defaults added.');
-    });
-  }
-
-  async function handleAddBuiltInTimeDefaults() {
-    await runSave('time-defaults', async () => {
-      const defaults = EVENT_TIME_OPTIONS.filter((timeOption) => timeOption.value !== 'other');
-
-      for (const [index, timeOption] of defaults.entries()) {
-        await saveEventTimeDefault(
-          {
-            endTime: timeOption.endTime,
-            id: timeOption.value,
-            isActive: true,
-            label: timeOption.label,
-            sortOrder: index,
-            startTime: timeOption.startTime,
-            value: timeOption.value
-          },
-          currentUserProfile
-        );
-      }
-
-      setSuccessMessage('Built-in time defaults added.');
     });
   }
 
@@ -453,85 +408,88 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div className="configuration-actions">
           <button
             className="button-link button-reset secondary-action"
-            disabled={savingSection === 'location-defaults'}
             type="button"
-            onClick={handleAddBuiltInLocationDefaults}
+            onClick={() => {
+              setLocationForm(EMPTY_LOCATION_FORM);
+              setLocationFormOpen(true);
+            }}
           >
-            {savingSection === 'location-defaults'
-              ? 'Adding...'
-              : 'Add Current Default Location'}
+            Add Location
           </button>
         </div>
-        <form className="configuration-form-grid" onSubmit={handleSaveLocation}>
-          <label>
-            <span>Location Label *</span>
-            <input
-              value={locationForm.label}
-              onBlur={(event) =>
-                setLocationForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
-              }
-              onChange={(event) =>
-                setLocationForm((current) => ({ ...current, label: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>Dropdown Value</span>
-            <input
-              value={locationForm.value}
-              onChange={(event) =>
-                setLocationForm((current) => ({ ...current, value: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>Sort Order</span>
-            <input
-              min="0"
-              type="number"
-              value={locationForm.sortOrder}
-              onChange={(event) =>
-                setLocationForm((current) => ({ ...current, sortOrder: event.target.value }))
-              }
-            />
-          </label>
-          <label className="configuration-span">
-            <span>Address / Notes</span>
-            <input
-              value={locationForm.address}
-              onBlur={(event) =>
-                setLocationForm((current) => ({ ...current, address: toTitleCase(event.target.value) }))
-              }
-              onChange={(event) =>
-                setLocationForm((current) => ({ ...current, address: event.target.value }))
-              }
-            />
-          </label>
-          <label className="checkbox-label">
-            <input
-              checked={locationForm.isActive}
-              type="checkbox"
-              onChange={(event) =>
-                setLocationForm((current) => ({ ...current, isActive: event.target.checked }))
-              }
-            />
-            <span>Active</span>
-          </label>
-          <div className="configuration-actions configuration-span">
-            <button className="button-link button-reset" disabled={savingSection === 'location'} type="submit">
-              {savingSection === 'location' ? 'Saving...' : locationForm.id ? 'Save Location' : 'Add Location'}
-            </button>
-            {locationForm.id ? (
+        {locationFormOpen ? (
+          <form className="configuration-form-grid" onSubmit={handleSaveLocation}>
+            <label>
+              <span>Location Label *</span>
+              <input
+                value={locationForm.label}
+                onBlur={(event) =>
+                  setLocationForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, label: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Dropdown Value</span>
+              <input
+                value={locationForm.value}
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, value: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Sort Order</span>
+              <input
+                min="0"
+                type="number"
+                value={locationForm.sortOrder}
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, sortOrder: event.target.value }))
+                }
+              />
+            </label>
+            <label className="configuration-span">
+              <span>Address / Notes</span>
+              <input
+                value={locationForm.address}
+                onBlur={(event) =>
+                  setLocationForm((current) => ({ ...current, address: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, address: event.target.value }))
+                }
+              />
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={locationForm.isActive}
+                type="checkbox"
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, isActive: event.target.checked }))
+                }
+              />
+              <span>Active</span>
+            </label>
+            <div className="configuration-actions configuration-span">
+              <button className="button-link button-reset" disabled={savingSection === 'location'} type="submit">
+                {savingSection === 'location' ? 'Saving...' : locationForm.id ? 'Save Location' : 'Save New Location'}
+              </button>
               <button
                 className="text-button"
                 type="button"
-                onClick={() => setLocationForm(EMPTY_LOCATION_FORM)}
+                onClick={() => {
+                  setLocationForm(EMPTY_LOCATION_FORM);
+                  setLocationFormOpen(false);
+                }}
               >
-                Cancel Edit
+                Cancel
               </button>
-            ) : null}
-          </div>
-        </form>
+            </div>
+          </form>
+        ) : null}
         <ConfigurationTable
           columns={['Location', 'Value', 'Status', 'Actions']}
           emptyText="No default locations have been added yet."
@@ -547,7 +505,10 @@ function ConfigurationPanel({ currentUserProfile }) {
               <RowActions
                 key={location.id}
                 onDelete={() => deleteEventLocationDefault(location, currentUserProfile)}
-                onEdit={() => setLocationForm({ ...EMPTY_LOCATION_FORM, ...location })}
+                onEdit={() => {
+                  setLocationForm({ ...EMPTY_LOCATION_FORM, ...location });
+                  setLocationFormOpen(true);
+                }}
               />
             ]
           }))}
@@ -562,93 +523,96 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div className="configuration-actions">
           <button
             className="button-link button-reset secondary-action"
-            disabled={savingSection === 'time-defaults'}
             type="button"
-            onClick={handleAddBuiltInTimeDefaults}
+            onClick={() => {
+              setTimeForm(EMPTY_TIME_FORM);
+              setTimeFormOpen(true);
+            }}
           >
-            {savingSection === 'time-defaults'
-              ? 'Adding...'
-              : 'Add Current Class/Workshop Times'}
+            Add Time
           </button>
         </div>
-        <form className="configuration-form-grid" onSubmit={handleSaveTime}>
-          <label>
-            <span>Time Label *</span>
-            <input
-              value={timeForm.label}
-              onBlur={(event) =>
-                setTimeForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
-              }
-              onChange={(event) =>
-                setTimeForm((current) => ({ ...current, label: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>Dropdown Value</span>
-            <input
-              value={timeForm.value}
-              onChange={(event) =>
-                setTimeForm((current) => ({ ...current, value: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>Start Time</span>
-            <input
-              type="time"
-              value={timeForm.startTime}
-              onChange={(event) =>
-                setTimeForm((current) => ({ ...current, startTime: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>End Time</span>
-            <input
-              type="time"
-              value={timeForm.endTime}
-              onChange={(event) =>
-                setTimeForm((current) => ({ ...current, endTime: event.target.value }))
-              }
-            />
-          </label>
-          <label>
-            <span>Sort Order</span>
-            <input
-              min="0"
-              type="number"
-              value={timeForm.sortOrder}
-              onChange={(event) =>
-                setTimeForm((current) => ({ ...current, sortOrder: event.target.value }))
-              }
-            />
-          </label>
-          <label className="checkbox-label">
-            <input
-              checked={timeForm.isActive}
-              type="checkbox"
-              onChange={(event) =>
-                setTimeForm((current) => ({ ...current, isActive: event.target.checked }))
-              }
-            />
-            <span>Active</span>
-          </label>
-          <div className="configuration-actions configuration-span">
-            <button className="button-link button-reset" disabled={savingSection === 'time'} type="submit">
-              {savingSection === 'time' ? 'Saving...' : timeForm.id ? 'Save Time' : 'Add Time'}
-            </button>
-            {timeForm.id ? (
+        {timeFormOpen ? (
+          <form className="configuration-form-grid" onSubmit={handleSaveTime}>
+            <label>
+              <span>Time Label *</span>
+              <input
+                value={timeForm.label}
+                onBlur={(event) =>
+                  setTimeForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, label: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Dropdown Value</span>
+              <input
+                value={timeForm.value}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, value: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Start Time</span>
+              <input
+                type="time"
+                value={timeForm.startTime}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, startTime: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>End Time</span>
+              <input
+                type="time"
+                value={timeForm.endTime}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, endTime: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Sort Order</span>
+              <input
+                min="0"
+                type="number"
+                value={timeForm.sortOrder}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, sortOrder: event.target.value }))
+                }
+              />
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={timeForm.isActive}
+                type="checkbox"
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, isActive: event.target.checked }))
+                }
+              />
+              <span>Active</span>
+            </label>
+            <div className="configuration-actions configuration-span">
+              <button className="button-link button-reset" disabled={savingSection === 'time'} type="submit">
+                {savingSection === 'time' ? 'Saving...' : timeForm.id ? 'Save Time' : 'Save New Time'}
+              </button>
               <button
                 className="text-button"
                 type="button"
-                onClick={() => setTimeForm(EMPTY_TIME_FORM)}
+                onClick={() => {
+                  setTimeForm(EMPTY_TIME_FORM);
+                  setTimeFormOpen(false);
+                }}
               >
-                Cancel Edit
+                Cancel
               </button>
-            ) : null}
-          </div>
-        </form>
+            </div>
+          </form>
+        ) : null}
         <ConfigurationTable
           columns={['Time', 'Start/End', 'Status', 'Actions']}
           emptyText="No default times have been added yet."
@@ -664,7 +628,10 @@ function ConfigurationPanel({ currentUserProfile }) {
               <RowActions
                 key={timeOption.id}
                 onDelete={() => deleteEventTimeDefault(timeOption, currentUserProfile)}
-                onEdit={() => setTimeForm({ ...EMPTY_TIME_FORM, ...timeOption })}
+                onEdit={() => {
+                  setTimeForm({ ...EMPTY_TIME_FORM, ...timeOption });
+                  setTimeFormOpen(true);
+                }}
               />
             ]
           }))}

@@ -126,7 +126,7 @@ Administrator Features
   * Manually add, edit, or remove members from the membership list.
   * Manage default event/activity locations.
   * Manage default event/activity start/end time choices.
-  * Super Users can seed the current Chota location and class/workshop time defaults into the configurable defaults.
+  * Default location and time add/edit fields stay hidden until the Super User selects Add or Edit.
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events

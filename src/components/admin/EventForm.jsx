@@ -130,7 +130,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     setForm((current) => ({
       ...current,
       eventType: value,
-      location: isClassOrWorkshop ? eventLocations[0].label : '',
+      location: isClassOrWorkshop ? getLocationSelectionValue(eventLocations[0]) : '',
       locationPreset: value
         ? isClassOrWorkshop
           ? eventLocations[0].value
@@ -163,7 +163,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
     const location = eventLocations.find((item) => item.value === value);
     setForm((current) => ({
       ...current,
-      location: value === 'other' ? '' : location?.label || '',
+      location: value === 'other' ? '' : getLocationSelectionValue(location),
       locationPreset: value
     }));
   }
@@ -565,7 +565,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     <option value="">Select One</option>
                     {eventTimeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {option.label}
+                        {getTimeOptionDisplay(option)}
                       </option>
                     ))}
                   </select>
@@ -641,7 +641,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                   <option value="">Select One</option>
                   {eventLocations.map((location) => (
                     <option key={location.value} value={location.value}>
-                      {location.label}
+                      {getLocationOptionDisplay(location)}
                     </option>
                   ))}
                 </select>
@@ -1525,6 +1525,28 @@ function mergeOptionLists(configuredOptions, fallbackOptions) {
     ...options,
     ...fallbackOptions.filter((option) => !configuredValues.has(option.value))
   ];
+}
+
+function getLocationOptionDisplay(location) {
+  if (!location) {
+    return '';
+  }
+
+  return [location.label, location.address].filter(Boolean).join(' - ');
+}
+
+function getLocationSelectionValue(location) {
+  return getLocationOptionDisplay(location);
+}
+
+function getTimeOptionDisplay(option) {
+  if (!option) {
+    return '';
+  }
+
+  const timeRange = [option.startTime, option.endTime].filter(Boolean).join(' - ');
+
+  return timeRange ? `${option.label} (${timeRange})` : option.label;
 }
 
 function getInitialForm(editingEvent) {
