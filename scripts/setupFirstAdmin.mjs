@@ -72,7 +72,12 @@ await userRef.set(
     name,
     email,
     phone: FIRST_ADMIN_PHONE,
-    role: 'Admin',
+    permissions: {
+      manageEvents: true,
+      managePayments: true,
+      viewRegistrations: true
+    },
+    role: 'Super User',
     status: 'Active',
     createdDate: existingProfile.exists ? existingProfile.data().createdDate : now,
     updatedDate: now

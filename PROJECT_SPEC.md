@@ -107,6 +107,7 @@ Phase 2 – Administrative Event Management
 Administrator Features
 
 * Secure administrator login
+* User control module for Super User role and permissions management
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events
@@ -270,7 +271,8 @@ userId	Firebase UID
 name	Full name
 email	Email
 phone	Phone
-role	Admin or User
+role	Super User, Admin, or General User
+permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments
 status	Active or Inactive
 
 ⸻
@@ -301,7 +303,7 @@ after	Snapshot of the record after the action
 actorUserId	Firebase UID for the administrator or user
 actorName	Name of the person who performed the action
 actorEmail	Email of the person who performed the action
-actorRole	Admin or User
+actorRole	Super User, Admin, or General User
 createdDate	Timestamp
 
 ⸻

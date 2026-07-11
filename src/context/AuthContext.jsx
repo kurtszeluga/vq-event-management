@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { hasAdminAccess, hasPermission, isSuperUser } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import { AuthContext } from './authContext.js';
 
@@ -53,7 +54,9 @@ export function AuthProvider({ children }) {
     () => ({
       currentUser,
       firebaseConfigured,
-      isAdmin: userProfile?.role === 'Admin' && userProfile?.status === 'Active',
+      hasPermission: (permissionKey) => hasPermission(userProfile, permissionKey),
+      isAdmin: hasAdminAccess(userProfile),
+      isSuperUser: isSuperUser(userProfile),
       loading,
       logOut,
       profileError,

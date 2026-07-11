@@ -711,7 +711,8 @@ a {
   margin-top: 36px;
 }
 
-.event-admin-card {
+.event-admin-card,
+.user-admin-card {
   border: 1px solid #ded5ca;
   border-radius: 8px;
   display: grid;
@@ -721,6 +722,7 @@ a {
 }
 
 .event-admin-card p,
+.user-admin-card p,
 .public-event-card p {
   color: #5c6966;
   line-height: 1.6;
@@ -746,6 +748,7 @@ a {
 }
 
 .event-admin-card dl,
+.user-admin-card dl,
 .public-event-card dl,
 .detail-panel dl {
   display: grid;
@@ -755,6 +758,7 @@ a {
 }
 
 .event-admin-card dt,
+.user-admin-card dt,
 .public-event-card dt,
 .detail-panel dt {
   color: #687572;
@@ -764,9 +768,37 @@ a {
 }
 
 .event-admin-card dd,
+.user-admin-card dd,
 .public-event-card dd,
 .detail-panel dd {
   margin: 4px 0 0;
+}
+
+.user-edit-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.user-edit-grid label,
+.permission-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.user-edit-grid input,
+.user-edit-grid select {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
+  height: 48px;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.permission-panel {
+  grid-column: 1 / -1;
 }
 
 .card-actions {
@@ -864,10 +896,12 @@ a {
   }
 
   .event-admin-card,
+  .user-admin-card,
   .event-detail-layout,
   .capacity-row,
   .form-grid,
-  .form-grid.compact {
+  .form-grid.compact,
+  .user-edit-grid {
     grid-template-columns: 1fr;
   }
 

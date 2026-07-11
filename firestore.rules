@@ -10,11 +10,30 @@ service cloud.firestore {
       return value is string && value in statuses;
     }
 
-    function isAdmin() {
+    function currentUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveProfile() {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin'
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'Active';
+        && currentUserData().status == 'Active';
+    }
+
+    function isSuperUser() {
+      return isActiveProfile() && currentUserData().role == 'Super User';
+    }
+
+    function isAdmin() {
+      return isActiveProfile()
+        && currentUserData().role in ['Super User', 'Admin'];
+    }
+
+    function hasPermission(permissionKey) {
+      return isSuperUser()
+        || isActiveProfile()
+          && currentUserData().role == 'Admin'
+          && currentUserData().permissions[permissionKey] == true;
     }
 
     function isOwner(userId) {
@@ -112,6 +131,7 @@ service cloud.firestore {
           'name',
           'email',
           'phone',
+          'permissions',
           'role',
           'status',
           'createdDate',
@@ -121,7 +141,16 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.email is string
         && request.resource.data.phone is string
-        && validStatus(request.resource.data.role, ['Admin', 'User'])
+        && request.resource.data.permissions is map
+        && request.resource.data.permissions.keys().hasOnly([
+          'manageEvents',
+          'viewRegistrations',
+          'managePayments'
+        ])
+        && request.resource.data.permissions.manageEvents is bool
+        && request.resource.data.permissions.viewRegistrations is bool
+        && request.resource.data.permissions.managePayments is bool
+        && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
         && validStatus(request.resource.data.status, ['Active', 'Inactive'])
         && request.resource.data.createdDate is timestamp;
     }
@@ -130,7 +159,7 @@ service cloud.firestore {
       return signedIn()
         && request.auth.uid == userId
         && request.resource.data.userId == userId
-        && request.resource.data.role == 'User'
+        && request.resource.data.role == 'General User'
         && request.resource.data.status == 'Active';
     }
 
@@ -189,38 +218,39 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      allow read: if resource.data.status == 'Published' || isAdmin();
-      allow create, update: if isAdmin() && validEvent();
-      allow delete: if isAdmin();
+      allow read: if resource.data.status == 'Published' || hasPermission('manageEvents');
+      allow create, update: if hasPermission('manageEvents') && validEvent();
+      allow delete: if hasPermission('manageEvents');
     }
 
     match /registrations/{registrationId} {
       allow create: if validRegistration();
-      allow read: if isAdmin() || isOwner(resource.data.userId);
-      allow update: if isAdmin() && validRegistration()
+      allow read: if hasPermission('viewRegistrations') || isOwner(resource.data.userId);
+      allow update: if hasPermission('viewRegistrations') && validRegistration()
         || isOwner(resource.data.userId)
           && validRegistration()
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
           && request.resource.data.status == 'Cancelled';
-      allow delete: if isAdmin();
+      allow delete: if hasPermission('viewRegistrations');
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAdmin() && validUser() || validSelfUserCreate(userId) && validUser();
-      allow update: if isAdmin() && validUser()
+      allow read: if isOwner(userId) || isSuperUser();
+      allow create: if isSuperUser() && validUser() || validSelfUserCreate(userId) && validUser();
+      allow update: if isSuperUser() && validUser()
         || isOwner(userId)
           && validUser()
           && request.resource.data.role == resource.data.role
-          && request.resource.data.status == resource.data.status;
-      allow delete: if isAdmin();
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.permissions == resource.data.permissions;
+      allow delete: if isSuperUser();
     }
 
     match /payments/{paymentId} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin() && validPayment();
-      allow delete: if isAdmin();
+      allow read: if hasPermission('managePayments');
+      allow create, update: if hasPermission('managePayments') && validPayment();
+      allow delete: if hasPermission('managePayments');
     }
 
     match /auditLogs/{auditLogId} {

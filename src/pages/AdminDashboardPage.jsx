@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
 import EventList from '../components/admin/EventList.jsx';
+import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
 import {
   deleteEvent,
@@ -9,13 +10,19 @@ import {
 } from '../services/eventService.js';
 
 function AdminDashboardPage() {
-  const { userProfile } = useAuth();
+  const { hasPermission, isSuperUser, userProfile } = useAuth();
   const [editingEvent, setEditingEvent] = useState(null);
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const canManageEvents = hasPermission('manageEvents');
 
   useEffect(() => {
+    if (!canManageEvents) {
+      setLoadingEvents(false);
+      return undefined;
+    }
+
     const unsubscribe = subscribeToAdminEvents(
       (snapshot) => {
         setEvents(snapshot.docs.map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() })));
@@ -29,7 +36,7 @@ function AdminDashboardPage() {
     );
 
     return unsubscribe;
-  }, []);
+  }, [canManageEvents]);
 
   async function handleDelete(event) {
     const confirmed = window.confirm(`Delete "${event.title}"?`);
@@ -52,26 +59,39 @@ function AdminDashboardPage() {
           Signed in as <strong>{userProfile?.name || userProfile?.email}</strong>.
         </span>
       </div>
-      {eventsError ? <p className="form-error">{eventsError}</p> : null}
+      {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
-        <EventForm
-          editingEvent={editingEvent}
-          onCancelEdit={() => setEditingEvent(null)}
-          onSaved={() => setEditingEvent(null)}
-          userProfile={userProfile}
-        />
-        <section className="admin-list-panel">
-          <div className="form-section-header">
-            <h2>Existing events</h2>
-            <span>{events.length} total</span>
+        {canManageEvents ? (
+          <>
+            <EventForm
+              editingEvent={editingEvent}
+              onCancelEdit={() => setEditingEvent(null)}
+              onSaved={() => setEditingEvent(null)}
+              userProfile={userProfile}
+            />
+            <section className="admin-list-panel">
+              <div className="form-section-header">
+                <h2>Existing events</h2>
+                <span>{events.length} total</span>
+              </div>
+              <EventList
+                events={events}
+                loading={loadingEvents}
+                onDelete={handleDelete}
+                onEdit={setEditingEvent}
+              />
+            </section>
+          </>
+        ) : null}
+        {isSuperUser ? (
+          <UserControlPanel currentUserProfile={userProfile} />
+        ) : null}
+        {!canManageEvents && !isSuperUser ? (
+          <div className="empty-state">
+            <h2>No Admin Modules Enabled</h2>
+            <p>Ask the Super User to update this profile's permissions.</p>
           </div>
-          <EventList
-            events={events}
-            loading={loadingEvents}
-            onDelete={handleDelete}
-            onEdit={setEditingEvent}
-          />
-        </section>
+        ) : null}
       </div>
     </section>
   );

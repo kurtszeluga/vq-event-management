@@ -72,9 +72,9 @@ Vercel should use:
 - `npm run build` creates a production build.
 - `npm run preview` previews the production build.
 - `npm run lint` runs ESLint.
-- `npm run setup:first-admin` creates or updates the first Firebase Auth admin user and matching Firestore profile.
+- `npm run setup:first-admin` creates or updates the first Firebase Auth Super User and matching Firestore profile.
 
-## First Admin Setup
+## First Super User Setup
 
 Enable the Email/Password provider in Firebase Authentication, create a Firebase service account key, then run:
 
@@ -88,3 +88,5 @@ npm run setup:first-admin
 ```
 
 Do not commit the service account key.
+
+The setup script grants the first profile the `Super User` role with all admin permissions. Run this before deploying user-permission Firestore rules.
