@@ -6,7 +6,8 @@ export const EVENT_TYPES = [
   'Lecture',
   'Challenges',
   'Business Listing',
-  'For Sale'
+  'For Sale',
+  'Other'
 ];
 
 export const EVENT_TIME_OPTIONS = [

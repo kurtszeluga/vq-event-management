@@ -138,6 +138,7 @@ Required fields are marked with an asterisk.
   * Challenges
   * Business Listing
   * For Sale
+  * Other
 * Event Date * in MM/DD/YYYY format
 * Event Time *
   * Half day classes are from 1:30 p.m. to 4:30 p.m.
@@ -156,6 +157,7 @@ Required fields are marked with an asterisk.
 * Challenges use title, description, challenge PDF upload, supply list PDF upload, posting start/end, and registration.
 * Business Listings use image upload, owner name, business name, specialty, email, phone, address, and description. Registration is not enabled.
 * For Sale listings use title, description, asking price, photo upload, contact info, and posting start/end. Registration is not enabled and listings auto-expire after six months.
+* Other uses the general event/activity card for events that do not fit a canned type.
   * Show an uploaded image preview large enough for administrators to confirm the correct image.
   * Allow administrators to change or remove the uploaded image.
   * View full-size images inside the form with a close button.

@@ -380,6 +380,10 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           </span>
         </label>
 
+        {eventTypeSelected ? (
+          <div className="event-type-card form-span">
+            <h3>{getEventTypeCardTitle(form.eventType)}</h3>
+            <div className="form-grid stacked">
         {!isBusinessListing ? (
           <label>
             <span>{eventLabel} Title *</span>
@@ -647,6 +651,9 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
             onChange={(event) => updateField('description', event.target.value)}
           />
         </label>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="form-subsection">
@@ -1385,6 +1392,26 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
 
 function supportsSupplyList(eventType) {
   return eventType.startsWith('Class') || eventType === 'Workshop';
+}
+
+function getEventTypeCardTitle(eventType) {
+  if (eventType?.startsWith('Class') || eventType === 'Workshop') {
+    return 'Class/Workshop Details';
+  }
+
+  if (eventType === 'Challenges') {
+    return 'Challenge Details';
+  }
+
+  if (eventType === 'Business Listing') {
+    return 'Business Listing Details';
+  }
+
+  if (eventType === 'For Sale') {
+    return 'For Sale Listing Details';
+  }
+
+  return 'General Event/Activity Details';
 }
 
 function getInitialForm(editingEvent) {
