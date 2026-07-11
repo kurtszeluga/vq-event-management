@@ -7,6 +7,7 @@ import EventsPage from './pages/EventsPage.jsx';
 import EventDetailsPage from './pages/EventDetailsPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import SignupPage from './pages/SignupPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import RequireAdmin from './components/RequireAdmin.jsx';
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { path: 'events/:eventId', element: <EventDetailsPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'login', element: <LoginPage /> },
+      { path: 'signup', element: <SignupPage /> },
       {
         path: 'admin',
         element: (

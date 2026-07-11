@@ -6,6 +6,7 @@ const navItems = [
   { to: '/', label: 'Home' },
   { to: '/events', label: 'Events' },
   { to: '/register', label: 'Register' },
+  { to: '/signup', label: 'Create Account' },
   { to: '/login', label: 'Login' },
   { to: '/admin', label: 'Admin' }
 ];

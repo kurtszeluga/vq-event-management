@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
@@ -92,6 +92,9 @@ function LoginPage() {
           >
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>
+          <span className="form-help">
+            Need an account? <Link to="/signup">Create one here.</Link>
+          </span>
         </form>
       )}
     </section>

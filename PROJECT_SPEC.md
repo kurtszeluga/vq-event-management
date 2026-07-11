@@ -108,6 +108,7 @@ Administrator Features
 
 * Secure administrator login
 * User control module for Super User role and permissions management
+* Public account creation for new General User profiles
 * Create events
 * Save incomplete events as Drafts, requiring only Event Type and Event Title
 * Edit events

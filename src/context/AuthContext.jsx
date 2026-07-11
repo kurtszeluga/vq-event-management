@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { hasAdminAccess, hasPermission, isSuperUser } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import { AuthContext } from './authContext.js';
@@ -17,10 +17,17 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
-    return onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeProfile = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       setCurrentUser(firebaseUser);
       setUserProfile(null);
       setProfileError('');
+
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
 
       if (!firebaseUser) {
         setLoading(false);
@@ -29,19 +36,34 @@ export function AuthProvider({ children }) {
 
       try {
         const profileRef = doc(db, 'users', firebaseUser.uid);
-        const profileSnap = await getDoc(profileRef);
-
-        if (profileSnap.exists()) {
-          setUserProfile({ id: profileSnap.id, ...profileSnap.data() });
-        } else {
-          setProfileError('No user profile exists for this account.');
-        }
+        unsubscribeProfile = onSnapshot(
+          profileRef,
+          (profileSnap) => {
+            if (profileSnap.exists()) {
+              setUserProfile({ id: profileSnap.id, ...profileSnap.data() });
+              setProfileError('');
+            } else {
+              setProfileError('No user profile exists for this account.');
+            }
+            setLoading(false);
+          },
+          (error) => {
+            setProfileError(error.message);
+            setLoading(false);
+          }
+        );
       } catch (error) {
         setProfileError(error.message);
-      } finally {
         setLoading(false);
       }
     });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
+    };
   }, []);
 
   async function logOut() {
