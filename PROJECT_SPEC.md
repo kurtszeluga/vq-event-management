@@ -155,6 +155,8 @@ Required fields are marked with an asterisk.
   * Allow one event image.
   * Resize uploaded images to a maximum of 1600 x 1200 pixels and 1 MB.
 * Challenges use title, description, challenge PDF upload, supply list PDF upload, posting start/end, and registration.
+* Retreats use event date, direct start/end time entry, location, description, capacity, fees, listing, and registration. Retreats do not use presenter/instructor name.
+* Lectures use event date, location, presenter/instructor name, description, listing, and registration. Lectures do not use time, capacity, or fees.
 * Business Listings use image upload, owner name, business name, specialty, email, phone, address, and description. Registration is not enabled.
 * For Sale listings use title, description, asking price, photo upload, contact info, and posting start/end. Registration is not enabled and listings auto-expire after six months.
 * Other uses the general event/activity card for events that do not fit a canned type.

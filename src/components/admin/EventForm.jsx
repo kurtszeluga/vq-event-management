@@ -42,13 +42,19 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const isBusinessListing = form.eventType === 'Business Listing';
   const isForSale = form.eventType === 'For Sale';
   const isChallenge = form.eventType === 'Challenges';
+  const isRetreat = form.eventType === 'Retreat';
+  const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
   const showEventScheduleFields = eventTypeSelected && !isListingOnly && !isChallenge;
+  const showTimePresetField = showEventScheduleFields && !isRetreat && !isLecture;
+  const showDirectTimeFields = showEventScheduleFields && isRetreat;
+  const showPresenterField = showEventScheduleFields && !isRetreat;
+  const showCapacityField = showEventScheduleFields && !isLecture;
   const showImageUpload = eventTypeSelected && !isChallenge;
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
   const showRegistrationSection = eventTypeSelected && !isListingOnly;
-  const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge;
+  const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge && !isLecture;
 
   function updateField(name, value) {
     setSuccessMessage('');
@@ -82,6 +88,20 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       (item) => item.value === nextTimePreset
     );
     const isClassOrWorkshop = Boolean(nextTimeOption);
+    const isLectureType = value === 'Lecture';
+    const isRetreatType = value === 'Retreat';
+    const doesNotUseFees = [
+      'Business Listing',
+      'For Sale',
+      'Challenges',
+      'Lecture'
+    ].includes(value);
+    const doesNotUseCapacity = [
+      'Business Listing',
+      'For Sale',
+      'Challenges',
+      'Lecture'
+    ].includes(value);
 
     setForm((current) => ({
       ...current,
@@ -92,18 +112,18 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           ? EVENT_LOCATIONS[0].value
           : 'other'
         : '',
-      timePreset: value ? nextTimeOption?.value || 'other' : '',
+      timePreset: value && !isLectureType ? nextTimeOption?.value || 'other' : '',
       startTime: nextTimeOption?.startTime || '',
       endTime: nextTimeOption?.endTime || '',
+      capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
+      presenter: isRetreatType ? '' : current.presenter,
       supplyListFileName: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListFileName : '',
       supplyListTitle: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListTitle : '',
       supplyListUrl: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListUrl : '',
       documentFileName: value === 'Challenges' ? current.documentFileName : '',
       documentTitle: value === 'Challenges' ? current.documentTitle : '',
       documentUrl: value === 'Challenges' ? current.documentUrl : '',
-      isPaid: value === 'Business Listing' || value === 'For Sale' || value === 'Challenges'
-        ? false
-        : current.isPaid,
+      isPaid: doesNotUseFees ? false : current.isPaid,
       registrationMode: value === 'Business Listing' || value === 'For Sale' ? 'none' : current.registrationMode,
       registrationOpen: false
     }));
@@ -508,53 +528,82 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
             </label>
 
-            <div className="form-stack-group">
-              <label>
-                <span>{eventLabel} Time *</span>
-                <select
-                  className={fieldErrors.timePreset ? 'field-invalid' : ''}
-                  disabled={!eventTypeSelected}
-                  value={form.timePreset}
-                  onChange={(event) => handleTimePreset(event.target.value)}
-                >
-                  <option value="">Select One</option>
-                  {EVENT_TIME_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="form-help">
-                  Chose Other to enter a specific time.
-                </span>
-              </label>
-              {form.timePreset === 'other' ? (
-                <div className="form-row-pair nested-fields">
-                  <label>
-                    <span>Start</span>
-                    <input
-                      className={fieldErrors.startTime ? 'field-invalid' : ''}
-                      disabled={!eventTypeSelected}
-                      type="time"
-                      value={form.startTime}
-                      onChange={(event) =>
-                        updateField('startTime', event.target.value)
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>End</span>
-                    <input
-                      className={fieldErrors.endTime ? 'field-invalid' : ''}
-                      disabled={!eventTypeSelected}
-                      type="time"
-                      value={form.endTime}
-                      onChange={(event) => updateField('endTime', event.target.value)}
-                    />
-                  </label>
-                </div>
-              ) : null}
-            </div>
+            {showTimePresetField ? (
+              <div className="form-stack-group">
+                <label>
+                  <span>{eventLabel} Time *</span>
+                  <select
+                    className={fieldErrors.timePreset ? 'field-invalid' : ''}
+                    disabled={!eventTypeSelected}
+                    value={form.timePreset}
+                    onChange={(event) => handleTimePreset(event.target.value)}
+                  >
+                    <option value="">Select One</option>
+                    {EVENT_TIME_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="form-help">
+                    Chose Other to enter a specific time.
+                  </span>
+                </label>
+                {form.timePreset === 'other' ? (
+                  <div className="form-row-pair nested-fields">
+                    <label>
+                      <span>Start</span>
+                      <input
+                        className={fieldErrors.startTime ? 'field-invalid' : ''}
+                        disabled={!eventTypeSelected}
+                        type="time"
+                        value={form.startTime}
+                        onChange={(event) =>
+                          updateField('startTime', event.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>End</span>
+                      <input
+                        className={fieldErrors.endTime ? 'field-invalid' : ''}
+                        disabled={!eventTypeSelected}
+                        type="time"
+                        value={form.endTime}
+                        onChange={(event) =>
+                          updateField('endTime', event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {showDirectTimeFields ? (
+              <div className="form-row-pair">
+                <label>
+                  <span>{eventLabel} Start Time *</span>
+                  <input
+                    className={fieldErrors.startTime ? 'field-invalid' : ''}
+                    disabled={!eventTypeSelected}
+                    type="time"
+                    value={form.startTime}
+                    onChange={(event) => updateField('startTime', event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>{eventLabel} End Time *</span>
+                  <input
+                    className={fieldErrors.endTime ? 'field-invalid' : ''}
+                    disabled={!eventTypeSelected}
+                    type="time"
+                    value={form.endTime}
+                    onChange={(event) => updateField('endTime', event.target.value)}
+                  />
+                </label>
+              </div>
+            ) : null}
 
             <div className="form-stack-group">
               <label>
@@ -593,52 +642,56 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               ) : null}
             </div>
 
-            <label>
-              <span>{eventLabel} Presenter/Instructor Name</span>
-              <input
-                value={form.presenter}
-                onChange={(event) => updateField('presenter', event.target.value)}
-                onBlur={(event) =>
-                  updateField('presenter', toTitleCase(event.target.value))
-                }
-              />
-            </label>
+            {showPresenterField ? (
+              <label>
+                <span>{eventLabel} Presenter/Instructor Name</span>
+                <input
+                  value={form.presenter}
+                  onChange={(event) => updateField('presenter', event.target.value)}
+                  onBlur={(event) =>
+                    updateField('presenter', toTitleCase(event.target.value))
+                  }
+                />
+              </label>
+            ) : null}
 
-            <div className="form-stack-group">
-              <div className="capacity-row">
-                <div className="capacity-checkbox-field">
-                  <span className="field-label-spacer" aria-hidden="true">
-                    Capacity Option
-                  </span>
-                  <label className="checkbox-label">
+            {showCapacityField ? (
+              <div className="form-stack-group">
+                <div className="capacity-row">
+                  <div className="capacity-checkbox-field">
+                    <span className="field-label-spacer" aria-hidden="true">
+                      Capacity Option
+                    </span>
+                    <label className="checkbox-label">
+                      <input
+                        checked={form.capacityUnlimited}
+                        disabled={!eventTypeSelected}
+                        type="checkbox"
+                        onChange={(event) =>
+                          updateField('capacityUnlimited', event.target.checked)
+                        }
+                      />
+                      <span>Unlimited Capacity</span>
+                    </label>
+                  </div>
+                  <label>
+                    <span>{eventLabel} Maximum Capacity</span>
                     <input
-                      checked={form.capacityUnlimited}
-                      disabled={!eventTypeSelected}
-                      type="checkbox"
-                      onChange={(event) =>
-                        updateField('capacityUnlimited', event.target.checked)
-                      }
+                      className={fieldErrors.capacity ? 'field-invalid' : ''}
+                      disabled={!eventTypeSelected || form.capacityUnlimited}
+                      min="0"
+                      step="1"
+                      type="number"
+                      value={form.capacity}
+                      onChange={(event) => updateField('capacity', event.target.value)}
                     />
-                    <span>Unlimited Capacity</span>
                   </label>
+                  <span className="form-help">
+                    Check Unlimited Capacity if there is no registration limit.
+                  </span>
                 </div>
-                <label>
-                  <span>{eventLabel} Maximum Capacity</span>
-                  <input
-                    className={fieldErrors.capacity ? 'field-invalid' : ''}
-                    disabled={!eventTypeSelected || form.capacityUnlimited}
-                    min="0"
-                    step="1"
-                    type="number"
-                    value={form.capacity}
-                    onChange={(event) => updateField('capacity', event.target.value)}
-                  />
-                </label>
-                <span className="form-help">
-                  Check Unlimited Capacity if there is no registration limit.
-                </span>
               </div>
-            </div>
+            ) : null}
           </>
         ) : null}
 
@@ -1188,9 +1241,15 @@ function validateEventForm(form) {
   const isBusinessListing = form.eventType === 'Business Listing';
   const isForSale = form.eventType === 'For Sale';
   const isChallenge = form.eventType === 'Challenges';
+  const isRetreat = form.eventType === 'Retreat';
+  const isLecture = form.eventType === 'Lecture';
   const requiresSchedule = form.eventType && !isBusinessListing && !isForSale && !isChallenge;
+  const requiresTime = requiresSchedule && !isLecture;
+  const requiresTimePreset = requiresTime && !isRetreat;
+  const requiresDirectTime = requiresTime && isRetreat;
+  const requiresCapacity = requiresSchedule && !isLecture;
   const requiresRegistration = form.eventType && !isBusinessListing && !isForSale;
-  const requiresFees = requiresSchedule;
+  const requiresFees = requiresSchedule && !isLecture;
 
   if (!form.eventType) {
     errors.eventType = 'Event type is required.';
@@ -1200,15 +1259,21 @@ function validateEventForm(form) {
     errors.date = 'Event date is required.';
   }
 
-  if (requiresSchedule && !form.timePreset) {
+  if (requiresTimePreset && !form.timePreset) {
     errors.timePreset = 'Event time is required.';
   }
 
-  if (requiresSchedule && form.timePreset === 'other' && !form.startTime) {
+  if (
+    ((requiresTimePreset && form.timePreset === 'other') || requiresDirectTime)
+    && !form.startTime
+  ) {
     errors.startTime = 'Start time is required.';
   }
 
-  if (requiresSchedule && form.timePreset === 'other' && !form.endTime) {
+  if (
+    ((requiresTimePreset && form.timePreset === 'other') || requiresDirectTime)
+    && !form.endTime
+  ) {
     errors.endTime = 'End time is required.';
   }
 
@@ -1280,7 +1345,7 @@ function validateEventForm(form) {
     errors.isPaid = 'Select whether this event has a fee.';
   }
 
-  if (requiresSchedule && !form.capacityUnlimited && Number(form.capacity) < 0) {
+  if (requiresCapacity && !form.capacityUnlimited && Number(form.capacity) < 0) {
     errors.capacity = 'Maximum capacity cannot be negative.';
   }
 
@@ -1339,7 +1404,13 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const isBusinessListing = form.eventType === 'Business Listing';
   const isForSale = form.eventType === 'For Sale';
   const isChallenge = form.eventType === 'Challenges';
+  const isRetreat = form.eventType === 'Retreat';
+  const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
+  const hasSchedule = !isListingOnly && !isChallenge;
+  const hasTime = hasSchedule && !isLecture;
+  const hasCapacity = hasSchedule && !isLecture;
+  const hasFees = hasSchedule && !isLecture;
   const title = isBusinessListing ? form.businessName : form.title;
   const visibleFrom = form.visibleFrom;
   const visibleUntil = isForSale && !form.visibleUntil
@@ -1351,38 +1422,38 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
     address: toTitleCase(form.address.trim()),
     askingPrice: isForSale ? Number(form.askingPrice || 0) : 0,
     businessName: toTitleCase(form.businessName.trim()),
-    capacity: isListingOnly || isChallenge || form.capacityUnlimited ? 0 : Number(form.capacity || 0),
-    capacityUnlimited: isListingOnly || isChallenge ? true : Boolean(form.capacityUnlimited),
+    capacity: !hasCapacity || form.capacityUnlimited ? 0 : Number(form.capacity || 0),
+    capacityUnlimited: hasCapacity ? Boolean(form.capacityUnlimited) : true,
     contactEmail: form.contactEmail.trim(),
     contactName: toTitleCase(form.contactName.trim()),
     contactPhone: form.contactPhone.trim(),
-    cost: form.isPaid && !isListingOnly && !isChallenge ? Number(form.cost || 0) : 0,
-    date: isListingOnly || isChallenge ? '' : form.date,
+    cost: form.isPaid && hasFees ? Number(form.cost || 0) : 0,
+    date: hasSchedule ? form.date : '',
     description: form.description.trim(),
     documentFileName: isChallenge ? form.documentFileName.trim() : '',
     documentTitle: isChallenge ? form.documentTitle.trim() : '',
     documentUrl: isChallenge ? form.documentUrl.trim() : '',
-    endTime: isListingOnly || isChallenge ? '' : form.endTime,
+    endTime: hasTime ? form.endTime : '',
     eventType: form.eventType,
     imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
-    isPaid: form.isPaid === true && !isListingOnly && !isChallenge,
+    isPaid: form.isPaid === true && hasFees,
     listingMode: form.listingMode,
-    location: isListingOnly || isChallenge ? '' : toTitleCase(form.location.trim()),
-    locationPreset: isListingOnly || isChallenge ? '' : form.locationPreset,
+    location: hasSchedule ? toTitleCase(form.location.trim()) : '',
+    locationPreset: hasSchedule ? form.locationPreset : '',
     ownerName: toTitleCase(form.ownerName.trim()),
-    presenter: isListingOnly || isChallenge ? '' : toTitleCase(form.presenter.trim()),
+    presenter: hasSchedule && !isRetreat ? toTitleCase(form.presenter.trim()) : '',
     registrationCloseAt: isListingOnly ? '' : form.registrationCloseAt,
     registrationMode: isListingOnly ? 'none' : form.registrationMode,
     registrationOpen: !isListingOnly && form.registrationMode === 'now',
     registrationOpenAt: isListingOnly ? '' : form.registrationOpenAt,
-    serviceFee: form.isPaid && !isListingOnly && !isChallenge ? Number(form.serviceFee || 0) : 0,
+    serviceFee: form.isPaid && hasFees ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
-    startTime: isListingOnly || isChallenge ? '' : form.startTime,
+    startTime: hasTime ? form.startTime : '',
     status: asDraft ? 'Draft' : 'Published',
     supplyListFileName: showSupplyListUpload || isChallenge ? form.supplyListFileName.trim() : '',
     supplyListTitle: showSupplyListUpload || isChallenge ? form.supplyListTitle.trim() : '',
     supplyListUrl: showSupplyListUpload || isChallenge ? form.supplyListUrl.trim() : '',
-    timePreset: isListingOnly || isChallenge ? '' : form.timePreset,
+    timePreset: hasTime ? (isRetreat ? 'other' : form.timePreset) : '',
     title: toTitleCase(title.trim()),
     type: form.eventType,
     visibleFrom,
@@ -1401,6 +1472,14 @@ function getEventTypeCardTitle(eventType) {
 
   if (eventType === 'Challenges') {
     return 'Challenge Details';
+  }
+
+  if (eventType === 'Retreat') {
+    return 'Retreat Details';
+  }
+
+  if (eventType === 'Lecture') {
+    return 'Lecture Details';
   }
 
   if (eventType === 'Business Listing') {
