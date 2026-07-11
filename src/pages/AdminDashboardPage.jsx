@@ -11,6 +11,7 @@ import {
 
 function AdminDashboardPage() {
   const { hasPermission, isSuperUser, userProfile } = useAuth();
+  const [activeModule, setActiveModule] = useState('');
   const [editingEvent, setEditingEvent] = useState(null);
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
@@ -46,6 +47,11 @@ function AdminDashboardPage() {
     }
   }
 
+  function handleEditEvent(event) {
+    setEditingEvent(event);
+    setActiveModule('event-details');
+  }
+
   return (
     <section>
       <PageHeader
@@ -62,47 +68,71 @@ function AdminDashboardPage() {
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
         {canManageEvents ? (
           <>
-            <a className="button-link" href="#event-details-card">
+            <button
+              className={`button-link button-reset ${
+                activeModule === 'event-details' ? '' : 'secondary-action'
+              }`}
+              type="button"
+              onClick={() => setActiveModule('event-details')}
+            >
               Event/Activity Details
-            </a>
-            <a className="button-link secondary-action" href="#existing-events-card">
+            </button>
+            <button
+              className={`button-link button-reset ${
+                activeModule === 'existing-events' ? '' : 'secondary-action'
+              }`}
+              type="button"
+              onClick={() => setActiveModule('existing-events')}
+            >
               Existing Events
-            </a>
+            </button>
           </>
         ) : null}
         {isSuperUser ? (
-          <a className="button-link secondary-action" href="#user-controls-card">
+          <button
+            className={`button-link button-reset ${
+              activeModule === 'user-controls' ? '' : 'secondary-action'
+            }`}
+            type="button"
+            onClick={() => setActiveModule('user-controls')}
+          >
             User Controls
-          </a>
+          </button>
         ) : null}
       </nav>
       {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
-        {canManageEvents ? (
-          <>
-            <div id="event-details-card">
-              <EventForm
-                editingEvent={editingEvent}
-                onCancelEdit={() => setEditingEvent(null)}
-                onSaved={() => setEditingEvent(null)}
-                userProfile={userProfile}
-              />
-            </div>
-            <section className="admin-list-panel" id="existing-events-card">
-              <div className="form-section-header">
-                <h2>Existing events</h2>
-                <span>{events.length} total</span>
-              </div>
-              <EventList
-                events={events}
-                loading={loadingEvents}
-                onDelete={handleDelete}
-                onEdit={setEditingEvent}
-              />
-            </section>
-          </>
+        {!activeModule && (canManageEvents || isSuperUser) ? (
+          <div className="empty-state">
+            <h2>Select A Module</h2>
+            <p>Use the buttons above to open the part of the dashboard you need.</p>
+          </div>
         ) : null}
-        {isSuperUser ? (
+        {canManageEvents && activeModule === 'event-details' ? (
+          <div id="event-details-card">
+            <EventForm
+              editingEvent={editingEvent}
+              onCancelEdit={() => setEditingEvent(null)}
+              onSaved={() => setEditingEvent(null)}
+              userProfile={userProfile}
+            />
+          </div>
+        ) : null}
+        {canManageEvents && activeModule === 'existing-events' ? (
+          <section className="admin-list-panel" id="existing-events-card">
+            <div className="form-section-header">
+              <h2>Existing events</h2>
+              <span>{events.length} total</span>
+            </div>
+            <EventList
+              events={events}
+              loading={loadingEvents}
+              onDelete={handleDelete}
+              onEdit={handleEditEvent}
+            />
+          </section>
+        ) : null}
+        {isSuperUser && activeModule === 'user-controls' ? (
           <UserControlPanel currentUserProfile={userProfile} />
         ) : null}
         {!canManageEvents && !isSuperUser ? (

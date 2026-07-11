@@ -134,6 +134,10 @@ a {
   color: #225c56;
 }
 
+.button-link.secondary-action:hover {
+  background: #e9f2ef;
+}
+
 .nav-button:hover,
 .nav-link:hover {
   border-color: #225c56;
@@ -303,12 +307,6 @@ a {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 18px;
-}
-
-#event-details-card,
-#existing-events-card,
-#user-controls-card {
-  scroll-margin-top: 96px;
 }
 
 .admin-form,
