@@ -14,6 +14,10 @@ export const USER_PERMISSION_OPTIONS = [
   {
     key: 'managePayments',
     label: 'Manage Payments'
+  },
+  {
+    key: 'addUsers',
+    label: 'Add New Users'
   }
 ];
 

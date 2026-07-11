@@ -6,6 +6,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  where,
   writeBatch
 } from 'firebase/firestore';
 import { auth } from '../lib/firebase.js';
@@ -15,8 +16,11 @@ import { normalizePermissions } from '../data/userRoles.js';
 const usersCollection = () => collection(db, 'users');
 const auditLogsCollection = () => collection(db, 'auditLogs');
 
-export function subscribeToUsers(onNext, onError) {
-  const usersQuery = query(usersCollection(), orderBy('name', 'asc'));
+export function subscribeToUsers(onNext, onError, { includeAdminProfiles = false } = {}) {
+  const usersQuery = includeAdminProfiles
+    ? query(usersCollection(), orderBy('name', 'asc'))
+    : query(usersCollection(), where('role', '==', 'General User'));
+
   return onSnapshot(usersQuery, onNext, onError);
 }
 

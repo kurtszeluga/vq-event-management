@@ -102,6 +102,7 @@ await userRef.set(
     email,
     phone: formatPhoneNumber(FIRST_ADMIN_PHONE),
     permissions: {
+      addUsers: true,
       manageEvents: true,
       managePayments: true,
       viewRegistrations: true

@@ -45,17 +45,19 @@ export default async function handler(request, response) {
     const actorSnap = await db.collection('users').doc(decodedToken.uid).get();
     const actorProfile = actorSnap.exists ? actorSnap.data() : {};
 
-    if (actorProfile.role !== 'Super User' || actorProfile.status !== 'Active') {
-      response.status(403).json({ error: 'Only active Super Users can add users.' });
+    if (!canAddUsers(actorProfile)) {
+      response.status(403).json({ error: 'This account cannot add users.' });
       return;
     }
 
-    const payload = sanitizePayload(request.body || {});
+    const payload = sanitizePayload(request.body || {}, actorProfile);
 
     if (!payload.name || !payload.email) {
       response.status(400).json({ error: 'Name and email are required.' });
       return;
     }
+
+    await assertActorCanCreateOrUpdateProfile(auth, db, actorProfile, payload.email);
 
     const temporaryPassword = payload.temporaryPassword || createTemporaryPassword();
     const userRecord = await createOrUpdateAuthUser(auth, payload, temporaryPassword);
@@ -108,7 +110,7 @@ export default async function handler(request, response) {
       }
     });
   } catch (error) {
-    response.status(500).json({ error: error.message });
+    response.status(error.statusCode || 500).json({ error: error.message });
   }
 }
 
@@ -135,7 +137,12 @@ async function createOrUpdateAuthUser(auth, payload, temporaryPassword) {
   }
 }
 
-function sanitizePayload(payload) {
+function sanitizePayload(payload, actorProfile) {
+  const isSuperUser = actorProfile.role === 'Super User';
+  const requestedRole = ['Super User', 'Admin', 'General User'].includes(payload.role)
+    ? payload.role
+    : 'General User';
+
   return {
     billingAddress: {
       city: cleanText(payload.billingAddress?.city),
@@ -148,9 +155,7 @@ function sanitizePayload(payload) {
     name: cleanText(payload.name),
     permissions: payload.permissions || {},
     phone: cleanText(payload.phone),
-    role: ['Super User', 'Admin', 'General User'].includes(payload.role)
-      ? payload.role
-      : 'General User',
+    role: isSuperUser ? requestedRole : 'General User',
     status: payload.status === 'Inactive' ? 'Inactive' : 'Active',
     temporaryPassword:
       typeof payload.temporaryPassword === 'string' && payload.temporaryPassword.length >= 8
@@ -161,6 +166,7 @@ function sanitizePayload(payload) {
 
 function getPermissionsForRole(role, permissions = {}) {
   const normalized = {
+    addUsers: Boolean(permissions.addUsers),
     manageEvents: Boolean(permissions.manageEvents),
     managePayments: Boolean(permissions.managePayments),
     viewRegistrations: Boolean(permissions.viewRegistrations)
@@ -169,8 +175,41 @@ function getPermissionsForRole(role, permissions = {}) {
   return role === 'Admin' ? normalized : {
     manageEvents: false,
     managePayments: false,
-    viewRegistrations: false
+    viewRegistrations: false,
+    addUsers: false
   };
+}
+
+async function assertActorCanCreateOrUpdateProfile(auth, db, actorProfile, email) {
+  if (actorProfile.role === 'Super User') {
+    return;
+  }
+
+  try {
+    const existingUser = await auth.getUserByEmail(email);
+    const existingProfile = await db.collection('users').doc(existingUser.uid).get();
+
+    if (existingProfile.exists && existingProfile.data().role !== 'General User') {
+      const permissionError = new Error('Admins can only add or update General User profiles.');
+      permissionError.statusCode = 403;
+      throw permissionError;
+    }
+  } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+function canAddUsers(actorProfile) {
+  if (actorProfile.status !== 'Active') {
+    return false;
+  }
+
+  return actorProfile.role === 'Super User'
+    || actorProfile.role === 'Admin' && actorProfile.permissions?.addUsers === true;
 }
 
 function createTemporaryPassword() {

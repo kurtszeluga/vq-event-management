@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { updateProfile } from 'firebase/auth';
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+  updateProfile
+} from 'firebase/auth';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
@@ -21,7 +26,13 @@ function ProfilePage() {
   const [billingStreet, setBillingStreet] = useState('');
   const [formError, setFormError] = useState('');
   const [name, setName] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('');
   const [phone, setPhone] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -94,6 +105,43 @@ function ProfilePage() {
     }
   }
 
+  async function handlePasswordSubmit(event) {
+    event.preventDefault();
+    setPasswordError('');
+    setPasswordSuccessMessage('');
+
+    if (!currentPassword) {
+      setPasswordError('Current password is required.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    setSavingPassword(true);
+
+    try {
+      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+      await updatePassword(currentUser, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordSuccessMessage('Password changed.');
+    } catch (error) {
+      setPasswordError(getPasswordErrorMessage(error));
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
   return (
     <section>
       <PageHeader
@@ -110,7 +158,8 @@ function ProfilePage() {
           </Link>
         </div>
       ) : (
-        <form className="form-panel" onSubmit={handleSubmit}>
+        <>
+          <form className="form-panel" onSubmit={handleSubmit}>
           <label>
             <span>Name *</span>
             <input
@@ -200,10 +249,75 @@ function ProfilePage() {
           <button className="button-link button-reset" disabled={saving} type="submit">
             {saving ? 'Saving...' : 'Save Profile'}
           </button>
-        </form>
+          </form>
+          <form className="form-panel" onSubmit={handlePasswordSubmit}>
+          <div className="form-section-header">
+            <h2>Change Password</h2>
+          </div>
+          <label>
+            <span>Current Password *</span>
+            <input
+              autoComplete="current-password"
+              disabled={savingPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              required
+              type="password"
+              value={currentPassword}
+            />
+          </label>
+          <label>
+            <span>New Password *</span>
+            <input
+              autoComplete="new-password"
+              disabled={savingPassword}
+              minLength={8}
+              onChange={(event) => setNewPassword(event.target.value)}
+              required
+              type="password"
+              value={newPassword}
+            />
+            <span className="form-help">Use at least 8 characters.</span>
+          </label>
+          <label>
+            <span>Confirm New Password *</span>
+            <input
+              autoComplete="new-password"
+              disabled={savingPassword}
+              minLength={8}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              required
+              type="password"
+              value={confirmPassword}
+            />
+          </label>
+          {passwordError ? <p className="form-error">{passwordError}</p> : null}
+          {passwordSuccessMessage ? (
+            <p className="form-success">{passwordSuccessMessage}</p>
+          ) : null}
+          <button className="button-link button-reset" disabled={savingPassword} type="submit">
+            {savingPassword ? 'Changing...' : 'Change Password'}
+          </button>
+          </form>
+        </>
       )}
     </section>
   );
+}
+
+function getPasswordErrorMessage(error) {
+  if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+    return 'Current password is not correct.';
+  }
+
+  if (error.code === 'auth/weak-password') {
+    return 'New password must be at least 8 characters.';
+  }
+
+  if (error.code === 'auth/requires-recent-login') {
+    return 'Please sign out, sign back in, and try changing your password again.';
+  }
+
+  return error.message;
 }
 
 export default ProfilePage;

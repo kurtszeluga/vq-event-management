@@ -109,8 +109,9 @@ Administrator Features
 * Secure administrator login
 * User control module for Super User role and permissions management
 * Super Users can add user accounts for non-computer-savvy members
+* Admins with Add New Users permission can add and edit General User profiles, but cannot edit Admin or Super User profiles
 * Public account creation for new General User profiles
-* Signed-in users can edit their own profile name and phone number
+* Signed-in users can edit their own profile name, phone number, billing address, and password
 * All user profile types include billing address fields for future payment processing
 * Phone numbers should be formatted consistently as users enter them
 * Create events
@@ -278,7 +279,7 @@ email	Email
 phone	Phone
 billingAddress	Billing address for future payment processing
 role	Super User, Admin, or General User
-permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments
+permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments, addUsers
 status	Active or Inactive
 
 ⸻

@@ -17,6 +17,7 @@ function AdminDashboardPage() {
   const [eventsError, setEventsError] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
   const canManageEvents = hasPermission('manageEvents');
+  const canAddUsers = hasPermission('addUsers');
 
   useEffect(() => {
     if (!canManageEvents) {
@@ -88,7 +89,7 @@ function AdminDashboardPage() {
             </button>
           </>
         ) : null}
-        {isSuperUser ? (
+        {isSuperUser || canAddUsers ? (
           <button
             className={`button-link button-reset ${
               activeModule === 'user-controls' ? '' : 'secondary-action'
@@ -99,10 +100,21 @@ function AdminDashboardPage() {
             User Controls
           </button>
         ) : null}
+        {isSuperUser || canAddUsers ? (
+          <button
+            className={`button-link button-reset ${
+              activeModule === 'add-user' ? '' : 'secondary-action'
+            }`}
+            type="button"
+            onClick={() => setActiveModule('add-user')}
+          >
+            Add User
+          </button>
+        ) : null}
       </nav>
       {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
-        {!activeModule && (canManageEvents || isSuperUser) ? (
+        {!activeModule && (canManageEvents || isSuperUser || canAddUsers) ? (
           <div className="empty-state">
             <h2>Select A Module</h2>
             <p>Use the buttons above to open the part of the dashboard you need.</p>
@@ -132,10 +144,15 @@ function AdminDashboardPage() {
             />
           </section>
         ) : null}
-        {isSuperUser && activeModule === 'user-controls' ? (
-          <UserControlPanel currentUserProfile={userProfile} />
+        {(isSuperUser || canAddUsers) && ['user-controls', 'add-user'].includes(activeModule) ? (
+          <UserControlPanel
+            addUserOnOpen={activeModule === 'add-user'}
+            canManageAdminUsers={isSuperUser}
+            currentUserProfile={userProfile}
+            key={activeModule}
+          />
         ) : null}
-        {!canManageEvents && !isSuperUser ? (
+        {!canManageEvents && !isSuperUser && !canAddUsers ? (
           <div className="empty-state">
             <h2>No Admin Modules Enabled</h2>
             <p>Ask the Super User to update this profile's permissions.</p>

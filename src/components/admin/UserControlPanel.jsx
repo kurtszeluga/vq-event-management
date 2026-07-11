@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { US_STATES } from '../../data/usStates.js';
 import {
   DEFAULT_USER_PERMISSIONS,
@@ -18,7 +18,11 @@ import {
   toTitleCase
 } from '../../utils/profileFormat.js';
 
-function UserControlPanel({ currentUserProfile }) {
+function UserControlPanel({
+  addUserOnOpen = false,
+  canManageAdminUsers = false,
+  currentUserProfile
+}) {
   const [editingUserId, setEditingUserId] = useState('');
   const [error, setError] = useState('');
   const [form, setForm] = useState(null);
@@ -30,18 +34,55 @@ function UserControlPanel({ currentUserProfile }) {
   useEffect(() => {
     const unsubscribe = subscribeToUsers(
       (snapshot) => {
-        setUsers(snapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() })));
+        setUsers(
+          snapshot.docs
+            .map((userDoc) => ({ id: userDoc.id, ...userDoc.data() }))
+            .sort((firstUser, secondUser) =>
+              (firstUser.name || firstUser.email || '').localeCompare(
+                secondUser.name || secondUser.email || ''
+              )
+            )
+        );
         setError('');
         setLoadingUsers(false);
       },
       (snapshotError) => {
         setError(snapshotError.message);
         setLoadingUsers(false);
-      }
+      },
+      { includeAdminProfiles: canManageAdminUsers }
     );
 
     return unsubscribe;
+  }, [canManageAdminUsers]);
+
+  const startAddUser = useCallback(() => {
+    setEditingUserId('new');
+    setSuccessMessage('');
+    setForm({
+      billingAddress: {
+        city: '',
+        country: 'United States',
+        postalCode: '',
+        state: '',
+        street: ''
+      },
+      email: '',
+      name: '',
+      permissions: DEFAULT_USER_PERMISSIONS,
+      phone: '',
+      role: 'General User',
+      status: 'Active',
+      temporaryPassword: '',
+      userId: ''
+    });
   }, []);
+
+  useEffect(() => {
+    if (addUserOnOpen) {
+      startAddUser();
+    }
+  }, [addUserOnOpen, startAddUser]);
 
   function startEdit(user) {
     const billingAddress = user.billingAddress || {};
@@ -63,28 +104,6 @@ function UserControlPanel({ currentUserProfile }) {
       role: user.role || 'General User',
       status: user.status || 'Active',
       userId: user.userId || user.id
-    });
-  }
-
-  function startAddUser() {
-    setEditingUserId('new');
-    setSuccessMessage('');
-    setForm({
-      billingAddress: {
-        city: '',
-        country: 'United States',
-        postalCode: '',
-        state: '',
-        street: ''
-      },
-      email: '',
-      name: '',
-      permissions: DEFAULT_USER_PERMISSIONS,
-      phone: '',
-      role: 'General User',
-      status: 'Active',
-      temporaryPassword: '',
-      userId: ''
     });
   }
 
@@ -121,12 +140,24 @@ function UserControlPanel({ currentUserProfile }) {
     setSavingUserId(user.id);
 
     try {
+      if (!form.name.trim() || !form.email.trim()) {
+        throw new Error('Name and email are required.');
+      }
+
+      if (form.temporaryPassword && form.temporaryPassword.length < 8) {
+        throw new Error('Temporary password must be at least 8 characters.');
+      }
+
+      if (!canManageAdminUsers && form.role !== 'General User') {
+        throw new Error('Admins can only update General User profiles.');
+      }
+
       const payload = {
         billingAddress: buildBillingAddress(form.billingAddress),
         email: form.email.trim(),
         name: toTitleCase(form.name),
         permissions:
-          form.role === 'Admin'
+          canManageAdminUsers && form.role === 'Admin'
             ? normalizePermissions(form.permissions)
             : DEFAULT_USER_PERMISSIONS,
         phone: formatPhoneNumber(form.phone),
@@ -170,18 +201,12 @@ function UserControlPanel({ currentUserProfile }) {
     <section className="admin-list-panel" id="user-controls-card">
       <div className="form-section-header">
         <h2>User Controls</h2>
-        <button
-          className="button-link button-reset"
-          disabled={Boolean(savingUserId)}
-          type="button"
-          onClick={startAddUser}
-        >
-          Add User
-        </button>
       </div>
       <span className="form-help">{users.length} total profiles</span>
       <p className="form-help">
-        Super Users control profile roles and admin permissions.
+        {canManageAdminUsers
+          ? 'Super Users control profile roles and admin permissions.'
+          : 'Admins can add and update General User profiles.'}
       </p>
       {error ? <p className="form-error">{error}</p> : null}
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
@@ -297,19 +322,21 @@ function UserControlPanel({ currentUserProfile }) {
                     />
                   </label>
                 </div>
-                <label>
-                  <span>Role</span>
-                  <select
-                    value={form.role}
-                    onChange={(event) => updateFormField('role', event.target.value)}
-                  >
-                    {USER_ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {canManageAdminUsers ? (
+                  <label>
+                    <span>Role</span>
+                    <select
+                      value={form.role}
+                      onChange={(event) => updateFormField('role', event.target.value)}
+                    >
+                      {USER_ROLES.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <label>
                   <span>Status</span>
                   <select
@@ -323,22 +350,13 @@ function UserControlPanel({ currentUserProfile }) {
                     ))}
                   </select>
                 </label>
-                <div className="permission-panel">
-                  <span className="field-label">Admin Permissions</span>
-                  {USER_PERMISSION_OPTIONS.map((permission) => (
-                    <label className="checkbox-label" key={permission.key}>
-                      <input
-                        checked={Boolean(form.permissions[permission.key])}
-                        disabled={form.role !== 'Admin'}
-                        type="checkbox"
-                        onChange={(event) =>
-                          updatePermission(permission.key, event.target.checked)
-                        }
-                      />
-                      <span>{permission.label}</span>
-                    </label>
-                  ))}
-                </div>
+                {canManageAdminUsers ? (
+                  <PermissionPanel
+                    permissions={form.permissions}
+                    role={form.role}
+                    onChange={updatePermission}
+                  />
+                ) : null}
               </div>
             </div>
             <div className="card-actions">
@@ -469,19 +487,21 @@ function UserControlPanel({ currentUserProfile }) {
                         />
                       </label>
                     </div>
-                    <label>
-                      <span>Role</span>
-                      <select
-                        value={form.role}
-                        onChange={(event) => updateFormField('role', event.target.value)}
-                      >
-                        {USER_ROLES.map((role) => (
-                          <option key={role} value={role}>
-                            {role}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    {canManageAdminUsers ? (
+                      <label>
+                        <span>Role</span>
+                        <select
+                          value={form.role}
+                          onChange={(event) => updateFormField('role', event.target.value)}
+                        >
+                          {USER_ROLES.map((role) => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
                     <label>
                       <span>Status</span>
                       <select
@@ -495,22 +515,13 @@ function UserControlPanel({ currentUserProfile }) {
                         ))}
                       </select>
                     </label>
-                    <div className="permission-panel">
-                      <span className="field-label">Admin Permissions</span>
-                      {USER_PERMISSION_OPTIONS.map((permission) => (
-                        <label className="checkbox-label" key={permission.key}>
-                          <input
-                            checked={Boolean(form.permissions[permission.key])}
-                            disabled={form.role !== 'Admin'}
-                            type="checkbox"
-                            onChange={(event) =>
-                              updatePermission(permission.key, event.target.checked)
-                            }
-                          />
-                          <span>{permission.label}</span>
-                        </label>
-                      ))}
-                    </div>
+                    {canManageAdminUsers ? (
+                      <PermissionPanel
+                        permissions={form.permissions}
+                        role={form.role}
+                        onChange={updatePermission}
+                      />
+                    ) : null}
                   </div>
                 ) : (
                   <>
@@ -562,6 +573,8 @@ function UserControlPanel({ currentUserProfile }) {
                   </>
                 ) : isCurrentUser ? (
                   <span className="form-help">Current User</span>
+                ) : !canEditUser(user, canManageAdminUsers) ? (
+                  <span className="form-help">Admin Profile</span>
                 ) : (
                   <button
                     className="button-link button-reset"
@@ -586,6 +599,29 @@ function getPermissionSummary(permissions) {
     .map((permission) => permission.label);
 
   return selectedPermissions.length ? selectedPermissions.join(', ') : 'No Admin Permissions';
+}
+
+function PermissionPanel({ permissions, role, onChange }) {
+  return (
+    <div className="permission-panel">
+      <span className="field-label">Admin Permissions</span>
+      {USER_PERMISSION_OPTIONS.map((permission) => (
+        <label className="checkbox-label" key={permission.key}>
+          <input
+            checked={Boolean(permissions[permission.key])}
+            disabled={role !== 'Admin'}
+            type="checkbox"
+            onChange={(event) => onChange(permission.key, event.target.checked)}
+          />
+          <span>{permission.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function canEditUser(user, canManageAdminUsers) {
+  return canManageAdminUsers || user.role === 'General User';
 }
 
 function formatBillingAddress(billingAddress = {}) {

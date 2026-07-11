@@ -160,11 +160,14 @@ service cloud.firestore {
         && request.resource.data.permissions.keys().hasOnly([
           'manageEvents',
           'viewRegistrations',
-          'managePayments'
+          'managePayments',
+          'addUsers'
         ])
         && request.resource.data.permissions.manageEvents is bool
         && request.resource.data.permissions.viewRegistrations is bool
         && request.resource.data.permissions.managePayments is bool
+        && (!('addUsers' in request.resource.data.permissions)
+          || request.resource.data.permissions.addUsers is bool)
         && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
         && validStatus(request.resource.data.status, ['Active', 'Inactive'])
         && request.resource.data.createdDate is timestamp;
@@ -176,6 +179,14 @@ service cloud.firestore {
         && request.resource.data.userId == userId
         && request.resource.data.role == 'General User'
         && request.resource.data.status == 'Active';
+    }
+
+    function hasNoAdminPermissions() {
+      return request.resource.data.permissions.manageEvents == false
+        && request.resource.data.permissions.viewRegistrations == false
+        && request.resource.data.permissions.managePayments == false
+        && (!('addUsers' in request.resource.data.permissions)
+          || request.resource.data.permissions.addUsers == false);
     }
 
     function validPayment() {
@@ -251,9 +262,16 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isSuperUser();
+      allow read: if isOwner(userId)
+        || isSuperUser()
+        || hasPermission('addUsers') && resource.data.role == 'General User';
       allow create: if isSuperUser() && validUser() || validSelfUserCreate(userId) && validUser();
       allow update: if isSuperUser() && validUser()
+        || hasPermission('addUsers')
+          && resource.data.role == 'General User'
+          && validUser()
+          && request.resource.data.role == 'General User'
+          && hasNoAdminPermissions()
         || isOwner(userId)
           && validUser()
           && request.resource.data.role == resource.data.role
