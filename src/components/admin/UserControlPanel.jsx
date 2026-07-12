@@ -26,6 +26,10 @@ import {
 
 const MEMBERSHIP_FILTERS = ['All', 'Active', 'Inactive', 'Archived', 'Unknown'];
 const PROFILE_STATUS_FILTERS = ['All', ...USER_STATUSES];
+const QUICK_FILTERS = [
+  { key: 'all', label: 'All Profiles' },
+  { key: 'admins', label: 'Admins' }
+];
 
 function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [detailsUserId, setDetailsUserId] = useState('');
@@ -35,6 +39,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [membershipFilter, setMembershipFilter] = useState('All');
   const [profileStatusFilter, setProfileStatusFilter] = useState('All');
+  const [quickFilter, setQuickFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
@@ -67,7 +72,12 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const membershipCountableUsers = users.filter((user) => user.role !== 'Super User');
   const membershipCounts = getCounts(membershipCountableUsers, getDisplayMembershipStatus);
   const profileStatusCounts = getCounts(users, getDisplayProfileStatus);
+  const adminUsers = users.filter(isVisibleAdminProfile);
   const filteredUsers = users.filter((user) => {
+    if (quickFilter === 'admins') {
+      return isVisibleAdminProfile(user);
+    }
+
     const membershipStatus = getDisplayMembershipStatus(user);
     const profileStatus = getDisplayProfileStatus(user);
 
@@ -252,10 +262,25 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           ? 'Super Users control profile roles and admin permissions.'
           : 'Admins can add and update General User profiles.'}
       </p>
-      <div className="status-filter-group" aria-label="Membership filter">
+      {canManageAdminUsers ? (
+        <div className="status-filter-group" aria-label="Quick profile filter">
+          {QUICK_FILTERS.map((filter) => (
+            <button
+              className={`status-filter-button${quickFilter === filter.key ? ' active' : ''}`}
+              key={filter.key}
+              type="button"
+              onClick={() => setQuickFilter(filter.key)}
+            >
+              {filter.key === 'admins' ? `${filter.label} (${adminUsers.length})` : `${filter.label} (${users.length})`}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="status-filter-group separated-filter-row" aria-label="Membership filter">
         {MEMBERSHIP_FILTERS.map((status) => (
           <button
             className={`status-filter-button${membershipFilter === status ? ' active' : ''}`}
+            disabled={quickFilter === 'admins'}
             key={status}
             type="button"
             onClick={() => setMembershipFilter(status)}
@@ -266,10 +291,11 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           </button>
         ))}
       </div>
-      <div className="status-filter-group" aria-label="Profile status filter">
+      <div className="status-filter-group separated-filter-row" aria-label="Profile status filter">
         {PROFILE_STATUS_FILTERS.map((status) => (
           <button
             className={`status-filter-button${profileStatusFilter === status ? ' active' : ''}`}
+            disabled={quickFilter === 'admins'}
             key={status}
             type="button"
             onClick={() => setProfileStatusFilter(status)}
@@ -699,6 +725,11 @@ function getDisplayProfileStatus(user) {
   return user.role === 'Super User' ? 'Active' : user.status || 'Active';
 }
 
+function isVisibleAdminProfile(user) {
+  return ['Admin', 'Super User'].includes(user.role)
+    && getDisplayMembershipStatus(user) !== 'Archived';
+}
+
 function formatAddress(address = {}) {
   return [
     address.street,
@@ -743,6 +774,7 @@ function UserTable({
             <th>Status</th>
             <th>Permissions</th>
             <th>Action</th>
+            <th>Details</th>
           </tr>
         </thead>
         <tbody>
@@ -773,50 +805,32 @@ function UserTable({
                   </td>
                   <td data-label="Action">
                     {isCurrentUser ? (
-                      <>
-                        <span className="form-help">Current User</span>
-                        <button
-                          className="text-button"
-                          type="button"
-                          onClick={() => onDetails(user.id)}
-                        >
-                          {detailsOpen ? 'Hide Details' : 'Details'}
-                        </button>
-                      </>
+                      <span className="form-help">Current User</span>
                     ) : canEditUser(user, canManageAdminUsers) ? (
-                      <>
-                        <button
-                          className="button-link button-reset"
-                          type="button"
-                          onClick={() => onEdit(user)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="text-button"
-                          type="button"
-                          onClick={() => onDetails(user.id)}
-                        >
-                          {detailsOpen ? 'Hide Details' : 'Details'}
-                        </button>
-                      </>
+                      <button
+                        className="button-link button-reset"
+                        type="button"
+                        onClick={() => onEdit(user)}
+                      >
+                        Edit
+                      </button>
                     ) : (
-                      <>
-                        <span className="form-help">Admin Profile</span>
-                        <button
-                          className="text-button"
-                          type="button"
-                          onClick={() => onDetails(user.id)}
-                        >
-                          {detailsOpen ? 'Hide Details' : 'Details'}
-                        </button>
-                      </>
+                      <span className="form-help">Admin Profile</span>
                     )}
+                  </td>
+                  <td data-label="Details">
+                    <button
+                      className="button-link button-reset secondary-action"
+                      type="button"
+                      onClick={() => onDetails(user.id)}
+                    >
+                      {detailsOpen ? 'Hide Details' : 'Details'}
+                    </button>
                   </td>
                 </tr>
                 {detailsOpen ? (
                   <tr className="configuration-detail-row">
-                    <td className="configuration-detail-cell" colSpan={6}>
+                    <td className="configuration-detail-cell" colSpan={7}>
                       <div className="user-detail-grid">
                         <span>
                           <strong>Name</strong>

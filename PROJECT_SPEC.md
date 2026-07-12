@@ -114,6 +114,7 @@ Administrator Features
 * Super Users can change user passwords from the user control edit card
 * User Controls includes the Add User action inside the User Controls card.
 * User profile list includes filters for profile status and membership status, a compact details action, and a streamlined table.
+* User profile list includes an Admins filter that lists Admin and Super User profiles regardless of status or membership, excluding archived profiles.
 * Super User profiles display as Active with membership N/A and are excluded from membership status counts.
 * User profile details show the full profile context, including membership status and billing address.
 * Public account creation for new General User profiles
