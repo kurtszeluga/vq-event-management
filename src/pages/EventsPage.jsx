@@ -34,6 +34,18 @@ function getDescriptionPreview(description) {
   return `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`;
 }
 
+function openSupplyListPopup(eventId) {
+  const route = `/events/${eventId}?view=supply-list`;
+  const popup = window.open(route, 'vq-supply-list', 'popup,width=1100,height=900');
+
+  if (popup) {
+    popup.focus();
+    return;
+  }
+
+  window.location.assign(route);
+}
+
 function EventsPage() {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
@@ -195,15 +207,14 @@ function EventsPage() {
               </div>
               <div className="public-event-card-actions">
                 {event.supplyListUrl ? (
-                  <Link
+                  <button
                     className="text-button"
-                    rel="noreferrer"
-                    target="_blank"
-                    to={`/events/${event.id}?view=supply-list`}
+                    type="button"
+                    onClick={() => openSupplyListPopup(event.id)}
                   >
                     View and print{' '}
                     {event.supplyListTitle || event.supplyListFileName || 'supply list'}
-                  </Link>
+                  </button>
                 ) : null}
               </div>
             </article>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import {
@@ -12,6 +12,7 @@ import {
 function EventDetailsPage() {
   const { eventId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,27 @@ function EventDetailsPage() {
     () => new URLSearchParams(location.search).get('view') === 'supply-list',
     [location.search]
   );
+
+  function openSupplyListPopup() {
+    const route = `/events/${eventId}?view=supply-list`;
+    const popup = window.open(route, 'vq-supply-list', 'popup,width=1100,height=900');
+
+    if (popup) {
+      popup.focus();
+      return;
+    }
+
+    window.location.assign(route);
+  }
+
+  function handleCloseSupplyList() {
+    if (window.opener) {
+      window.close();
+      return;
+    }
+
+    navigate(`/events/${eventId}`);
+  }
 
   useEffect(() => {
     let active = true;
@@ -83,17 +105,16 @@ function EventDetailsPage() {
           <div className="supply-list-view-header">
             <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
             <div className="supply-list-view-actions">
-              <a
+              <button
                 className="button-link secondary-action"
-                href={event.supplyListUrl}
-                rel="noreferrer"
-                target="_blank"
+                type="button"
+                onClick={() => window.print()}
               >
                 Print
-              </a>
-              <Link className="text-button" to="/events">
+              </button>
+              <button className="text-button" type="button" onClick={handleCloseSupplyList}>
                 Close
-              </Link>
+              </button>
             </div>
           </div>
           <iframe
@@ -141,12 +162,13 @@ function EventDetailsPage() {
             </div>
           </dl>
           {event.supplyListUrl ? (
-            <Link
+            <button
               className="text-button"
-              to={`/events/${event.id}?view=supply-list`}
+              type="button"
+              onClick={openSupplyListPopup}
             >
               View and print {event.supplyListTitle || event.supplyListFileName || 'supply list'}
-            </Link>
+            </button>
           ) : null}
           {!event.registrationOpen ? (
             <p className="form-error">Registration is not currently open.</p>
