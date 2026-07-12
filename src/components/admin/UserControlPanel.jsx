@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
   getProfileTagSummary,
   normalizeProfileTags,
@@ -24,15 +24,17 @@ import {
   toTitleCase
 } from '../../utils/profileFormat.js';
 
-function UserControlPanel({
-  addUserOnOpen = false,
-  canManageAdminUsers = false,
-  currentUserProfile
-}) {
+const MEMBERSHIP_FILTERS = ['All', 'Active', 'Inactive', 'Archived', 'Unknown'];
+const PROFILE_STATUS_FILTERS = ['All', ...USER_STATUSES];
+
+function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
+  const [detailsUserId, setDetailsUserId] = useState('');
   const [editingUserId, setEditingUserId] = useState('');
   const [error, setError] = useState('');
   const [form, setForm] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [membershipFilter, setMembershipFilter] = useState('All');
+  const [profileStatusFilter, setProfileStatusFilter] = useState('All');
   const [savingUserId, setSavingUserId] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
@@ -62,6 +64,16 @@ function UserControlPanel({
     return unsubscribe;
   }, [canManageAdminUsers]);
 
+  const membershipCounts = getCounts(users, (user) => user.membershipStatus || 'Unknown');
+  const profileStatusCounts = getCounts(users, (user) => user.status || 'Active');
+  const filteredUsers = users.filter((user) => {
+    const membershipStatus = user.membershipStatus || 'Unknown';
+    const profileStatus = user.status || 'Active';
+
+    return (membershipFilter === 'All' || membershipStatus === membershipFilter)
+      && (profileStatusFilter === 'All' || profileStatus === profileStatusFilter);
+  });
+
   const startAddUser = useCallback(() => {
     setEditingUserId('new');
     setSuccessMessage('');
@@ -84,12 +96,6 @@ function UserControlPanel({
       userId: ''
     });
   }, []);
-
-  useEffect(() => {
-    if (addUserOnOpen) {
-      startAddUser();
-    }
-  }, [addUserOnOpen, startAddUser]);
 
   function startEdit(user) {
     const billingAddress = user.billingAddress || {};
@@ -228,13 +234,47 @@ function UserControlPanel({
     <section className="admin-list-panel" id="user-controls-card">
       <div className="form-section-header">
         <h2>User Controls</h2>
+        <button
+          className="button-link button-reset secondary-action"
+          disabled={Boolean(editingUserId)}
+          type="button"
+          onClick={startAddUser}
+        >
+          Add User
+        </button>
       </div>
-      <span className="form-help">{users.length} total profiles</span>
+      <span className="form-help">
+        {filteredUsers.length} shown of {users.length} total profiles
+      </span>
       <p className="form-help">
         {canManageAdminUsers
           ? 'Super Users control profile roles and admin permissions.'
           : 'Admins can add and update General User profiles.'}
       </p>
+      <div className="status-filter-group" aria-label="Membership filter">
+        {MEMBERSHIP_FILTERS.map((status) => (
+          <button
+            className={`status-filter-button${membershipFilter === status ? ' active' : ''}`}
+            key={status}
+            type="button"
+            onClick={() => setMembershipFilter(status)}
+          >
+            {status === 'All' ? `All Membership (${users.length})` : `${status} (${membershipCounts[status] || 0})`}
+          </button>
+        ))}
+      </div>
+      <div className="status-filter-group" aria-label="Profile status filter">
+        {PROFILE_STATUS_FILTERS.map((status) => (
+          <button
+            className={`status-filter-button${profileStatusFilter === status ? ' active' : ''}`}
+            key={status}
+            type="button"
+            onClick={() => setProfileStatusFilter(status)}
+          >
+            {status === 'All' ? `All Status (${users.length})` : `${status} (${profileStatusCounts[status] || 0})`}
+          </button>
+        ))}
+      </div>
       {error ? <p className="form-error">{error}</p> : null}
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
       <div className="event-admin-list">
@@ -414,7 +454,11 @@ function UserControlPanel({
           <UserTable
             canManageAdminUsers={canManageAdminUsers}
             currentUserProfile={currentUserProfile}
-            users={users}
+            detailsUserId={detailsUserId}
+            users={filteredUsers}
+            onDetails={(userId) =>
+              setDetailsUserId((currentUserId) => (currentUserId === userId ? '' : userId))
+            }
             onEdit={startEdit}
           />
         ) : null}
@@ -615,7 +659,29 @@ function getPermissionSummary(permissions) {
   return selectedPermissions.length ? selectedPermissions.join(', ') : 'No Admin Permissions';
 }
 
-function UserTable({ canManageAdminUsers, currentUserProfile, users, onEdit }) {
+function getCounts(items, getValue) {
+  return items.reduce((counts, item) => {
+    const value = getValue(item);
+
+    return {
+      ...counts,
+      [value]: (counts[value] || 0) + 1
+    };
+  }, {});
+}
+
+function UserTable({
+  canManageAdminUsers,
+  currentUserProfile,
+  detailsUserId,
+  users,
+  onDetails,
+  onEdit
+}) {
+  if (!users.length) {
+    return <p className="empty-inline">No user profiles match the selected filters.</p>;
+  }
+
   return (
     <div className="user-table-wrap">
       <table className="user-table">
@@ -623,10 +689,10 @@ function UserTable({ canManageAdminUsers, currentUserProfile, users, onEdit }) {
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Phone</th>
             <th>Membership</th>
+            <th>Status</th>
+            <th>Details</th>
             <th>Permissions</th>
-            <th>Tags</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -636,40 +702,78 @@ function UserTable({ canManageAdminUsers, currentUserProfile, users, onEdit }) {
               user.id === currentUserProfile?.id ||
               user.userId === currentUserProfile?.userId;
             const displayPermissions = normalizePermissions(user.permissions);
+            const userId = user.userId || user.id;
+            const detailsOpen = detailsUserId === user.id;
 
             return (
-              <tr key={user.id}>
-                <td data-label="Name">
-                  <strong>{user.name || 'Unnamed User'}</strong>
-                  <span>{user.role || 'General User'}</span>
-                </td>
-                <td data-label="Email">{user.email || 'Email TBD'}</td>
-                <td data-label="Phone">{user.phone || 'Phone TBD'}</td>
-                <td data-label="Membership">{user.membershipStatus || 'Unknown'}</td>
-                <td data-label="Permissions">
-                  {user.role === 'Super User'
-                    ? 'All Permissions'
-                    : getPermissionSummary(displayPermissions)}
-                </td>
-                <td data-label="Tags">
-                  {getProfileTagSummary(normalizeProfileTags(user.profileTags))}
-                </td>
-                <td data-label="Action">
-                  {isCurrentUser ? (
-                    <span className="form-help">Current User</span>
-                  ) : canEditUser(user, canManageAdminUsers) ? (
+              <Fragment key={user.id}>
+                <tr>
+                  <td data-label="Name">
+                    <strong>{user.name || 'Unnamed User'}</strong>
+                    <span>{user.role || 'General User'}</span>
+                  </td>
+                  <td data-label="Email">{user.email || 'Email TBD'}</td>
+                  <td data-label="Membership">{user.membershipStatus || 'Unknown'}</td>
+                  <td data-label="Status">{user.status || 'Active'}</td>
+                  <td data-label="Details">
                     <button
-                      className="button-link button-reset"
+                      className="text-button"
                       type="button"
-                      onClick={() => onEdit(user)}
+                      onClick={() => onDetails(user.id)}
                     >
-                      Edit
+                      {detailsOpen ? 'Hide Details' : 'Details'}
                     </button>
-                  ) : (
-                    <span className="form-help">Admin Profile</span>
-                  )}
-                </td>
-              </tr>
+                  </td>
+                  <td data-label="Permissions">
+                    {user.role === 'Super User'
+                      ? 'All Permissions'
+                      : getPermissionSummary(displayPermissions)}
+                  </td>
+                  <td data-label="Action">
+                    {isCurrentUser ? (
+                      <span className="form-help">Current User</span>
+                    ) : canEditUser(user, canManageAdminUsers) ? (
+                      <button
+                        className="button-link button-reset"
+                        type="button"
+                        onClick={() => onEdit(user)}
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <span className="form-help">Admin Profile</span>
+                    )}
+                  </td>
+                </tr>
+                {detailsOpen ? (
+                  <tr className="configuration-detail-row">
+                    <td className="configuration-detail-cell" colSpan={7}>
+                      <div className="user-detail-grid">
+                        <span>
+                          <strong>Phone</strong>
+                          {user.phone || 'Phone TBD'}
+                        </span>
+                        <span>
+                          <strong>Tags</strong>
+                          {getProfileTagSummary(normalizeProfileTags(user.profileTags))}
+                        </span>
+                        <span>
+                          <strong>Matched By</strong>
+                          {user.membershipMatchedBy || 'Not Matched'}
+                        </span>
+                        <span>
+                          <strong>Member ID</strong>
+                          {user.membershipMemberId || 'No Member Link'}
+                        </span>
+                        <span>
+                          <strong>User ID</strong>
+                          {userId}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
             );
           })}
         </tbody>

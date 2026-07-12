@@ -112,6 +112,8 @@ Administrator Features
 * Super Users can add user accounts for non-computer-savvy members
 * Admins with Add New Users permission can add and edit General User profiles, but cannot edit Admin or Super User profiles
 * Super Users can change user passwords from the user control edit card
+* User Controls includes the Add User action inside the User Controls card.
+* User profile list includes filters for profile status and membership status, a compact details action, and a streamlined table.
 * Public account creation for new General User profiles
 * Signed-in users can edit their own profile name, phone number, billing address, and password
 * All user profile types include billing address fields for future payment processing

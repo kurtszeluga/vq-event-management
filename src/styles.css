@@ -894,6 +894,23 @@ a {
   max-width: 520px;
 }
 
+.user-detail-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.user-detail-grid span {
+  display: grid;
+  gap: 4px;
+}
+
+.user-detail-grid strong {
+  color: #687572;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
 .user-table-wrap {
   overflow-x: auto;
   width: 100%;
@@ -1170,6 +1187,10 @@ a {
   .form-grid.compact,
   .configuration-form-grid,
   .user-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-detail-grid {
     grid-template-columns: 1fr;
   }
 

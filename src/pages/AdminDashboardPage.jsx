@@ -101,17 +101,6 @@ function AdminDashboardPage() {
             User Controls
           </button>
         ) : null}
-        {isSuperUser || canAddUsers ? (
-          <button
-            className={`button-link button-reset ${
-              activeModule === 'add-user' ? '' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={() => setActiveModule('add-user')}
-          >
-            Add User
-          </button>
-        ) : null}
         {isSuperUser ? (
           <button
             className={`button-link button-reset ${
@@ -156,12 +145,10 @@ function AdminDashboardPage() {
             />
           </section>
         ) : null}
-        {(isSuperUser || canAddUsers) && ['user-controls', 'add-user'].includes(activeModule) ? (
+        {(isSuperUser || canAddUsers) && activeModule === 'user-controls' ? (
           <UserControlPanel
-            addUserOnOpen={activeModule === 'add-user'}
             canManageAdminUsers={isSuperUser}
             currentUserProfile={userProfile}
-            key={activeModule}
           />
         ) : null}
         {isSuperUser && activeModule === 'configuration' ? (
