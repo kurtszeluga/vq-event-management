@@ -131,7 +131,7 @@ Administrator Features
   * User profiles store membership status fields for member-only registration eligibility.
   * Manually add, edit, or archive members from the membership list.
   * Member list filters include Active, Inactive, and Archived; Active is the default view.
-  * Keep the member list table hidden until the Super User chooses to show it.
+  * Keep the member list, default locations, and default start/end time sections collapsed until the Super User chooses to show them.
   * Open member edits inline at the selected member row.
   * Manage default event/activity locations.
   * Manage default event/activity start/end time choices.

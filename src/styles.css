@@ -958,6 +958,18 @@ a {
   margin: 0;
 }
 
+.configuration-section-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.configuration-section-header > div {
+  display: grid;
+  gap: 8px;
+}
+
 .configuration-section p,
 .empty-inline {
   color: #5c6966;
