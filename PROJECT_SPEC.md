@@ -25,6 +25,7 @@ Project Goals
 
 * Simple for administrators to manage.
 * Easy for members to register.
+* Registration actions should live inside the event module, not as a standalone main navigation item.
 * Mobile-friendly.
 * Fast and responsive.
 * Secure.

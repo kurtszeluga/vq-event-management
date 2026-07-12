@@ -5,10 +5,12 @@ import { useAuth } from './context/useAuth.js';
 const navItems = [
   { to: '/', label: 'Home' },
   { to: '/events', label: 'Events' },
-  { to: '/register', label: 'Register' },
-  { to: '/signup', label: 'Create Account' },
-  { to: '/login', label: 'Login' },
   { to: '/admin', label: 'Admin' }
+];
+
+const signedOutNavItems = [
+  { to: '/signup', label: 'Create Account' },
+  { to: '/login', label: 'Login' }
 ];
 
 function App() {
@@ -51,6 +53,17 @@ function App() {
               {item.label}
             </NavLink>
           ))}
+          {!currentUser ? signedOutNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              {item.label}
+            </NavLink>
+          )) : null}
           {currentUser ? (
             <NavLink
               to="/profile"

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import {
@@ -110,13 +110,9 @@ function EventDetailsPage() {
               {event.supplyListTitle || event.supplyListFileName || 'Supply list PDF'}
             </a>
           ) : null}
-          {event.registrationOpen ? (
-            <Link className="button-link" to="/register">
-              Continue to registration
-            </Link>
-          ) : (
+          {!event.registrationOpen ? (
             <p className="form-error">Registration is not currently open.</p>
-          )}
+          ) : null}
         </div>
         <div className="event-image-grid">
           {event.imageUrls?.[0] ? (
