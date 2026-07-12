@@ -69,9 +69,14 @@ function buildEventPrintHtml(event) {
   const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
   const date = escapeHtml(formatEventDate(event.date));
   const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
+  const location = escapeHtml(event.location || 'To be announced');
   const presenter = escapeHtml(event.presenter || 'To be announced');
   const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'Free');
   const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
+  const imageUrl = event.imageUrls?.find(Boolean) || '';
+  const imageBlock = imageUrl
+    ? `<div class="image-wrap"><img alt="${title} thumbnail" src="${escapeHtml(imageUrl)}" /></div>`
+    : '<div class="image-wrap image-placeholder" aria-label="No image uploaded"></div>';
 
   return `<!doctype html>
   <html lang="en">
@@ -139,6 +144,22 @@ function buildEventPrintHtml(event) {
           font-weight: 800;
           padding: 6px 10px;
         }
+        .image-wrap {
+          border: 1px solid #ded5ca;
+          border-radius: 8px;
+          margin-top: 18px;
+          overflow: hidden;
+        }
+        .image-wrap img {
+          display: block;
+          height: auto;
+          object-fit: cover;
+          width: 100%;
+        }
+        .image-placeholder {
+          background: linear-gradient(135deg, #f6efe9, #ebe3da);
+          min-height: 220px;
+        }
         .actions {
           display: inline-flex;
           gap: 8px;
@@ -191,9 +212,11 @@ function buildEventPrintHtml(event) {
           <div class="meta-row"><div class="meta-label">Status</div><div>${registration}</div></div>
           <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
           <div class="meta-row"><div class="meta-label">Time</div><div>${time}</div></div>
+          <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
           <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
         </div>
+        ${imageBlock}
         ${description}
       </main>
     </body>
