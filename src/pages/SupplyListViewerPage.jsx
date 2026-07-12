@@ -13,6 +13,8 @@ function SupplyListViewerPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState('');
+  const inlineProxyUrl = buildProxyUrl(event, 'inline');
+  const attachmentProxyUrl = buildProxyUrl(event, 'attachment');
 
   useEffect(() => {
     let active = true;
@@ -54,7 +56,7 @@ function SupplyListViewerPage() {
 
     async function loadPdf() {
       try {
-        const response = await fetch(event.supplyListUrl);
+        const response = await fetch(inlineProxyUrl);
 
         if (!response.ok) {
           throw new Error('Unable to load the supply list.');
@@ -85,7 +87,7 @@ function SupplyListViewerPage() {
         window.URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [event?.supplyListUrl]);
+  }, [inlineProxyUrl, event?.supplyListUrl]);
 
   function handleClose() {
     if (window.opener) {
@@ -164,7 +166,7 @@ function SupplyListViewerPage() {
         <div className="viewer-actions">
           <a
             className="button-link secondary-action"
-            href={pdfUrl}
+            href={attachmentProxyUrl}
             download={event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`}
           >
             Save
@@ -180,11 +182,25 @@ function SupplyListViewerPage() {
       <iframe
         ref={pdfFrameRef}
         className="viewer-frame"
-        src={pdfUrl}
+        src={pdfUrl || inlineProxyUrl}
         title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
       />
     </section>
   );
+}
+
+function buildProxyUrl(event, disposition) {
+  if (!event?.supplyListUrl) {
+    return '';
+  }
+
+  const params = new URLSearchParams({
+    disposition,
+    filename: event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`,
+    url: event.supplyListUrl
+  });
+
+  return `/api/file-proxy?${params.toString()}`;
 }
 
 export default SupplyListViewerPage;
