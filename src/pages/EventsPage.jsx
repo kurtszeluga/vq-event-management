@@ -35,7 +35,7 @@ function getDescriptionPreview(description) {
 }
 
 function openSupplyListPopup(eventId) {
-  const route = `/events/${eventId}?view=supply-list`;
+  const route = `/events/${eventId}?view=supply-list&popup=supply-list`;
   const popup = window.open(route, 'vq-supply-list', 'popup,width=1100,height=900');
 
   if (popup) {

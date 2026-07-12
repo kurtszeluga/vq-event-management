@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './context/useAuth.js';
 
 const navItems = [
@@ -15,8 +15,28 @@ const signedOutNavItems = [
 ];
 
 function App() {
+  const location = useLocation();
   const { currentUser, isAdmin, logOut } = useAuth();
-  const pullState = usePullToRefresh();
+  const isPopupMode = new URLSearchParams(location.search).get('popup') === 'supply-list';
+  const pullState = usePullToRefresh(isPopupMode);
+
+  useEffect(() => {
+    document.body.classList.toggle('popup-mode', isPopupMode);
+
+    return () => {
+      document.body.classList.remove('popup-mode');
+    };
+  }, [isPopupMode]);
+
+  if (isPopupMode) {
+    return (
+      <div className="app-shell popup-shell">
+        <main className="page-content popup-content">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -105,7 +125,7 @@ function App() {
   );
 }
 
-function usePullToRefresh() {
+function usePullToRefresh(disabled = false) {
   const startXRef = useRef(0);
   const startYRef = useRef(0);
   const pullingRef = useRef(false);
@@ -115,6 +135,10 @@ function usePullToRefresh() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    if (disabled) {
+      return undefined;
+    }
+
     const maxPull = 118;
     const refreshThreshold = 58;
 
@@ -196,7 +220,7 @@ function usePullToRefresh() {
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [refreshing]);
+  }, [disabled, refreshing]);
 
   return { offset, ready, refreshing };
 }

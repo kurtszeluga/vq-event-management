@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
@@ -13,6 +13,7 @@ function EventDetailsPage() {
   const { eventId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const supplyListFrameRef = useRef(null);
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -20,9 +21,13 @@ function EventDetailsPage() {
     () => new URLSearchParams(location.search).get('view') === 'supply-list',
     [location.search]
   );
+  const isPopupMode = useMemo(
+    () => new URLSearchParams(location.search).get('popup') === 'supply-list',
+    [location.search]
+  );
 
   function openSupplyListPopup() {
-    const route = `/events/${eventId}?view=supply-list`;
+    const route = `/events/${eventId}?view=supply-list&popup=supply-list`;
     const popup = window.open(route, 'vq-supply-list', 'popup,width=1100,height=900');
 
     if (popup) {
@@ -40,6 +45,18 @@ function EventDetailsPage() {
     }
 
     navigate(`/events/${eventId}`);
+  }
+
+  function handlePrintSupplyList() {
+    const frameWindow = supplyListFrameRef.current?.contentWindow;
+
+    if (frameWindow) {
+      frameWindow.focus();
+      frameWindow.print();
+      return;
+    }
+
+    window.print();
   }
 
   useEffect(() => {
@@ -100,7 +117,7 @@ function EventDetailsPage() {
 
   if (openSupplyListOnLoad && event.supplyListUrl) {
     return (
-      <section>
+      <section className={isPopupMode ? 'popup-page' : ''}>
         <div className="supply-list-view">
           <div className="supply-list-view-header">
             <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
@@ -108,7 +125,7 @@ function EventDetailsPage() {
               <button
                 className="button-link secondary-action"
                 type="button"
-                onClick={() => window.print()}
+                onClick={handlePrintSupplyList}
               >
                 Print
               </button>
@@ -118,6 +135,7 @@ function EventDetailsPage() {
             </div>
           </div>
           <iframe
+            ref={supplyListFrameRef}
             className="supply-list-view-frame"
             src={event.supplyListUrl}
             title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
