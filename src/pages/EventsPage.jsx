@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
+import { EVENT_TYPES } from '../data/eventOptions.js';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
 import {
   formatCurrency,
@@ -11,6 +12,7 @@ import {
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const ALL_EVENT_TYPES = 'All';
+const EVENT_TYPE_FILTERS = ['All', ...EVENT_TYPES];
 
 function getEventTypeLabel(event) {
   return event.eventType || 'Other';
@@ -56,13 +58,13 @@ function EventsPage() {
     () =>
       visibleEvents.reduce((counts, event) => {
         const type = getEventTypeLabel(event);
-        return { ...counts, [type]: (counts[type] || 0) + 1 };
-      }, {}),
+        return type in counts ? { ...counts, [type]: counts[type] + 1 } : counts;
+      }, Object.fromEntries(EVENT_TYPE_FILTERS.slice(1).map((type) => [type, 0]))),
     [visibleEvents]
   );
   const eventTypeFilters = useMemo(
-    () => [ALL_EVENT_TYPES, ...Object.keys(eventTypeCounts).sort()],
-    [eventTypeCounts]
+    () => EVENT_TYPE_FILTERS,
+    []
   );
   const filteredEvents = useMemo(
     () =>
@@ -130,13 +132,20 @@ function EventsPage() {
 
           return (
             <article className="public-event-card" key={event.id}>
-              <div className="public-event-card-main">
+              <div className="public-event-card-header">
                 <div className="card-kicker">
                   <span>{getEventTypeLabel(event)}</span>
                   <strong>
                     {event.registrationOpen ? 'Registration open' : 'Registration closed'}
                   </strong>
                 </div>
+                {event.registrationOpen ? (
+                  <Link className="button-link" to={`/events/${event.id}`}>
+                    Register
+                  </Link>
+                ) : null}
+              </div>
+              <div className="public-event-card-main">
                 <h2>{event.title}</h2>
                 {description ? (
                   <div className="event-card-description">
@@ -180,16 +189,12 @@ function EventsPage() {
               </div>
               <div className="public-event-card-actions">
                 {event.supplyListUrl ? (
-                  <a className="text-button" href={event.supplyListUrl}>
-                    {event.supplyListTitle || event.supplyListFileName || 'Supply list'}
-                  </a>
-                ) : null}
-                <Link className="button-link secondary-action" to={`/events/${event.id}`}>
-                  View Details
-                </Link>
-                {event.registrationOpen ? (
-                  <Link className="button-link" to={`/events/${event.id}`}>
-                    Register
+                  <Link
+                    className="text-button"
+                    to={`/events/${event.id}?view=supply-list`}
+                  >
+                    View and print{' '}
+                    {event.supplyListTitle || event.supplyListFileName || 'supply list'}
                   </Link>
                 ) : null}
               </div>

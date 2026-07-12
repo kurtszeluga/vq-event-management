@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
 const ALL_TYPES = 'All';
+const FILTER_TYPES = ['All', ...EVENT_TYPES];
 
 function EventList({ events, loading, onDelete, onEdit }) {
   const [eventTypeFilter, setEventTypeFilter] = useState(ALL_TYPES);
@@ -10,13 +12,13 @@ function EventList({ events, loading, onDelete, onEdit }) {
     () =>
       events.reduce((counts, event) => {
         const type = event.eventType || 'Other';
-        return { ...counts, [type]: (counts[type] || 0) + 1 };
-      }, {}),
+        return type in counts ? { ...counts, [type]: counts[type] + 1 } : counts;
+      }, Object.fromEntries(FILTER_TYPES.slice(1).map((type) => [type, 0]))),
     [events]
   );
   const eventTypeFilters = useMemo(
-    () => [ALL_TYPES, ...Object.keys(eventTypeCounts).sort()],
-    [eventTypeCounts]
+    () => FILTER_TYPES,
+    []
   );
   const filteredEvents = useMemo(
     () =>

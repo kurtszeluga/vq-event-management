@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import {
@@ -11,9 +11,15 @@ import {
 
 function EventDetailsPage() {
   const { eventId } = useParams();
+  const location = useLocation();
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showSupplyList, setShowSupplyList] = useState(false);
+  const openSupplyListOnLoad = useMemo(
+    () => new URLSearchParams(location.search).get('view') === 'supply-list',
+    [location.search]
+  );
 
   useEffect(() => {
     let active = true;
@@ -43,6 +49,15 @@ function EventDetailsPage() {
       active = false;
     };
   }, [eventId]);
+
+  useEffect(() => {
+    if (event?.supplyListUrl && openSupplyListOnLoad) {
+      setShowSupplyList(true);
+      return;
+    }
+
+    setShowSupplyList(false);
+  }, [event?.supplyListUrl, openSupplyListOnLoad]);
 
   if (loading) {
     return (
@@ -106,9 +121,32 @@ function EventDetailsPage() {
             </div>
           </dl>
           {event.supplyListUrl ? (
-            <a className="text-button" href={event.supplyListUrl}>
-              {event.supplyListTitle || event.supplyListFileName || 'Supply list PDF'}
-            </a>
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => setShowSupplyList(true)}
+            >
+              View and print {event.supplyListTitle || event.supplyListFileName || 'supply list'}
+            </button>
+          ) : null}
+          {showSupplyList && event.supplyListUrl ? (
+            <div className="supply-list-view">
+              <div className="supply-list-view-header">
+                <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => setShowSupplyList(false)}
+                >
+                  Close
+                </button>
+              </div>
+              <iframe
+                className="supply-list-view-frame"
+                src={event.supplyListUrl}
+                title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
+              />
+            </div>
           ) : null}
           {!event.registrationOpen ? (
             <p className="form-error">Registration is not currently open.</p>
