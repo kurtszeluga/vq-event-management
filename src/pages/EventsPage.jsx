@@ -210,16 +210,9 @@ function EventsPage() {
                 )}
               </div>
               <div className="public-event-card-actions">
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => openEventPrintView(event)}
-                >
-                  Print Event
-                </button>
                 {event.supplyListUrl ? (
                   <button
-                    className="text-button"
+                    className="button-link secondary-action"
                     type="button"
                     onClick={() => openSupplyListPopup(event)}
                   >
@@ -227,6 +220,13 @@ function EventsPage() {
                     {event.supplyListTitle || event.supplyListFileName || 'supply list'}
                   </button>
                 ) : null}
+                <button
+                  className="button-link secondary-action"
+                  type="button"
+                  onClick={() => openEventPrintView(event)}
+                >
+                  Print the {getEventTypeLabel(event)}
+                </button>
               </div>
             </article>
           );

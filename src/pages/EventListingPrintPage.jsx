@@ -54,8 +54,13 @@ function EventListingPrintPage() {
   }
 
   function handlePrint() {
-    window.print();
+    window.focus();
+    window.setTimeout(() => window.print(), 100);
   }
+
+  useEffect(() => {
+    window.focus();
+  }, []);
 
   if (loading) {
     return (

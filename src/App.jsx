@@ -17,8 +17,8 @@ const signedOutNavItems = [
 function App() {
   const location = useLocation();
   const { currentUser, isAdmin, logOut } = useAuth();
-  const isSupplyListViewer = location.pathname.endsWith('/supply-list');
-  const isPopupMode = isSupplyListViewer;
+  const isPopupMode =
+    location.pathname.endsWith('/supply-list') || location.pathname.endsWith('/print');
   const pullState = usePullToRefresh(isPopupMode);
 
   useEffect(() => {
