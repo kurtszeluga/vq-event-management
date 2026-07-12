@@ -55,12 +55,8 @@ function EventListingPrintPage() {
 
   function handlePrint() {
     window.focus();
-    window.setTimeout(() => window.print(), 100);
+    window.print();
   }
-
-  useEffect(() => {
-    window.focus();
-  }, []);
 
   if (loading) {
     return (
@@ -100,11 +96,11 @@ function EventListingPrintPage() {
           <h1>{event.title}</h1>
         </div>
         <div className="viewer-actions">
-          <button className="button-link secondary-action" type="button" onClick={handlePrint}>
-            Print
-          </button>
           <button className="button-link" type="button" onClick={handleClose}>
             Close
+          </button>
+          <button className="button-link secondary-action" type="button" onClick={handlePrint}>
+            Print
           </button>
         </div>
       </div>

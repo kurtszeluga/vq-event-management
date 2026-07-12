@@ -17,8 +17,9 @@ const signedOutNavItems = [
 function App() {
   const location = useLocation();
   const { currentUser, isAdmin, logOut } = useAuth();
+  const normalizedPath = location.pathname.replace(/\/+$/, '');
   const isPopupMode =
-    location.pathname.endsWith('/supply-list') || location.pathname.endsWith('/print');
+    normalizedPath.endsWith('/supply-list') || normalizedPath.endsWith('/print');
   const pullState = usePullToRefresh(isPopupMode);
 
   useEffect(() => {

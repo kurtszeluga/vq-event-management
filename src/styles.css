@@ -176,14 +176,14 @@ a {
 
 .popup-content {
   max-width: none;
-  padding: 18px;
+  padding: 0;
 }
 
 .viewer-page {
   display: grid;
   gap: 18px;
   max-width: none;
-  min-height: calc(100vh - 48px);
+  padding: 8px 0 0;
 }
 
 .viewer-toolbar {
@@ -234,7 +234,7 @@ body.popup-mode .pull-refresh-indicator {
 
 body.popup-mode .page-content {
   max-width: none;
-  padding: 18px;
+  padding: 0;
 }
 
 .page-header {
