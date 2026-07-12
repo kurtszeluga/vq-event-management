@@ -17,6 +17,7 @@ function EventDetailsPage() {
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [supplyListObjectUrl, setSupplyListObjectUrl] = useState('');
   const openSupplyListOnLoad = useMemo(
     () => new URLSearchParams(location.search).get('view') === 'supply-list',
     [location.search]
@@ -47,12 +48,35 @@ function EventDetailsPage() {
     navigate(`/events/${eventId}`);
   }
 
-  function handlePrintSupplyList() {
+  async function handleDownloadSupplyList() {
+    const downloadName =
+      event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`;
+    const downloadUrl = supplyListObjectUrl || event.supplyListUrl;
+
+    try {
+      const link = document.createElement('a');
+
+      if (!downloadUrl) {
+        throw new Error('Unable to download the supply list.');
+      }
+
+      link.href = downloadUrl;
+      link.download = downloadName;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      window.open(event.supplyListUrl, '_blank', 'noopener');
+    }
+  }
+
+  async function handlePrintSupplyList() {
     const frameWindow = supplyListFrameRef.current?.contentWindow;
 
     if (frameWindow) {
       frameWindow.focus();
-      frameWindow.print();
+      window.setTimeout(() => frameWindow.print(), 150);
       return;
     }
 
@@ -88,6 +112,49 @@ function EventDetailsPage() {
     };
   }, [eventId]);
 
+  useEffect(() => {
+    if (!openSupplyListOnLoad || !event?.supplyListUrl) {
+      setSupplyListObjectUrl('');
+      return undefined;
+    }
+
+    let active = true;
+    let objectUrl = '';
+
+    async function loadSupplyList() {
+      try {
+        const response = await fetch(event.supplyListUrl);
+
+        if (!response.ok) {
+          throw new Error('Unable to load the supply list.');
+        }
+
+        const blob = await response.blob();
+        objectUrl = window.URL.createObjectURL(blob);
+
+        if (active) {
+          setSupplyListObjectUrl(objectUrl);
+        } else {
+          window.URL.revokeObjectURL(objectUrl);
+        }
+      } catch {
+        if (active) {
+          setSupplyListObjectUrl('');
+        }
+      }
+    }
+
+    loadSupplyList();
+
+    return () => {
+      active = false;
+
+      if (objectUrl) {
+        window.URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [event?.supplyListUrl, openSupplyListOnLoad]);
+
   if (loading) {
     return (
       <section>
@@ -116,24 +183,19 @@ function EventDetailsPage() {
   }
 
   if (openSupplyListOnLoad && event.supplyListUrl) {
-    const supplyListDownloadName =
-      event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`;
-
     return (
       <section className={isPopupMode ? 'popup-page' : ''}>
         <div className="supply-list-view">
           <div className="supply-list-view-header">
             <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
             <div className="supply-list-view-actions">
-              <a
+              <button
                 className="button-link secondary-action"
-                href={event.supplyListUrl}
-                download={supplyListDownloadName}
-                rel="noreferrer"
-                target="_blank"
+                type="button"
+                onClick={handleDownloadSupplyList}
               >
-                Download
-              </a>
+                Save
+              </button>
               <button
                 className="button-link secondary-action"
                 type="button"
@@ -149,7 +211,7 @@ function EventDetailsPage() {
           <iframe
             ref={supplyListFrameRef}
             className="supply-list-view-frame"
-            src={event.supplyListUrl}
+            src={supplyListObjectUrl || event.supplyListUrl}
             title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
           />
         </div>
