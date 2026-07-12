@@ -385,7 +385,11 @@ function ConfigurationPanel({ currentUserProfile }) {
           />
           <span>Allow Admins To Skip Membership Check</span>
         </label>
-        <button className="button-link button-reset" disabled={savingSection === 'settings'} type="submit">
+        <button
+          className="button-link button-reset configuration-submit-button"
+          disabled={savingSection === 'settings'}
+          type="submit"
+        >
           {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
         </button>
       </form>

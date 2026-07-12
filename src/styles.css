@@ -1023,6 +1023,11 @@ a {
   gap: 12px;
 }
 
+.configuration-submit-button {
+  justify-self: start;
+  width: fit-content;
+}
+
 .configuration-inline-label {
   align-items: center;
   color: #3b4b48;
