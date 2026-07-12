@@ -29,6 +29,8 @@ Project Goals
 * Admin navigation is only visible to signed-in admin users.
 * Event listing cards should stay compact, omit service fees, show presenter details, include a thumbnail image, make the date prominent, and show a Register action when registration is open.
 * Event listings should include event/activity type filter buttons and expandable descriptions for longer text.
+* The Create Event form should stay collapsed until an event type is selected, and time entry must reject an end time that is at or before the start time.
+* The Existing Events card should include event type filter buttons.
 * Mobile-friendly.
 * Fast and responsive.
 * Secure.

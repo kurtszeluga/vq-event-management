@@ -23,6 +23,10 @@ const eventTypeTimePresetMap = {
   Workshop: 'workshop'
 };
 
+function isInvalidTimeRange(startTime, endTime) {
+  return Boolean(startTime && endTime && endTime <= startTime);
+}
+
 function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const documentInputRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -425,6 +429,13 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
           </span>
         </label>
 
+        {!eventTypeSelected ? (
+          <div className="event-form-placeholder form-span">
+            <h3>Select an Event Type</h3>
+            <p>The rest of the event card stays collapsed until you choose one.</p>
+          </div>
+        ) : null}
+
         {eventTypeSelected ? (
           <div className="event-type-card form-span">
             <h3>{getEventTypeCardTitle(form.eventType)}</h3>
@@ -577,7 +588,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 {form.timePreset === 'other' ? (
                   <div className="form-row-pair nested-fields">
                     <label>
-                      <span>Start</span>
+                      <span>Start Time</span>
                       <input
                         className={fieldErrors.startTime ? 'field-invalid' : ''}
                         disabled={!eventTypeSelected}
@@ -589,7 +600,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                       />
                     </label>
                     <label>
-                      <span>End</span>
+                      <span>End Time</span>
                       <input
                         className={fieldErrors.endTime ? 'field-invalid' : ''}
                         disabled={!eventTypeSelected}
@@ -599,6 +610,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                           updateField('endTime', event.target.value)
                         }
                       />
+                      {fieldErrors.endTime ? <small>{fieldErrors.endTime}</small> : null}
                     </label>
                   </div>
                 ) : null}
@@ -626,6 +638,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     value={form.endTime}
                     onChange={(event) => updateField('endTime', event.target.value)}
                   />
+                  {fieldErrors.endTime ? <small>{fieldErrors.endTime}</small> : null}
                 </label>
               </div>
             ) : null}
@@ -1300,6 +1313,15 @@ function validateEventForm(form) {
     && !form.endTime
   ) {
     errors.endTime = 'End time is required.';
+  }
+
+  if (
+    (((requiresTimePreset && form.timePreset === 'other') || requiresDirectTime)
+      && form.startTime
+      && form.endTime
+      && isInvalidTimeRange(form.startTime, form.endTime))
+  ) {
+    errors.endTime = 'End time must be after the start time.';
   }
 
   if (requiresSchedule && !form.locationPreset) {

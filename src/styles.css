@@ -497,6 +497,25 @@ a {
   margin: 0;
 }
 
+.event-form-placeholder {
+  background: #f6f1ea;
+  border: 1px dashed #d6c8ba;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+}
+
+.event-form-placeholder h3 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.event-form-placeholder p {
+  color: #5c6966;
+  margin: 0;
+}
+
 .compact-subsection {
   gap: 12px;
   margin-top: 8px;
@@ -882,6 +901,10 @@ a {
 
 .event-type-filter {
   margin-top: 24px;
+}
+
+.compact-empty-state {
+  margin-top: 12px;
 }
 
 .public-event-card-thumbnail {

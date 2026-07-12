@@ -1,6 +1,31 @@
+import { useMemo, useState } from 'react';
 import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
+const ALL_TYPES = 'All';
+
 function EventList({ events, loading, onDelete, onEdit }) {
+  const [eventTypeFilter, setEventTypeFilter] = useState(ALL_TYPES);
+
+  const eventTypeCounts = useMemo(
+    () =>
+      events.reduce((counts, event) => {
+        const type = event.eventType || 'Other';
+        return { ...counts, [type]: (counts[type] || 0) + 1 };
+      }, {}),
+    [events]
+  );
+  const eventTypeFilters = useMemo(
+    () => [ALL_TYPES, ...Object.keys(eventTypeCounts).sort()],
+    [eventTypeCounts]
+  );
+  const filteredEvents = useMemo(
+    () =>
+      eventTypeFilter === ALL_TYPES
+        ? events
+        : events.filter((event) => (event.eventType || 'Other') === eventTypeFilter),
+    [eventTypeFilter, events]
+  );
+
   if (loading) {
     return (
       <div className="empty-state">
@@ -21,7 +46,25 @@ function EventList({ events, loading, onDelete, onEdit }) {
 
   return (
     <div className="event-admin-list">
-      {events.map((event) => (
+      <div className="status-filter-group separated-filter-row" aria-label="Event type filters">
+        {eventTypeFilters.map((type) => (
+          <button
+            className={`status-filter-button${eventTypeFilter === type ? ' active' : ''}`}
+            key={type}
+            type="button"
+            onClick={() => setEventTypeFilter(type)}
+          >
+            {type === ALL_TYPES ? `All (${events.length})` : `${type} (${eventTypeCounts[type] || 0})`}
+          </button>
+        ))}
+      </div>
+      {!filteredEvents.length ? (
+        <div className="empty-state compact-empty-state">
+          <h2>No matching events</h2>
+          <p>Try a different event type filter.</p>
+        </div>
+      ) : null}
+      {filteredEvents.map((event) => (
         <article className="event-admin-card" key={event.id}>
           <div>
             <div className="card-kicker">
