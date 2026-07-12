@@ -149,16 +149,17 @@ function buildEventPrintHtml(event) {
           border-radius: 8px;
           margin-top: 18px;
           overflow: hidden;
+          width: 180px;
         }
         .image-wrap img {
           display: block;
-          height: auto;
+          height: 180px;
           object-fit: cover;
           width: 100%;
         }
         .image-placeholder {
           background: linear-gradient(135deg, #f6efe9, #ebe3da);
-          min-height: 220px;
+          height: 180px;
         }
         .actions {
           display: inline-flex;
