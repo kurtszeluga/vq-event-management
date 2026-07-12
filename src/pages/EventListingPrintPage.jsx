@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { getEvent } from '../services/eventService.js';
 import {
   formatCurrency,
@@ -10,12 +10,18 @@ import {
 
 function EventListingPrintPage() {
   const { eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [event, setEvent] = useState(null);
+  const cacheKey = searchParams.get('cacheKey');
+  const [event, setEvent] = useState(() => readCachedEvent(cacheKey));
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !readCachedEvent(cacheKey));
 
   useEffect(() => {
+    if (event) {
+      return undefined;
+    }
+
     let active = true;
 
     async function loadEvent() {
@@ -42,9 +48,23 @@ function EventListingPrintPage() {
     return () => {
       active = false;
     };
-  }, [eventId]);
+  }, [event, eventId]);
+
+  useEffect(() => {
+    if (!cacheKey || !event) {
+      return undefined;
+    }
+
+    return () => {
+      window.localStorage.removeItem(cacheKey);
+    };
+  }, [cacheKey, event]);
 
   function handleClose() {
+    if (cacheKey) {
+      window.localStorage.removeItem(cacheKey);
+    }
+
     if (window.opener) {
       window.close();
       return;
@@ -132,15 +152,24 @@ function EventListingPrintPage() {
           </dl>
         </div>
         <div className="public-event-card-thumbnail">
-          {event.imageUrls?.[0] ? (
-            <img alt={`${event.title} thumbnail`} src={event.imageUrls[0]} />
-          ) : (
-            <div className="image-placeholder" aria-label="No image uploaded" />
-          )}
+          <div className="image-placeholder" aria-label="No image uploaded" />
         </div>
       </article>
     </section>
   );
+}
+
+function readCachedEvent(cacheKey) {
+  if (!cacheKey) {
+    return null;
+  }
+
+  try {
+    const cachedEvent = window.localStorage.getItem(cacheKey);
+    return cachedEvent ? JSON.parse(cachedEvent) : null;
+  } catch {
+    return null;
+  }
 }
 
 export default EventListingPrintPage;

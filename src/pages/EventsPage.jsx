@@ -47,7 +47,19 @@ function openEventPrintView(event) {
     return;
   }
 
-  window.open(`/events/${event.id}/print`, 'vq-event-print', 'popup,width=1100,height=900');
+  const cacheKey = `vq-event-print:${event.id}:${Date.now()}`;
+
+  try {
+    window.localStorage.setItem(cacheKey, JSON.stringify(event));
+  } catch {
+    // If storage is unavailable, the print page will fall back to Firestore.
+  }
+
+  window.open(
+    `/events/${event.id}/print?cacheKey=${encodeURIComponent(cacheKey)}`,
+    'vq-event-print',
+    'popup,width=1100,height=900'
+  );
 }
 
 function EventsPage() {
