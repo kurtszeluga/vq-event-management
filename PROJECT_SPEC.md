@@ -122,9 +122,14 @@ Administrator Features
   * Configure membership matching by email and/or phone.
   * Configure whether admins may skip the membership check.
   * Upload a CSV file of members.
+  * CSV imports support Add/Update Only mode and Annual Refresh mode.
+  * Annual Refresh mode marks uploaded members Active and marks existing non-archived members missing from the CSV as Inactive.
   * CSV imports support common headers including Name, First Name, Last Name, Email, Phone, Status, and Notes.
   * Member records store First Name and Last Name as separate fields.
-  * Manually add, edit, or remove members from the membership list.
+  * Member status changes sync to matching user profiles by email first and phone second.
+  * User profiles store membership status fields for member-only registration eligibility.
+  * Manually add, edit, or archive members from the membership list.
+  * Member list filters include Active, Inactive, and Archived; Active is the default view.
   * Keep the member list table hidden until the Super User chooses to show it.
   * Open member edits inline at the selected member row.
   * Manage default event/activity locations.
@@ -301,11 +306,27 @@ userId	Firebase UID
 name	Full name
 email	Email
 phone	Phone
+membershipStatus	Synced guild membership status: Active, Inactive, Archived, or Unknown
+membershipMemberId	Matched member record ID
+membershipMatchedBy	How the profile matched the member record: email, phone, or manual
+membershipUpdatedDate	Last membership sync timestamp
 billingAddress	Billing address for future payment processing
 role	Super User, Admin, or General User
 permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments, addUsers
 profileTags	Functional tags such as vqBooking and vqHosting
 status	Active or Inactive
+
+⸻
+
+members
+
+Field	Description
+memberId	Unique member record ID
+firstName	Member first name
+lastName	Member last name
+email	Member email
+phone	Member phone
+status	Active, Inactive, or Archived
 
 ⸻
 

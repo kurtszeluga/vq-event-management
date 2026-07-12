@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_MEMBERSHIP_SETTINGS,
+  archiveMember,
   deleteEventLocationDefault,
   deleteEventTimeDefault,
-  deleteMember,
   importMembersFromCsvRows,
   saveEventLocationDefault,
   saveEventTimeDefault,
@@ -47,6 +47,8 @@ const EMPTY_TIME_FORM = {
   value: ''
 };
 
+const MEMBER_FILTERS = ['Active', 'Inactive', 'Archived'];
+
 function ConfigurationPanel({ currentUserProfile }) {
   const csvInputRef = useRef(null);
   const [error, setError] = useState('');
@@ -58,7 +60,9 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
+  const [memberImportMode, setMemberImportMode] = useState('addUpdate');
   const [memberListOpen, setMemberListOpen] = useState(false);
+  const [memberStatusFilter, setMemberStatusFilter] = useState('Active');
   const [members, setMembers] = useState([]);
   const [savingSection, setSavingSection] = useState('');
   const [settings, setSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
@@ -66,6 +70,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
   const memberCounts = getMemberCounts(members);
+  const filteredMembers = members.filter((member) => (member.status || 'Active') === memberStatusFilter);
 
   function renderMemberForm() {
     return (
@@ -127,6 +132,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           >
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
+            <option value="Archived">Archived</option>
           </select>
         </label>
         <label className="configuration-span">
@@ -249,8 +255,14 @@ function ConfigurationPanel({ currentUserProfile }) {
         throw new Error('No member rows were found in the CSV file.');
       }
 
-      const importCount = await importMembersFromCsvRows(rows, currentUserProfile);
-      setImportMessage(`${importCount} members imported.`);
+      const importResult = await importMembersFromCsvRows(rows, currentUserProfile, {
+        mode: memberImportMode
+      });
+      setImportMessage(
+        memberImportMode === 'annualRefresh'
+          ? `${importResult.importedCount} members imported. ${importResult.inactivatedCount} missing members marked inactive.`
+          : `${importResult.importedCount} members imported.`
+      );
     });
     event.target.value = '';
   }
@@ -382,6 +394,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div className="configuration-summary" aria-label="Member list totals">
           <span>Active: {memberCounts.active}</span>
           <span>Inactive: {memberCounts.inactive}</span>
+          <span>Archived: {memberCounts.archived}</span>
           <span>Total: {memberCounts.total}</span>
         </div>
         <div className="configuration-actions">
@@ -400,6 +413,16 @@ function ConfigurationPanel({ currentUserProfile }) {
           >
             {savingSection === 'csv' ? 'Importing...' : 'Upload Member CSV'}
           </button>
+          <label className="configuration-inline-label">
+            <span>Import Mode</span>
+            <select
+              value={memberImportMode}
+              onChange={(event) => setMemberImportMode(event.target.value)}
+            >
+              <option value="addUpdate">Add/Update Only</option>
+              <option value="annualRefresh">Annual Refresh</option>
+            </select>
+          </label>
           <button
             className="button-link button-reset secondary-action"
             type="button"
@@ -419,12 +442,24 @@ function ConfigurationPanel({ currentUserProfile }) {
           </button>
           {importMessage ? <span className="form-help">{importMessage}</span> : null}
         </div>
+        <div className="status-filter-group" aria-label="Member status filter">
+          {MEMBER_FILTERS.map((status) => (
+            <button
+              className={`status-filter-button${memberStatusFilter === status ? ' active' : ''}`}
+              key={status}
+              type="button"
+              onClick={() => setMemberStatusFilter(status)}
+            >
+              {status} ({memberCounts[status.toLowerCase()]})
+            </button>
+          ))}
+        </div>
         {memberFormOpen && !memberForm.id ? renderMemberForm() : null}
         {memberListOpen ? (
           <ConfigurationTable
             columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
-            emptyText="No members have been added yet."
-            rows={members.map((member) => ({
+            emptyText={`No ${memberStatusFilter.toLowerCase()} members found.`}
+            rows={filteredMembers.map((member) => ({
               id: member.id,
               cells: [
                 member.firstName || getFirstNameFallback(member.name) || '-',
@@ -434,7 +469,9 @@ function ConfigurationPanel({ currentUserProfile }) {
                 member.status || 'Active',
                 <RowActions
                   key={member.id}
-                  onDelete={() => deleteMember(member, currentUserProfile)}
+                  deleteConfirm={`Archive ${member.name || member.email || member.phone}?`}
+                  deleteLabel="Archive"
+                  onDelete={() => archiveMember(member, currentUserProfile)}
                   onEdit={() => {
                     setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
                     setMemberFormOpen(true);
@@ -688,9 +725,14 @@ function ConfigurationPanel({ currentUserProfile }) {
   );
 }
 
-function RowActions({ onDelete, onEdit }) {
+function RowActions({
+  deleteConfirm = 'Delete this item?',
+  deleteLabel = 'Delete',
+  onDelete,
+  onEdit
+}) {
   async function handleDelete() {
-    const confirmed = window.confirm('Delete this item?');
+    const confirmed = window.confirm(deleteConfirm);
 
     if (confirmed) {
       await onDelete();
@@ -703,7 +745,7 @@ function RowActions({ onDelete, onEdit }) {
         Edit
       </button>
       <button className="danger-button" type="button" onClick={handleDelete}>
-        Delete
+        {deleteLabel}
       </button>
     </div>
   );
@@ -752,7 +794,9 @@ function ConfigurationTable({ columns, emptyText, rows }) {
 function getMemberCounts(members) {
   return members.reduce(
     (counts, member) => {
-      if (member.status === 'Inactive') {
+      if (member.status === 'Archived') {
+        counts.archived += 1;
+      } else if (member.status === 'Inactive') {
         counts.inactive += 1;
       } else {
         counts.active += 1;
@@ -761,7 +805,7 @@ function getMemberCounts(members) {
       counts.total += 1;
       return counts;
     },
-    { active: 0, inactive: 0, total: 0 }
+    { active: 0, archived: 0, inactive: 0, total: 0 }
   );
 }
 

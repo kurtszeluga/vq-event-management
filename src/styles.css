@@ -1011,6 +1011,46 @@ a {
   gap: 12px;
 }
 
+.configuration-inline-label {
+  align-items: center;
+  color: #3b4b48;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+}
+
+.configuration-inline-label select {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
+  height: 44px;
+  padding: 8px 12px;
+}
+
+.status-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-filter-button {
+  background: #fffdfa;
+  border: 1px solid #c9bbb0;
+  border-radius: 999px;
+  color: #263632;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 8px 12px;
+}
+
+.status-filter-button.active {
+  background: #225c56;
+  border-color: #225c56;
+  color: #fff;
+}
+
 .card-actions {
   align-content: start;
   display: grid;

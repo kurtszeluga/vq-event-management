@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -11,6 +12,7 @@ import { db } from '../lib/firebase.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const membersCollection = () => collection(db, 'members');
+const usersCollection = () => collection(db, 'users');
 const eventLocationsCollection = () => collection(db, 'eventLocationDefaults');
 const eventTimeOptionsCollection = () => collection(db, 'eventTimeDefaults');
 const auditLogsCollection = () => collection(db, 'auditLogs');
@@ -99,6 +101,7 @@ export async function saveMember(member, actorProfile) {
   const payload = buildMemberPayload(member, memberRef.id);
 
   batch.set(memberRef, payload, { merge: true });
+  await addMembershipSyncWrites(batch, [payload]);
   addConfigurationAuditLog(batch, {
     actorProfile,
     after: payload,
@@ -109,45 +112,103 @@ export async function saveMember(member, actorProfile) {
   return batch.commit();
 }
 
-export async function importMembersFromCsvRows(rows, actorProfile) {
+export async function importMembersFromCsvRows(rows, actorProfile, options = {}) {
+  const isAnnualRefresh = options.mode === 'annualRefresh';
   const members = rows.map((row) => {
     const memberId = makeMemberDocumentId(row) || doc(membersCollection()).id;
-    return buildMemberPayload(row, memberId);
+    return buildMemberPayload(
+      {
+        ...row,
+        status: isAnnualRefresh ? 'Active' : row.status
+      },
+      memberId
+    );
   });
+  const importedMemberIds = new Set(members.map((member) => member.memberId));
+  const membersToInactivate = isAnnualRefresh
+    ? await getMembersMissingFromImport(importedMemberIds)
+    : [];
+  const membershipSyncMembers = [
+    ...members,
+    ...membersToInactivate.map((member) => ({
+      ...member,
+      memberId: member.memberId || member.id,
+      status: 'Inactive'
+    }))
+  ];
+  const membershipSyncWrites = await getMembershipSyncWrites(membershipSyncMembers);
   const chunkSize = 400;
+  const writes = [
+    ...members.map((member) => ({
+      ref: doc(db, 'members', member.memberId),
+      type: 'set',
+      value: member
+    })),
+    ...membersToInactivate.map((member) => ({
+      ref: doc(db, 'members', member.id),
+      type: 'set',
+      value: {
+        status: 'Inactive',
+        updatedDate: serverTimestamp()
+      }
+    })),
+    ...membershipSyncWrites
+  ];
 
-  for (let startIndex = 0; startIndex < members.length; startIndex += chunkSize) {
+  for (let startIndex = 0; startIndex < writes.length; startIndex += chunkSize) {
     const batch = writeBatch(db);
-    const chunk = members.slice(startIndex, startIndex + chunkSize);
+    const chunk = writes.slice(startIndex, startIndex + chunkSize);
 
-    chunk.forEach((member) => {
-      batch.set(doc(db, 'members', member.memberId), member, { merge: true });
+    chunk.forEach((write) => {
+      batch.set(write.ref, write.value, { merge: true });
     });
 
     if (startIndex === 0) {
       addConfigurationAuditLog(batch, {
         actorProfile,
-        after: { importedCount: members.length },
+        after: {
+          importMode: isAnnualRefresh ? 'Annual Refresh' : 'Add/Update Only',
+          importedCount: members.length,
+          inactivatedCount: membersToInactivate.length
+        },
         entityId: 'members-csv-import',
-        summary: `Imported ${members.length} members from CSV`
+        summary: isAnnualRefresh
+          ? `Imported ${members.length} members and marked ${membersToInactivate.length} missing members inactive`
+          : `Imported ${members.length} members from CSV`
       });
     }
 
     await batch.commit();
   }
-  return members.length;
+  return {
+    importedCount: members.length,
+    inactivatedCount: membersToInactivate.length
+  };
 }
 
-export async function deleteMember(member, actorProfile) {
+export async function archiveMember(member, actorProfile) {
   const batch = writeBatch(db);
+  const archivedBy = actorProfile?.name || actorProfile?.email || 'Unknown Admin';
+  const payload = {
+    archivedBy,
+    archivedDate: serverTimestamp(),
+    status: 'Archived',
+    updatedDate: serverTimestamp()
+  };
 
-  batch.delete(doc(db, 'members', member.id));
+  batch.set(doc(db, 'members', member.id), payload, { merge: true });
+  await addMembershipSyncWrites(batch, [{
+    ...member,
+    memberId: member.memberId || member.id,
+    status: 'Archived'
+  }]);
   addConfigurationAuditLog(batch, {
-    action: 'Delete',
+    action: 'Archive',
     actorProfile,
+    after: payload,
     before: member,
     entityId: member.id,
-    summary: `Deleted member "${member.name || member.email || member.phone}"`
+    summary: `Archived member "${member.name || member.email || member.phone}"`
   });
 
   return batch.commit();
@@ -253,9 +314,99 @@ function buildMemberPayload(member, memberId) {
     normalizedPhone: normalizePhone(phone),
     notes: cleanText(member.notes),
     phone,
-    status: member.status === 'Inactive' ? 'Inactive' : 'Active',
+    status: getValidMemberStatus(member.status),
     updatedDate: serverTimestamp()
   };
+}
+
+async function getMembersMissingFromImport(importedMemberIds) {
+  const snapshot = await getDocs(membersCollection());
+
+  return snapshot.docs
+    .map((memberDoc) => ({ id: memberDoc.id, ...memberDoc.data() }))
+    .filter((member) => member.status !== 'Archived')
+    .filter((member) => !importedMemberIds.has(member.memberId || member.id));
+}
+
+async function addMembershipSyncWrites(batch, members) {
+  const writes = await getMembershipSyncWrites(members);
+
+  writes.forEach((write) => {
+    batch.set(write.ref, write.value, { merge: true });
+  });
+}
+
+async function getMembershipSyncWrites(members) {
+  const snapshot = await getDocs(usersCollection());
+  const syncByUserId = new Map();
+
+  members.forEach((member) => {
+    const memberEmail = cleanText(member.normalizedEmail || member.email).toLowerCase();
+    const memberPhone = normalizePhone(cleanText(member.normalizedPhone || member.phone));
+
+    if (!memberEmail && !memberPhone) {
+      return;
+    }
+
+    snapshot.docs.forEach((userDoc) => {
+      const user = userDoc.data();
+      const userEmail = cleanText(user.email).toLowerCase();
+      const userPhone = normalizePhone(cleanText(user.phone));
+      const matchedBy = memberEmail && userEmail && memberEmail === userEmail
+        ? 'email'
+        : memberPhone && userPhone && memberPhone === userPhone
+          ? 'phone'
+          : '';
+
+      if (!matchedBy) {
+        return;
+      }
+
+      const nextStatus = getValidMemberStatus(member.status);
+      const existingSync = syncByUserId.get(userDoc.id);
+
+      if (
+        existingSync
+        && getMembershipStatusPriority(existingSync.value.membershipStatus)
+          > getMembershipStatusPriority(nextStatus)
+      ) {
+        return;
+      }
+
+      syncByUserId.set(userDoc.id, {
+        ref: doc(db, 'users', userDoc.id),
+        type: 'set',
+        value: {
+          membershipMatchedBy: matchedBy,
+          membershipMemberId: member.memberId || member.id || '',
+          membershipStatus: nextStatus,
+          membershipUpdatedDate: serverTimestamp()
+        }
+      });
+    });
+  });
+
+  return [...syncByUserId.values()];
+}
+
+function getValidMemberStatus(status) {
+  if (status === 'Inactive' || status === 'Archived') {
+    return status;
+  }
+
+  return 'Active';
+}
+
+function getMembershipStatusPriority(status) {
+  if (status === 'Active') {
+    return 3;
+  }
+
+  if (status === 'Archived') {
+    return 2;
+  }
+
+  return 1;
 }
 
 function makeMemberDocumentId(member) {

@@ -153,6 +153,10 @@ service cloud.firestore {
           'billingAddress',
           'name',
           'email',
+          'membershipMatchedBy',
+          'membershipMemberId',
+          'membershipStatus',
+          'membershipUpdatedDate',
           'phone',
           'permissions',
           'profileTags',
@@ -178,6 +182,14 @@ service cloud.firestore {
             && request.resource.data.billingAddress.country is string)
         && request.resource.data.name is string
         && request.resource.data.email is string
+        && (!('membershipMatchedBy' in request.resource.data)
+          || validStatus(request.resource.data.membershipMatchedBy, ['email', 'phone', 'manual', '']))
+        && (!('membershipMemberId' in request.resource.data)
+          || request.resource.data.membershipMemberId is string)
+        && (!('membershipStatus' in request.resource.data)
+          || validStatus(request.resource.data.membershipStatus, ['Active', 'Inactive', 'Archived', 'Unknown']))
+        && (!('membershipUpdatedDate' in request.resource.data)
+          || request.resource.data.membershipUpdatedDate is timestamp)
         && request.resource.data.phone is string
         && request.resource.data.permissions is map
         && (!('profileTags' in request.resource.data)
@@ -228,6 +240,25 @@ service cloud.firestore {
           && request.resource.data.profileTags == resource.data.profileTags;
     }
 
+    function membershipFieldsUnchanged() {
+      return (!('membershipMatchedBy' in resource.data) && !('membershipMatchedBy' in request.resource.data)
+          || 'membershipMatchedBy' in resource.data
+            && 'membershipMatchedBy' in request.resource.data
+            && request.resource.data.membershipMatchedBy == resource.data.membershipMatchedBy)
+        && (!('membershipMemberId' in resource.data) && !('membershipMemberId' in request.resource.data)
+          || 'membershipMemberId' in resource.data
+            && 'membershipMemberId' in request.resource.data
+            && request.resource.data.membershipMemberId == resource.data.membershipMemberId)
+        && (!('membershipStatus' in resource.data) && !('membershipStatus' in request.resource.data)
+          || 'membershipStatus' in resource.data
+            && 'membershipStatus' in request.resource.data
+            && request.resource.data.membershipStatus == resource.data.membershipStatus)
+        && (!('membershipUpdatedDate' in resource.data) && !('membershipUpdatedDate' in request.resource.data)
+          || 'membershipUpdatedDate' in resource.data
+            && 'membershipUpdatedDate' in request.resource.data
+            && request.resource.data.membershipUpdatedDate == resource.data.membershipUpdatedDate);
+    }
+
     function validPayment() {
       return request.resource.data.keys().hasOnly([
           'paymentId',
@@ -268,6 +299,7 @@ service cloud.firestore {
           'Cancel',
           'Pay',
           'Refund',
+          'Archive',
           'Attendance Update'
         ])
         && request.resource.data.actorEmail is string
@@ -309,8 +341,12 @@ service cloud.firestore {
           'notes',
           'phone',
           'status',
+          'archivedBy',
+          'archivedDate',
           'updatedDate'
         ])
+        && (!('archivedBy' in request.resource.data) || request.resource.data.archivedBy is string)
+        && (!('archivedDate' in request.resource.data) || request.resource.data.archivedDate is timestamp)
         && request.resource.data.email is string
         && request.resource.data.firstName is string
         && request.resource.data.lastName is string
@@ -320,7 +356,7 @@ service cloud.firestore {
         && request.resource.data.normalizedPhone is string
         && request.resource.data.notes is string
         && request.resource.data.phone is string
-        && validStatus(request.resource.data.status, ['Active', 'Inactive'])
+        && validStatus(request.resource.data.status, ['Active', 'Inactive', 'Archived'])
         && request.resource.data.updatedDate is timestamp;
     }
 
@@ -393,12 +429,14 @@ service cloud.firestore {
           && validUser()
           && request.resource.data.role == 'General User'
           && hasNoAdminPermissions()
+          && membershipFieldsUnchanged()
         || isOwner(userId)
           && validUser()
           && request.resource.data.role == resource.data.role
           && request.resource.data.status == resource.data.status
           && request.resource.data.permissions == resource.data.permissions
-          && profileTagsUnchanged();
+          && profileTagsUnchanged()
+          && membershipFieldsUnchanged();
       allow delete: if isSuperUser();
     }
 

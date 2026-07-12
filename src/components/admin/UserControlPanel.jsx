@@ -624,6 +624,7 @@ function UserTable({ canManageAdminUsers, currentUserProfile, users, onEdit }) {
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
+            <th>Membership</th>
             <th>Permissions</th>
             <th>Tags</th>
             <th>Action</th>
@@ -644,6 +645,7 @@ function UserTable({ canManageAdminUsers, currentUserProfile, users, onEdit }) {
                 </td>
                 <td data-label="Email">{user.email || 'Email TBD'}</td>
                 <td data-label="Phone">{user.phone || 'Phone TBD'}</td>
+                <td data-label="Membership">{user.membershipStatus || 'Unknown'}</td>
                 <td data-label="Permissions">
                   {user.role === 'Super User'
                     ? 'All Permissions'
