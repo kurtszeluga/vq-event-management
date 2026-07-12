@@ -42,6 +42,14 @@ function openSupplyListPopup(event) {
   window.open(`/events/${event.id}/supply-list`, 'vq-supply-list', 'popup,width=1100,height=900');
 }
 
+function openEventPrintView(event) {
+  if (!event?.id) {
+    return;
+  }
+
+  window.open(`/events/${event.id}/print`, 'vq-event-print', 'popup,width=1100,height=900');
+}
+
 function EventsPage() {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
@@ -202,6 +210,13 @@ function EventsPage() {
                 )}
               </div>
               <div className="public-event-card-actions">
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() => openEventPrintView(event)}
+                >
+                  Print Event
+                </button>
                 {event.supplyListUrl ? (
                   <button
                     className="text-button"

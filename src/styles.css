@@ -222,6 +222,10 @@ a {
   width: 100%;
 }
 
+.event-print-page .public-event-card--print {
+  max-width: 980px;
+}
+
 body.popup-mode .site-header,
 body.popup-mode .auth-banner,
 body.popup-mode .pull-refresh-indicator {
@@ -1507,6 +1511,7 @@ body.popup-mode .page-content {
   .site-header,
   .auth-banner,
   .pull-refresh-indicator,
+  .viewer-toolbar,
   .text-button,
   .nav-link,
   .nav-button,
@@ -1536,6 +1541,10 @@ body.popup-mode .page-content {
 
   .event-detail-layout {
     grid-template-columns: 1fr;
+  }
+
+  .event-print-page .public-event-card--print {
+    max-width: none;
   }
 
   .event-image-grid,

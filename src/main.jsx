@@ -8,6 +8,7 @@ import BusinessListingsPage from './pages/BusinessListingsPage.jsx';
 import ForSalePage from './pages/ForSalePage.jsx';
 import EventDetailsPage from './pages/EventDetailsPage.jsx';
 import SupplyListViewerPage from './pages/SupplyListViewerPage.jsx';
+import EventListingPrintPage from './pages/EventListingPrintPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       { path: 'business-listings', element: <BusinessListingsPage /> },
       { path: 'for-sale', element: <ForSalePage /> },
       { path: 'events/:eventId', element: <EventDetailsPage /> },
+      { path: 'events/:eventId/print', element: <EventListingPrintPage /> },
       { path: 'events/:eventId/supply-list', element: <SupplyListViewerPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'login', element: <LoginPage /> },
