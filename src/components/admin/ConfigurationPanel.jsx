@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_MEMBERSHIP_SETTINGS,
   deleteEventLocationDefault,
@@ -66,6 +66,96 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
   const memberCounts = getMemberCounts(members);
+
+  function renderMemberForm() {
+    return (
+      <form className="configuration-form-grid" onSubmit={handleSaveMember}>
+        <label>
+          <span>First Name</span>
+          <input
+            value={memberForm.firstName}
+            onBlur={(event) =>
+              setMemberForm((current) => ({ ...current, firstName: toTitleCase(event.target.value) }))
+            }
+            onChange={(event) =>
+              setMemberForm((current) => ({ ...current, firstName: event.target.value }))
+            }
+          />
+        </label>
+        <label>
+          <span>Last Name</span>
+          <input
+            value={memberForm.lastName}
+            onBlur={(event) =>
+              setMemberForm((current) => ({ ...current, lastName: toTitleCase(event.target.value) }))
+            }
+            onChange={(event) =>
+              setMemberForm((current) => ({ ...current, lastName: event.target.value }))
+            }
+          />
+        </label>
+        <label>
+          <span>Email</span>
+          <input
+            type="email"
+            value={memberForm.email}
+            onChange={(event) =>
+              setMemberForm((current) => ({ ...current, email: event.target.value }))
+            }
+          />
+        </label>
+        <label>
+          <span>Phone</span>
+          <input
+            type="tel"
+            value={memberForm.phone}
+            onChange={(event) =>
+              setMemberForm((current) => ({
+                ...current,
+                phone: formatPhoneNumber(event.target.value)
+              }))
+            }
+          />
+        </label>
+        <label>
+          <span>Status</span>
+          <select
+            value={memberForm.status}
+            onChange={(event) =>
+              setMemberForm((current) => ({ ...current, status: event.target.value }))
+            }
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </label>
+        <label className="configuration-span">
+          <span>Notes</span>
+          <input
+            value={memberForm.notes}
+            onChange={(event) =>
+              setMemberForm((current) => ({ ...current, notes: event.target.value }))
+            }
+          />
+        </label>
+        <div className="configuration-actions configuration-span">
+          <button className="button-link button-reset" disabled={savingSection === 'member'} type="submit">
+            {savingSection === 'member' ? 'Saving...' : memberForm.id ? 'Save Member' : 'Save New Member'}
+          </button>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              setMemberForm(EMPTY_MEMBER_FORM);
+              setMemberFormOpen(false);
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   useEffect(() => {
     let pendingLoads = 4;
@@ -329,93 +419,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           </button>
           {importMessage ? <span className="form-help">{importMessage}</span> : null}
         </div>
-        {memberFormOpen ? (
-          <form className="configuration-form-grid" onSubmit={handleSaveMember}>
-            <label>
-              <span>First Name</span>
-              <input
-                value={memberForm.firstName}
-                onBlur={(event) =>
-                  setMemberForm((current) => ({ ...current, firstName: toTitleCase(event.target.value) }))
-                }
-                onChange={(event) =>
-                  setMemberForm((current) => ({ ...current, firstName: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              <span>Last Name</span>
-              <input
-                value={memberForm.lastName}
-                onBlur={(event) =>
-                  setMemberForm((current) => ({ ...current, lastName: toTitleCase(event.target.value) }))
-                }
-                onChange={(event) =>
-                  setMemberForm((current) => ({ ...current, lastName: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              <span>Email</span>
-              <input
-                type="email"
-                value={memberForm.email}
-                onChange={(event) =>
-                  setMemberForm((current) => ({ ...current, email: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              <span>Phone</span>
-              <input
-                type="tel"
-                value={memberForm.phone}
-                onChange={(event) =>
-                  setMemberForm((current) => ({
-                    ...current,
-                    phone: formatPhoneNumber(event.target.value)
-                  }))
-                }
-              />
-            </label>
-            <label>
-              <span>Status</span>
-              <select
-                value={memberForm.status}
-                onChange={(event) =>
-                  setMemberForm((current) => ({ ...current, status: event.target.value }))
-                }
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </label>
-            <label className="configuration-span">
-              <span>Notes</span>
-              <input
-                value={memberForm.notes}
-                onChange={(event) =>
-                  setMemberForm((current) => ({ ...current, notes: event.target.value }))
-                }
-              />
-            </label>
-            <div className="configuration-actions configuration-span">
-              <button className="button-link button-reset" disabled={savingSection === 'member'} type="submit">
-                {savingSection === 'member' ? 'Saving...' : memberForm.id ? 'Save Member' : 'Save New Member'}
-              </button>
-              <button
-                className="text-button"
-                type="button"
-                onClick={() => {
-                  setMemberForm(EMPTY_MEMBER_FORM);
-                  setMemberFormOpen(false);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : null}
+        {memberFormOpen && !memberForm.id ? renderMemberForm() : null}
         {memberListOpen ? (
           <ConfigurationTable
             columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
@@ -436,7 +440,8 @@ function ConfigurationPanel({ currentUserProfile }) {
                     setMemberFormOpen(true);
                   }}
                 />
-              ]
+              ],
+              detail: memberFormOpen && memberForm.id === member.id ? renderMemberForm() : null
             }))}
           />
         ) : null}
@@ -721,13 +726,22 @@ function ConfigurationTable({ columns, emptyText, rows }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id}>
-              {row.cells.map((cell, index) => (
-                <td data-label={columns[index]} key={`${row.id}-${columns[index]}`}>
-                  {cell}
-                </td>
-              ))}
-            </tr>
+            <Fragment key={row.id}>
+              <tr key={row.id}>
+                {row.cells.map((cell, index) => (
+                  <td data-label={columns[index]} key={`${row.id}-${columns[index]}`}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+              {row.detail ? (
+                <tr className="configuration-detail-row" key={`${row.id}-detail`}>
+                  <td className="configuration-detail-cell" colSpan={columns.length}>
+                    {row.detail}
+                  </td>
+                </tr>
+              ) : null}
+            </Fragment>
           ))}
         </tbody>
       </table>

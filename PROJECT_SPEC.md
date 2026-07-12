@@ -126,6 +126,7 @@ Administrator Features
   * Member records store First Name and Last Name as separate fields.
   * Manually add, edit, or remove members from the membership list.
   * Keep the member list table hidden until the Super User chooses to show it.
+  * Open member edits inline at the selected member row.
   * Manage default event/activity locations.
   * Manage default event/activity start/end time choices.
   * Default time choices display in standard time format.

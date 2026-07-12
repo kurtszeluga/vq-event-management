@@ -936,6 +936,11 @@ a {
   margin-top: 3px;
 }
 
+.configuration-detail-row td {
+  background: #fffaf5;
+  padding: 18px;
+}
+
 .configuration-panel {
   display: grid;
   gap: 26px;
@@ -1152,6 +1157,15 @@ a {
     font-size: 0.78rem;
     font-weight: 900;
     text-transform: uppercase;
+  }
+
+  .user-table .configuration-detail-cell {
+    display: block;
+    padding: 12px 4px;
+  }
+
+  .user-table .configuration-detail-cell::before {
+    content: none;
   }
 
   .nested-fields {
