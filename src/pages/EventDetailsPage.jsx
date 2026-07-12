@@ -20,7 +20,7 @@ function EventDetailsPage() {
       return;
     }
 
-    window.open(event.supplyListUrl, '_blank', 'noopener,noreferrer');
+    window.open(`/events/${eventId}/supply-list`, 'vq-supply-list', 'popup,width=1100,height=900');
   }
 
   useEffect(() => {

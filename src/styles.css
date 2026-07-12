@@ -179,6 +179,49 @@ a {
   padding: 18px;
 }
 
+.viewer-page {
+  display: grid;
+  gap: 18px;
+  max-width: none;
+  min-height: calc(100vh - 48px);
+}
+
+.viewer-toolbar {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.viewer-eyebrow {
+  color: #9a4d2f;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.viewer-toolbar h1 {
+  font-size: 1.9rem;
+  margin: 0;
+}
+
+.viewer-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.viewer-frame {
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  height: min(80vh, 920px);
+  width: 100%;
+}
+
 body.popup-mode .site-header,
 body.popup-mode .auth-banner,
 body.popup-mode .pull-refresh-indicator {
