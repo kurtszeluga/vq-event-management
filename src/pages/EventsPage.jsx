@@ -55,43 +55,49 @@ function EventsPage() {
       <div className="public-event-list">
         {visibleEvents.map((event) => (
           <article className="public-event-card" key={event.id}>
-            <div className="card-kicker">
-              <span>{event.eventType}</span>
-              <strong>
-                {event.registrationOpen ? 'Registration open' : 'Registration closed'}
-              </strong>
+            <div className="public-event-card-main">
+              <div className="card-kicker">
+                <span>{event.eventType}</span>
+                <strong>
+                  {event.registrationOpen ? 'Registration open' : 'Registration closed'}
+                </strong>
+              </div>
+              <h2>{event.title}</h2>
+              <p>{event.description}</p>
+              <dl>
+                <div>
+                  <dt>Date</dt>
+                  <dd>{formatEventDate(event.date)}</dd>
+                </div>
+                <div>
+                  <dt>Time</dt>
+                  <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                </div>
+                <div>
+                  <dt>Location</dt>
+                  <dd>{event.location}</dd>
+                </div>
+                <div>
+                  <dt>Cost</dt>
+                  <dd>{event.isPaid ? formatCurrency(event.cost) : 'Free'}</dd>
+                </div>
+              </dl>
             </div>
-            <h2>{event.title}</h2>
-            <p>{event.description}</p>
-            <dl>
-              <div>
-                <dt>Date</dt>
-                <dd>{formatEventDate(event.date)}</dd>
-              </div>
-              <div>
-                <dt>Time</dt>
-                <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-              </div>
-              <div>
-                <dt>Location</dt>
-                <dd>{event.location}</dd>
-              </div>
-              <div>
-                <dt>Cost</dt>
-                <dd>
-                  {event.isPaid ? formatCurrency(event.cost) : 'Free'} plus{' '}
-                  {formatCurrency(event.serviceFee)} fee
-                </dd>
-              </div>
-            </dl>
-            {event.supplyListUrl ? (
-              <a className="text-button" href={event.supplyListUrl}>
-                {event.supplyListTitle || event.supplyListFileName || 'Supply list'}
-              </a>
-            ) : null}
-            <Link className="button-link" to={`/events/${event.id}`}>
-              View details
-            </Link>
+            <div className="public-event-card-actions">
+              {event.supplyListUrl ? (
+                <a className="text-button" href={event.supplyListUrl}>
+                  {event.supplyListTitle || event.supplyListFileName || 'Supply list'}
+                </a>
+              ) : null}
+              <Link className="button-link secondary-action" to={`/events/${event.id}`}>
+                View Details
+              </Link>
+              {event.registrationOpen ? (
+                <Link className="button-link" to={`/events/${event.id}`}>
+                  Register
+                </Link>
+              ) : null}
+            </div>
           </article>
         ))}
       </div>

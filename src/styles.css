@@ -780,11 +780,23 @@ a {
   padding: 18px;
 }
 
+.public-event-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.public-event-card-main {
+  display: grid;
+  gap: 10px;
+}
+
 .event-admin-card p,
 .user-admin-card p,
 .public-event-card p {
   color: #5c6966;
   line-height: 1.6;
+  margin: 0;
 }
 
 .card-kicker {
@@ -816,6 +828,10 @@ a {
   margin: 18px 0 0;
 }
 
+.public-event-card dl {
+  margin-top: 4px;
+}
+
 .event-admin-card dt,
 .user-admin-card dt,
 .public-event-card dt,
@@ -831,6 +847,13 @@ a {
 .public-event-card dd,
 .detail-panel dd {
   margin: 4px 0 0;
+}
+
+.public-event-card-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .user-edit-grid {
@@ -1099,11 +1122,6 @@ a {
   align-content: start;
   display: grid;
   gap: 12px;
-}
-
-.public-event-card {
-  display: grid;
-  gap: 16px;
 }
 
 .event-detail-layout {

@@ -26,6 +26,8 @@ Project Goals
 * Simple for administrators to manage.
 * Easy for members to register.
 * Registration actions should live inside the event module, not as a standalone main navigation item.
+* Admin navigation is only visible to signed-in admin users.
+* Event listing cards should stay compact, omit service fees, and show a Register action when registration is open.
 * Mobile-friendly.
 * Fast and responsive.
 * Secure.
