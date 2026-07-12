@@ -767,7 +767,7 @@ a {
 }
 
 .public-event-list {
-  margin-top: 36px;
+  margin-top: 22px;
 }
 
 .event-admin-card,
@@ -781,14 +781,21 @@ a {
 }
 
 .public-event-card {
+  align-items: start;
   display: grid;
-  gap: 16px;
+  gap: 12px 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 140px);
   padding: 18px;
 }
 
 .public-event-card-main {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+}
+
+.public-event-card h2 {
+  font-size: 1.3rem;
+  line-height: 1.2;
 }
 
 .event-admin-card p,
@@ -832,6 +839,12 @@ a {
   margin-top: 4px;
 }
 
+.event-card-date dd {
+  color: #225c56;
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
 .event-admin-card dt,
 .user-admin-card dt,
 .public-event-card dt,
@@ -853,7 +866,41 @@ a {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
+  grid-column: 1 / -1;
   gap: 10px;
+}
+
+.event-card-description {
+  display: grid;
+  gap: 4px;
+  max-width: 72ch;
+}
+
+.event-description-toggle {
+  justify-self: start;
+}
+
+.event-type-filter {
+  margin-top: 24px;
+}
+
+.public-event-card-thumbnail {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.public-event-card-thumbnail img,
+.public-event-card-thumbnail .image-placeholder {
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.public-event-card-thumbnail .image-placeholder {
+  background: #eee8e1;
+  border: 1px dashed #c9bbb0;
 }
 
 .user-edit-grid {
@@ -1209,12 +1256,23 @@ a {
 
   .event-admin-card,
   .user-admin-card,
+  .public-event-card,
   .event-detail-layout,
   .capacity-row,
   .form-grid,
   .form-grid.compact,
   .configuration-form-grid,
   .user-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-event-card-thumbnail {
+    grid-column: 1;
+    grid-row: auto;
+    max-width: 180px;
+  }
+
+  .public-event-card dl {
     grid-template-columns: 1fr;
   }
 

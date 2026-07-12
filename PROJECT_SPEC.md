@@ -27,7 +27,8 @@ Project Goals
 * Easy for members to register.
 * Registration actions should live inside the event module, not as a standalone main navigation item.
 * Admin navigation is only visible to signed-in admin users.
-* Event listing cards should stay compact, omit service fees, and show a Register action when registration is open.
+* Event listing cards should stay compact, omit service fees, show presenter details, include a thumbnail image, make the date prominent, and show a Register action when registration is open.
+* Event listings should include event/activity type filter buttons and expandable descriptions for longer text.
 * Mobile-friendly.
 * Fast and responsive.
 * Secure.
