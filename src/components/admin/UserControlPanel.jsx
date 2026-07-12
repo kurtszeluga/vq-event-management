@@ -64,13 +64,14 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     return unsubscribe;
   }, [canManageAdminUsers]);
 
-  const membershipCounts = getCounts(users, (user) => user.membershipStatus || 'Unknown');
-  const profileStatusCounts = getCounts(users, (user) => user.status || 'Active');
+  const membershipCountableUsers = users.filter((user) => user.role !== 'Super User');
+  const membershipCounts = getCounts(membershipCountableUsers, getDisplayMembershipStatus);
+  const profileStatusCounts = getCounts(users, getDisplayProfileStatus);
   const filteredUsers = users.filter((user) => {
-    const membershipStatus = user.membershipStatus || 'Unknown';
-    const profileStatus = user.status || 'Active';
+    const membershipStatus = getDisplayMembershipStatus(user);
+    const profileStatus = getDisplayProfileStatus(user);
 
-    return (membershipFilter === 'All' || membershipStatus === membershipFilter)
+    return (membershipFilter === 'All' || user.role !== 'Super User' && membershipStatus === membershipFilter)
       && (profileStatusFilter === 'All' || profileStatus === profileStatusFilter);
   });
 
@@ -116,7 +117,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       phone: formatPhoneNumber(user.phone || ''),
       profileTags: normalizeProfileTags(user.profileTags),
       role: user.role || 'General User',
-      status: user.status || 'Active',
+      status: user.role === 'Super User' ? 'Active' : user.status || 'Active',
       temporaryPassword: '',
       userId: user.userId || user.id
     });
@@ -192,7 +193,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         phone: formatPhoneNumber(form.phone),
         profileTags: normalizeProfileTags(form.profileTags),
         role: form.role,
-        status: form.status,
+        status: form.role === 'Super User' ? 'Active' : form.status,
         userId: form.userId
       };
 
@@ -259,7 +260,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
             type="button"
             onClick={() => setMembershipFilter(status)}
           >
-            {status === 'All' ? `All Membership (${users.length})` : `${status} (${membershipCounts[status] || 0})`}
+            {status === 'All'
+              ? `All Membership (${membershipCountableUsers.length})`
+              : `${status} (${membershipCounts[status] || 0})`}
           </button>
         ))}
       </div>
@@ -394,7 +397,12 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     <span>Role</span>
                     <select
                       value={form.role}
-                      onChange={(event) => updateFormField('role', event.target.value)}
+                      onChange={(event) => {
+                        updateFormField('role', event.target.value);
+                        if (event.target.value === 'Super User') {
+                          updateFormField('status', 'Active');
+                        }
+                      }}
                     >
                       {USER_ROLES.map((role) => (
                         <option key={role} value={role}>
@@ -474,7 +482,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
               <div>
                 <div className="card-kicker">
                   <span>{user.role || 'General User'}</span>
-                  <strong>{user.status || 'Active'}</strong>
+                  <strong>{getDisplayProfileStatus(user)}</strong>
                 </div>
                 <div className="user-edit-grid">
                     <label>
@@ -571,7 +579,12 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                         <span>Role</span>
                         <select
                           value={form.role}
-                          onChange={(event) => updateFormField('role', event.target.value)}
+                          onChange={(event) => {
+                            updateFormField('role', event.target.value);
+                            if (event.target.value === 'Super User') {
+                              updateFormField('status', 'Active');
+                            }
+                          }}
                         >
                           {USER_ROLES.map((role) => (
                             <option key={role} value={role}>
@@ -584,6 +597,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     <label>
                       <span>Status</span>
                       <select
+                        disabled={form.role === 'Super User'}
                         value={form.status}
                         onChange={(event) => updateFormField('status', event.target.value)}
                       >
@@ -594,6 +608,13 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                         ))}
                       </select>
                     </label>
+                    <div className="password-panel">
+                      <span className="field-label">Membership</span>
+                      <span className="form-help">
+                        {getDisplayMembershipStatus(user)}
+                        {user.membershipMatchedBy ? `, matched by ${user.membershipMatchedBy}` : ''}
+                      </span>
+                    </div>
                     {canManageAdminUsers ? (
                       <PermissionPanel
                         permissions={form.permissions}
@@ -670,6 +691,35 @@ function getCounts(items, getValue) {
   }, {});
 }
 
+function getDisplayMembershipStatus(user) {
+  return user.role === 'Super User' ? 'N/A' : user.membershipStatus || 'Unknown';
+}
+
+function getDisplayProfileStatus(user) {
+  return user.role === 'Super User' ? 'Active' : user.status || 'Active';
+}
+
+function formatAddress(address = {}) {
+  return [
+    address.street,
+    address.city,
+    [address.state, address.postalCode].filter(Boolean).join(' '),
+    address.country
+  ]
+    .filter(Boolean)
+    .join(', ') || 'No Billing Address';
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return 'Not Set';
+  }
+
+  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? 'Not Set' : date.toLocaleString();
+}
+
 function UserTable({
   canManageAdminUsers,
   currentUserProfile,
@@ -691,7 +741,6 @@ function UserTable({
             <th>Email</th>
             <th>Membership</th>
             <th>Status</th>
-            <th>Details</th>
             <th>Permissions</th>
             <th>Action</th>
           </tr>
@@ -702,6 +751,8 @@ function UserTable({
               user.id === currentUserProfile?.id ||
               user.userId === currentUserProfile?.userId;
             const displayPermissions = normalizePermissions(user.permissions);
+            const displayMembership = getDisplayMembershipStatus(user);
+            const displayStatus = getDisplayProfileStatus(user);
             const userId = user.userId || user.id;
             const detailsOpen = detailsUserId === user.id;
 
@@ -713,17 +764,8 @@ function UserTable({
                     <span>{user.role || 'General User'}</span>
                   </td>
                   <td data-label="Email">{user.email || 'Email TBD'}</td>
-                  <td data-label="Membership">{user.membershipStatus || 'Unknown'}</td>
-                  <td data-label="Status">{user.status || 'Active'}</td>
-                  <td data-label="Details">
-                    <button
-                      className="text-button"
-                      type="button"
-                      onClick={() => onDetails(user.id)}
-                    >
-                      {detailsOpen ? 'Hide Details' : 'Details'}
-                    </button>
-                  </td>
+                  <td data-label="Membership">{displayMembership}</td>
+                  <td data-label="Status">{displayStatus}</td>
                   <td data-label="Permissions">
                     {user.role === 'Super User'
                       ? 'All Permissions'
@@ -731,31 +773,88 @@ function UserTable({
                   </td>
                   <td data-label="Action">
                     {isCurrentUser ? (
-                      <span className="form-help">Current User</span>
+                      <>
+                        <span className="form-help">Current User</span>
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() => onDetails(user.id)}
+                        >
+                          {detailsOpen ? 'Hide Details' : 'Details'}
+                        </button>
+                      </>
                     ) : canEditUser(user, canManageAdminUsers) ? (
-                      <button
-                        className="button-link button-reset"
-                        type="button"
-                        onClick={() => onEdit(user)}
-                      >
-                        Edit
-                      </button>
+                      <>
+                        <button
+                          className="button-link button-reset"
+                          type="button"
+                          onClick={() => onEdit(user)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() => onDetails(user.id)}
+                        >
+                          {detailsOpen ? 'Hide Details' : 'Details'}
+                        </button>
+                      </>
                     ) : (
-                      <span className="form-help">Admin Profile</span>
+                      <>
+                        <span className="form-help">Admin Profile</span>
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() => onDetails(user.id)}
+                        >
+                          {detailsOpen ? 'Hide Details' : 'Details'}
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
                 {detailsOpen ? (
                   <tr className="configuration-detail-row">
-                    <td className="configuration-detail-cell" colSpan={7}>
+                    <td className="configuration-detail-cell" colSpan={6}>
                       <div className="user-detail-grid">
+                        <span>
+                          <strong>Name</strong>
+                          {user.name || 'Unnamed User'}
+                        </span>
+                        <span>
+                          <strong>Email</strong>
+                          {user.email || 'Email TBD'}
+                        </span>
                         <span>
                           <strong>Phone</strong>
                           {user.phone || 'Phone TBD'}
                         </span>
                         <span>
+                          <strong>Role</strong>
+                          {user.role || 'General User'}
+                        </span>
+                        <span>
+                          <strong>Status</strong>
+                          {displayStatus}
+                        </span>
+                        <span>
+                          <strong>Membership Status</strong>
+                          {displayMembership}
+                        </span>
+                        <span>
+                          <strong>Permissions</strong>
+                          {user.role === 'Super User'
+                            ? 'All Permissions'
+                            : getPermissionSummary(displayPermissions)}
+                        </span>
+                        <span>
                           <strong>Tags</strong>
                           {getProfileTagSummary(normalizeProfileTags(user.profileTags))}
+                        </span>
+                        <span>
+                          <strong>Billing Address</strong>
+                          {formatAddress(user.billingAddress)}
                         </span>
                         <span>
                           <strong>Matched By</strong>
@@ -768,6 +867,18 @@ function UserTable({
                         <span>
                           <strong>User ID</strong>
                           {userId}
+                        </span>
+                        <span>
+                          <strong>Created</strong>
+                          {formatDateTime(user.createdDate)}
+                        </span>
+                        <span>
+                          <strong>Updated</strong>
+                          {formatDateTime(user.updatedDate)}
+                        </span>
+                        <span>
+                          <strong>Membership Updated</strong>
+                          {formatDateTime(user.membershipUpdatedDate)}
                         </span>
                       </div>
                     </td>
