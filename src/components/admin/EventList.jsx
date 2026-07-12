@@ -240,7 +240,12 @@ function EventList({ events, isSuperUser, loading, onDelete, onEdit }) {
             <button className="button-link button-reset compact-action" type="button" onClick={() => onEdit(event)}>
               Edit
             </button>
-            <button className="danger-button" type="button" onClick={() => onDelete(event)}>
+            <button
+              className="danger-button"
+              title={isSuperUser ? 'Permanently delete this event' : 'Archive this event'}
+              type="button"
+              onClick={() => onDelete(event)}
+            >
               {isSuperUser ? 'Delete' : 'Archive'}
             </button>
           </div>
