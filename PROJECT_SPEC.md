@@ -123,6 +123,7 @@ Administrator Features
   * Configure whether admins may skip the membership check.
   * Upload a CSV file of members.
   * CSV imports support Add/Update Only mode and Annual Refresh mode.
+  * Member CSV upload stays disabled until the Super User selects an import mode.
   * Annual Refresh mode marks uploaded members Active and marks existing non-archived members missing from the CSV as Inactive.
   * CSV imports support common headers including Name, First Name, Last Name, Email, Phone, Status, and Notes.
   * Member records store First Name and Last Name as separate fields.

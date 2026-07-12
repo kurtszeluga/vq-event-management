@@ -60,7 +60,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
-  const [memberImportMode, setMemberImportMode] = useState('addUpdate');
+  const [memberImportMode, setMemberImportMode] = useState('');
   const [memberListOpen, setMemberListOpen] = useState(false);
   const [memberStatusFilter, setMemberStatusFilter] = useState('Active');
   const [members, setMembers] = useState([]);
@@ -246,6 +246,12 @@ function ConfigurationPanel({ currentUserProfile }) {
       return;
     }
 
+    if (!memberImportMode) {
+      setError('Choose an import mode before uploading the member CSV.');
+      event.target.value = '';
+      return;
+    }
+
     setImportMessage('');
     await runSave('csv', async () => {
       const text = await file.text();
@@ -398,6 +404,17 @@ function ConfigurationPanel({ currentUserProfile }) {
           <span>Total: {memberCounts.total}</span>
         </div>
         <div className="configuration-actions">
+          <label className="configuration-inline-label">
+            <span>Import Mode</span>
+            <select
+              value={memberImportMode}
+              onChange={(event) => setMemberImportMode(event.target.value)}
+            >
+              <option value="">Choose Import Mode</option>
+              <option value="addUpdate">Add/Update Only</option>
+              <option value="annualRefresh">Annual Refresh</option>
+            </select>
+          </label>
           <input
             accept=".csv,text/csv"
             className="visually-hidden-file"
@@ -407,22 +424,12 @@ function ConfigurationPanel({ currentUserProfile }) {
           />
           <button
             className="button-link button-reset secondary-action"
-            disabled={savingSection === 'csv'}
+            disabled={savingSection === 'csv' || !memberImportMode}
             type="button"
             onClick={() => csvInputRef.current?.click()}
           >
             {savingSection === 'csv' ? 'Importing...' : 'Upload Member CSV'}
           </button>
-          <label className="configuration-inline-label">
-            <span>Import Mode</span>
-            <select
-              value={memberImportMode}
-              onChange={(event) => setMemberImportMode(event.target.value)}
-            >
-              <option value="addUpdate">Add/Update Only</option>
-              <option value="annualRefresh">Annual Refresh</option>
-            </select>
-          </label>
           <button
             className="button-link button-reset secondary-action"
             type="button"
