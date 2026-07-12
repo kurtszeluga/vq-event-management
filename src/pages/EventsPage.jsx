@@ -47,19 +47,166 @@ function openEventPrintView(event) {
     return;
   }
 
-  const cacheKey = `vq-event-print:${event.id}:${Date.now()}`;
+  const popup = window.open('', 'vq-event-print', 'popup,width=1100,height=900');
 
-  try {
-    window.localStorage.setItem(cacheKey, JSON.stringify(event));
-  } catch {
-    // If storage is unavailable, the print page will fall back to Firestore.
+  if (!popup) {
+    return;
   }
 
-  window.open(
-    `/events/${event.id}/print?cacheKey=${encodeURIComponent(cacheKey)}`,
-    'vq-event-print',
-    'popup,width=1100,height=900'
-  );
+  const printWindow = popup;
+  const html = buildEventPrintHtml(event);
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+function buildEventPrintHtml(event) {
+  const title = escapeHtml(event.title || 'Event');
+  const eventType = escapeHtml(getEventTypeLabel(event));
+  const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
+  const date = escapeHtml(formatEventDate(event.date));
+  const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
+  const presenter = escapeHtml(event.presenter || 'To be announced');
+  const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'Free');
+  const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
+
+  return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Print ${title}</title>
+      <style>
+        :root {
+          color: #1d2927;
+          background: #ffffff;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        html, body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          padding: 32px 28px 40px;
+        }
+        .page {
+          margin: 0 auto;
+          max-width: 760px;
+        }
+        .topbar {
+          align-items: flex-start;
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 22px;
+        }
+        .eyebrow {
+          color: #9a4d2f;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          margin: 0 0 8px;
+          text-transform: uppercase;
+        }
+        h1 {
+          font-size: 28px;
+          line-height: 1.15;
+          margin: 0;
+        }
+        .meta {
+          display: grid;
+          gap: 12px;
+          margin: 20px 0 0;
+        }
+        .meta-row {
+          display: grid;
+          grid-template-columns: 120px 1fr;
+          gap: 12px;
+        }
+        .meta-label {
+          font-weight: 800;
+        }
+        .pill {
+          display: inline-flex;
+          align-items: center;
+          background: #e9f2ef;
+          border: 1px solid #c6dad5;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 800;
+          padding: 6px 10px;
+        }
+        .actions {
+          display: inline-flex;
+          gap: 8px;
+          margin-top: 4px;
+        }
+        button {
+          appearance: none;
+          border: 1px solid #225c56;
+          border-radius: 8px;
+          background: #225c56;
+          color: #fff;
+          cursor: pointer;
+          font: inherit;
+          font-weight: 700;
+          padding: 10px 14px;
+        }
+        button.secondary {
+          background: #fff;
+          color: #225c56;
+        }
+        .description {
+          white-space: pre-wrap;
+          line-height: 1.55;
+          margin: 16px 0 0;
+        }
+        @media print {
+          body {
+            padding: 0;
+          }
+          .actions {
+            display: none;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <main class="page">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Event listing</p>
+            <h1>${title}</h1>
+          </div>
+          <div class="actions">
+            <button type="button" onclick="window.print()">Print</button>
+            <button type="button" class="secondary" onclick="window.close()">Close</button>
+          </div>
+        </div>
+        <div class="pill">${eventType}</div>
+        <div class="meta">
+          <div class="meta-row"><div class="meta-label">Status</div><div>${registration}</div></div>
+          <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+          <div class="meta-row"><div class="meta-label">Time</div><div>${time}</div></div>
+          <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
+          <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
+        </div>
+        ${description}
+      </main>
+    </body>
+  </html>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function EventsPage() {
