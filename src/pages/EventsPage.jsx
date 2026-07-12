@@ -35,6 +35,7 @@ function EventsPage() {
   const [error, setError] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState(ALL_EVENT_TYPES);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  const [openSupplyListEventId, setOpenSupplyListEventId] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -87,6 +88,11 @@ function EventsPage() {
     }));
   }
 
+  const openSupplyListEvent = useMemo(
+    () => filteredEvents.find((event) => event.id === openSupplyListEventId) || null,
+    [filteredEvents, openSupplyListEventId]
+  );
+
   return (
     <section>
       <PageHeader
@@ -132,18 +138,16 @@ function EventsPage() {
 
           return (
             <article className="public-event-card" key={event.id}>
-              <div className="public-event-card-header">
-                <div className="card-kicker">
-                  <span>{getEventTypeLabel(event)}</span>
-                  <strong>
-                    {event.registrationOpen ? 'Registration open' : 'Registration closed'}
-                  </strong>
-                </div>
+              <div className="card-kicker">
+                <span className="event-type-pill">{getEventTypeLabel(event)}</span>
                 {event.registrationOpen ? (
                   <Link className="button-link" to={`/events/${event.id}`}>
                     Register
                   </Link>
                 ) : null}
+                <strong>
+                  {event.registrationOpen ? 'Registration open' : 'Registration closed'}
+                </strong>
               </div>
               <div className="public-event-card-main">
                 <h2>{event.title}</h2>
@@ -189,19 +193,53 @@ function EventsPage() {
               </div>
               <div className="public-event-card-actions">
                 {event.supplyListUrl ? (
-                  <Link
+                  <button
                     className="text-button"
-                    to={`/events/${event.id}?view=supply-list`}
+                    type="button"
+                    onClick={() => setOpenSupplyListEventId(event.id)}
                   >
                     View and print{' '}
                     {event.supplyListTitle || event.supplyListFileName || 'supply list'}
-                  </Link>
+                  </button>
                 ) : null}
               </div>
             </article>
           );
         })}
       </div>
+      {openSupplyListEvent ? (
+        <div className="supply-list-view" aria-live="polite">
+          <div className="supply-list-view-header">
+            <h2>
+              {openSupplyListEvent.supplyListTitle ||
+                openSupplyListEvent.supplyListFileName ||
+                'Supply list'}
+            </h2>
+            <div className="supply-list-view-actions">
+              <a
+                className="button-link secondary-action"
+                href={openSupplyListEvent.supplyListUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Print
+              </a>
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => setOpenSupplyListEventId('')}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+          <iframe
+            className="supply-list-view-frame"
+            src={openSupplyListEvent.supplyListUrl}
+            title={openSupplyListEvent.supplyListTitle || openSupplyListEvent.supplyListFileName || 'Supply list'}
+          />
+        </div>
+      ) : null}
     </section>
   );
 }

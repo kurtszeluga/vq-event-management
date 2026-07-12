@@ -15,7 +15,6 @@ function EventDetailsPage() {
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showSupplyList, setShowSupplyList] = useState(false);
   const openSupplyListOnLoad = useMemo(
     () => new URLSearchParams(location.search).get('view') === 'supply-list',
     [location.search]
@@ -50,15 +49,6 @@ function EventDetailsPage() {
     };
   }, [eventId]);
 
-  useEffect(() => {
-    if (event?.supplyListUrl && openSupplyListOnLoad) {
-      setShowSupplyList(true);
-      return;
-    }
-
-    setShowSupplyList(false);
-  }, [event?.supplyListUrl, openSupplyListOnLoad]);
-
   if (loading) {
     return (
       <section>
@@ -82,6 +72,36 @@ function EventDetailsPage() {
         <Link className="button-link" to="/events">
           Back to events
         </Link>
+      </section>
+    );
+  }
+
+  if (openSupplyListOnLoad && event.supplyListUrl) {
+    return (
+      <section>
+        <div className="supply-list-view">
+          <div className="supply-list-view-header">
+            <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
+            <div className="supply-list-view-actions">
+              <a
+                className="button-link secondary-action"
+                href={event.supplyListUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Print
+              </a>
+              <Link className="text-button" to="/events">
+                Close
+              </Link>
+            </div>
+          </div>
+          <iframe
+            className="supply-list-view-frame"
+            src={event.supplyListUrl}
+            title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
+          />
+        </div>
       </section>
     );
   }
@@ -121,32 +141,12 @@ function EventDetailsPage() {
             </div>
           </dl>
           {event.supplyListUrl ? (
-            <button
+            <Link
               className="text-button"
-              type="button"
-              onClick={() => setShowSupplyList(true)}
+              to={`/events/${event.id}?view=supply-list`}
             >
               View and print {event.supplyListTitle || event.supplyListFileName || 'supply list'}
-            </button>
-          ) : null}
-          {showSupplyList && event.supplyListUrl ? (
-            <div className="supply-list-view">
-              <div className="supply-list-view-header">
-                <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => setShowSupplyList(false)}
-                >
-                  Close
-                </button>
-              </div>
-              <iframe
-                className="supply-list-view-frame"
-                src={event.supplyListUrl}
-                title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
-              />
-            </div>
+            </Link>
           ) : null}
           {!event.registrationOpen ? (
             <p className="form-error">Registration is not currently open.</p>
