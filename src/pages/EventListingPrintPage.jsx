@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getEvent } from '../services/eventService.js';
 import {
   formatCurrency,
@@ -10,10 +10,13 @@ import {
 
 function EventListingPrintPage() {
   const { eventId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const didAutoPrintRef = useRef(false);
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const shouldAutoPrint = new URLSearchParams(location.search).get('autoprint') === '1';
 
   useEffect(() => {
     let active = true;
@@ -57,6 +60,16 @@ function EventListingPrintPage() {
     window.focus();
     window.setTimeout(() => window.print(), 150);
   }
+
+  useEffect(() => {
+    if (!shouldAutoPrint || didAutoPrintRef.current || loading || error || !event || !isEventVisible(event)) {
+      return undefined;
+    }
+
+    didAutoPrintRef.current = true;
+    window.print();
+    return undefined;
+  }, [shouldAutoPrint, loading, error, event]);
 
   if (loading) {
     return (

@@ -47,7 +47,11 @@ function openEventPrintView(event) {
     return;
   }
 
-  window.open(`/events/${event.id}/print`, 'vq-event-print', 'popup,width=1100,height=900');
+  window.open(
+    `/events/${event.id}/print?autoprint=1`,
+    'vq-event-print',
+    'popup,width=1100,height=900'
+  );
 }
 
 function EventsPage() {

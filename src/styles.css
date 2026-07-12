@@ -183,7 +183,7 @@ a {
   display: grid;
   gap: 18px;
   max-width: none;
-  padding: 8px 24px 0 clamp(28px, 8vw, 120px);
+  padding: 28px 24px 0 clamp(28px, 8vw, 120px);
 }
 
 .viewer-toolbar {
