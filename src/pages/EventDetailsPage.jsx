@@ -26,10 +26,6 @@ function EventDetailsPage() {
     [location.search]
   );
   const supplyListInlineUrl = useMemo(() => buildSupplyListProxyUrl(event, 'inline'), [event]);
-  const supplyListDownloadUrl = useMemo(
-    () => buildSupplyListProxyUrl(event, 'attachment'),
-    [event]
-  );
 
   function openSupplyListPopup() {
     const route = `/events/${eventId}?view=supply-list&popup=supply-list`;
@@ -133,9 +129,6 @@ function EventDetailsPage() {
           <div className="supply-list-view-header">
             <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
             <div className="supply-list-view-actions">
-              <a className="button-link secondary-action" href={supplyListDownloadUrl}>
-                Save
-              </a>
               <button className="button-link secondary-action" type="button" onClick={handlePrintSupplyList}>
                 Print
               </button>
