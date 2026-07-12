@@ -766,6 +766,7 @@ function parseMemberCsv(text) {
   const rows = parseCsvRows(text);
   const [headerRow = [], ...dataRows] = rows;
   const headers = headerRow.map(normalizeCsvHeader);
+  const simpleMemberLayout = isSimpleMemberCsvLayout(headers);
 
   return dataRows
     .map((row) => {
@@ -774,21 +775,10 @@ function parseMemberCsv(text) {
       headers.forEach((header, index) => {
         record[header] = row[index] || '';
       });
-      const firstName = getCsvValue(record, [
-        'firstName',
-        'firstname',
-        'first',
-        'givenName',
-        'givenname'
-      ]);
-      const lastName = getCsvValue(record, [
-        'lastName',
-        'lastname',
-        'last',
-        'surname',
-        'familyName',
-        'familyname'
-      ]);
+      const firstName = getCsvValue(record, FIRST_NAME_HEADERS)
+        || (simpleMemberLayout ? row[0] || '' : '');
+      const lastName = getCsvValue(record, LAST_NAME_HEADERS)
+        || (simpleMemberLayout ? row[1] || '' : '');
       const fullName = getCsvValue(record, [
         'name',
         'member',
@@ -796,14 +786,18 @@ function parseMemberCsv(text) {
         'fullName',
         'displayName'
       ]);
+      const email = getCsvValue(record, EMAIL_HEADERS)
+        || (simpleMemberLayout ? row[2] || '' : '');
+      const phone = getCsvValue(record, PHONE_HEADERS)
+        || (simpleMemberLayout ? row[3] || '' : '');
 
       return {
-        email: getCsvValue(record, ['email', 'emailAddress', 'eMail']),
+        email,
         firstName: toTitleCase(firstName),
         lastName: toTitleCase(lastName),
         name: toTitleCase(fullName || [firstName, lastName].filter(Boolean).join(' ')),
         notes: getCsvValue(record, ['notes', 'note', 'comments']),
-        phone: formatPhoneNumber(getCsvValue(record, ['phone', 'phoneNumber', 'telephone', 'mobile'])),
+        phone: formatPhoneNumber(phone),
         status: getCsvValue(record, ['status']).toLowerCase() === 'inactive'
           ? 'Inactive'
           : 'Active'
@@ -812,13 +806,26 @@ function parseMemberCsv(text) {
     .filter((row) => row.name || row.email || row.phone);
 }
 
+const FIRST_NAME_HEADERS = ['firstName', 'firstname', 'first', 'givenName', 'givenname'];
+const LAST_NAME_HEADERS = ['lastName', 'lastname', 'last', 'surname', 'familyName', 'familyname'];
+const EMAIL_HEADERS = ['email', 'emailAddress', 'eMail'];
+const PHONE_HEADERS = ['phone', 'phoneNumber', 'telephone', 'mobile'];
+
 function normalizeCsvHeader(header) {
   return header
     .trim()
     .replace(/^\uFEFF/, '')
+    .replace(/^ï»¿/, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+([a-z0-9])/g, (_, character) => character.toUpperCase())
     .replace(/[^a-z0-9]/g, '');
+}
+
+function isSimpleMemberCsvLayout(headers) {
+  return FIRST_NAME_HEADERS.includes(headers[0])
+    && LAST_NAME_HEADERS.includes(headers[1])
+    && EMAIL_HEADERS.includes(headers[2])
+    && PHONE_HEADERS.includes(headers[3]);
 }
 
 function getCsvValue(record, keys) {
@@ -832,6 +839,7 @@ function getCsvValue(record, keys) {
 }
 
 function parseCsvRows(text) {
+  const delimiter = detectCsvDelimiter(text);
   const rows = [];
   let cell = '';
   let row = [];
@@ -846,7 +854,7 @@ function parseCsvRows(text) {
       index += 1;
     } else if (character === '"') {
       inQuotes = !inQuotes;
-    } else if (character === ',' && !inQuotes) {
+    } else if (character === delimiter && !inQuotes) {
       row.push(cell.trim());
       cell = '';
     } else if ((character === '\n' || character === '\r') && !inQuotes) {
@@ -870,6 +878,18 @@ function parseCsvRows(text) {
   }
 
   return rows;
+}
+
+function detectCsvDelimiter(text) {
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const candidates = [',', '\t', ';'];
+
+  return candidates
+    .map((delimiter) => ({
+      delimiter,
+      count: firstLine.split(delimiter).length
+    }))
+    .sort((first, second) => second.count - first.count)[0].delimiter;
 }
 
 export default ConfigurationPanel;
