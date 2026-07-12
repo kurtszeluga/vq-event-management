@@ -987,6 +987,13 @@ a {
   width: 100%;
 }
 
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
 .user-edit-grid {
   display: grid;
   gap: 14px;
@@ -1423,5 +1430,46 @@ a {
   .nested-fields {
     margin-left: 8px;
     padding-left: 12px;
+  }
+}
+
+@media print {
+  .site-header,
+  .auth-banner,
+  .pull-refresh-indicator,
+  .text-button,
+  .nav-link,
+  .nav-button,
+  .button-link,
+  .form-actions,
+  .card-actions,
+  .public-event-card-actions,
+  .status-filter-group,
+  .supply-list-view-actions,
+  .page-header + .form-error,
+  .event-detail-layout .form-error {
+    display: none !important;
+  }
+
+  .page-content {
+    padding-top: 0;
+  }
+
+  .admin-form,
+  .admin-list-panel,
+  .detail-panel,
+  .public-event-card,
+  .supply-list-view {
+    border: 0;
+    padding: 0;
+  }
+
+  .event-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .event-image-grid,
+  .public-event-card-thumbnail {
+    max-width: 100%;
   }
 }

@@ -39,7 +39,6 @@ function EventsPage() {
   const [error, setError] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState(ALL_EVENT_TYPES);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
-  const [openSupplyListEventId, setOpenSupplyListEventId] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -95,11 +94,6 @@ function EventsPage() {
       [eventId]: !current[eventId]
     }));
   }
-
-  const openSupplyListEvent = useMemo(
-    () => events.find((event) => event.id === openSupplyListEventId) || null,
-    [events, openSupplyListEventId]
-  );
 
   return (
     <section>
@@ -201,53 +195,21 @@ function EventsPage() {
               </div>
               <div className="public-event-card-actions">
                 {event.supplyListUrl ? (
-                  <button
+                  <Link
                     className="text-button"
-                    type="button"
-                    onClick={() => setOpenSupplyListEventId(event.id)}
+                    rel="noreferrer"
+                    target="_blank"
+                    to={`/events/${event.id}?view=supply-list`}
                   >
                     View and print{' '}
                     {event.supplyListTitle || event.supplyListFileName || 'supply list'}
-                  </button>
+                  </Link>
                 ) : null}
               </div>
             </article>
           );
         })}
       </div>
-      {openSupplyListEvent ? (
-        <div className="supply-list-view" aria-live="polite">
-          <div className="supply-list-view-header">
-            <h2>
-              {openSupplyListEvent.supplyListTitle ||
-                openSupplyListEvent.supplyListFileName ||
-                'Supply list'}
-            </h2>
-            <div className="supply-list-view-actions">
-              <a
-                className="button-link secondary-action"
-                href={openSupplyListEvent.supplyListUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Print
-              </a>
-              <button
-                className="text-button"
-                type="button"
-                onClick={() => setOpenSupplyListEventId('')}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-          <iframe
-            className="supply-list-view-frame"
-            src={openSupplyListEvent.supplyListUrl}
-            title={openSupplyListEvent.supplyListTitle || openSupplyListEvent.supplyListFileName || 'Supply list'}
-          />
-        </div>
-      ) : null}
     </section>
   );
 }

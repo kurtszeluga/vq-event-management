@@ -151,6 +151,15 @@ function EventDetailsPage() {
           {!event.registrationOpen ? (
             <p className="form-error">Registration is not currently open.</p>
           ) : null}
+          <div className="detail-actions">
+            <button
+              className="button-link button-reset"
+              type="button"
+              onClick={() => window.print()}
+            >
+              Print Event
+            </button>
+          </div>
         </div>
         <div className="event-image-grid">
           {event.imageUrls?.[0] ? (

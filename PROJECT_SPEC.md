@@ -31,6 +31,7 @@ Project Goals
 * Event listings should include event/activity type filter buttons and expandable descriptions for longer text.
 * Business Listings and For Sale use separate public pages and do not include registration actions.
 * Public navigation includes separate buttons for Events, Business Listings, and For Sale.
+* Supply lists open in a separate window/tab for printing, and event details include a print action.
 * The Create Event form should stay collapsed until an event type is selected, and time entry must reject an end time that is at or before the start time.
 * The Existing Events card should include event type filter buttons.
 * Supply list links should say they are for viewing and printing, and the supply list viewer should include a close button.
