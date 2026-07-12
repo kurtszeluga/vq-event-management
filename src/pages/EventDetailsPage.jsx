@@ -17,7 +17,6 @@ function EventDetailsPage() {
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [supplyListObjectUrl, setSupplyListObjectUrl] = useState('');
   const openSupplyListOnLoad = useMemo(
     () => new URLSearchParams(location.search).get('view') === 'supply-list',
     [location.search]
@@ -25,6 +24,11 @@ function EventDetailsPage() {
   const isPopupMode = useMemo(
     () => new URLSearchParams(location.search).get('popup') === 'supply-list',
     [location.search]
+  );
+  const supplyListInlineUrl = useMemo(() => buildSupplyListProxyUrl(event, 'inline'), [event]);
+  const supplyListDownloadUrl = useMemo(
+    () => buildSupplyListProxyUrl(event, 'attachment'),
+    [event]
   );
 
   function openSupplyListPopup() {
@@ -48,39 +52,22 @@ function EventDetailsPage() {
     navigate(`/events/${eventId}`);
   }
 
-  async function handleDownloadSupplyList() {
-    const downloadName =
-      event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`;
-    const downloadUrl = supplyListObjectUrl || event.supplyListUrl;
+  async function handlePrintSupplyList() {
+    const printFrame = document.createElement('iframe');
+    printFrame.className = 'print-helper-frame';
+    printFrame.src = supplyListInlineUrl;
+    printFrame.onload = () => {
+      const frameWindow = printFrame.contentWindow;
 
-    try {
-      const link = document.createElement('a');
-
-      if (!downloadUrl) {
-        throw new Error('Unable to download the supply list.');
+      if (frameWindow) {
+        frameWindow.focus();
+        window.setTimeout(() => frameWindow.print(), 200);
       }
 
-      link.href = downloadUrl;
-      link.download = downloadName;
-      link.rel = 'noopener';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch {
-      window.open(event.supplyListUrl, '_blank', 'noopener');
-    }
-  }
+      window.setTimeout(() => printFrame.remove(), 5000);
+    };
 
-  async function handlePrintSupplyList() {
-    const frameWindow = supplyListFrameRef.current?.contentWindow;
-
-    if (frameWindow) {
-      frameWindow.focus();
-      window.setTimeout(() => frameWindow.print(), 150);
-      return;
-    }
-
-    window.print();
+    document.body.appendChild(printFrame);
   }
 
   useEffect(() => {
@@ -111,49 +98,6 @@ function EventDetailsPage() {
       active = false;
     };
   }, [eventId]);
-
-  useEffect(() => {
-    if (!openSupplyListOnLoad || !event?.supplyListUrl) {
-      setSupplyListObjectUrl('');
-      return undefined;
-    }
-
-    let active = true;
-    let objectUrl = '';
-
-    async function loadSupplyList() {
-      try {
-        const response = await fetch(event.supplyListUrl);
-
-        if (!response.ok) {
-          throw new Error('Unable to load the supply list.');
-        }
-
-        const blob = await response.blob();
-        objectUrl = window.URL.createObjectURL(blob);
-
-        if (active) {
-          setSupplyListObjectUrl(objectUrl);
-        } else {
-          window.URL.revokeObjectURL(objectUrl);
-        }
-      } catch {
-        if (active) {
-          setSupplyListObjectUrl('');
-        }
-      }
-    }
-
-    loadSupplyList();
-
-    return () => {
-      active = false;
-
-      if (objectUrl) {
-        window.URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [event?.supplyListUrl, openSupplyListOnLoad]);
 
   if (loading) {
     return (
@@ -189,18 +133,10 @@ function EventDetailsPage() {
           <div className="supply-list-view-header">
             <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
             <div className="supply-list-view-actions">
-              <button
-                className="button-link secondary-action"
-                type="button"
-                onClick={handleDownloadSupplyList}
-              >
+              <a className="button-link secondary-action" href={supplyListDownloadUrl}>
                 Save
-              </button>
-              <button
-                className="button-link secondary-action"
-                type="button"
-                onClick={handlePrintSupplyList}
-              >
+              </a>
+              <button className="button-link secondary-action" type="button" onClick={handlePrintSupplyList}>
                 Print
               </button>
               <button className="text-button" type="button" onClick={handleCloseSupplyList}>
@@ -211,7 +147,7 @@ function EventDetailsPage() {
           <iframe
             ref={supplyListFrameRef}
             className="supply-list-view-frame"
-            src={supplyListObjectUrl || event.supplyListUrl}
+            src={supplyListInlineUrl}
             title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
           />
         </div>
@@ -285,6 +221,20 @@ function EventDetailsPage() {
       </div>
     </section>
   );
+}
+
+function buildSupplyListProxyUrl(event, disposition) {
+  if (!event?.supplyListUrl) {
+    return '';
+  }
+
+  const params = new URLSearchParams({
+    disposition,
+    filename: event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`,
+    url: event.supplyListUrl
+  });
+
+  return `/api/file-proxy?${params.toString()}`;
 }
 
 export default EventDetailsPage;
