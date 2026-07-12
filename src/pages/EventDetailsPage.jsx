@@ -116,12 +116,24 @@ function EventDetailsPage() {
   }
 
   if (openSupplyListOnLoad && event.supplyListUrl) {
+    const supplyListDownloadName =
+      event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`;
+
     return (
       <section className={isPopupMode ? 'popup-page' : ''}>
         <div className="supply-list-view">
           <div className="supply-list-view-header">
             <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
             <div className="supply-list-view-actions">
+              <a
+                className="button-link secondary-action"
+                href={event.supplyListUrl}
+                download={supplyListDownloadName}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Download
+              </a>
               <button
                 className="button-link secondary-action"
                 type="button"
