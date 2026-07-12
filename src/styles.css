@@ -183,7 +183,7 @@ a {
   display: grid;
   gap: 18px;
   max-width: none;
-  padding: 8px 0 0;
+  padding: 8px 24px 0 clamp(28px, 8vw, 120px);
 }
 
 .viewer-toolbar {
@@ -223,7 +223,13 @@ a {
 }
 
 .event-print-page .public-event-card--print {
-  max-width: 980px;
+  display: flex;
+  flex-direction: column;
+  max-width: 760px;
+}
+
+.event-print-page .public-event-card--print .public-event-card-thumbnail {
+  max-width: 420px;
 }
 
 body.popup-mode .site-header,
