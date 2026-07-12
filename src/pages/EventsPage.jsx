@@ -12,7 +12,11 @@ import {
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const ALL_EVENT_TYPES = 'All';
-const EVENT_TYPE_FILTERS = ['All', ...EVENT_TYPES];
+const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
+const EVENT_TYPE_FILTERS = [
+  'All',
+  ...EVENT_TYPES.filter((type) => !EXCLUDED_EVENT_TYPES.has(type))
+];
 
 function getEventTypeLabel(event) {
   return event.eventType || 'Other';
@@ -55,13 +59,17 @@ function EventsPage() {
   }, []);
 
   const visibleEvents = useMemo(() => events.filter(isEventVisible), [events]);
+  const registerableEvents = useMemo(
+    () => visibleEvents.filter((event) => !EXCLUDED_EVENT_TYPES.has(getEventTypeLabel(event))),
+    [visibleEvents]
+  );
   const eventTypeCounts = useMemo(
     () =>
-      visibleEvents.reduce((counts, event) => {
+      registerableEvents.reduce((counts, event) => {
         const type = getEventTypeLabel(event);
         return type in counts ? { ...counts, [type]: counts[type] + 1 } : counts;
       }, Object.fromEntries(EVENT_TYPE_FILTERS.slice(1).map((type) => [type, 0]))),
-    [visibleEvents]
+    [registerableEvents]
   );
   const eventTypeFilters = useMemo(
     () => EVENT_TYPE_FILTERS,
@@ -70,9 +78,9 @@ function EventsPage() {
   const filteredEvents = useMemo(
     () =>
       eventTypeFilter === ALL_EVENT_TYPES
-        ? visibleEvents
-        : visibleEvents.filter((event) => getEventTypeLabel(event) === eventTypeFilter),
-    [eventTypeFilter, visibleEvents]
+        ? registerableEvents
+        : registerableEvents.filter((event) => getEventTypeLabel(event) === eventTypeFilter),
+    [eventTypeFilter, registerableEvents]
   );
 
   useEffect(() => {
@@ -89,8 +97,8 @@ function EventsPage() {
   }
 
   const openSupplyListEvent = useMemo(
-    () => filteredEvents.find((event) => event.id === openSupplyListEventId) || null,
-    [filteredEvents, openSupplyListEventId]
+    () => events.find((event) => event.id === openSupplyListEventId) || null,
+    [events, openSupplyListEventId]
   );
 
   return (
@@ -98,7 +106,7 @@ function EventsPage() {
       <PageHeader
         eyebrow="Events"
         title="Upcoming programs"
-        description="Browse upcoming classes, workshops, retreats, lectures, challenges, business listings, and sale listings."
+        description="Browse upcoming classes, workshops, retreats, lectures, challenges, and other registerable activities."
       />
       {error ? <p className="form-error">{error}</p> : null}
       {loading ? (
@@ -107,13 +115,13 @@ function EventsPage() {
           <p>Retrieving published events.</p>
         </div>
       ) : null}
-      {!loading && !visibleEvents.length ? (
+      {!loading && !registerableEvents.length ? (
         <div className="empty-state">
-          <h2>No published events yet</h2>
-          <p>Published events will be listed here when they are ready.</p>
+          <h2>No published registerable events yet</h2>
+          <p>Registerable events will be listed here when they are ready.</p>
         </div>
       ) : null}
-      {!loading && visibleEvents.length ? (
+      {!loading && registerableEvents.length ? (
         <div className="status-filter-group event-type-filter" aria-label="Event type filters">
           {eventTypeFilters.map((type) => (
             <button

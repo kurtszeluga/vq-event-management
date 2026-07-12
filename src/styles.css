@@ -807,6 +807,10 @@ a {
   padding: 18px;
 }
 
+.public-listing-card {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+}
+
 .public-event-card-header {
   align-items: start;
   display: flex;
@@ -927,6 +931,10 @@ a {
 .public-event-card-thumbnail {
   grid-column: 2;
   grid-row: 1 / span 2;
+}
+
+.public-listing-card .public-event-card-thumbnail {
+  max-width: none;
 }
 
 .public-event-card-thumbnail img,
@@ -1346,6 +1354,10 @@ a {
     grid-column: 1;
     grid-row: auto;
     max-width: 260px;
+  }
+
+  .public-listing-card {
+    grid-template-columns: 1fr;
   }
 
   .public-event-card dl {

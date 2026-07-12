@@ -4,6 +4,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import App from './App.jsx';
 import HomePage from './pages/HomePage.jsx';
 import EventsPage from './pages/EventsPage.jsx';
+import BusinessListingsPage from './pages/BusinessListingsPage.jsx';
+import ForSalePage from './pages/ForSalePage.jsx';
 import EventDetailsPage from './pages/EventDetailsPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -23,6 +25,8 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'events', element: <EventsPage /> },
+      { path: 'business-listings', element: <BusinessListingsPage /> },
+      { path: 'for-sale', element: <ForSalePage /> },
       { path: 'events/:eventId', element: <EventDetailsPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'login', element: <LoginPage /> },

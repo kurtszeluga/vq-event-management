@@ -4,7 +4,9 @@ import { useAuth } from './context/useAuth.js';
 
 const navItems = [
   { to: '/', label: 'Home' },
-  { to: '/events', label: 'Events' }
+  { to: '/events', label: 'Events' },
+  { to: '/business-listings', label: 'Business Listings' },
+  { to: '/for-sale', label: 'For Sale' }
 ];
 
 const signedOutNavItems = [
