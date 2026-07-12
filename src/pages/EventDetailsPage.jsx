@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import {
@@ -11,59 +11,16 @@ import {
 
 function EventDetailsPage() {
   const { eventId } = useParams();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const supplyListFrameRef = useRef(null);
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const openSupplyListOnLoad = useMemo(
-    () => new URLSearchParams(location.search).get('view') === 'supply-list',
-    [location.search]
-  );
-  const isPopupMode = useMemo(
-    () => new URLSearchParams(location.search).get('popup') === 'supply-list',
-    [location.search]
-  );
-  const supplyListInlineUrl = useMemo(() => buildSupplyListProxyUrl(event, 'inline'), [event]);
 
   function openSupplyListPopup() {
-    const route = `/events/${eventId}?view=supply-list&popup=supply-list`;
-    const popup = window.open(route, 'vq-supply-list', 'popup,width=1100,height=900');
-
-    if (popup) {
-      popup.focus();
+    if (!event?.supplyListUrl) {
       return;
     }
 
-    window.location.assign(route);
-  }
-
-  function handleCloseSupplyList() {
-    if (window.opener) {
-      window.close();
-      return;
-    }
-
-    navigate(`/events/${eventId}`);
-  }
-
-  async function handlePrintSupplyList() {
-    const printFrame = document.createElement('iframe');
-    printFrame.className = 'print-helper-frame';
-    printFrame.src = supplyListInlineUrl;
-    printFrame.onload = () => {
-      const frameWindow = printFrame.contentWindow;
-
-      if (frameWindow) {
-        frameWindow.focus();
-        window.setTimeout(() => frameWindow.print(), 200);
-      }
-
-      window.setTimeout(() => printFrame.remove(), 5000);
-    };
-
-    document.body.appendChild(printFrame);
+    window.open(event.supplyListUrl, '_blank', 'noopener,noreferrer');
   }
 
   useEffect(() => {
@@ -122,32 +79,6 @@ function EventDetailsPage() {
     );
   }
 
-  if (openSupplyListOnLoad && event.supplyListUrl) {
-    return (
-      <section className={isPopupMode ? 'popup-page' : ''}>
-        <div className="supply-list-view">
-          <div className="supply-list-view-header">
-            <h2>{event.supplyListTitle || event.supplyListFileName || 'Supply list'}</h2>
-            <div className="supply-list-view-actions">
-              <button className="button-link secondary-action" type="button" onClick={handlePrintSupplyList}>
-                Print
-              </button>
-              <button className="text-button" type="button" onClick={handleCloseSupplyList}>
-                Close
-              </button>
-            </div>
-          </div>
-          <iframe
-            ref={supplyListFrameRef}
-            className="supply-list-view-frame"
-            src={supplyListInlineUrl}
-            title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
-          />
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section>
       <PageHeader
@@ -188,7 +119,7 @@ function EventDetailsPage() {
               type="button"
               onClick={openSupplyListPopup}
             >
-              View and print {event.supplyListTitle || event.supplyListFileName || 'supply list'}
+              View, print, or save {event.supplyListTitle || event.supplyListFileName || 'supply list'}
             </button>
           ) : null}
           {!event.registrationOpen ? (
@@ -214,20 +145,6 @@ function EventDetailsPage() {
       </div>
     </section>
   );
-}
-
-function buildSupplyListProxyUrl(event, disposition) {
-  if (!event?.supplyListUrl) {
-    return '';
-  }
-
-  const params = new URLSearchParams({
-    disposition,
-    filename: event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`,
-    url: event.supplyListUrl
-  });
-
-  return `/api/file-proxy?${params.toString()}`;
 }
 
 export default EventDetailsPage;

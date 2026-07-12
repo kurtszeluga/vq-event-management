@@ -34,16 +34,12 @@ function getDescriptionPreview(description) {
   return `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`;
 }
 
-function openSupplyListPopup(eventId) {
-  const route = `/events/${eventId}?view=supply-list&popup=supply-list`;
-  const popup = window.open(route, 'vq-supply-list', 'popup,width=1100,height=900');
-
-  if (popup) {
-    popup.focus();
+function openSupplyListPopup(event) {
+  if (!event?.supplyListUrl) {
     return;
   }
 
-  window.location.assign(route);
+  window.open(event.supplyListUrl, '_blank', 'noopener,noreferrer');
 }
 
 function EventsPage() {
@@ -210,9 +206,9 @@ function EventsPage() {
                   <button
                     className="text-button"
                     type="button"
-                    onClick={() => openSupplyListPopup(event.id)}
+                    onClick={() => openSupplyListPopup(event)}
                   >
-                    View and print{' '}
+                    View, print, or save{' '}
                     {event.supplyListTitle || event.supplyListFileName || 'supply list'}
                   </button>
                 ) : null}
