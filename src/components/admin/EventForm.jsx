@@ -155,7 +155,8 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
       documentUrl: value === 'Challenges' ? current.documentUrl : '',
       isPaid: doesNotUseFees ? false : current.isPaid,
       registrationMode: value === 'Business Listing' || value === 'For Sale' ? 'none' : current.registrationMode,
-      registrationOpen: false
+      registrationOpen: false,
+      visibleUntil: value === 'For Sale' ? '' : current.visibleUntil
     }));
     setFieldErrors((current) => {
       const next = { ...current };
@@ -1156,7 +1157,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                 Choose Now to show the listing as soon as it is saved.
               </span>
             </label>
-            {form.listingMode === 'future' || isChallenge || isForSale ? (
+            {form.listingMode === 'future' || isChallenge ? (
               <div className="form-row-pair nested-fields">
                 {form.listingMode === 'future' ? (
                   <label>
@@ -1172,23 +1173,20 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
                     />
                   </label>
                 ) : null}
-                <label>
-                  <span>{isForSale ? 'Remove Listing' : 'Remove Listing *'}</span>
-                  <input
-                    className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
-                    disabled={!eventTypeSelected}
-                    type="datetime-local"
-                    value={form.visibleUntil}
-                    onChange={(event) =>
-                      updateField('visibleUntil', event.target.value)
-                    }
-                  />
-                  {isForSale ? (
-                    <span className="form-help">
-                      Leave blank to auto-expire six months after posting.
-                    </span>
-                  ) : null}
-                </label>
+                {!isForSale ? (
+                  <label>
+                    <span>Remove Listing *</span>
+                    <input
+                      className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
+                      disabled={!eventTypeSelected}
+                      type="datetime-local"
+                      value={form.visibleUntil}
+                      onChange={(event) =>
+                        updateField('visibleUntil', event.target.value)
+                      }
+                    />
+                  </label>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -1461,7 +1459,7 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const hasFees = hasSchedule && !isLecture;
   const title = isBusinessListing ? form.businessName : form.title;
   const visibleFrom = form.visibleFrom;
-  const visibleUntil = isForSale && !form.visibleUntil
+  const visibleUntil = isForSale
     ? getDefaultForSaleExpiration(visibleFrom)
     : form.visibleUntil;
 
