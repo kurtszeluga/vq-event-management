@@ -125,6 +125,7 @@ Administrator Features
   * CSV imports support common headers including Name, First Name, Last Name, Email, Phone, Status, and Notes.
   * Member records store First Name and Last Name as separate fields.
   * Manually add, edit, or remove members from the membership list.
+  * Keep the member list table hidden until the Super User chooses to show it.
   * Manage default event/activity locations.
   * Manage default event/activity start/end time choices.
   * Default time choices display in standard time format.

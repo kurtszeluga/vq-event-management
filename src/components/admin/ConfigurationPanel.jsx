@@ -58,6 +58,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
+  const [memberListOpen, setMemberListOpen] = useState(false);
   const [members, setMembers] = useState([]);
   const [savingSection, setSavingSection] = useState('');
   const [settings, setSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
@@ -319,6 +320,13 @@ function ConfigurationPanel({ currentUserProfile }) {
           >
             Add Member
           </button>
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={() => setMemberListOpen((current) => !current)}
+          >
+            {memberListOpen ? 'Hide Member List' : 'Show Member List'}
+          </button>
           {importMessage ? <span className="form-help">{importMessage}</span> : null}
         </div>
         {memberFormOpen ? (
@@ -408,28 +416,30 @@ function ConfigurationPanel({ currentUserProfile }) {
             </div>
           </form>
         ) : null}
-        <ConfigurationTable
-          columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
-          emptyText="No members have been added yet."
-          rows={members.map((member) => ({
-            id: member.id,
-            cells: [
-              member.firstName || getFirstNameFallback(member.name) || '-',
-              member.lastName || getLastNameFallback(member.name) || '-',
-              member.email || '-',
-              member.phone || '-',
-              member.status || 'Active',
-              <RowActions
-                key={member.id}
-                onDelete={() => deleteMember(member, currentUserProfile)}
-                onEdit={() => {
-                  setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
-                  setMemberFormOpen(true);
-                }}
-              />
-            ]
-          }))}
-        />
+        {memberListOpen ? (
+          <ConfigurationTable
+            columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
+            emptyText="No members have been added yet."
+            rows={members.map((member) => ({
+              id: member.id,
+              cells: [
+                member.firstName || getFirstNameFallback(member.name) || '-',
+                member.lastName || getLastNameFallback(member.name) || '-',
+                member.email || '-',
+                member.phone || '-',
+                member.status || 'Active',
+                <RowActions
+                  key={member.id}
+                  onDelete={() => deleteMember(member, currentUserProfile)}
+                  onEdit={() => {
+                    setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
+                    setMemberFormOpen(true);
+                  }}
+                />
+              ]
+            }))}
+          />
+        ) : null}
       </section>
 
       <section className="configuration-section">
