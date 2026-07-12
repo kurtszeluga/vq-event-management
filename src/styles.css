@@ -868,6 +868,20 @@ body.popup-mode .page-content {
   padding: 18px;
 }
 
+.event-admin-card-main {
+  display: grid;
+  gap: 8px;
+}
+
+.event-admin-card-thumbnail {
+  max-width: 180px;
+}
+
+.event-admin-card-thumbnail img,
+.event-admin-card-thumbnail .image-placeholder {
+  aspect-ratio: 4 / 3;
+}
+
 .public-event-card {
   align-items: start;
   display: grid;
