@@ -6,6 +6,7 @@ import EventList from '../components/admin/EventList.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
 import {
+  archiveEvent,
   deleteEvent,
   subscribeToAdminEvents
 } from '../services/eventService.js';
@@ -42,10 +43,19 @@ function AdminDashboardPage() {
   }, [canManageEvents]);
 
   async function handleDelete(event) {
-    const confirmed = window.confirm(`Delete "${event.title}"?`);
+    if (isSuperUser) {
+      const confirmed = window.confirm(`Delete "${event.title}"?`);
+
+      if (confirmed) {
+        await deleteEvent(event.id, userProfile);
+      }
+      return;
+    }
+
+    const confirmed = window.confirm(`Archive "${event.title}"?`);
 
     if (confirmed) {
-      await deleteEvent(event.id, userProfile);
+      await archiveEvent(event.id, userProfile);
     }
   }
 
@@ -142,6 +152,7 @@ function AdminDashboardPage() {
               loading={loadingEvents}
               onDelete={handleDelete}
               onEdit={handleEditEvent}
+              isSuperUser={isSuperUser}
             />
           </section>
         ) : null}

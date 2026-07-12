@@ -6,7 +6,7 @@ const ALL_TYPES = 'All';
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const FILTER_TYPES = ['All', ...EVENT_TYPES];
 
-function EventList({ events, loading, onDelete, onEdit }) {
+function EventList({ events, isSuperUser, loading, onDelete, onEdit }) {
   const [eventTypeFilter, setEventTypeFilter] = useState(ALL_TYPES);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
@@ -237,11 +237,11 @@ function EventList({ events, loading, onDelete, onEdit }) {
             )}
           </div>
           <div className="card-actions">
-            <button className="button-link button-reset" type="button" onClick={() => onEdit(event)}>
+            <button className="button-link button-reset compact-action" type="button" onClick={() => onEdit(event)}>
               Edit
             </button>
             <button className="danger-button" type="button" onClick={() => onDelete(event)}>
-              Delete
+              {isSuperUser ? 'Delete' : 'Archive'}
             </button>
           </div>
         </article>

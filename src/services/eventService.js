@@ -94,6 +94,29 @@ export async function deleteEvent(eventId, actorProfile) {
   return batch.commit();
 }
 
+export async function archiveEvent(eventId, actorProfile) {
+  const eventRef = doc(db, 'events', eventId);
+  const eventSnap = await getDoc(eventRef);
+  const eventData = eventSnap.exists() ? eventSnap.data() : {};
+  const batch = writeBatch(db);
+
+  batch.update(eventRef, {
+    status: 'Archived',
+    updatedDate: serverTimestamp()
+  });
+
+  addAuditLog(batch, {
+    action: 'Archive',
+    actorProfile,
+    after: { status: 'Archived' },
+    before: eventData,
+    entityId: eventId,
+    summary: `Archived event "${eventData.title || eventId}"`
+  });
+
+  return batch.commit();
+}
+
 export async function getEvent(eventId) {
   const eventSnap = await getDoc(doc(db, 'events', eventId));
 
