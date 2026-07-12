@@ -766,7 +766,7 @@ function parseMemberCsv(text) {
   const rows = parseCsvRows(text);
   const [headerRow = [], ...dataRows] = rows;
   const headers = headerRow.map(normalizeCsvHeader);
-  const simpleMemberLayout = isSimpleMemberCsvLayout(headers);
+  const columnMap = getMemberCsvColumnMap(headers);
 
   return dataRows
     .map((row) => {
@@ -776,9 +776,9 @@ function parseMemberCsv(text) {
         record[header] = row[index] || '';
       });
       const firstName = getCsvValue(record, FIRST_NAME_HEADERS)
-        || (simpleMemberLayout ? row[0] || '' : '');
+        || getCsvColumnValue(row, columnMap.firstName);
       const lastName = getCsvValue(record, LAST_NAME_HEADERS)
-        || (simpleMemberLayout ? row[1] || '' : '');
+        || getCsvColumnValue(row, columnMap.lastName);
       const fullName = getCsvValue(record, [
         'name',
         'member',
@@ -787,9 +787,9 @@ function parseMemberCsv(text) {
         'displayName'
       ]);
       const email = getCsvValue(record, EMAIL_HEADERS)
-        || (simpleMemberLayout ? row[2] || '' : '');
+        || getCsvColumnValue(row, columnMap.email);
       const phone = getCsvValue(record, PHONE_HEADERS)
-        || (simpleMemberLayout ? row[3] || '' : '');
+        || getCsvColumnValue(row, columnMap.phone);
 
       return {
         email,
@@ -812,30 +812,47 @@ const EMAIL_HEADERS = ['email', 'emailAddress', 'eMail'];
 const PHONE_HEADERS = ['phone', 'phoneNumber', 'telephone', 'mobile'];
 
 function normalizeCsvHeader(header) {
-  return header
-    .trim()
+  return normalizeCsvCell(header)
     .replace(/^\uFEFF/, '')
     .replace(/^ï»¿/, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+([a-z0-9])/g, (_, character) => character.toUpperCase())
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function isSimpleMemberCsvLayout(headers) {
-  return FIRST_NAME_HEADERS.includes(headers[0])
-    && LAST_NAME_HEADERS.includes(headers[1])
-    && EMAIL_HEADERS.includes(headers[2])
-    && PHONE_HEADERS.includes(headers[3]);
+    .replace(/[^a-zA-Z0-9]/g, '');
 }
 
 function getCsvValue(record, keys) {
   for (const key of keys) {
     if (record[key]) {
-      return record[key].trim();
+      return normalizeCsvCell(record[key]);
     }
   }
 
   return '';
+}
+
+function getMemberCsvColumnMap(headers) {
+  return {
+    email: getHeaderIndex(headers, EMAIL_HEADERS),
+    firstName: getHeaderIndex(headers, FIRST_NAME_HEADERS),
+    lastName: getHeaderIndex(headers, LAST_NAME_HEADERS),
+    phone: getHeaderIndex(headers, PHONE_HEADERS)
+  };
+}
+
+function getHeaderIndex(headers, aliases) {
+  return headers.findIndex((header) => aliases.includes(header));
+}
+
+function getCsvColumnValue(row, index) {
+  return index >= 0 ? normalizeCsvCell(row[index] || '') : '';
+}
+
+function normalizeCsvCell(value) {
+  return String(value || '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/^\uFEFF/, '')
+    .replace(/^ï»¿/, '')
+    .trim();
 }
 
 function parseCsvRows(text) {
@@ -855,13 +872,13 @@ function parseCsvRows(text) {
     } else if (character === '"') {
       inQuotes = !inQuotes;
     } else if (character === delimiter && !inQuotes) {
-      row.push(cell.trim());
+      row.push(normalizeCsvCell(cell));
       cell = '';
     } else if ((character === '\n' || character === '\r') && !inQuotes) {
       if (character === '\r' && nextCharacter === '\n') {
         index += 1;
       }
-      row.push(cell.trim());
+      row.push(normalizeCsvCell(cell));
       if (row.some(Boolean)) {
         rows.push(row);
       }
@@ -872,7 +889,7 @@ function parseCsvRows(text) {
     }
   }
 
-  row.push(cell.trim());
+  row.push(normalizeCsvCell(cell));
   if (row.some(Boolean)) {
     rows.push(row);
   }
