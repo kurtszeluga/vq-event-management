@@ -16,6 +16,7 @@ import {
   subscribeToActiveEventTimeDefaults
 } from '../../services/configurationService.js';
 import { formatTimeRange } from '../../utils/eventFormat.js';
+import { formatPhoneNumber } from '../../utils/profileFormat.js';
 
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
@@ -495,7 +496,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <input
                 className={fieldErrors.contactPhone ? 'field-invalid' : ''}
                 value={form.contactPhone}
-                onChange={(event) => updateField('contactPhone', event.target.value)}
+                onChange={(event) => updateField('contactPhone', formatPhoneNumber(event.target.value))}
               />
             </label>
             <label className="form-span">
@@ -545,7 +546,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
               <input
                 className={fieldErrors.contactPhone ? 'field-invalid' : ''}
                 value={form.contactPhone}
-                onChange={(event) => updateField('contactPhone', event.target.value)}
+                onChange={(event) => updateField('contactPhone', formatPhoneNumber(event.target.value))}
               />
             </label>
           </>
@@ -1588,6 +1589,7 @@ function getInitialForm(editingEvent) {
     capacity: String(editingEvent.capacity ?? 0),
     capacityUnlimited: Boolean(editingEvent.capacityUnlimited),
     cost: String(editingEvent.cost ?? 0),
+    contactPhone: formatPhoneNumber(editingEvent.contactPhone || ''),
     imageUrls: [
       editingEvent.imageUrls?.[0] || ''
     ],
