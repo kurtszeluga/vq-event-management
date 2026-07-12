@@ -127,18 +127,6 @@ function SupplyListViewerPage() {
     );
   }
 
-  if (event?.supplyListUrl && !pdfUrl) {
-    return (
-      <section className="viewer-page">
-        <PageHeader
-          eyebrow="Supply list"
-          title="Loading PDF"
-          description="Preparing the document for viewing and printing."
-        />
-      </section>
-    );
-  }
-
   if (error || !event || !isEventVisible(event) || !event.supplyListUrl) {
     return (
       <section className="viewer-page">
@@ -150,6 +138,18 @@ function SupplyListViewerPage() {
         <Link className="button-link" to={`/events/${eventId}`}>
           Return to event
         </Link>
+      </section>
+    );
+  }
+
+  if (event?.supplyListUrl && !pdfUrl) {
+    return (
+      <section className="viewer-page">
+        <PageHeader
+          eyebrow="Supply list"
+          title="Loading PDF"
+          description="Preparing the document for viewing and printing."
+        />
       </section>
     );
   }
