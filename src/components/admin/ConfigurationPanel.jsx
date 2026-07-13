@@ -56,21 +56,17 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [membershipSectionOpen, setMembershipSectionOpen] = useState(false);
-  const [locationSectionOpen, setLocationSectionOpen] = useState(false);
   const [locationFormOpen, setLocationFormOpen] = useState(false);
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
   const [memberImportMode, setMemberImportMode] = useState('');
-  const [memberListOpen, setMemberListOpen] = useState(false);
   const [memberStatusFilter, setMemberStatusFilter] = useState('Active');
   const [members, setMembers] = useState([]);
   const [configurationView, setConfigurationView] = useState('membership');
   const [savingSection, setSavingSection] = useState('');
   const [settings, setSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const [successMessage, setSuccessMessage] = useState('');
-  const [timeSectionOpen, setTimeSectionOpen] = useState(false);
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
   const memberCounts = getMemberCounts(members);
@@ -329,73 +325,62 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div className="configuration-card-header">
           <h3>Membership Check</h3>
           <p>Control whether new user accounts should be checked against the member list.</p>
-          <div className="configuration-card-actions">
-            <button
-              className="button-link button-reset secondary-action"
-              type="button"
-              onClick={() => setMembershipSectionOpen((current) => !current)}
-            >
-              {membershipSectionOpen ? 'Hide Settings' : 'Show Settings'}
-            </button>
-          </div>
         </div>
-        {membershipSectionOpen ? (
-          <form className="configuration-card-body" onSubmit={handleSaveSettings}>
-            <label className="checkbox-label">
-              <input
-                checked={settings.requireMembershipCheck}
-                type="checkbox"
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    requireMembershipCheck: event.target.checked
-                  }))
-                }
-              />
-              <span>Require Membership Check For New Users</span>
-            </label>
-            <label className="checkbox-label">
-              <input
-                checked={settings.matchByEmail}
-                type="checkbox"
-                onChange={(event) =>
-                  setSettings((current) => ({ ...current, matchByEmail: event.target.checked }))
-                }
-              />
-              <span>Match Members By Email</span>
-            </label>
-            <label className="checkbox-label">
-              <input
-                checked={settings.matchByPhone}
-                type="checkbox"
-                onChange={(event) =>
-                  setSettings((current) => ({ ...current, matchByPhone: event.target.checked }))
-                }
-              />
-              <span>Match Members By Phone</span>
-            </label>
-            <label className="checkbox-label">
-              <input
-                checked={settings.allowAdminSkipMembershipCheck}
-                type="checkbox"
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    allowAdminSkipMembershipCheck: event.target.checked
-                  }))
-                }
-              />
-              <span>Allow Admins To Skip Membership Check</span>
-            </label>
-            <button
-              className="button-link button-reset configuration-submit-button"
-              disabled={savingSection === 'settings'}
-              type="submit"
-            >
-              {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
-            </button>
-          </form>
-        ) : null}
+        <form className="configuration-card-body" onSubmit={handleSaveSettings}>
+          <label className="checkbox-label">
+            <input
+              checked={settings.requireMembershipCheck}
+              type="checkbox"
+              onChange={(event) =>
+                setSettings((current) => ({
+                  ...current,
+                  requireMembershipCheck: event.target.checked
+                }))
+              }
+            />
+            <span>Require Membership Check For New Users</span>
+          </label>
+          <label className="checkbox-label">
+            <input
+              checked={settings.matchByEmail}
+              type="checkbox"
+              onChange={(event) =>
+                setSettings((current) => ({ ...current, matchByEmail: event.target.checked }))
+              }
+            />
+            <span>Match Members By Email</span>
+          </label>
+          <label className="checkbox-label">
+            <input
+              checked={settings.matchByPhone}
+              type="checkbox"
+              onChange={(event) =>
+                setSettings((current) => ({ ...current, matchByPhone: event.target.checked }))
+              }
+            />
+            <span>Match Members By Phone</span>
+          </label>
+          <label className="checkbox-label">
+            <input
+              checked={settings.allowAdminSkipMembershipCheck}
+              type="checkbox"
+              onChange={(event) =>
+                setSettings((current) => ({
+                  ...current,
+                  allowAdminSkipMembershipCheck: event.target.checked
+                }))
+              }
+            />
+            <span>Allow Admins To Skip Membership Check</span>
+          </label>
+          <button
+            className="button-link button-reset configuration-submit-button"
+            disabled={savingSection === 'settings'}
+            type="submit"
+          >
+            {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
+          </button>
+        </form>
       </article>
     );
   }
@@ -407,103 +392,90 @@ function ConfigurationPanel({ currentUserProfile }) {
           <h3>Member List</h3>
           <p>Upload a CSV or manually add members for email/phone matching.</p>
           <p>CSV columns should use First Name, Last Name, Email, and Phone. Status and Notes are optional.</p>
-          <div className="configuration-card-actions">
-            <button
-              className="button-link button-reset secondary-action"
-              type="button"
-              onClick={() => setMemberListOpen((current) => !current)}
-            >
-              {memberListOpen ? 'Hide List' : 'Show List'}
-            </button>
-          </div>
         </div>
-        {memberListOpen ? (
-          <>
-            <div className="configuration-summary" aria-label="Member list totals">
-              <span>Active: {memberCounts.active}</span>
-              <span>Inactive: {memberCounts.inactive}</span>
-              <span>Archived: {memberCounts.archived}</span>
-              <span>Total: {memberCounts.total}</span>
-            </div>
-            <div className="configuration-actions">
-              <label className="configuration-inline-label">
-                <span>Import Mode</span>
-                <select
-                  value={memberImportMode}
-                  onChange={(event) => setMemberImportMode(event.target.value)}
-                >
-                  <option value="">Choose Import Mode</option>
-                  <option value="addUpdate">Add/Update Only</option>
-                  <option value="annualRefresh">Annual Refresh</option>
-                </select>
-              </label>
-              <input
-                accept=".csv,text/csv"
-                className="visually-hidden-file"
-                ref={csvInputRef}
-                type="file"
-                onChange={handleCsvUpload}
-              />
-              <button
-                className="button-link button-reset secondary-action"
-                disabled={savingSection === 'csv' || !memberImportMode}
-                type="button"
-                onClick={() => csvInputRef.current?.click()}
-              >
-                {savingSection === 'csv' ? 'Importing...' : 'Upload Member CSV'}
-              </button>
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => {
-                  setMemberForm(EMPTY_MEMBER_FORM);
+        <div className="configuration-summary" aria-label="Member list totals">
+          <span>Active: {memberCounts.active}</span>
+          <span>Inactive: {memberCounts.inactive}</span>
+          <span>Archived: {memberCounts.archived}</span>
+          <span>Total: {memberCounts.total}</span>
+        </div>
+        <div className="configuration-actions">
+          <label className="configuration-inline-label">
+            <span>Import Mode</span>
+            <select
+              value={memberImportMode}
+              onChange={(event) => setMemberImportMode(event.target.value)}
+            >
+              <option value="">Choose Import Mode</option>
+              <option value="addUpdate">Add/Update Only</option>
+              <option value="annualRefresh">Annual Refresh</option>
+            </select>
+          </label>
+          <input
+            accept=".csv,text/csv"
+            className="visually-hidden-file"
+            ref={csvInputRef}
+            type="file"
+            onChange={handleCsvUpload}
+          />
+          <button
+            className="button-link button-reset secondary-action"
+            disabled={savingSection === 'csv' || !memberImportMode}
+            type="button"
+            onClick={() => csvInputRef.current?.click()}
+          >
+            {savingSection === 'csv' ? 'Importing...' : 'Upload Member CSV'}
+          </button>
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={() => {
+              setMemberForm(EMPTY_MEMBER_FORM);
+              setMemberFormOpen(true);
+            }}
+          >
+            Add Member
+          </button>
+          {importMessage ? <span className="form-help">{importMessage}</span> : null}
+        </div>
+        <div className="status-filter-group" aria-label="Member status filter">
+          {MEMBER_FILTERS.map((status) => (
+            <button
+              className={`status-filter-button${memberStatusFilter === status ? ' active' : ''}`}
+              key={status}
+              type="button"
+              onClick={() => setMemberStatusFilter(status)}
+            >
+              {status} ({memberCounts[status.toLowerCase()]})
+            </button>
+          ))}
+        </div>
+        {memberFormOpen && !memberForm.id ? renderMemberForm() : null}
+        <ConfigurationTable
+          columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
+          emptyText={`No ${memberStatusFilter.toLowerCase()} members found.`}
+          rows={filteredMembers.map((member) => ({
+            id: member.id,
+            cells: [
+              member.firstName || getFirstNameFallback(member.name) || '-',
+              member.lastName || getLastNameFallback(member.name) || '-',
+              member.email || '-',
+              member.phone || '-',
+              member.status || 'Active',
+              <RowActions
+                key={member.id}
+                deleteConfirm={`Archive ${member.name || member.email || member.phone}?`}
+                deleteLabel="Archive"
+                onDelete={() => archiveMember(member, currentUserProfile)}
+                onEdit={() => {
+                  setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
                   setMemberFormOpen(true);
                 }}
-              >
-                Add Member
-              </button>
-              {importMessage ? <span className="form-help">{importMessage}</span> : null}
-            </div>
-            <div className="status-filter-group" aria-label="Member status filter">
-              {MEMBER_FILTERS.map((status) => (
-                <button
-                  className={`status-filter-button${memberStatusFilter === status ? ' active' : ''}`}
-                  key={status}
-                  type="button"
-                  onClick={() => setMemberStatusFilter(status)}
-                >
-                  {status} ({memberCounts[status.toLowerCase()]})
-                </button>
-              ))}
-            </div>
-            {memberFormOpen && !memberForm.id ? renderMemberForm() : null}
-            <ConfigurationTable
-              columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
-              emptyText={`No ${memberStatusFilter.toLowerCase()} members found.`}
-              rows={filteredMembers.map((member) => ({
-                id: member.id,
-                cells: [
-                  member.firstName || getFirstNameFallback(member.name) || '-',
-                  member.lastName || getLastNameFallback(member.name) || '-',
-                  member.email || '-',
-                  member.phone || '-',
-                  member.status || 'Active',
-                  <RowActions
-                    key={member.id}
-                    deleteConfirm={`Archive ${member.name || member.email || member.phone}?`}
-                    deleteLabel="Archive"
-                    onDelete={() => archiveMember(member, currentUserProfile)}
-                    onEdit={() => {
-                      setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
-                      setMemberFormOpen(true);
-                    }}
-                  />
-                ],
-                detail: memberFormOpen && memberForm.id === member.id ? renderMemberForm() : null
-              }))}
-            />
-          </>
-        ) : null}
+              />
+            ],
+            detail: memberFormOpen && memberForm.id === member.id ? renderMemberForm() : null
+          }))}
+        />
       </article>
     );
   }
@@ -514,128 +486,115 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div className="configuration-card-header">
           <h3>Default Locations</h3>
           <p>These locations appear in the event/activity location dropdown.</p>
-          <div className="configuration-card-actions">
-            <button
-              className="button-link button-reset secondary-action"
-              type="button"
-              onClick={() => setLocationSectionOpen((current) => !current)}
-            >
-              {locationSectionOpen ? 'Hide Locations' : 'Show Locations'}
-            </button>
-          </div>
         </div>
-        {locationSectionOpen ? (
-          <>
-            <div className="configuration-actions">
+        <div className="configuration-actions">
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={() => {
+              setLocationForm(EMPTY_LOCATION_FORM);
+              setLocationFormOpen(true);
+            }}
+          >
+            Add Location
+          </button>
+        </div>
+        {locationFormOpen ? (
+          <form className="configuration-form-grid" onSubmit={handleSaveLocation}>
+            <label>
+              <span>Location Label *</span>
+              <input
+                value={locationForm.label}
+                onBlur={(event) =>
+                  setLocationForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, label: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Dropdown Value</span>
+              <input
+                value={locationForm.value}
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, value: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Sort Order</span>
+              <input
+                min="0"
+                type="number"
+                value={locationForm.sortOrder}
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, sortOrder: event.target.value }))
+                }
+              />
+            </label>
+            <label className="configuration-span">
+              <span>Address / Notes</span>
+              <input
+                value={locationForm.address}
+                onBlur={(event) =>
+                  setLocationForm((current) => ({ ...current, address: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, address: event.target.value }))
+                }
+              />
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={locationForm.isActive}
+                type="checkbox"
+                onChange={(event) =>
+                  setLocationForm((current) => ({ ...current, isActive: event.target.checked }))
+                }
+              />
+              <span>Active</span>
+            </label>
+            <div className="configuration-actions configuration-span">
+              <button className="button-link button-reset" disabled={savingSection === 'location'} type="submit">
+                {savingSection === 'location' ? 'Saving...' : locationForm.id ? 'Save Location' : 'Save New Location'}
+              </button>
               <button
-                className="button-link button-reset secondary-action"
+                className="text-button"
                 type="button"
                 onClick={() => {
                   setLocationForm(EMPTY_LOCATION_FORM);
-                  setLocationFormOpen(true);
+                  setLocationFormOpen(false);
                 }}
               >
-                Add Location
+                Cancel
               </button>
             </div>
-            {locationFormOpen ? (
-              <form className="configuration-form-grid" onSubmit={handleSaveLocation}>
-                <label>
-                  <span>Location Label *</span>
-                  <input
-                    value={locationForm.label}
-                    onBlur={(event) =>
-                      setLocationForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
-                    }
-                    onChange={(event) =>
-                      setLocationForm((current) => ({ ...current, label: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Dropdown Value</span>
-                  <input
-                    value={locationForm.value}
-                    onChange={(event) =>
-                      setLocationForm((current) => ({ ...current, value: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Sort Order</span>
-                  <input
-                    min="0"
-                    type="number"
-                    value={locationForm.sortOrder}
-                    onChange={(event) =>
-                      setLocationForm((current) => ({ ...current, sortOrder: event.target.value }))
-                    }
-                  />
-                </label>
-                <label className="configuration-span">
-                  <span>Address / Notes</span>
-                  <input
-                    value={locationForm.address}
-                    onBlur={(event) =>
-                      setLocationForm((current) => ({ ...current, address: toTitleCase(event.target.value) }))
-                    }
-                    onChange={(event) =>
-                      setLocationForm((current) => ({ ...current, address: event.target.value }))
-                    }
-                  />
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    checked={locationForm.isActive}
-                    type="checkbox"
-                    onChange={(event) =>
-                      setLocationForm((current) => ({ ...current, isActive: event.target.checked }))
-                    }
-                  />
-                  <span>Active</span>
-                </label>
-                <div className="configuration-actions configuration-span">
-                  <button className="button-link button-reset" disabled={savingSection === 'location'} type="submit">
-                    {savingSection === 'location' ? 'Saving...' : locationForm.id ? 'Save Location' : 'Save New Location'}
-                  </button>
-                  <button
-                    className="text-button"
-                    type="button"
-                    onClick={() => {
-                      setLocationForm(EMPTY_LOCATION_FORM);
-                      setLocationFormOpen(false);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : null}
-            <ConfigurationTable
-              columns={['Location', 'Value', 'Status', 'Actions']}
-              emptyText="No default locations have been added yet."
-              rows={eventLocations.map((location) => ({
-                id: location.id,
-                cells: [
-                  <>
-                    <strong>{location.label}</strong>
-                    <span>{location.address}</span>
-                  </>,
-                  location.value,
-                  location.isActive === false ? 'Inactive' : 'Active',
-                  <RowActions
-                    key={location.id}
-                    onDelete={() => deleteEventLocationDefault(location, currentUserProfile)}
-                    onEdit={() => {
-                      setLocationForm({ ...EMPTY_LOCATION_FORM, ...location });
-                      setLocationFormOpen(true);
-                    }}
-                  />
-                ]
-              }))}
-            />
-          </>
+          </form>
         ) : null}
+        <ConfigurationTable
+          columns={['Location', 'Value', 'Status', 'Actions']}
+          emptyText="No default locations have been added yet."
+          rows={eventLocations.map((location) => ({
+            id: location.id,
+            cells: [
+              <>
+                <strong>{location.label}</strong>
+                <span>{location.address}</span>
+              </>,
+              location.value,
+              location.isActive === false ? 'Inactive' : 'Active',
+              <RowActions
+                key={location.id}
+                onDelete={() => deleteEventLocationDefault(location, currentUserProfile)}
+                onEdit={() => {
+                  setLocationForm({ ...EMPTY_LOCATION_FORM, ...location });
+                  setLocationFormOpen(true);
+                }}
+              />
+            ]
+          }))}
+        />
       </article>
     );
   }
@@ -646,136 +605,123 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div className="configuration-card-header">
           <h3>Default Start/End Times</h3>
           <p>These time blocks appear in the event/activity time dropdown.</p>
-          <div className="configuration-card-actions">
-            <button
-              className="button-link button-reset secondary-action"
-              type="button"
-              onClick={() => setTimeSectionOpen((current) => !current)}
-            >
-              {timeSectionOpen ? 'Hide Start/End Times' : 'Show Start/End Times'}
-            </button>
-          </div>
         </div>
-        {timeSectionOpen ? (
-          <>
-            <div className="configuration-actions">
+        <div className="configuration-actions">
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={() => {
+              setTimeForm(EMPTY_TIME_FORM);
+              setTimeFormOpen(true);
+            }}
+          >
+            Add Time
+          </button>
+        </div>
+        {timeFormOpen ? (
+          <form className="configuration-form-grid" onSubmit={handleSaveTime}>
+            <label>
+              <span>Time Label *</span>
+              <input
+                value={timeForm.label}
+                onBlur={(event) =>
+                  setTimeForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
+                }
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, label: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Dropdown Value</span>
+              <input
+                value={timeForm.value}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, value: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Start Time</span>
+              <input
+                type="time"
+                value={timeForm.startTime}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, startTime: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>End Time</span>
+              <input
+                type="time"
+                value={timeForm.endTime}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, endTime: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Sort Order</span>
+              <input
+                min="0"
+                type="number"
+                value={timeForm.sortOrder}
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, sortOrder: event.target.value }))
+                }
+              />
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={timeForm.isActive}
+                type="checkbox"
+                onChange={(event) =>
+                  setTimeForm((current) => ({ ...current, isActive: event.target.checked }))
+                }
+              />
+              <span>Active</span>
+            </label>
+            <div className="configuration-actions configuration-span">
+              <button className="button-link button-reset" disabled={savingSection === 'time'} type="submit">
+                {savingSection === 'time' ? 'Saving...' : timeForm.id ? 'Save Time' : 'Save New Time'}
+              </button>
               <button
-                className="button-link button-reset secondary-action"
+                className="text-button"
                 type="button"
                 onClick={() => {
                   setTimeForm(EMPTY_TIME_FORM);
-                  setTimeFormOpen(true);
+                  setTimeFormOpen(false);
                 }}
               >
-                Add Time
+                Cancel
               </button>
             </div>
-            {timeFormOpen ? (
-              <form className="configuration-form-grid" onSubmit={handleSaveTime}>
-                <label>
-                  <span>Time Label *</span>
-                  <input
-                    value={timeForm.label}
-                    onBlur={(event) =>
-                      setTimeForm((current) => ({ ...current, label: toTitleCase(event.target.value) }))
-                    }
-                    onChange={(event) =>
-                      setTimeForm((current) => ({ ...current, label: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Dropdown Value</span>
-                  <input
-                    value={timeForm.value}
-                    onChange={(event) =>
-                      setTimeForm((current) => ({ ...current, value: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Start Time</span>
-                  <input
-                    type="time"
-                    value={timeForm.startTime}
-                    onChange={(event) =>
-                      setTimeForm((current) => ({ ...current, startTime: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>End Time</span>
-                  <input
-                    type="time"
-                    value={timeForm.endTime}
-                    onChange={(event) =>
-                      setTimeForm((current) => ({ ...current, endTime: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Sort Order</span>
-                  <input
-                    min="0"
-                    type="number"
-                    value={timeForm.sortOrder}
-                    onChange={(event) =>
-                      setTimeForm((current) => ({ ...current, sortOrder: event.target.value }))
-                    }
-                  />
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    checked={timeForm.isActive}
-                    type="checkbox"
-                    onChange={(event) =>
-                      setTimeForm((current) => ({ ...current, isActive: event.target.checked }))
-                    }
-                  />
-                  <span>Active</span>
-                </label>
-                <div className="configuration-actions configuration-span">
-                  <button className="button-link button-reset" disabled={savingSection === 'time'} type="submit">
-                    {savingSection === 'time' ? 'Saving...' : timeForm.id ? 'Save Time' : 'Save New Time'}
-                  </button>
-                  <button
-                    className="text-button"
-                    type="button"
-                    onClick={() => {
-                      setTimeForm(EMPTY_TIME_FORM);
-                      setTimeFormOpen(false);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : null}
-            <ConfigurationTable
-              columns={['Time', 'Start/End', 'Status', 'Actions']}
-              emptyText="No default times have been added yet."
-              rows={eventTimes.map((timeOption) => ({
-                id: timeOption.id,
-                cells: [
-                  <>
-                    <strong>{timeOption.label}</strong>
-                    <span>{timeOption.value}</span>
-                  </>,
-                  formatConfigurationTimeRange(timeOption.startTime, timeOption.endTime),
-                  timeOption.isActive === false ? 'Inactive' : 'Active',
-                  <RowActions
-                    key={timeOption.id}
-                    onDelete={() => deleteEventTimeDefault(timeOption, currentUserProfile)}
-                    onEdit={() => {
-                      setTimeForm({ ...EMPTY_TIME_FORM, ...timeOption });
-                      setTimeFormOpen(true);
-                    }}
-                  />
-                ]
-              }))}
-            />
-          </>
+          </form>
         ) : null}
+        <ConfigurationTable
+          columns={['Time', 'Start/End', 'Status', 'Actions']}
+          emptyText="No default times have been added yet."
+          rows={eventTimes.map((timeOption) => ({
+            id: timeOption.id,
+            cells: [
+              <>
+                <strong>{timeOption.label}</strong>
+                <span>{timeOption.value}</span>
+              </>,
+              formatConfigurationTimeRange(timeOption.startTime, timeOption.endTime),
+              timeOption.isActive === false ? 'Inactive' : 'Active',
+              <RowActions
+                key={timeOption.id}
+                onDelete={() => deleteEventTimeDefault(timeOption, currentUserProfile)}
+                onEdit={() => {
+                  setTimeForm({ ...EMPTY_TIME_FORM, ...timeOption });
+                  setTimeFormOpen(true);
+                }}
+              />
+            ]
+          }))}
+        />
       </article>
     );
   }
