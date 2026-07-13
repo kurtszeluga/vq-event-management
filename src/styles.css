@@ -1479,6 +1479,25 @@ body.popup-mode .page-content {
   margin-top: 8px;
 }
 
+.profile-search-row {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(260px, 1fr) max-content;
+  margin: 14px 0 4px;
+}
+
+.profile-search-row label {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-search-row label span {
+  color: #3b4b48;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
 .compact-action {
   font-size: 0.84rem;
   padding: 6px 8px;
@@ -1604,6 +1623,10 @@ body.popup-mode .page-content {
 
   .card-actions .archive-action {
     margin-left: 0;
+  }
+
+  .profile-search-row {
+    grid-template-columns: 1fr;
   }
 
   .user-table {

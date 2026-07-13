@@ -42,6 +42,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [membershipFilter, setMembershipFilter] = useState('All');
   const [quickFilter, setQuickFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'lastName', direction: 'asc' });
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
@@ -74,6 +75,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   }, [canManageAdminUsers]);
 
   const filteredUsers = getFilteredUsers(users, quickFilter, membershipFilter);
+  const searchedUsers = searchUsers(filteredUsers, searchTerm);
 
   const startAddUser = useCallback(() => {
     setEditingUserId('new');
@@ -306,7 +308,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     );
   }
 
-  const sortedFilteredUsers = sortUsers(filteredUsers, sortConfig);
+  const sortedFilteredUsers = sortUsers(searchedUsers, sortConfig);
 
   return (
     <section className="admin-list-panel" id="user-controls-card">
@@ -324,13 +326,38 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         </div>
       </div>
       <span className="form-help">
-        {filteredUsers.length} shown of {users.length} total profiles
+        {searchedUsers.length} shown of {users.length} total profiles
       </span>
       <p className="form-help">
         {canManageAdminUsers
           ? 'Super Users control profile roles and admin permissions.'
           : 'Admins can add and update General User profiles.'}
       </p>
+      <div className="profile-search-row">
+        <label>
+          <span>Search Profiles</span>
+          <input
+            type="search"
+            placeholder="Search name, email, phone, role, or membership"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </label>
+        {searchTerm ? (
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={() => setSearchTerm('')}
+          >
+            Clear Search
+          </button>
+        ) : null}
+      </div>
+      {searchTerm ? (
+        <span className="form-help">
+          {searchedUsers.length} matching {filteredUsers.length} filtered profiles
+        </span>
+      ) : null}
       <div className="status-filter-group" aria-label="Quick profile filter">
         {QUICK_FILTERS.filter((filter) => canManageAdminUsers || filter.key !== 'admins').map((filter) => (
           <button
@@ -882,6 +909,36 @@ function getFilteredUsers(users, quickFilter, membershipFilter) {
       && (membershipFilter === 'All'
         || (user.role !== 'Super User' && membershipStatus === membershipFilter));
   });
+}
+
+function searchUsers(users, searchTerm) {
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  if (!normalizedSearch) {
+    return users;
+  }
+
+  return users.filter((user) => getUserSearchText(user).includes(normalizedSearch));
+}
+
+function getUserSearchText(user) {
+  return [
+    user.name,
+    getProfileFirstName(user),
+    getProfileLastName(user),
+    user.email,
+    user.phone,
+    user.role,
+    getDisplayMembershipStatus(user),
+    getDisplayProfileStatus(user),
+    user.membershipMatchedBy,
+    user.membershipMemberId,
+    user.userId,
+    user.id
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 }
 
 function formatAddress(address = {}) {
