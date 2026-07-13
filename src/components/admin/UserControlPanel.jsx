@@ -511,7 +511,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 {savingUserId === 'new' ? 'Adding...' : 'Add User'}
               </button>
               <button
-                className="text-button"
+                className="button-link button-reset secondary-action"
                 disabled={Boolean(savingUserId)}
                 type="button"
                 onClick={() => {
@@ -730,7 +730,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                   </button>
                 ) : null}
                 <button
-                  className="text-button"
+                  className="button-link button-reset secondary-action"
                   disabled={Boolean(savingUserId)}
                   type="button"
                   onClick={() => {

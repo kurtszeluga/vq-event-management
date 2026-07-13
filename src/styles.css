@@ -831,8 +831,7 @@ body.popup-mode .page-content {
   width: 100%;
 }
 
-.text-button,
-.danger-button {
+.text-button {
   background: transparent;
   border: 0;
   color: #225c56;
@@ -844,11 +843,29 @@ body.popup-mode .page-content {
 }
 
 .danger-button {
+  background: #fffaf8;
+  border: 1px solid #c44c33;
+  border-radius: 8px;
   color: #9a341f;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 800;
+  padding: 10px 14px;
+  text-decoration: none;
 }
 
-.text-button:disabled,
+.danger-button:hover {
+  background: #fbe9e3;
+}
+
+.text-button:disabled {
+  color: #8b9693;
+  cursor: not-allowed;
+}
+
 .danger-button:disabled {
+  border-color: #d9beb5;
   color: #8b9693;
   cursor: not-allowed;
 }
