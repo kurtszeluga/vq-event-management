@@ -313,24 +313,22 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           ? 'Super Users control profile roles and admin permissions.'
           : 'Admins can add and update General User profiles.'}
       </p>
-      {canManageAdminUsers ? (
-        <div className="status-filter-group" aria-label="Quick profile filter">
-          {QUICK_FILTERS.map((filter) => (
-            <button
-              className={`status-filter-button${quickFilter === filter.key ? ' active' : ''}`}
-              key={filter.key}
-              type="button"
-              onClick={() => setQuickFilter(filter.key)}
-            >
-              {filter.key === 'admins'
-                ? `${filter.label} (${adminUsers.length})`
-                : filter.key === 'archived'
-                  ? `${filter.label} (${archivedUsers.length})`
-                  : `${filter.label} (${users.length})`}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <div className="status-filter-group" aria-label="Quick profile filter">
+        {QUICK_FILTERS.filter((filter) => canManageAdminUsers || filter.key !== 'admins').map((filter) => (
+          <button
+            className={`status-filter-button${quickFilter === filter.key ? ' active' : ''}`}
+            key={filter.key}
+            type="button"
+            onClick={() => setQuickFilter(filter.key)}
+          >
+            {filter.key === 'admins'
+              ? `${filter.label} (${adminUsers.length})`
+              : filter.key === 'archived'
+                ? `${filter.label} (${archivedUsers.length})`
+                : `${filter.label} (${users.length})`}
+          </button>
+        ))}
+      </div>
       <div className="status-filter-group separated-filter-row" aria-label="Membership filter">
         {MEMBERSHIP_FILTERS.map((status) => (
           <button
