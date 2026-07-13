@@ -304,11 +304,13 @@ function EventList({
             )}
           </div>
           <div className="card-actions">
-            <button className="button-link button-reset compact-action" type="button" onClick={() => onEdit(event)}>
+            <button className="button-link button-reset" type="button" onClick={() => onEdit(event)}>
               Edit
             </button>
             <button
-              className={event.status === 'Archived' ? 'button-link button-reset secondary-action' : 'danger-button'}
+              className={event.status === 'Archived'
+                ? 'button-link button-reset secondary-action archive-action'
+                : 'danger-button archive-action'}
               title={event.status === 'Archived' ? 'Reactivate this listing' : 'Archive this listing'}
               type="button"
               onClick={() => onDelete(event)}

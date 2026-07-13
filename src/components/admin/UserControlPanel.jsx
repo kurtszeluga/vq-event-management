@@ -757,16 +757,6 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 >
                   {savingUserId === user.id ? 'Saving...' : 'Save User'}
                 </button>
-                {canArchiveUser(user, canManageAdminUsers, currentUserProfile) ? (
-                  <button
-                    className={isArchivedProfile(user) ? 'button-link button-reset secondary-action' : 'danger-button'}
-                    disabled={Boolean(savingUserId)}
-                    type="button"
-                    onClick={() => handleArchiveToggle(user)}
-                  >
-                    {isArchivedProfile(user) ? 'Reactivate' : 'Archive'}
-                  </button>
-                ) : null}
                 <button
                   className="button-link button-reset secondary-action"
                   disabled={Boolean(savingUserId)}
@@ -778,6 +768,18 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 >
                   Cancel
                 </button>
+                {canArchiveUser(user, canManageAdminUsers, currentUserProfile) ? (
+                  <button
+                    className={isArchivedProfile(user)
+                      ? 'button-link button-reset secondary-action archive-action'
+                      : 'danger-button archive-action'}
+                    disabled={Boolean(savingUserId)}
+                    type="button"
+                    onClick={() => handleArchiveToggle(user)}
+                  >
+                    {isArchivedProfile(user) ? 'Reactivate' : 'Archive'}
+                  </button>
+                ) : null}
               </div>
             </article>
           );

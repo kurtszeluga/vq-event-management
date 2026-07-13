@@ -259,7 +259,7 @@ function ProfilePage() {
               {saving ? 'Saving...' : 'Save Profile'}
             </button>
             <button
-              className="text-button"
+              className="button-link button-reset secondary-action"
               disabled={saving}
               type="button"
               onClick={resetProfileForm}

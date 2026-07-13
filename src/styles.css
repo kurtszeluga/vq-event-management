@@ -1426,6 +1426,11 @@ body.popup-mode .page-content {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  width: 100%;
+}
+
+.card-actions .archive-action {
+  margin-left: auto;
 }
 
 .admin-list-panel-actions {
@@ -1555,6 +1560,10 @@ body.popup-mode .page-content {
 
   .card-actions {
     grid-template-columns: repeat(2, max-content);
+  }
+
+  .card-actions .archive-action {
+    margin-left: 0;
   }
 
   .user-table {

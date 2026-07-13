@@ -150,7 +150,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             {savingSection === 'member' ? 'Saving...' : memberForm.id ? 'Save Member' : 'Save New Member'}
           </button>
           <button
-            className="text-button"
+            className="button-link button-reset secondary-action"
             type="button"
             onClick={() => {
               setMemberForm(EMPTY_MEMBER_FORM);
@@ -567,7 +567,7 @@ function ConfigurationPanel({ currentUserProfile }) {
                 {savingSection === 'location' ? 'Saving...' : locationForm.id ? 'Save Location' : 'Save New Location'}
               </button>
               <button
-                className="text-button"
+                className="button-link button-reset secondary-action"
                 type="button"
                 onClick={() => {
                   setLocationForm(EMPTY_LOCATION_FORM);
@@ -694,7 +694,7 @@ function ConfigurationPanel({ currentUserProfile }) {
                 {savingSection === 'time' ? 'Saving...' : timeForm.id ? 'Save Time' : 'Save New Time'}
               </button>
               <button
-                className="text-button"
+                className="button-link button-reset secondary-action"
                 type="button"
                 onClick={() => {
                   setTimeForm(EMPTY_TIME_FORM);
@@ -789,10 +789,10 @@ function RowActions({
 
   return (
     <div className="card-actions">
-      <button className="text-button" type="button" onClick={onEdit}>
+      <button className="button-link button-reset" type="button" onClick={onEdit}>
         Edit
       </button>
-      <button className="danger-button" type="button" onClick={handleDelete}>
+      <button className="danger-button archive-action" type="button" onClick={handleDelete}>
         {deleteLabel}
       </button>
     </div>

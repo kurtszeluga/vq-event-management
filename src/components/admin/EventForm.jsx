@@ -411,7 +411,7 @@ function EventForm({
       <div className="form-section-header">
         <h2>{isEditing ? 'Edit Event' : 'Event/Activity Details'}</h2>
         {isEditing ? (
-          <button className="text-button" type="button" onClick={onCancelEdit}>
+          <button className="button-link button-reset secondary-action" type="button" onClick={onCancelEdit}>
             Cancel Edit
           </button>
         ) : null}
@@ -1271,7 +1271,12 @@ function EventForm({
         >
           {saving && savingAction === 'draft' ? 'Saving Draft...' : 'Save As Draft'}
         </button>
-        <button className="text-button" disabled={saving} type="button" onClick={resetForm}>
+        <button
+          className="button-link button-reset secondary-action"
+          disabled={saving}
+          type="button"
+          onClick={resetForm}
+        >
           Reset Form
         </button>
       </div>
