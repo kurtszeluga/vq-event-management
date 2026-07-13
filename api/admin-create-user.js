@@ -1,10 +1,10 @@
 import { randomInt } from 'node:crypto';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getGoogleAccessToken } from './_lib/google-access-token.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 let firebaseProjectId = '';
-let firebaseApiKey = '';
 
 function initializeAdminApp() {
   const existingApp = getApps()[0];
@@ -50,7 +50,6 @@ export default async function handler(request, response) {
     }
 
     const db = getFirestore();
-    firebaseApiKey = getFirebaseApiKey();
     const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
     const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
 
@@ -263,14 +262,8 @@ function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function getFirebaseApiKey() {
-  return process.env.VITE_FIREBASE_API_KEY
-    || process.env.FIREBASE_API_KEY
-    || '';
-}
-
 async function lookupAuthUserByEmail(email) {
-  const result = await firebaseAuthRequest('accounts:lookup', {
+  const result = await identityPlatformRequest('accounts:lookup', {
     email: [email]
   });
 
@@ -278,47 +271,67 @@ async function lookupAuthUserByEmail(email) {
 }
 
 async function createAuthUser({ disabled, displayName, email, password }) {
-  const result = await firebaseAuthRequest('accounts:signUp', {
-    displayName,
-    email,
-    password,
-    returnSecureToken: false
-  });
+  const apiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || '';
 
-  await updateAuthUser(result.localId, {
-    disabled,
-    displayName,
-    password
-  });
+  if (!apiKey) {
+    throw new Error('Firebase API key is not configured.');
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        displayName,
+        email,
+        password,
+        returnSecureToken: false
+      })
+    }
+  );
+
+  const text = await response.text();
+  const result = text ? safeJsonParse(text) : {};
+
+  if (!response.ok) {
+    const message = result.error?.message || result.error || 'Firebase Auth request failed.';
+    const error = new Error(message);
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  if (disabled) {
+    await updateAuthUser(result.localId, {
+      disabled,
+      displayName,
+      password
+    });
+  }
 
   return result;
 }
 
 async function updateAuthUser(localId, { disabled, displayName, password }) {
-  const body = {
-    localId,
+  return identityPlatformRequest('accounts:update', {
+    disableUser: Boolean(disabled),
     displayName,
+    localId,
     password,
     returnSecureToken: false
-  };
-
-  if (typeof disabled === 'boolean') {
-    body.disableUser = disabled;
-  }
-
-  return firebaseAuthRequest('accounts:update', body);
+  });
 }
 
-async function firebaseAuthRequest(path, body) {
-  if (!firebaseApiKey) {
-    throw new Error('Firebase API key is not configured.');
-  }
-
+async function identityPlatformRequest(methodPath, body) {
+  const accessToken = await getGoogleAccessToken(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
   const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/${path}?key=${firebaseApiKey}`,
+    `https://identitytoolkit.googleapis.com/v1/projects/${firebaseProjectId}/${methodPath}`,
     {
       method: 'POST',
       headers: {
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
@@ -329,7 +342,7 @@ async function firebaseAuthRequest(path, body) {
   const data = text ? safeJsonParse(text) : {};
 
   if (!response.ok) {
-    const message = data.error?.message || data.error || 'Firebase Auth request failed.';
+    const message = data.error?.message || data.error || 'Identity Platform request failed.';
     const error = new Error(message);
     error.statusCode = response.status;
     throw error;

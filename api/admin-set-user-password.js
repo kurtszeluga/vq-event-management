@@ -1,9 +1,9 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getGoogleAccessToken } from './_lib/google-access-token.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 let firebaseProjectId = '';
-let firebaseApiKey = '';
 
 function initializeAdminApp() {
   const existingApp = getApps()[0];
@@ -61,7 +61,6 @@ export default async function handler(request, response) {
     }
 
     const db = getFirestore();
-    firebaseApiKey = getFirebaseApiKey();
     const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
     const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
 
@@ -127,18 +126,14 @@ function parseServiceAccountJson(serviceAccountJson) {
   }
 }
 
-function getFirebaseApiKey() {
-  return process.env.VITE_FIREBASE_API_KEY
-    || process.env.FIREBASE_API_KEY
-    || '';
-}
-
 async function updateAuthUser(localId, { password }) {
+  const accessToken = await getGoogleAccessToken(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
   const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`,
+    `https://identitytoolkit.googleapis.com/v1/projects/${firebaseProjectId}/accounts:update`,
     {
       method: 'POST',
       headers: {
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
