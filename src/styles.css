@@ -1242,6 +1242,34 @@ body.popup-mode .page-content {
   text-transform: uppercase;
 }
 
+.table-sort-button {
+  align-items: flex-start;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: column;
+  font: inherit;
+  font-weight: 900;
+  gap: 2px;
+  padding: 0;
+  text-align: left;
+  text-transform: inherit;
+}
+
+.table-sort-button span {
+  color: #687572;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.table-sort-button.active {
+  color: #225c56;
+}
+
 .user-table td {
   color: #263632;
   line-height: 1.45;
@@ -1413,6 +1441,12 @@ body.popup-mode .page-content {
 .status-filter-button.active {
   background: #225c56;
   border-color: #225c56;
+  color: #fff;
+}
+
+.status-filter-button.archive-active {
+  background: #9a341f;
+  border-color: #9a341f;
   color: #fff;
 }
 

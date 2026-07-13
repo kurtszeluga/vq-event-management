@@ -7,6 +7,7 @@ import { US_STATES } from '../data/usStates.js';
 import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import {
+  buildDisplayName,
   buildBillingAddress,
   formatPhoneNumber,
   toTitleCase
@@ -19,8 +20,9 @@ function SignupPage() {
   const [billingState, setBillingState] = useState('');
   const [billingStreet, setBillingStreet] = useState('');
   const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [formError, setFormError] = useState('');
-  const [name, setName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -30,8 +32,8 @@ function SignupPage() {
     event.preventDefault();
     setFormError('');
 
-    if (!name.trim()) {
-      setFormError('Name is required.');
+    if (!firstName.trim() || !lastName.trim()) {
+      setFormError('First name and last name are required.');
       return;
     }
 
@@ -49,7 +51,9 @@ function SignupPage() {
         password
       );
       const user = userCredential.user;
-      const displayName = toTitleCase(name);
+      const formattedFirstName = toTitleCase(firstName);
+      const formattedLastName = toTitleCase(lastName);
+      const displayName = buildDisplayName(formattedFirstName, formattedLastName);
 
       await updateProfile(user, { displayName });
       await setDoc(doc(db, 'users', user.uid), {
@@ -62,6 +66,8 @@ function SignupPage() {
         }),
         createdDate: serverTimestamp(),
         email: email.trim(),
+        firstName: formattedFirstName,
+        lastName: formattedLastName,
         membershipMatchedBy: '',
         membershipMemberId: '',
         membershipStatus: 'Unknown',
@@ -100,14 +106,25 @@ function SignupPage() {
       </div>
       <form className="form-panel" onSubmit={handleSubmit}>
         <label>
-          <span>Name *</span>
+          <span>First Name *</span>
           <input
-            autoComplete="name"
+            autoComplete="given-name"
             disabled={!firebaseConfigured || submitting}
-            onBlur={(event) => setName(toTitleCase(event.target.value))}
-            onChange={(event) => setName(event.target.value)}
+            onBlur={(event) => setFirstName(toTitleCase(event.target.value))}
+            onChange={(event) => setFirstName(event.target.value)}
             required
-            value={name}
+            value={firstName}
+          />
+        </label>
+        <label>
+          <span>Last Name *</span>
+          <input
+            autoComplete="family-name"
+            disabled={!firebaseConfigured || submitting}
+            onBlur={(event) => setLastName(toTitleCase(event.target.value))}
+            onChange={(event) => setLastName(event.target.value)}
+            required
+            value={lastName}
           />
         </label>
         <label>

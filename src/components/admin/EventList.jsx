@@ -132,7 +132,7 @@ function EventList({
       <div className="status-filter-group separated-filter-row" aria-label="Event status filters">
           {EVENT_STATUS_FILTERS.map((status) => (
             <button
-              className={`status-filter-button${eventStatusFilter === status ? ' active' : ''}`}
+              className={`status-filter-button${eventStatusFilter === status ? ' active' : ''}${status === 'Archived' && eventStatusFilter === status ? ' archive-active' : ''}`}
               key={status}
               type="button"
               onClick={() => setEventStatusFilter(status)}

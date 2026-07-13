@@ -68,8 +68,8 @@ export default async function handler(request, response) {
 
     const payload = sanitizePayload(request.body || {}, actorProfile);
 
-    if (!payload.name || !payload.email) {
-      response.status(400).json({ error: 'Name and email are required.' });
+    if (!payload.firstName || !payload.lastName || !payload.email) {
+      response.status(400).json({ error: 'First name, last name, and email are required.' });
       return;
     }
 
@@ -85,6 +85,8 @@ export default async function handler(request, response) {
       billingAddress: payload.billingAddress,
       createdDate: existingProfile.exists ? before.createdDate : now,
       email: payload.email,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
       membershipMatchedBy: existingProfile.exists ? before.membershipMatchedBy || '' : '',
       membershipMemberId: existingProfile.exists ? before.membershipMemberId || '' : '',
       membershipStatus: existingProfile.exists ? before.membershipStatus || 'Unknown' : 'Unknown',
@@ -177,7 +179,9 @@ function sanitizePayload(payload, actorProfile) {
       street: cleanText(payload.billingAddress?.street)
     },
     email: cleanText(payload.email).toLowerCase(),
-    name: cleanText(payload.name),
+    firstName: toTitleCase(cleanText(payload.firstName)),
+    lastName: toTitleCase(cleanText(payload.lastName)),
+    name: buildDisplayName(payload.firstName, payload.lastName),
     permissions: payload.permissions || {},
     phone: cleanText(payload.phone),
     profileTags: normalizeProfileTags(payload.profileTags),
@@ -262,6 +266,19 @@ function createTemporaryPassword() {
 
 function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function buildDisplayName(firstName, lastName) {
+  return [toTitleCase(cleanText(firstName)), toTitleCase(cleanText(lastName))]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function toTitleCase(value) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
 }
 
 async function lookupAuthUserByEmail(email) {

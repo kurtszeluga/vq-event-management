@@ -153,6 +153,8 @@ service cloud.firestore {
           'billingAddress',
           'archivedBy',
           'archivedDate',
+          'firstName',
+          'lastName',
           'name',
           'email',
           'membershipMatchedBy',
@@ -183,6 +185,10 @@ service cloud.firestore {
             && request.resource.data.billingAddress.postalCode is string
             && request.resource.data.billingAddress.country is string)
         && request.resource.data.name is string
+        && (!('firstName' in request.resource.data)
+          || request.resource.data.firstName is string)
+        && (!('lastName' in request.resource.data)
+          || request.resource.data.lastName is string)
         && request.resource.data.email is string
         && (!('archivedBy' in request.resource.data)
           || request.resource.data.archivedBy is string)

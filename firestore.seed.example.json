@@ -36,9 +36,19 @@
   "users": {
     "firebase-auth-uid-goes-here": {
       "userId": "firebase-auth-uid-goes-here",
+      "firstName": "Example",
+      "lastName": "Admin",
       "name": "Example Admin",
       "email": "admin@example.com",
       "phone": "555-0101",
+      "permissions": {
+        "addUsers": false,
+        "manageEvents": true,
+        "manageMembershipStatus": false,
+        "managePayments": false,
+        "viewRegistrations": true
+      },
+      "profileTags": [],
       "role": "Admin",
       "status": "Active",
       "createdDate": "__SERVER_TIMESTAMP__",

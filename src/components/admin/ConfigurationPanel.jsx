@@ -442,7 +442,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         <div className="status-filter-group" aria-label="Member status filter">
           {MEMBER_FILTERS.map((status) => (
             <button
-              className={`status-filter-button${memberStatusFilter === status ? ' active' : ''}`}
+              className={`status-filter-button${memberStatusFilter === status ? ' active' : ''}${status === 'Archived' && memberStatusFilter === status ? ' archive-active' : ''}`}
               key={status}
               type="button"
               onClick={() => setMemberStatusFilter(status)}

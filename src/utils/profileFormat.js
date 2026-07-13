@@ -28,6 +28,35 @@ export function buildBillingAddress({
   };
 }
 
+export function splitDisplayName(name = '') {
+  const parts = toTitleCase(name).split(' ').filter(Boolean);
+
+  if (!parts.length) {
+    return { firstName: '', lastName: '' };
+  }
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: '' };
+  }
+
+  return {
+    firstName: parts.slice(0, -1).join(' '),
+    lastName: parts.at(-1)
+  };
+}
+
+export function getProfileFirstName(profile = {}) {
+  return profile.firstName || splitDisplayName(profile.name).firstName;
+}
+
+export function getProfileLastName(profile = {}) {
+  return profile.lastName || splitDisplayName(profile.name).lastName;
+}
+
+export function buildDisplayName(firstName = '', lastName = '') {
+  return [toTitleCase(firstName), toTitleCase(lastName)].filter(Boolean).join(' ');
+}
+
 export function toTitleCase(value) {
   return value
     .trim()

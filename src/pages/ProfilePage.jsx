@@ -11,8 +11,11 @@ import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles
 import { US_STATES } from '../data/usStates.js';
 import { db, firebaseConfigured } from '../lib/firebase.js';
 import {
+  buildDisplayName,
   buildBillingAddress,
   formatPhoneNumber,
+  getProfileFirstName,
+  getProfileLastName,
   toTitleCase
 } from '../utils/profileFormat.js';
 
@@ -23,8 +26,9 @@ function ProfilePage() {
   const [billingPostalCode, setBillingPostalCode] = useState('');
   const [billingState, setBillingState] = useState('');
   const [billingStreet, setBillingStreet] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [formError, setFormError] = useState('');
-  const [name, setName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -42,7 +46,8 @@ function ProfilePage() {
     setBillingPostalCode(billingAddress.postalCode || '');
     setBillingState(billingAddress.state || '');
     setBillingStreet(billingAddress.street || '');
-    setName(userProfile?.name || currentUser?.displayName || '');
+    setFirstName(getProfileFirstName(userProfile) || getProfileFirstName({ name: currentUser?.displayName || '' }));
+    setLastName(getProfileLastName(userProfile) || getProfileLastName({ name: currentUser?.displayName || '' }));
     setPhone(userProfile?.phone || '');
     setFormError('');
     setSuccessMessage('');
@@ -79,15 +84,17 @@ function ProfilePage() {
     setFormError('');
     setSuccessMessage('');
 
-    if (!name.trim()) {
-      setFormError('Name is required.');
+    if (!firstName.trim() || !lastName.trim()) {
+      setFormError('First name and last name are required.');
       return;
     }
 
     setSaving(true);
 
     try {
-      const displayName = toTitleCase(name);
+      const formattedFirstName = toTitleCase(firstName);
+      const formattedLastName = toTitleCase(lastName);
+      const displayName = buildDisplayName(formattedFirstName, formattedLastName);
       await updateProfile(currentUser, { displayName });
       await updateDoc(doc(db, 'users', currentUser.uid), {
         billingAddress: buildBillingAddress({
@@ -98,6 +105,8 @@ function ProfilePage() {
           street: billingStreet
         }),
         email: currentUser.email || userProfile?.email || '',
+        firstName: formattedFirstName,
+        lastName: formattedLastName,
         name: displayName,
         phone: formatPhoneNumber(phone),
         updatedDate: serverTimestamp()
@@ -169,14 +178,25 @@ function ProfilePage() {
           ) : null}
           <form className="form-panel" onSubmit={handleSubmit}>
           <label>
-            <span>Name *</span>
+            <span>First Name *</span>
             <input
-              autoComplete="name"
+              autoComplete="given-name"
               disabled={saving}
-              onBlur={(event) => setName(toTitleCase(event.target.value))}
-              onChange={(event) => setName(event.target.value)}
+              onBlur={(event) => setFirstName(toTitleCase(event.target.value))}
+              onChange={(event) => setFirstName(event.target.value)}
               required
-              value={name}
+              value={firstName}
+            />
+          </label>
+          <label>
+            <span>Last Name *</span>
+            <input
+              autoComplete="family-name"
+              disabled={saving}
+              onBlur={(event) => setLastName(toTitleCase(event.target.value))}
+              onChange={(event) => setLastName(event.target.value)}
+              required
+              value={lastName}
             />
           </label>
           <label>

@@ -18,8 +18,11 @@ import {
   updateUserProfile
 } from '../../services/userService.js';
 import {
+  buildDisplayName,
   buildBillingAddress,
   formatPhoneNumber,
+  getProfileFirstName,
+  getProfileLastName,
   toTitleCase
 } from '../../utils/profileFormat.js';
 
@@ -39,6 +42,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [membershipFilter, setMembershipFilter] = useState('All');
   const [quickFilter, setQuickFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'lastName', direction: 'asc' });
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
   const canEditMembershipStatus =
@@ -83,7 +87,8 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         street: ''
       },
       email: '',
-      name: '',
+      firstName: '',
+      lastName: '',
       permissions: DEFAULT_USER_PERMISSIONS,
       phone: '',
       profileTags: [],
@@ -108,8 +113,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         street: billingAddress.street || ''
       },
       email: user.email || '',
+      firstName: getProfileFirstName(user),
+      lastName: getProfileLastName(user),
       membershipStatus: user.membershipStatus || 'Unknown',
-      name: user.name || '',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
       profileTags: normalizeProfileTags(user.profileTags),
@@ -177,8 +183,8 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     setSavingUserId(user.id);
 
     try {
-      if (!form.name.trim() || !form.email.trim()) {
-        throw new Error('Name and email are required.');
+      if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
+        throw new Error('First name, last name, and email are required.');
       }
 
       if (form.temporaryPassword && form.temporaryPassword.length < 8) {
@@ -190,6 +196,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       }
 
       const normalizedPermissions = normalizePermissions(form.permissions);
+      const formattedFirstName = toTitleCase(form.firstName);
+      const formattedLastName = toTitleCase(form.lastName);
+      const displayName = buildDisplayName(formattedFirstName, formattedLastName);
 
       if (
         canManageAdminUsers &&
@@ -202,7 +211,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       const payload = {
         billingAddress: buildBillingAddress(form.billingAddress),
         email: form.email.trim(),
-        name: toTitleCase(form.name),
+        firstName: formattedFirstName,
+        lastName: formattedLastName,
+        name: displayName,
         permissions:
           canManageAdminUsers && form.role === 'Admin'
             ? normalizedPermissions
@@ -295,6 +306,8 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     );
   }
 
+  const sortedFilteredUsers = sortUsers(filteredUsers, sortConfig);
+
   return (
     <section className="admin-list-panel" id="user-controls-card">
       <div className="form-section-header form-section-header-stacked">
@@ -321,7 +334,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       <div className="status-filter-group" aria-label="Quick profile filter">
         {QUICK_FILTERS.filter((filter) => canManageAdminUsers || filter.key !== 'admins').map((filter) => (
           <button
-            className={`status-filter-button${quickFilter === filter.key ? ' active' : ''}`}
+            className={`status-filter-button${quickFilter === filter.key ? ' active' : ''}${filter.key === 'archived' && quickFilter === filter.key ? ' archive-active' : ''}`}
             key={filter.key}
             type="button"
             onClick={() => setQuickFilter(filter.key)}
@@ -337,7 +350,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       <div className="status-filter-group separated-filter-row" aria-label="Membership filter">
         {MEMBERSHIP_FILTERS.map((status) => (
           <button
-            className={`status-filter-button${membershipFilter === status ? ' active' : ''}`}
+            className={`status-filter-button${membershipFilter === status ? ' active' : ''}${status === 'Archived' && membershipFilter === status ? ' archive-active' : ''}`}
             disabled={quickFilter !== 'all'}
             key={status}
             type="button"
@@ -361,12 +374,21 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
               </div>
               <div className="user-edit-grid">
                 <label>
-                  <span>Name</span>
+                  <span>First Name</span>
                   <input
                     required
-                    value={form.name}
-                    onChange={(event) => updateFormField('name', event.target.value)}
-                    onBlur={(event) => updateFormField('name', toTitleCase(event.target.value))}
+                    value={form.firstName}
+                    onChange={(event) => updateFormField('firstName', event.target.value)}
+                    onBlur={(event) => updateFormField('firstName', toTitleCase(event.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>Last Name</span>
+                  <input
+                    required
+                    value={form.lastName}
+                    onChange={(event) => updateFormField('lastName', event.target.value)}
+                    onBlur={(event) => updateFormField('lastName', toTitleCase(event.target.value))}
                   />
                 </label>
                 <label>
@@ -531,12 +553,17 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
             canManageAdminUsers={canManageAdminUsers}
             currentUserProfile={currentUserProfile}
             detailsUserId={detailsUserId}
-            users={filteredUsers}
+            sortConfig={sortConfig}
+            users={sortedFilteredUsers}
             onDetails={(userId) =>
               setDetailsUserId((currentUserId) => (currentUserId === userId ? '' : userId))
             }
             onEdit={startEdit}
             onArchive={handleArchiveToggle}
+            onSort={(key) => setSortConfig((current) => ({
+              key,
+              direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+            }))}
           />
         ) : null}
         {users.map((user) => {
@@ -555,11 +582,19 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 </div>
                 <div className="user-edit-grid">
                     <label>
-                      <span>Name</span>
+                      <span>First Name</span>
                       <input
-                        value={form.name}
-                        onChange={(event) => updateFormField('name', event.target.value)}
-                        onBlur={(event) => updateFormField('name', toTitleCase(event.target.value))}
+                        value={form.firstName}
+                        onChange={(event) => updateFormField('firstName', event.target.value)}
+                        onBlur={(event) => updateFormField('firstName', toTitleCase(event.target.value))}
+                      />
+                    </label>
+                    <label>
+                      <span>Last Name</span>
+                      <input
+                        value={form.lastName}
+                        onChange={(event) => updateFormField('lastName', event.target.value)}
+                        onBlur={(event) => updateFormField('lastName', toTitleCase(event.target.value))}
                       />
                     </label>
                     <label>
@@ -798,6 +833,47 @@ function isArchivedProfile(user) {
     || getDisplayProfileStatus(user) === 'Archived';
 }
 
+function sortUsers(users, sortConfig) {
+  return [...users].sort((firstUser, secondUser) => {
+    const firstValue = getUserSortValue(firstUser, sortConfig.key);
+    const secondValue = getUserSortValue(secondUser, sortConfig.key);
+    const comparison = firstValue.localeCompare(secondValue, undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    });
+
+    return sortConfig.direction === 'asc' ? comparison : -comparison;
+  });
+}
+
+function getUserSortValue(user, key) {
+  if (key === 'lastName') {
+    return [
+      getProfileLastName(user),
+      getProfileFirstName(user),
+      user.email || ''
+    ].join(' ');
+  }
+
+  if (key === 'role') {
+    return user.role || 'General User';
+  }
+
+  if (key === 'email') {
+    return user.email || '';
+  }
+
+  if (key === 'membership') {
+    return getDisplayMembershipStatus(user);
+  }
+
+  if (key === 'status') {
+    return getDisplayProfileStatus(user);
+  }
+
+  return user.name || user.email || '';
+}
+
 function getFilteredUsers(users, quickFilter, membershipFilter) {
   return users.filter((user) => {
     if (quickFilter === 'admins') {
@@ -841,10 +917,12 @@ function UserTable({
   canManageAdminUsers,
   currentUserProfile,
   detailsUserId,
+  sortConfig,
   users,
   onDetails,
   onEdit,
-  onArchive
+  onArchive,
+  onSort
 }) {
   if (!users.length) {
     return <p className="empty-inline">No user profiles match the selected filters.</p>;
@@ -855,10 +933,11 @@ function UserTable({
       <table className="user-table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Membership</th>
-            <th>Status</th>
+            <SortableHeader label="Name" sortKey="lastName" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Role" sortKey="role" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Email" sortKey="email" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Membership" sortKey="membership" sortConfig={sortConfig} onSort={onSort} />
+            <SortableHeader label="Status" sortKey="status" sortConfig={sortConfig} onSort={onSort} />
             <th>Permissions</th>
             <th>Actions</th>
             <th>Details</th>
@@ -880,8 +959,8 @@ function UserTable({
                 <tr>
                   <td data-label="Name">
                     <strong>{user.name || 'Unnamed User'}</strong>
-                    <span>{user.role || 'General User'}</span>
                   </td>
+                  <td data-label="Role">{user.role || 'General User'}</td>
                   <td data-label="Email">{user.email || 'Email TBD'}</td>
                   <td data-label="Membership">{displayMembership}</td>
                   <td data-label="Status">{displayStatus}</td>
@@ -921,11 +1000,19 @@ function UserTable({
                 </tr>
                 {detailsOpen ? (
                   <tr className="configuration-detail-row">
-                    <td className="configuration-detail-cell" colSpan={7}>
+                    <td className="configuration-detail-cell" colSpan={8}>
                       <div className="user-detail-grid">
                         <span>
                           <strong>Name</strong>
                           {user.name || 'Unnamed User'}
+                        </span>
+                        <span>
+                          <strong>First Name</strong>
+                          {getProfileFirstName(user) || 'Not Set'}
+                        </span>
+                        <span>
+                          <strong>Last Name</strong>
+                          {getProfileLastName(user) || 'Not Set'}
                         </span>
                         <span>
                           <strong>Email</strong>
@@ -997,6 +1084,23 @@ function UserTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+function SortableHeader({ label, sortKey, sortConfig, onSort }) {
+  const isActive = sortConfig.key === sortKey;
+
+  return (
+    <th>
+      <button
+        className={`table-sort-button${isActive ? ' active' : ''}`}
+        type="button"
+        onClick={() => onSort(sortKey)}
+      >
+        {label}
+        <span>{isActive ? (sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A') : 'Sort'}</span>
+      </button>
+    </th>
   );
 }
 
