@@ -4,7 +4,7 @@ import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/ev
 
 const ALL_TYPES = 'All';
 const DESCRIPTION_PREVIEW_LENGTH = 180;
-const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
+const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale', 'Challenges']);
 const FILTER_TYPES = [
   'All',
   ...EVENT_TYPES.filter((type) => !EXCLUDED_EVENT_TYPES.has(type))

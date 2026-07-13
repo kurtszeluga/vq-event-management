@@ -29,6 +29,13 @@ function AdminDashboardPage() {
       createLabel: 'Create New Event/Activity',
       createType: ''
     },
+    challenges: {
+      title: 'Challenges',
+      filter: 'Challenges',
+      showTypeFilters: false,
+      createLabel: 'Create New Challenge',
+      createType: 'Challenges'
+    },
     'business-listings': {
       title: 'Business Listings',
       filter: 'Business Listing',
@@ -119,6 +126,15 @@ function AdminDashboardPage() {
               onClick={() => setActiveModule('events-activities')}
             >
               Events/Activities
+            </button>
+            <button
+              className={`button-link button-reset ${
+                activeModule === 'challenges' ? '' : 'secondary-action'
+              }`}
+              type="button"
+              onClick={() => setActiveModule('challenges')}
+            >
+              Challenges
             </button>
             <button
               className={`button-link button-reset ${
