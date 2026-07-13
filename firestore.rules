@@ -428,7 +428,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId)
         || isSuperUser()
-        || hasPermission('addUsers') && resource.data.role == 'General User';
+        || isAdmin() && resource.data.role == 'General User';
       allow create: if isSuperUser() && validUser() || validSelfUserCreate(userId) && validUser();
       allow update: if isSuperUser() && validUser()
         || hasPermission('addUsers')

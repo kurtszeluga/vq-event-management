@@ -36,6 +36,26 @@ function EventList({
       }, Object.fromEntries(FILTER_TYPES.slice(1).map((type) => [type, 0]))),
     [events]
   );
+  const eventStatusCounts = useMemo(
+    () =>
+      events.reduce(
+        (counts, event) => {
+          if (excludedTypes.has(event.eventType || 'Other')) {
+            return counts;
+          }
+
+          if (event.status === 'Archived') {
+            counts.archived += 1;
+          } else {
+            counts.active += 1;
+          }
+
+          return counts;
+        },
+        { active: 0, archived: 0 }
+      ),
+    [events, excludedTypes]
+  );
   const eventTypeFilters = useMemo(
     () => FILTER_TYPES,
     []
@@ -91,17 +111,17 @@ function EventList({
   return (
     <div className="event-admin-list">
       <div className="status-filter-group separated-filter-row" aria-label="Event status filters">
-        {EVENT_STATUS_FILTERS.map((status) => (
-          <button
-            className={`status-filter-button${eventStatusFilter === status ? ' active' : ''}`}
-            key={status}
-            type="button"
-            onClick={() => setEventStatusFilter(status)}
-          >
-            {status}
-          </button>
-        ))}
-      </div>
+          {EVENT_STATUS_FILTERS.map((status) => (
+            <button
+              className={`status-filter-button${eventStatusFilter === status ? ' active' : ''}`}
+              key={status}
+              type="button"
+              onClick={() => setEventStatusFilter(status)}
+            >
+              {status} ({eventStatusCounts[status.toLowerCase()] || 0})
+            </button>
+          ))}
+        </div>
       {showTypeFilters ? (
         <div className="status-filter-group separated-filter-row" aria-label="Event type filters">
           {eventTypeFilters.map((type) => (
