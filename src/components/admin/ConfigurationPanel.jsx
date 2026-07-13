@@ -66,6 +66,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [memberListOpen, setMemberListOpen] = useState(false);
   const [memberStatusFilter, setMemberStatusFilter] = useState('Active');
   const [members, setMembers] = useState([]);
+  const [configurationView, setConfigurationView] = useState('membership');
   const [savingSection, setSavingSection] = useState('');
   const [settings, setSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const [successMessage, setSuccessMessage] = useState('');
@@ -322,31 +323,19 @@ function ConfigurationPanel({ currentUserProfile }) {
     }
   }
 
-  return (
-    <section className="admin-form configuration-panel">
-      <div className="form-section-header">
-        <h2>Configuration</h2>
-        <span>Super User Only</span>
-      </div>
-
-      {loading ? <p>Loading configuration...</p> : null}
-      {error ? <p className="form-error">{error}</p> : null}
-      {successMessage ? <p className="form-success">{successMessage}</p> : null}
-
-      <div className="configuration-card-grid">
-      <article className="admin-list-panel configuration-card">
+  function renderMembershipCard() {
+    return (
+      <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Membership Check</h3>
-          {membershipSectionOpen ? (
-            <p>Control whether new user accounts should be checked against the member list.</p>
-          ) : null}
+          <p>Control whether new user accounts should be checked against the member list.</p>
           <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
               type="button"
               onClick={() => setMembershipSectionOpen((current) => !current)}
             >
-              {membershipSectionOpen ? 'Hide Membership Check' : 'Show Membership Check'}
+              {membershipSectionOpen ? 'Hide Settings' : 'Show Settings'}
             </button>
           </div>
         </div>
@@ -408,26 +397,23 @@ function ConfigurationPanel({ currentUserProfile }) {
           </form>
         ) : null}
       </article>
+    );
+  }
 
-      <article className="admin-list-panel configuration-card">
+  function renderMemberListCard() {
+    return (
+      <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Member List</h3>
-          {memberListOpen ? (
-            <>
-              <p>Upload a CSV or manually add members for email/phone matching.</p>
-              <p>
-                CSV columns should use First Name, Last Name, Email, and Phone. Status and
-                Notes are optional.
-              </p>
-            </>
-          ) : null}
+          <p>Upload a CSV or manually add members for email/phone matching.</p>
+          <p>CSV columns should use First Name, Last Name, Email, and Phone. Status and Notes are optional.</p>
           <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
               type="button"
               onClick={() => setMemberListOpen((current) => !current)}
             >
-              {memberListOpen ? 'Hide Member List' : 'Show Member List'}
+              {memberListOpen ? 'Hide List' : 'Show List'}
             </button>
           </div>
         </div>
@@ -519,13 +505,15 @@ function ConfigurationPanel({ currentUserProfile }) {
           </>
         ) : null}
       </article>
+    );
+  }
 
-      <article className="admin-list-panel configuration-card">
+  function renderLocationCard() {
+    return (
+      <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Default Locations</h3>
-          {locationSectionOpen ? (
-            <p>These locations appear in the event/activity location dropdown.</p>
-          ) : null}
+          <p>These locations appear in the event/activity location dropdown.</p>
           <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
@@ -649,13 +637,15 @@ function ConfigurationPanel({ currentUserProfile }) {
           </>
         ) : null}
       </article>
+    );
+  }
 
-      <article className="admin-list-panel configuration-card">
+  function renderTimeCard() {
+    return (
+      <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Default Start/End Times</h3>
-          {timeSectionOpen ? (
-            <p>These time blocks appear in the event/activity time dropdown.</p>
-          ) : null}
+          <p>These time blocks appear in the event/activity time dropdown.</p>
           <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
@@ -787,7 +777,45 @@ function ConfigurationPanel({ currentUserProfile }) {
           </>
         ) : null}
       </article>
-      </div>
+    );
+  }
+
+  return (
+    <section className="admin-form configuration-panel">
+      {loading ? <p>Loading configuration...</p> : null}
+      {error ? <p className="form-error">{error}</p> : null}
+      {successMessage ? <p className="form-success">{successMessage}</p> : null}
+
+      <section className="admin-list-panel configuration-shell">
+        <div className="form-section-header form-section-header-stacked configuration-shell-header">
+          <div className="form-section-header-top">
+            <h2>Configuration</h2>
+            <span>Super User Only</span>
+          </div>
+          <div className="configuration-card-actions configuration-shell-actions">
+            {[
+              ['membership', 'Membership Check'],
+              ['members', 'Member List'],
+              ['locations', 'Default Locations'],
+              ['times', 'Default Start/End Times']
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                className={`button-link button-reset ${configurationView === value ? '' : 'secondary-action'}`}
+                type="button"
+                onClick={() => setConfigurationView(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {configurationView === 'membership' ? renderMembershipCard() : null}
+        {configurationView === 'members' ? renderMemberListCard() : null}
+        {configurationView === 'locations' ? renderLocationCard() : null}
+        {configurationView === 'times' ? renderTimeCard() : null}
+      </section>
     </section>
   );
 }

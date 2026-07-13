@@ -1244,19 +1244,31 @@ body.popup-mode .page-content {
   gap: 18px;
 }
 
-.configuration-card-grid {
+.configuration-shell {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.configuration-card {
+.configuration-shell-header {
+  display: grid;
+  gap: 14px;
+}
+
+.configuration-shell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.configuration-mini-card {
+  border-top: 1px solid #e6ddd3;
   display: grid;
   gap: 16px;
+  padding-top: 22px;
 }
 
-.configuration-card h3,
-.configuration-card p {
+.configuration-mini-card h3,
+.configuration-mini-card p {
   margin: 0;
 }
 
@@ -1275,12 +1287,6 @@ body.popup-mode .page-content {
   flex-wrap: wrap;
   gap: 12px;
   justify-content: flex-start;
-}
-
-@media (max-width: 960px) {
-  .configuration-card-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .empty-inline {
