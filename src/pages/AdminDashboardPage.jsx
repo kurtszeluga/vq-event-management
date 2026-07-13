@@ -15,6 +15,7 @@ function AdminDashboardPage() {
   const { hasPermission, isSuperUser, userProfile } = useAuth();
   const [activeModule, setActiveModule] = useState('');
   const [editingEvent, setEditingEvent] = useState(null);
+  const [draftEventType, setDraftEventType] = useState('');
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -25,17 +26,22 @@ function AdminDashboardPage() {
       title: 'Events/Activities',
       filter: 'All',
       showTypeFilters: true,
-      createLabel: 'Create New Event/Activity'
+      createLabel: 'Create New Event/Activity',
+      createType: ''
     },
     'business-listings': {
       title: 'Business Listings',
       filter: 'Business Listing',
-      showTypeFilters: false
+      showTypeFilters: false,
+      createLabel: 'Create New Business Listing',
+      createType: 'Business Listing'
     },
     'for-sale': {
       title: 'For Sale',
       filter: 'For Sale',
-      showTypeFilters: false
+      showTypeFilters: false,
+      createLabel: 'Create New For Sale Listing',
+      createType: 'For Sale'
     }
   };
 
@@ -78,7 +84,14 @@ function AdminDashboardPage() {
   }
 
   function handleEditEvent(event) {
+    setDraftEventType('');
     setEditingEvent(event);
+    setActiveModule('event-details');
+  }
+
+  function handleStartCreate(initialEventType = '') {
+    setEditingEvent(null);
+    setDraftEventType(initialEventType);
     setActiveModule('event-details');
   }
 
@@ -162,32 +175,38 @@ function AdminDashboardPage() {
           <div id="event-details-card">
             <EventForm
               editingEvent={editingEvent}
-              onCancelEdit={() => setEditingEvent(null)}
-              onSaved={() => setEditingEvent(null)}
+              initialEventType={draftEventType}
+              onCancelEdit={() => {
+                setEditingEvent(null);
+                setDraftEventType('');
+              }}
+              onSaved={() => {
+                setEditingEvent(null);
+                setDraftEventType('');
+              }}
               userProfile={userProfile}
             />
           </div>
         ) : null}
         {canManageEvents && activeModule in eventModuleConfig ? (
           <section className="admin-list-panel" id="existing-events-card">
-            <div className="form-section-header">
-              <h2>{eventModuleConfig[activeModule].title}</h2>
-              <span>{events.length} total</span>
-            </div>
-            {activeModule === 'events-activities' ? (
-              <div className="admin-list-panel-actions">
-                <button
-                  className="button-link button-reset secondary-action"
-                  type="button"
-                  onClick={() => {
-                    setEditingEvent(null);
-                    setActiveModule('event-details');
-                  }}
-                >
-                  Create New Event/Activity
-                </button>
+            <div className="form-section-header form-section-header-stacked">
+              <div className="form-section-header-top">
+                <h2>{eventModuleConfig[activeModule].title}</h2>
+                <span>{events.length} total</span>
               </div>
-            ) : null}
+              {eventModuleConfig[activeModule].createLabel ? (
+                <div className="admin-list-panel-actions">
+                  <button
+                    className="button-link button-reset secondary-action"
+                    type="button"
+                    onClick={() => handleStartCreate(eventModuleConfig[activeModule].createType)}
+                  >
+                    {eventModuleConfig[activeModule].createLabel}
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <EventList
               events={events}
               loading={loadingEvents}

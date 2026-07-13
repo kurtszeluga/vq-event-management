@@ -243,16 +243,18 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
 
   return (
     <section className="admin-list-panel" id="user-controls-card">
-      <div className="form-section-header">
+      <div className="form-section-header form-section-header-stacked">
         <h2>User Controls</h2>
-        <button
-          className="button-link button-reset secondary-action"
-          disabled={Boolean(editingUserId)}
-          type="button"
-          onClick={startAddUser}
-        >
-          Add User
-        </button>
+        <div className="admin-list-panel-actions">
+          <button
+            className="button-link button-reset secondary-action"
+            disabled={Boolean(editingUserId)}
+            type="button"
+            onClick={startAddUser}
+          >
+            Add User
+          </button>
+        </div>
       </div>
       <span className="form-help">
         {filteredUsers.length} shown of {users.length} total profiles

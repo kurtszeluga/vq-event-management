@@ -398,6 +398,19 @@ body.popup-mode .page-content {
   margin-bottom: 22px;
 }
 
+.form-section-header-stacked {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-section-header-top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .form-section-header h2,
 .form-subsection h3,
 .event-admin-card h3,

@@ -28,7 +28,13 @@ function isInvalidTimeRange(startTime, endTime) {
   return Boolean(startTime && endTime && endTime <= startTime);
 }
 
-function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
+function EventForm({
+  editingEvent,
+  initialEventType = '',
+  onCancelEdit,
+  onSaved,
+  userProfile
+}) {
   const documentInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const pdfInputRef = useRef(null);
@@ -46,8 +52,8 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   const isEditing = Boolean(editingEvent);
 
   useEffect(() => {
-    setForm(getInitialForm(editingEvent));
-  }, [editingEvent]);
+    setForm(getInitialForm(editingEvent, initialEventType));
+  }, [editingEvent, initialEventType]);
 
   useEffect(() => {
     const unsubscribeLocations = subscribeToActiveEventLocationDefaults(
@@ -199,7 +205,7 @@ function EventForm({ editingEvent, onCancelEdit, onSaved, userProfile }) {
   }
 
   function resetForm() {
-    setForm(getInitialForm(editingEvent));
+    setForm(getInitialForm(editingEvent, initialEventType));
     setError('');
     setFieldErrors({});
     setUploadMessage('');
@@ -1573,10 +1579,11 @@ function getTimeOptionDisplay(option) {
   return timeRange ? `${option.label} (${timeRange})` : option.label;
 }
 
-function getInitialForm(editingEvent) {
+function getInitialForm(editingEvent, initialEventType = '') {
   if (!editingEvent) {
     return {
       ...DEFAULT_EVENT_FORM,
+      eventType: initialEventType || DEFAULT_EVENT_FORM.eventType,
       imageUrls: [...DEFAULT_EVENT_FORM.imageUrls]
     };
   }
