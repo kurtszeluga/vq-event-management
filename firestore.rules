@@ -306,6 +306,7 @@ service cloud.firestore {
           'Pay',
           'Refund',
           'Archive',
+          'Reactivate',
           'Attendance Update'
         ])
         && request.resource.data.actorEmail is string

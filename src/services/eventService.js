@@ -117,6 +117,29 @@ export async function archiveEvent(eventId, actorProfile) {
   return batch.commit();
 }
 
+export async function reactivateEvent(eventId, actorProfile) {
+  const eventRef = doc(db, 'events', eventId);
+  const eventSnap = await getDoc(eventRef);
+  const eventData = eventSnap.exists() ? eventSnap.data() : {};
+  const batch = writeBatch(db);
+
+  batch.update(eventRef, {
+    status: 'Published',
+    updatedDate: serverTimestamp()
+  });
+
+  addAuditLog(batch, {
+    action: 'Reactivate',
+    actorProfile,
+    after: { status: 'Published' },
+    before: eventData,
+    entityId: eventId,
+    summary: `Reactivated event "${eventData.title || eventId}"`
+  });
+
+  return batch.commit();
+}
+
 export async function getEvent(eventId) {
   const eventSnap = await getDoc(doc(db, 'events', eventId));
 

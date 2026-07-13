@@ -15,6 +15,7 @@ import {
 import {
   createUserByAdmin,
   archiveUserProfile,
+  reactivateUserProfile,
   subscribeToUsers,
   updateUserPasswordByAdmin,
   updateUserProfile
@@ -69,25 +70,27 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     return unsubscribe;
   }, [canManageAdminUsers]);
 
-  const membershipCountableUsers = users.filter((user) => user.role !== 'Super User');
+  const membershipCountableUsers = users.filter(
+    (user) => user.role !== 'Super User' && !isArchivedProfile(user)
+  );
   const membershipCounts = getCounts(membershipCountableUsers, getDisplayMembershipStatus);
   const profileStatusCounts = getCounts(users, getDisplayProfileStatus);
   const adminUsers = users.filter(isVisibleAdminProfile);
-  const archivedUsers = users.filter((user) => getDisplayProfileStatus(user) === 'Archived');
+  const archivedUsers = users.filter(isArchivedProfile);
   const filteredUsers = users.filter((user) => {
     if (quickFilter === 'admins') {
       return isVisibleAdminProfile(user);
     }
 
     if (quickFilter === 'archived') {
-      return getDisplayProfileStatus(user) === 'Archived';
+      return isArchivedProfile(user);
     }
 
     const membershipStatus = getDisplayMembershipStatus(user);
 
-    return membershipFilter === 'All'
-      || ((user.role !== 'Super User' && membershipStatus === membershipFilter)
-        && getDisplayProfileStatus(user) !== 'Archived');
+    return !isArchivedProfile(user)
+      && (membershipFilter === 'All'
+        || (user.role !== 'Super User' && membershipStatus === membershipFilter));
   });
 
   const startAddUser = useCallback(() => {
@@ -235,12 +238,17 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     }
   }
 
-  async function handleArchive(user) {
+  async function handleArchiveToggle(user) {
     if (!canArchiveUser(user, canManageAdminUsers, currentUserProfile) || user.id === 'new') {
       return;
     }
 
-    const confirmed = window.confirm(`Archive "${user.name || user.email || 'this profile'}"?`);
+    const isArchived = isArchivedProfile(user);
+    const confirmed = window.confirm(
+      isArchived
+        ? `Reactivate "${user.name || user.email || 'this profile'}"?`
+        : `Archive "${user.name || user.email || 'this profile'}"?`
+    );
 
     if (!confirmed) {
       return;
@@ -251,15 +259,19 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     setSavingUserId(user.id);
 
     try {
-      await archiveUserProfile(user.id, currentUserProfile);
+      if (isArchived) {
+        await reactivateUserProfile(user.id, currentUserProfile);
+      } else {
+        await archiveUserProfile(user.id, currentUserProfile);
+      }
 
       if (editingUserId === user.id) {
         setEditingUserId('');
         setForm(null);
       }
 
-      setQuickFilter('archived');
-      setSuccessMessage('User profile archived.');
+      setQuickFilter(isArchived ? 'all' : 'archived');
+      setSuccessMessage(isArchived ? 'User profile reactivated.' : 'User profile archived.');
     } catch (archiveError) {
       setError(archiveError.message);
     } finally {
@@ -524,7 +536,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
               setDetailsUserId((currentUserId) => (currentUserId === userId ? '' : userId))
             }
             onEdit={startEdit}
-            onArchive={handleArchive}
+            onArchive={handleArchiveToggle}
           />
         ) : null}
         {users.map((user) => {
@@ -711,12 +723,12 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 </button>
                 {canArchiveUser(user, canManageAdminUsers, currentUserProfile) ? (
                   <button
-                    className="danger-button"
+                    className={isArchivedProfile(user) ? 'button-link button-reset secondary-action' : 'danger-button'}
                     disabled={Boolean(savingUserId)}
                     type="button"
-                    onClick={() => handleArchive(user)}
+                    onClick={() => handleArchiveToggle(user)}
                   >
-                    Archive
+                    {isArchivedProfile(user) ? 'Reactivate' : 'Archive'}
                   </button>
                 ) : null}
                 <button
@@ -768,8 +780,12 @@ function getDisplayProfileStatus(user) {
 
 function isVisibleAdminProfile(user) {
   return ['Admin', 'Super User'].includes(user.role)
-    && getDisplayMembershipStatus(user) !== 'Archived'
-    && getDisplayProfileStatus(user) !== 'Archived';
+    && !isArchivedProfile(user);
+}
+
+function isArchivedProfile(user) {
+  return Boolean(user.archivedDate || user.archivedBy)
+    || getDisplayProfileStatus(user) === 'Archived';
 }
 
 function formatAddress(address = {}) {

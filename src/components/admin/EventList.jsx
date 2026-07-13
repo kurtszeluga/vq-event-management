@@ -265,12 +265,12 @@ function EventList({
               Edit
             </button>
             <button
-              className="danger-button"
-              title="Archive this listing"
+              className={event.status === 'Archived' ? 'button-link button-reset secondary-action' : 'danger-button'}
+              title={event.status === 'Archived' ? 'Reactivate this listing' : 'Archive this listing'}
               type="button"
               onClick={() => onDelete(event)}
             >
-              Archive
+              {event.status === 'Archived' ? 'Reactivate' : 'Archive'}
             </button>
           </div>
         </article>

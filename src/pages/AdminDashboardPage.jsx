@@ -6,7 +6,7 @@ import EventForm from '../components/admin/EventForm.jsx';
 import EventList from '../components/admin/EventList.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
-import { archiveEvent, subscribeToAdminEvents } from '../services/eventService.js';
+import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
 
 function AdminDashboardPage() {
   const location = useLocation();
@@ -76,10 +76,17 @@ function AdminDashboardPage() {
   }, [canManageEvents]);
 
   async function handleDelete(event) {
-    const confirmed = window.confirm(`Archive "${event.title}"?`);
+    const isArchived = event.status === 'Archived';
+    const confirmed = window.confirm(
+      isArchived ? `Reactivate "${event.title}"?` : `Archive "${event.title}"?`
+    );
 
     if (confirmed) {
-      await archiveEvent(event.id, userProfile);
+      if (isArchived) {
+        await reactivateEvent(event.id, userProfile);
+      } else {
+        await archiveEvent(event.id, userProfile);
+      }
     }
   }
 

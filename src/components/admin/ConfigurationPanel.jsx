@@ -5,6 +5,7 @@ import {
   deleteEventLocationDefault,
   deleteEventTimeDefault,
   importMembersFromCsvRows,
+  reactivateMember,
   saveEventLocationDefault,
   saveEventTimeDefault,
   saveMember,
@@ -462,11 +463,17 @@ function ConfigurationPanel({ currentUserProfile }) {
               member.email || '-',
               member.phone || '-',
               member.status || 'Active',
-              <RowActions
+            <RowActions
                 key={member.id}
-                deleteConfirm={`Archive ${member.name || member.email || member.phone}?`}
-                deleteLabel="Archive"
-                onDelete={() => archiveMember(member, currentUserProfile)}
+                deleteConfirm={`${
+                  member.status === 'Archived' ? 'Reactivate' : 'Archive'
+                } ${member.name || member.email || member.phone}?`}
+                deleteLabel={member.status === 'Archived' ? 'Reactivate' : 'Archive'}
+                onDelete={() =>
+                  (member.status === 'Archived'
+                    ? reactivateMember(member, currentUserProfile)
+                    : archiveMember(member, currentUserProfile))
+                }
                 onEdit={() => {
                   setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
                   setMemberFormOpen(true);

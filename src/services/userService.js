@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  deleteField,
   getDoc,
   onSnapshot,
   orderBy,
@@ -62,7 +63,7 @@ export async function archiveUserProfile(userId, actorProfile) {
   const after = {
     archivedBy,
     archivedDate: serverTimestamp(),
-    status: 'Archived',
+    status: 'Inactive',
     updatedDate: serverTimestamp()
   };
 
@@ -73,6 +74,33 @@ export async function archiveUserProfile(userId, actorProfile) {
     before,
     entityId: userId,
     summary: `Archived user "${before.name || before.email || userId}"`
+  });
+
+  return batch.commit();
+}
+
+export async function reactivateUserProfile(userId, actorProfile) {
+  const userRef = doc(db, 'users', userId);
+  const userSnap = await getDoc(userRef);
+  const before = userSnap.exists() ? userSnap.data() : {};
+  const batch = writeBatch(db);
+  const after = {
+    archivedBy: deleteField(),
+    archivedDate: deleteField(),
+    status: 'Active',
+    updatedDate: serverTimestamp()
+  };
+
+  batch.update(userRef, after);
+  addAuditLog(batch, {
+    action: 'Reactivate',
+    actorProfile,
+    after: {
+      status: 'Active'
+    },
+    before,
+    entityId: userId,
+    summary: `Reactivated user "${before.name || before.email || userId}"`
   });
 
   return batch.commit();

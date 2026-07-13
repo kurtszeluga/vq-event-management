@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  deleteField,
   getDocs,
   onSnapshot,
   orderBy,
@@ -196,7 +197,7 @@ export async function archiveMember(member, actorProfile) {
     updatedDate: serverTimestamp()
   };
 
-  batch.set(doc(db, 'members', member.id), payload, { merge: true });
+  batch.update(doc(db, 'members', member.id), payload);
   await addMembershipSyncWrites(batch, [{
     ...member,
     memberId: member.memberId || member.id,
@@ -209,6 +210,35 @@ export async function archiveMember(member, actorProfile) {
     before: member,
     entityId: member.id,
     summary: `Archived member "${member.name || member.email || member.phone}"`
+  });
+
+  return batch.commit();
+}
+
+export async function reactivateMember(member, actorProfile) {
+  const batch = writeBatch(db);
+  const payload = {
+    archivedBy: deleteField(),
+    archivedDate: deleteField(),
+    status: 'Active',
+    updatedDate: serverTimestamp()
+  };
+
+  batch.update(doc(db, 'members', member.id), payload);
+  await addMembershipSyncWrites(batch, [{
+    ...member,
+    memberId: member.memberId || member.id,
+    status: 'Active'
+  }]);
+  addConfigurationAuditLog(batch, {
+    action: 'Reactivate',
+    actorProfile,
+    after: {
+      status: 'Active'
+    },
+    before: member,
+    entityId: member.id,
+    summary: `Reactivated member "${member.name || member.email || member.phone}"`
   });
 
   return batch.commit();
