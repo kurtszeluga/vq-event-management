@@ -63,7 +63,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         setError(snapshotError.message);
         setLoadingUsers(false);
       },
-      { includeAdminProfiles: true }
+      { includeAdminProfiles: canManageAdminUsers }
     );
 
     return unsubscribe;
