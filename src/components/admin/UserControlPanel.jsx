@@ -69,28 +69,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     return unsubscribe;
   }, [canManageAdminUsers]);
 
-  const membershipCountableUsers = users.filter(
-    (user) => user.role !== 'Super User' && !isArchivedProfile(user)
-  );
-  const membershipCounts = getCounts(membershipCountableUsers, getDisplayMembershipStatus);
-  const profileStatusCounts = getCounts(users, getDisplayProfileStatus);
-  const adminUsers = users.filter(isVisibleAdminProfile);
-  const archivedUsers = users.filter(isArchivedProfile);
-  const filteredUsers = users.filter((user) => {
-    if (quickFilter === 'admins') {
-      return isVisibleAdminProfile(user);
-    }
-
-    if (quickFilter === 'archived') {
-      return isArchivedProfile(user);
-    }
-
-    const membershipStatus = getDisplayMembershipStatus(user);
-
-    return !isArchivedProfile(user)
-      && (membershipFilter === 'All'
-        || (user.role !== 'Super User' && membershipStatus === membershipFilter));
-  });
+  const filteredUsers = getFilteredUsers(users, quickFilter, membershipFilter);
 
   const startAddUser = useCallback(() => {
     setEditingUserId('new');
@@ -348,10 +327,10 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
             onClick={() => setQuickFilter(filter.key)}
           >
             {filter.key === 'admins'
-              ? `${filter.label} (${adminUsers.length})`
+              ? `${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`
               : filter.key === 'archived'
-                ? `${filter.label} (${archivedUsers.length})`
-                : `${filter.label} (${users.length})`}
+                ? `${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`
+                : `${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`}
           </button>
         ))}
       </div>
@@ -365,8 +344,8 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
             onClick={() => setMembershipFilter(status)}
           >
             {status === 'All'
-              ? `All Membership (${membershipCountableUsers.length})`
-              : `${status} (${membershipCounts[status] || 0})`}
+              ? `All Membership (${getFilteredUsers(users, 'all', status).length})`
+              : `${status} (${getFilteredUsers(users, 'all', status).length})`}
           </button>
         ))}
       </div>
@@ -801,17 +780,6 @@ function hasSelectedAdminPermission(permissions) {
   return USER_PERMISSION_OPTIONS.some((permission) => permissions[permission.key]);
 }
 
-function getCounts(items, getValue) {
-  return items.reduce((counts, item) => {
-    const value = getValue(item);
-
-    return {
-      ...counts,
-      [value]: (counts[value] || 0) + 1
-    };
-  }, {});
-}
-
 function getDisplayMembershipStatus(user) {
   return user.role === 'Super User' ? 'N/A' : user.membershipStatus || 'Unknown';
 }
@@ -828,6 +796,24 @@ function isVisibleAdminProfile(user) {
 function isArchivedProfile(user) {
   return Boolean(user.archivedDate || user.archivedBy)
     || getDisplayProfileStatus(user) === 'Archived';
+}
+
+function getFilteredUsers(users, quickFilter, membershipFilter) {
+  return users.filter((user) => {
+    if (quickFilter === 'admins') {
+      return isVisibleAdminProfile(user);
+    }
+
+    if (quickFilter === 'archived') {
+      return isArchivedProfile(user);
+    }
+
+    const membershipStatus = getDisplayMembershipStatus(user);
+
+    return !isArchivedProfile(user)
+      && (membershipFilter === 'All'
+        || (user.role !== 'Super User' && membershipStatus === membershipFilter));
+  });
 }
 
 function formatAddress(address = {}) {

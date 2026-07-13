@@ -24,23 +24,41 @@ function EventList({
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
+  const moduleEvents = useMemo(
+    () =>
+      events.filter((event) => {
+        const type = event.eventType || 'Other';
+
+        if (excludedTypes.has(type)) {
+          return false;
+        }
+
+        return showTypeFilters || defaultEventTypeFilter === ALL_TYPES
+          ? true
+          : type === defaultEventTypeFilter;
+      }),
+    [defaultEventTypeFilter, events, excludedTypes, showTypeFilters]
+  );
   const eventTypeCounts = useMemo(
     () =>
-      events.reduce((counts, event) => {
+      moduleEvents.reduce((counts, event) => {
         const type = event.eventType || 'Other';
-        if (excludedTypes.has(type)) {
+
+        if (!matchesEventStatus(event, eventStatusFilter)) {
           return counts;
         }
 
         return type in counts ? { ...counts, [type]: counts[type] + 1 } : counts;
       }, Object.fromEntries(FILTER_TYPES.slice(1).map((type) => [type, 0]))),
-    [events]
+    [eventStatusFilter, moduleEvents]
   );
   const eventStatusCounts = useMemo(
     () =>
-      events.reduce(
+      moduleEvents.reduce(
         (counts, event) => {
-          if (excludedTypes.has(event.eventType || 'Other')) {
+          const type = event.eventType || 'Other';
+
+          if (showTypeFilters && eventTypeFilter !== ALL_TYPES && type !== eventTypeFilter) {
             return counts;
           }
 
@@ -54,7 +72,11 @@ function EventList({
         },
         { active: 0, archived: 0 }
       ),
-    [events, excludedTypes]
+    [eventTypeFilter, moduleEvents, showTypeFilters]
+  );
+  const allTypeCount = useMemo(
+    () => moduleEvents.filter((event) => matchesEventStatus(event, eventStatusFilter)).length,
+    [eventStatusFilter, moduleEvents]
   );
   const eventTypeFilters = useMemo(
     () => FILTER_TYPES,
@@ -62,17 +84,14 @@ function EventList({
   );
   const filteredEvents = useMemo(
     () =>
-      events
-        .filter((event) => !excludedTypes.has(event.eventType || 'Other'))
-        .filter((event) => {
-          return eventStatusFilter === 'Archived'
-            ? event.status === 'Archived'
-            : event.status !== 'Archived';
-        })
+      moduleEvents
+        .filter((event) => matchesEventStatus(event, eventStatusFilter))
         .filter((event) =>
-          eventTypeFilter === ALL_TYPES ? true : (event.eventType || 'Other') === eventTypeFilter
+          !showTypeFilters || eventTypeFilter === ALL_TYPES
+            ? true
+            : (event.eventType || 'Other') === eventTypeFilter
         ),
-    [eventStatusFilter, eventTypeFilter, events, excludedTypes]
+    [eventStatusFilter, eventTypeFilter, moduleEvents, showTypeFilters]
   );
 
   useEffect(() => {
@@ -131,7 +150,7 @@ function EventList({
               type="button"
               onClick={() => setEventTypeFilter(type)}
             >
-              {type === ALL_TYPES ? `All (${events.length})` : `${type} (${eventTypeCounts[type] || 0})`}
+              {type === ALL_TYPES ? `All (${allTypeCount})` : `${type} (${eventTypeCounts[type] || 0})`}
             </button>
           ))}
         </div>
@@ -322,6 +341,12 @@ function EventList({
       ))}
     </div>
   );
+}
+
+function matchesEventStatus(event, statusFilter) {
+  return statusFilter === 'Archived'
+    ? event.status === 'Archived'
+    : event.status !== 'Archived';
 }
 
 export default EventList;
