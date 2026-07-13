@@ -4,7 +4,11 @@ import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/ev
 
 const ALL_TYPES = 'All';
 const DESCRIPTION_PREVIEW_LENGTH = 180;
-const FILTER_TYPES = ['All', ...EVENT_TYPES];
+const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
+const FILTER_TYPES = [
+  'All',
+  ...EVENT_TYPES.filter((type) => !EXCLUDED_EVENT_TYPES.has(type))
+];
 
 function EventList({
   events,
@@ -22,6 +26,10 @@ function EventList({
     () =>
       events.reduce((counts, event) => {
         const type = event.eventType || 'Other';
+        if (EXCLUDED_EVENT_TYPES.has(type)) {
+          return counts;
+        }
+
         return type in counts ? { ...counts, [type]: counts[type] + 1 } : counts;
       }, Object.fromEntries(FILTER_TYPES.slice(1).map((type) => [type, 0]))),
     [events]
@@ -32,9 +40,11 @@ function EventList({
   );
   const filteredEvents = useMemo(
     () =>
-      eventTypeFilter === ALL_TYPES
-        ? events
-        : events.filter((event) => (event.eventType || 'Other') === eventTypeFilter),
+      events
+        .filter((event) => !EXCLUDED_EVENT_TYPES.has(event.eventType || 'Other'))
+        .filter((event) =>
+          eventTypeFilter === ALL_TYPES ? true : (event.eventType || 'Other') === eventTypeFilter
+        ),
     [eventTypeFilter, events]
   );
 
