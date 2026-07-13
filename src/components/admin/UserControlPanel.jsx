@@ -25,7 +25,6 @@ import {
 } from '../../utils/profileFormat.js';
 
 const MEMBERSHIP_FILTERS = ['All', 'Active', 'Inactive', 'Archived', 'Unknown'];
-const PROFILE_STATUS_FILTERS = ['All', ...USER_STATUSES];
 const QUICK_FILTERS = [
   { key: 'all', label: 'All Profiles' },
   { key: 'admins', label: 'Admins' }
@@ -38,7 +37,6 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [form, setForm] = useState(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [membershipFilter, setMembershipFilter] = useState('All');
-  const [profileStatusFilter, setProfileStatusFilter] = useState('All');
   const [quickFilter, setQuickFilter] = useState('all');
   const [savingUserId, setSavingUserId] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -79,10 +77,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     }
 
     const membershipStatus = getDisplayMembershipStatus(user);
-    const profileStatus = getDisplayProfileStatus(user);
 
-    return (membershipFilter === 'All' || user.role !== 'Super User' && membershipStatus === membershipFilter)
-      && (profileStatusFilter === 'All' || profileStatus === profileStatusFilter);
+    return membershipFilter === 'All'
+      || (user.role !== 'Super User' && membershipStatus === membershipFilter);
   });
 
   const startAddUser = useCallback(() => {
@@ -328,19 +325,6 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
             {status === 'All'
               ? `All Membership (${membershipCountableUsers.length})`
               : `${status} (${membershipCounts[status] || 0})`}
-          </button>
-        ))}
-      </div>
-      <div className="status-filter-group separated-filter-row" aria-label="Profile status filter">
-        {PROFILE_STATUS_FILTERS.map((status) => (
-          <button
-            className={`status-filter-button${profileStatusFilter === status ? ' active' : ''}`}
-            disabled={quickFilter === 'admins'}
-            key={status}
-            type="button"
-            onClick={() => setProfileStatusFilter(status)}
-          >
-            {status === 'All' ? `All Status (${users.length})` : `${status} (${profileStatusCounts[status] || 0})`}
           </button>
         ))}
       </div>
