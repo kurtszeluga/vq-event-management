@@ -195,12 +195,14 @@ function getPermissionsForRole(role, permissions = {}) {
     addUsers: Boolean(permissions.addUsers),
     manageEvents: Boolean(permissions.manageEvents),
     managePayments: Boolean(permissions.managePayments),
+    manageMembershipStatus: Boolean(permissions.manageMembershipStatus),
     viewRegistrations: Boolean(permissions.viewRegistrations)
   };
 
   return role === 'Admin' ? normalized : {
     manageEvents: false,
     managePayments: false,
+    manageMembershipStatus: false,
     viewRegistrations: false,
     addUsers: false
   };

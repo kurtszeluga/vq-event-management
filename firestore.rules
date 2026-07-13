@@ -211,13 +211,15 @@ service cloud.firestore {
           'manageEvents',
           'viewRegistrations',
           'managePayments',
-          'addUsers'
+          'addUsers',
+          'manageMembershipStatus'
         ])
         && request.resource.data.permissions.manageEvents is bool
         && request.resource.data.permissions.viewRegistrations is bool
         && request.resource.data.permissions.managePayments is bool
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers is bool)
+        && request.resource.data.permissions.manageMembershipStatus is bool
         && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
         && validStatus(request.resource.data.status, ['Active', 'Inactive', 'Archived'])
         && request.resource.data.createdDate is timestamp;
@@ -235,8 +237,14 @@ service cloud.firestore {
       return request.resource.data.permissions.manageEvents == false
         && request.resource.data.permissions.viewRegistrations == false
         && request.resource.data.permissions.managePayments == false
+        && request.resource.data.permissions.manageMembershipStatus == false
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers == false);
+    }
+
+    function canManageMembershipStatus() {
+      return isAdmin()
+        && currentUserData().permissions.manageMembershipStatus == true;
     }
 
     function profileTagsUnchanged() {
@@ -263,6 +271,20 @@ service cloud.firestore {
           || 'membershipUpdatedDate' in resource.data
             && 'membershipUpdatedDate' in request.resource.data
             && request.resource.data.membershipUpdatedDate == resource.data.membershipUpdatedDate);
+    }
+
+    function membershipStatusEditable() {
+      return canManageMembershipStatus()
+        && request.resource.data.role == 'General User'
+        && (!('membershipMatchedBy' in resource.data) && !('membershipMatchedBy' in request.resource.data)
+          || 'membershipMatchedBy' in resource.data
+            && 'membershipMatchedBy' in request.resource.data
+            && request.resource.data.membershipMatchedBy == resource.data.membershipMatchedBy)
+        && (!('membershipMemberId' in resource.data) && !('membershipMemberId' in request.resource.data)
+          || 'membershipMemberId' in resource.data
+            && 'membershipMemberId' in request.resource.data
+            && request.resource.data.membershipMemberId == resource.data.membershipMemberId)
+        && validStatus(request.resource.data.membershipStatus, ['Active', 'Inactive', 'Archived', 'Unknown']);
     }
 
     function validPayment() {
@@ -436,7 +458,7 @@ service cloud.firestore {
           && validUser()
           && request.resource.data.role == 'General User'
           && hasNoAdminPermissions()
-          && membershipFieldsUnchanged()
+          && (membershipFieldsUnchanged() || membershipStatusEditable())
         || isOwner(userId)
           && validUser()
           && request.resource.data.role == resource.data.role

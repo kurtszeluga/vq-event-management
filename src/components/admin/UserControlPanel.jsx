@@ -1,11 +1,10 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import {
-  normalizeProfileTags,
-} from '../../data/profileTags.js';
+import { normalizeProfileTags } from '../../data/profileTags.js';
 import { US_STATES } from '../../data/usStates.js';
 import {
   DEFAULT_USER_PERMISSIONS,
   USER_PERMISSION_OPTIONS,
+  MEMBERSHIP_STATUS_OPTIONS,
   USER_ROLES,
   USER_STATUSES,
   normalizePermissions
@@ -42,6 +41,8 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [savingUserId, setSavingUserId] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
+  const canEditMembershipStatus =
+    canManageAdminUsers || Boolean(currentUserProfile?.permissions?.manageMembershipStatus);
 
   useEffect(() => {
     const unsubscribe = subscribeToUsers(
@@ -128,6 +129,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         street: billingAddress.street || ''
       },
       email: user.email || '',
+      membershipStatus: user.membershipStatus || 'Unknown',
       name: user.name || '',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
@@ -209,6 +211,10 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         profileTags: canManageAdminUsers
           ? normalizeProfileTags(form.profileTags)
           : normalizeProfileTags(user.profileTags),
+        membershipStatus:
+          canEditMembershipStatus && user.id !== 'new' && user.role !== 'Super User'
+            ? form.membershipStatus || 'Unknown'
+            : user.membershipStatus || 'Unknown',
         role: form.role,
         status: form.role === 'Super User' ? 'Active' : form.status,
         userId: form.userId
@@ -678,10 +684,28 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     </label>
                     <div className="password-panel">
                       <span className="field-label">Membership</span>
-                      <span className="form-help">
-                        {getDisplayMembershipStatus(user)}
-                        {user.membershipMatchedBy ? `, matched by ${user.membershipMatchedBy}` : ''}
-                      </span>
+                      {canEditMembershipStatus && user.role !== 'Super User' ? (
+                        <label>
+                          <span>Membership Status</span>
+                          <select
+                            value={form.membershipStatus}
+                            onChange={(event) =>
+                              updateFormField('membershipStatus', event.target.value)
+                            }
+                          >
+                            {MEMBERSHIP_STATUS_OPTIONS.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : (
+                        <span className="form-help">
+                          {getDisplayMembershipStatus(user)}
+                          {user.membershipMatchedBy ? `, matched by ${user.membershipMatchedBy}` : ''}
+                        </span>
+                      )}
                     </div>
                     {canManageAdminUsers ? (
                       <PermissionPanel

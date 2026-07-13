@@ -2,6 +2,8 @@ export const USER_ROLES = ['Super User', 'Admin', 'General User'];
 
 export const USER_STATUSES = ['Active', 'Inactive'];
 
+export const MEMBERSHIP_STATUS_OPTIONS = ['Active', 'Inactive', 'Archived', 'Unknown'];
+
 export const USER_PERMISSION_OPTIONS = [
   {
     key: 'manageEvents',
@@ -18,6 +20,10 @@ export const USER_PERMISSION_OPTIONS = [
   {
     key: 'addUsers',
     label: 'Add New Users'
+  },
+  {
+    key: 'manageMembershipStatus',
+    label: 'Manage Membership Status'
   }
 ];
 
