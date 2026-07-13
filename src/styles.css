@@ -1498,6 +1498,18 @@ body.popup-mode .page-content {
   font-weight: 900;
 }
 
+.profile-match-count {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 900;
+  margin-bottom: 14px;
+}
+
+.profile-search-count {
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+
 .compact-action {
   font-size: 0.84rem;
   padding: 6px 8px;

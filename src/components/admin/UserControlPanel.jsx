@@ -325,7 +325,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           </button>
         </div>
       </div>
-      <span className="form-help">
+      <span className="form-help profile-match-count">
         {searchedUsers.length} shown of {users.length} total profiles
       </span>
       <p className="form-help">
@@ -354,7 +354,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         ) : null}
       </div>
       {searchTerm ? (
-        <span className="form-help">
+        <span className="form-help profile-match-count profile-search-count">
           {searchedUsers.length} matching {filteredUsers.length} filtered profiles
         </span>
       ) : null}
