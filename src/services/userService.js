@@ -66,7 +66,7 @@ export async function archiveUserProfile(userId, actorProfile) {
     updatedDate: serverTimestamp()
   };
 
-  batch.set(userRef, after, { merge: true });
+  batch.update(userRef, after);
   addAuditLog(batch, {
     actorProfile,
     after,
