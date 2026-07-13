@@ -3,8 +3,7 @@ import { EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
 const ALL_TYPES = 'All';
-const ALL_STATUSES = 'All';
-const EVENT_STATUS_FILTERS = ['All', 'Active', 'Archived'];
+const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const FILTER_TYPES = [
   'All',
@@ -22,7 +21,7 @@ function EventList({
 }) {
   const excludedTypes = useMemo(() => new Set(excludedEventTypes), [excludedEventTypes]);
   const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
-  const [eventStatusFilter, setEventStatusFilter] = useState(ALL_STATUSES);
+  const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   const eventTypeCounts = useMemo(
@@ -46,10 +45,6 @@ function EventList({
       events
         .filter((event) => !excludedTypes.has(event.eventType || 'Other'))
         .filter((event) => {
-          if (eventStatusFilter === 'All') {
-            return true;
-          }
-
           return eventStatusFilter === 'Archived'
             ? event.status === 'Archived'
             : event.status !== 'Archived';
@@ -65,7 +60,7 @@ function EventList({
   }, [defaultEventTypeFilter]);
 
   useEffect(() => {
-    setEventStatusFilter(ALL_STATUSES);
+    setEventStatusFilter('Active');
   }, [defaultEventTypeFilter]);
 
   function toggleDescription(eventId) {
