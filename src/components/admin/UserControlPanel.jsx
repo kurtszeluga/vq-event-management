@@ -146,6 +146,16 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function updateRole(role) {
+    setSuccessMessage('');
+    setForm((current) => ({
+      ...current,
+      permissions: role === 'Admin' ? normalizePermissions(current.permissions) : DEFAULT_USER_PERMISSIONS,
+      role,
+      status: role === 'Super User' ? 'Active' : current.status
+    }));
+  }
+
   function updatePermission(permissionKey, value) {
     setSuccessMessage('');
     setForm((current) => ({
@@ -200,13 +210,23 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         throw new Error('Admins can only update General User profiles.');
       }
 
+      const normalizedPermissions = normalizePermissions(form.permissions);
+
+      if (
+        canManageAdminUsers &&
+        form.role === 'Admin' &&
+        !hasSelectedAdminPermission(normalizedPermissions)
+      ) {
+        throw new Error('Select at least one admin permission before saving an Admin profile.');
+      }
+
       const payload = {
         billingAddress: buildBillingAddress(form.billingAddress),
         email: form.email.trim(),
         name: toTitleCase(form.name),
         permissions:
           canManageAdminUsers && form.role === 'Admin'
-            ? normalizePermissions(form.permissions)
+            ? normalizedPermissions
             : DEFAULT_USER_PERMISSIONS,
         phone: formatPhoneNumber(form.phone),
         profileTags: canManageAdminUsers
@@ -469,12 +489,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     <span>Role</span>
                     <select
                       value={form.role}
-                      onChange={(event) => {
-                        updateFormField('role', event.target.value);
-                        if (event.target.value === 'Super User') {
-                          updateFormField('status', 'Active');
-                        }
-                      }}
+                      onChange={(event) => updateRole(event.target.value)}
                     >
                       {USER_ROLES.map((role) => (
                         <option key={role} value={role}>
@@ -654,12 +669,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                         <span>Role</span>
                         <select
                           value={form.role}
-                          onChange={(event) => {
-                            updateFormField('role', event.target.value);
-                            if (event.target.value === 'Super User') {
-                              updateFormField('status', 'Active');
-                            }
-                          }}
+                          onChange={(event) => updateRole(event.target.value)}
                         >
                           {USER_ROLES.map((role) => (
                             <option key={role} value={role}>
@@ -783,6 +793,10 @@ function getPermissionSummary(permissions) {
     .map((permission) => permission.label);
 
   return selectedPermissions.length ? selectedPermissions.join(', ') : 'No Admin Permissions';
+}
+
+function hasSelectedAdminPermission(permissions) {
+  return USER_PERMISSION_OPTIONS.some((permission) => permissions[permission.key]);
 }
 
 function getCounts(items, getValue) {
