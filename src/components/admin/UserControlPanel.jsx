@@ -63,7 +63,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         setError(snapshotError.message);
         setLoadingUsers(false);
       },
-      { includeAdminProfiles: canManageAdminUsers }
+      { includeAdminProfiles: true }
     );
 
     return unsubscribe;
@@ -868,15 +868,6 @@ function UserTable({
                           >
                             Edit
                           </button>
-                          {canArchiveUser(user, canManageAdminUsers, currentUserProfile) ? (
-                            <button
-                              className="danger-button"
-                              type="button"
-                              onClick={() => onArchive(user)}
-                            >
-                              Archive
-                            </button>
-                          ) : null}
                         </>
                       ) : (
                         <span className="form-help">Admin Profile</span>
