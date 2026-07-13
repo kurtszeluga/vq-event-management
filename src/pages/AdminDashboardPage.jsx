@@ -6,11 +6,7 @@ import EventForm from '../components/admin/EventForm.jsx';
 import EventList from '../components/admin/EventList.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
-import {
-  archiveEvent,
-  deleteEvent,
-  subscribeToAdminEvents
-} from '../services/eventService.js';
+import { archiveEvent, subscribeToAdminEvents } from '../services/eventService.js';
 
 function AdminDashboardPage() {
   const location = useLocation();
@@ -80,15 +76,6 @@ function AdminDashboardPage() {
   }, [canManageEvents]);
 
   async function handleDelete(event) {
-    if (isSuperUser) {
-      const confirmed = window.confirm(`Delete "${event.title}"?`);
-
-      if (confirmed) {
-        await deleteEvent(event.id, userProfile);
-      }
-      return;
-    }
-
     const confirmed = window.confirm(`Archive "${event.title}"?`);
 
     if (confirmed) {

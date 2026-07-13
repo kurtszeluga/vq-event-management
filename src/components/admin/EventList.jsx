@@ -11,7 +11,6 @@ const FILTER_TYPES = [
 
 function EventList({
   events,
-  isSuperUser,
   loading,
   onDelete,
   onEdit,
@@ -267,11 +266,11 @@ function EventList({
             </button>
             <button
               className="danger-button"
-              title={isSuperUser ? 'Permanently delete this event' : 'Archive this event'}
+              title="Archive this listing"
               type="button"
               onClick={() => onDelete(event)}
             >
-              {isSuperUser ? 'Delete' : 'Archive'}
+              Archive
             </button>
           </div>
         </article>
