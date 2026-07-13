@@ -148,9 +148,11 @@ service cloud.firestore {
     }
 
     function validUser() {
-      return request.resource.data.keys().hasOnly([
+        return request.resource.data.keys().hasOnly([
           'userId',
           'billingAddress',
+          'archivedBy',
+          'archivedDate',
           'name',
           'email',
           'membershipMatchedBy',
@@ -182,6 +184,10 @@ service cloud.firestore {
             && request.resource.data.billingAddress.country is string)
         && request.resource.data.name is string
         && request.resource.data.email is string
+        && (!('archivedBy' in request.resource.data)
+          || request.resource.data.archivedBy is string)
+        && (!('archivedDate' in request.resource.data)
+          || request.resource.data.archivedDate is timestamp)
         && (!('membershipMatchedBy' in request.resource.data)
           || validStatus(request.resource.data.membershipMatchedBy, ['email', 'phone', 'manual', '']))
         && (!('membershipMemberId' in request.resource.data)
@@ -213,7 +219,7 @@ service cloud.firestore {
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers is bool)
         && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
-        && validStatus(request.resource.data.status, ['Active', 'Inactive'])
+        && validStatus(request.resource.data.status, ['Active', 'Inactive', 'Archived'])
         && request.resource.data.createdDate is timestamp;
     }
 

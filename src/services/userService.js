@@ -53,6 +53,31 @@ export async function updateUserProfile(userId, updates, actorProfile) {
   return batch.commit();
 }
 
+export async function archiveUserProfile(userId, actorProfile) {
+  const userRef = doc(db, 'users', userId);
+  const userSnap = await getDoc(userRef);
+  const before = userSnap.exists() ? userSnap.data() : {};
+  const archivedBy = actorProfile?.name || actorProfile?.email || 'Unknown Admin';
+  const batch = writeBatch(db);
+  const after = {
+    archivedBy,
+    archivedDate: serverTimestamp(),
+    status: 'Archived',
+    updatedDate: serverTimestamp()
+  };
+
+  batch.set(userRef, after, { merge: true });
+  addAuditLog(batch, {
+    actorProfile,
+    after,
+    before,
+    entityId: userId,
+    summary: `Archived user "${before.name || before.email || userId}"`
+  });
+
+  return batch.commit();
+}
+
 export async function createUserByAdmin(userData) {
   const idToken = await getAdminIdToken();
 

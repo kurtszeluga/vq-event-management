@@ -14,6 +14,7 @@ import {
 } from '../../data/userRoles.js';
 import {
   createUserByAdmin,
+  archiveUserProfile,
   subscribeToUsers,
   updateUserPasswordByAdmin,
   updateUserProfile
@@ -250,14 +251,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     setSavingUserId(user.id);
 
     try {
-      await updateUserProfile(
-        user.id,
-        {
-          ...user,
-          status: 'Archived'
-        },
-        currentUserProfile
-      );
+      await archiveUserProfile(user.id, currentUserProfile);
 
       if (editingUserId === user.id) {
         setEditingUserId('');
@@ -774,7 +768,8 @@ function getDisplayProfileStatus(user) {
 
 function isVisibleAdminProfile(user) {
   return ['Admin', 'Super User'].includes(user.role)
-    && getDisplayMembershipStatus(user) !== 'Archived';
+    && getDisplayMembershipStatus(user) !== 'Archived'
+    && getDisplayProfileStatus(user) !== 'Archived';
 }
 
 function formatAddress(address = {}) {
