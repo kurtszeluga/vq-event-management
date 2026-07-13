@@ -1,10 +1,20 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const FIREBASE_JWKS = createRemoteJWKSet(
+  new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
+);
+
+let firebaseProjectId = '';
 
 function initializeAdminApp() {
-  if (getApps().length) {
-    return;
+  const existingApp = getApps()[0];
+
+  if (existingApp) {
+    firebaseProjectId = existingApp.options.projectId || firebaseProjectId;
+    return existingApp;
   }
 
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -13,8 +23,12 @@ function initializeAdminApp() {
     throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured.');
   }
 
+  const serviceAccount = parseServiceAccountJson(serviceAccountJson);
+  firebaseProjectId = serviceAccount.project_id;
+
   initializeApp({
-    credential: cert(JSON.parse(serviceAccountJson))
+    credential: cert(serviceAccount),
+    projectId: firebaseProjectId
   });
 }
 
@@ -52,8 +66,15 @@ export default async function handler(request, response) {
 
     const auth = getAuth();
     const db = getFirestore();
-    const decodedToken = await auth.verifyIdToken(idToken);
-    const actorSnap = await db.collection('users').doc(decodedToken.uid).get();
+    const decodedToken = await verifyFirebaseIdToken(idToken);
+    const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
+
+    if (!actorUid) {
+      response.status(401).json({ error: 'Invalid authorization token.' });
+      return;
+    }
+
+    const actorSnap = await db.collection('users').doc(actorUid).get();
     const actorProfile = actorSnap.exists ? actorSnap.data() : {};
 
     if (actorProfile.role !== 'Super User' || actorProfile.status !== 'Active') {
@@ -77,7 +98,7 @@ export default async function handler(request, response) {
       actorEmail: actorProfile.email || '',
       actorName: actorProfile.name || actorProfile.email || 'Unknown Admin',
       actorRole: actorProfile.role || '',
-      actorUserId: actorProfile.userId || decodedToken.uid,
+      actorUserId: actorProfile.userId || actorUid,
       after: {
         passwordChanged: true,
         userEmail: userProfile.email || '',
@@ -93,5 +114,34 @@ export default async function handler(request, response) {
     response.status(200).json({ ok: true });
   } catch (error) {
     response.status(500).json({ error: error.message });
+  }
+}
+
+async function verifyFirebaseIdToken(idToken) {
+  initializeAdminApp();
+
+  if (!firebaseProjectId) {
+    throw new Error('Firebase project ID is not configured.');
+  }
+
+  const { payload } = await jwtVerify(idToken, FIREBASE_JWKS, {
+    audience: firebaseProjectId,
+    issuer: `https://securetoken.google.com/${firebaseProjectId}`
+  });
+
+  return payload;
+}
+
+function parseServiceAccountJson(serviceAccountJson) {
+  const trimmed = String(serviceAccountJson || '').trim();
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    try {
+      return JSON.parse(Buffer.from(trimmed, 'base64').toString('utf8'));
+    } catch {
+      throw new Error(`Unable to parse FIREBASE_SERVICE_ACCOUNT_JSON: ${error.message}`);
+    }
   }
 }
