@@ -230,6 +230,44 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     }
   }
 
+  async function handleArchive(user) {
+    if (!canArchiveUser(user, canManageAdminUsers, currentUserProfile) || user.id === 'new') {
+      return;
+    }
+
+    const confirmed = window.confirm(`Archive "${user.name || user.email || 'this profile'}"?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setSuccessMessage('');
+    setSavingUserId(user.id);
+
+    try {
+      await updateUserProfile(
+        user.id,
+        {
+          ...user,
+          status: 'Archived'
+        },
+        currentUserProfile
+      );
+
+      if (editingUserId === user.id) {
+        setEditingUserId('');
+        setForm(null);
+      }
+
+      setSuccessMessage('User profile archived.');
+    } catch (archiveError) {
+      setError(archiveError.message);
+    } finally {
+      setSavingUserId('');
+    }
+  }
+
   if (loadingUsers) {
     return (
       <section className="admin-list-panel">
@@ -496,6 +534,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
               setDetailsUserId((currentUserId) => (currentUserId === userId ? '' : userId))
             }
             onEdit={startEdit}
+            onArchive={handleArchive}
           />
         ) : null}
         {users.map((user) => {
@@ -680,6 +719,16 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 >
                   {savingUserId === user.id ? 'Saving...' : 'Save User'}
                 </button>
+                {canArchiveUser(user, canManageAdminUsers, currentUserProfile) ? (
+                  <button
+                    className="danger-button"
+                    disabled={Boolean(savingUserId)}
+                    type="button"
+                    onClick={() => handleArchive(user)}
+                  >
+                    Archive
+                  </button>
+                ) : null}
                 <button
                   className="text-button"
                   disabled={Boolean(savingUserId)}
@@ -759,7 +808,8 @@ function UserTable({
   detailsUserId,
   users,
   onDetails,
-  onEdit
+  onEdit,
+  onArchive
 }) {
   if (!users.length) {
     return <p className="empty-inline">No user profiles match the selected filters.</p>;
@@ -775,7 +825,7 @@ function UserTable({
             <th>Membership</th>
             <th>Status</th>
             <th>Permissions</th>
-            <th>Action</th>
+            <th>Actions</th>
             <th>Details</th>
           </tr>
         </thead>
@@ -805,20 +855,33 @@ function UserTable({
                       ? 'All Permissions'
                       : getPermissionSummary(displayPermissions)}
                   </td>
-                  <td data-label="Action">
-                    {isCurrentUser ? (
-                      <span className="form-help">Current User</span>
-                    ) : canEditUser(user, canManageAdminUsers) ? (
-                      <button
-                        className="button-link button-reset"
-                        type="button"
-                        onClick={() => onEdit(user)}
-                      >
-                        Edit
-                      </button>
-                    ) : (
-                      <span className="form-help">Admin Profile</span>
-                    )}
+                  <td data-label="Actions">
+                    <div className="card-actions">
+                      {isCurrentUser ? (
+                        <span className="form-help">Current User</span>
+                      ) : canEditUser(user, canManageAdminUsers) ? (
+                        <>
+                          <button
+                            className="button-link button-reset"
+                            type="button"
+                            onClick={() => onEdit(user)}
+                          >
+                            Edit
+                          </button>
+                          {canArchiveUser(user, canManageAdminUsers, currentUserProfile) ? (
+                            <button
+                              className="danger-button"
+                              type="button"
+                              onClick={() => onArchive(user)}
+                            >
+                              Archive
+                            </button>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="form-help">Admin Profile</span>
+                      )}
+                    </div>
                   </td>
                   <td data-label="Details">
                     <button
@@ -950,6 +1013,13 @@ function ProfileTagPanel({ profileTags, onChange }) {
 
 function canEditUser(user, canManageAdminUsers) {
   return canManageAdminUsers || user.role === 'General User';
+}
+
+function canArchiveUser(user, canManageAdminUsers, currentUserProfile) {
+  const isCurrentUser =
+    user.id === currentUserProfile?.id || user.userId === currentUserProfile?.userId;
+
+  return !isCurrentUser && user.role !== 'Super User' && (canManageAdminUsers || user.role === 'General User');
 }
 
 export default UserControlPanel;

@@ -1397,8 +1397,9 @@ body.popup-mode .page-content {
 }
 
 .card-actions {
-  align-content: start;
-  display: grid;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
