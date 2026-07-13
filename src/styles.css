@@ -1267,7 +1267,13 @@ body.popup-mode .page-content {
 }
 
 .table-sort-button.active {
-  color: #225c56;
+  color: #9a341f;
+  font-weight: 1000;
+}
+
+.table-sort-button.active span {
+  color: #9a341f;
+  font-weight: 900;
 }
 
 .user-table td {

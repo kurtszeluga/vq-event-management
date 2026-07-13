@@ -863,14 +863,6 @@ function getUserSortValue(user, key) {
     return user.email || '';
   }
 
-  if (key === 'membership') {
-    return getDisplayMembershipStatus(user);
-  }
-
-  if (key === 'status') {
-    return getDisplayProfileStatus(user);
-  }
-
   return user.name || user.email || '';
 }
 
@@ -936,8 +928,8 @@ function UserTable({
             <SortableHeader label="Name" sortKey="lastName" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Role" sortKey="role" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Email" sortKey="email" sortConfig={sortConfig} onSort={onSort} />
-            <SortableHeader label="Membership" sortKey="membership" sortConfig={sortConfig} onSort={onSort} />
-            <SortableHeader label="Status" sortKey="status" sortConfig={sortConfig} onSort={onSort} />
+            <th>Membership</th>
+            <th>Status</th>
             <th>Permissions</th>
             <th>Actions</th>
             <th>Details</th>
