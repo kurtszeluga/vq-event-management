@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { auth } from '../lib/firebase.js';
 
 function LoginPage() {
-  const { currentUser, firebaseConfigured, isAdmin, loading, logOut, profileError } =
-    useAuth();
+  const { currentUser, firebaseConfigured, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState('');
@@ -16,12 +15,10 @@ function LoginPage() {
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
-  const destination = location.state?.from?.pathname || '/admin';
 
-  if (!loading && currentUser && isAdmin) {
-    return <Navigate to={destination} replace />;
+  if (!loading && currentUser) {
+    return <Navigate to="/" replace />;
   }
 
   async function handleSubmit(event) {
@@ -31,7 +28,7 @@ function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      navigate(destination, { replace: true });
+      navigate('/', { replace: true });
     } catch (error) {
       setFormError(error.message);
     } finally {
@@ -67,8 +64,8 @@ function LoginPage() {
     <section>
       <PageHeader
         eyebrow="Authentication"
-        title="Administrator login"
-        description="Sign in with an active administrator account to manage events, registrations, attendance, and reports."
+        title="Sign in"
+        description="Sign in to access your account, member features, and any tools you are allowed to use."
       />
       <div className="status-panel">
         <span className={firebaseConfigured ? 'status-dot good' : 'status-dot'} />
@@ -77,19 +74,7 @@ function LoginPage() {
           <strong>{firebaseConfigured ? 'present' : 'not set locally'}</strong>.
         </span>
       </div>
-      {currentUser && !isAdmin ? (
-        <div className="empty-state">
-          <h2>Admin profile needed</h2>
-          <p>
-            {profileError ||
-              'You are signed in, but this account is not an active administrator.'}
-          </p>
-          <button className="button-link button-reset" type="button" onClick={logOut}>
-            Sign out
-          </button>
-        </div>
-      ) : (
-        <form className="form-panel" onSubmit={handleSubmit}>
+      <form className="form-panel" onSubmit={handleSubmit}>
           <label>
             <span>Email</span>
             <input
@@ -162,8 +147,7 @@ function LoginPage() {
           <span className="form-help">
             Need an account? <Link to="/signup">Create one here.</Link>
           </span>
-        </form>
-      )}
+      </form>
     </section>
   );
 }

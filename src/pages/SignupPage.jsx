@@ -76,7 +76,7 @@ function SignupPage() {
         userId: user.uid
       });
 
-      navigate('/events', { replace: true });
+      navigate('/', { replace: true });
     } catch (error) {
       setFormError(getSignupErrorMessage(error));
     } finally {

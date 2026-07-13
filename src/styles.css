@@ -285,6 +285,15 @@ body.popup-mode .page-content {
   padding: 24px;
 }
 
+.home-card {
+  display: grid;
+  gap: 12px;
+}
+
+.home-card-actions {
+  justify-self: start;
+}
+
 .feature-grid h2,
 .empty-state h2 {
   margin: 0 0 10px;
@@ -300,6 +309,10 @@ body.popup-mode .page-content {
 .empty-state,
 .status-panel {
   margin-top: 36px;
+}
+
+.home-sign-in-callout {
+  margin-top: 22px;
 }
 
 .status-panel {

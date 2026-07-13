@@ -2,18 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './context/useAuth.js';
 
-const navItems = [
-  { to: '/', label: 'Home' },
-  { to: '/events', label: 'Events' },
-  { to: '/business-listings', label: 'Business Listings' },
-  { to: '/for-sale', label: 'For Sale' }
-];
-
-const signedOutNavItems = [
-  { to: '/signup', label: 'Create Account' },
-  { to: '/login', label: 'Login' }
-];
-
 function App() {
   const location = useLocation();
   const { currentUser, isAdmin, logOut } = useAuth();
@@ -64,39 +52,13 @@ function App() {
           </span>
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? 'nav-link active' : 'nav-link'
-              }
-              end={item.to === '/'}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-          {isAdmin ? (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                isActive ? 'nav-link active' : 'nav-link'
-              }
-            >
-              Admin
-            </NavLink>
-          ) : null}
-          {!currentUser ? signedOutNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? 'nav-link active' : 'nav-link'
-              }
-            >
-              {item.label}
-            </NavLink>
-          )) : null}
+          <NavLink
+            to="/"
+            className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            end
+          >
+            Home
+          </NavLink>
           {currentUser ? (
             <NavLink
               to="/profile"
@@ -106,7 +68,16 @@ function App() {
             >
               My Profile
             </NavLink>
-          ) : null}
+          ) : (
+            <NavLink
+              to="/login"
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              Login
+            </NavLink>
+          )}
           {currentUser ? (
             <button className="nav-button" type="button" onClick={logOut}>
               Sign out

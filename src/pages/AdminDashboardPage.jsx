@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import ConfigurationPanel from '../components/admin/ConfigurationPanel.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
@@ -12,8 +13,9 @@ import {
 } from '../services/eventService.js';
 
 function AdminDashboardPage() {
+  const location = useLocation();
   const { hasPermission, isSuperUser, userProfile } = useAuth();
-  const [activeModule, setActiveModule] = useState('');
+  const [activeModule, setActiveModule] = useState(location.state?.module || '');
   const [editingEvent, setEditingEvent] = useState(null);
   const [draftEventType, setDraftEventType] = useState('');
   const [events, setEvents] = useState([]);
