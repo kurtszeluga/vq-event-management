@@ -27,7 +27,8 @@ import {
 const MEMBERSHIP_FILTERS = ['All', 'Active', 'Inactive', 'Archived', 'Unknown'];
 const QUICK_FILTERS = [
   { key: 'all', label: 'All Profiles' },
-  { key: 'admins', label: 'Admins' }
+  { key: 'admins', label: 'Admins' },
+  { key: 'archived', label: 'Archived' }
 ];
 
 function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
@@ -71,15 +72,21 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const membershipCounts = getCounts(membershipCountableUsers, getDisplayMembershipStatus);
   const profileStatusCounts = getCounts(users, getDisplayProfileStatus);
   const adminUsers = users.filter(isVisibleAdminProfile);
+  const archivedUsers = users.filter((user) => getDisplayProfileStatus(user) === 'Archived');
   const filteredUsers = users.filter((user) => {
     if (quickFilter === 'admins') {
       return isVisibleAdminProfile(user);
     }
 
+    if (quickFilter === 'archived') {
+      return getDisplayProfileStatus(user) === 'Archived';
+    }
+
     const membershipStatus = getDisplayMembershipStatus(user);
 
     return membershipFilter === 'All'
-      || (user.role !== 'Super User' && membershipStatus === membershipFilter);
+      || ((user.role !== 'Super User' && membershipStatus === membershipFilter)
+        && getDisplayProfileStatus(user) !== 'Archived');
   });
 
   const startAddUser = useCallback(() => {
@@ -308,7 +315,11 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
               type="button"
               onClick={() => setQuickFilter(filter.key)}
             >
-              {filter.key === 'admins' ? `${filter.label} (${adminUsers.length})` : `${filter.label} (${users.length})`}
+              {filter.key === 'admins'
+                ? `${filter.label} (${adminUsers.length})`
+                : filter.key === 'archived'
+                  ? `${filter.label} (${archivedUsers.length})`
+                  : `${filter.label} (${users.length})`}
             </button>
           ))}
         </div>
@@ -317,7 +328,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         {MEMBERSHIP_FILTERS.map((status) => (
           <button
             className={`status-filter-button${membershipFilter === status ? ' active' : ''}`}
-            disabled={quickFilter === 'admins'}
+            disabled={quickFilter !== 'all'}
             key={status}
             type="button"
             onClick={() => setMembershipFilter(status)}
