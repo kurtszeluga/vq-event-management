@@ -1,8 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
-  getProfileTagSummary,
   normalizeProfileTags,
-  PROFILE_TAG_OPTIONS
 } from '../../data/profileTags.js';
 import { US_STATES } from '../../data/usStates.js';
 import {
@@ -133,7 +131,6 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       name: user.name || '',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
-      profileTags: normalizeProfileTags(user.profileTags),
       role: user.role || 'General User',
       status: user.role === 'Super User' ? 'Active' : user.status || 'Active',
       temporaryPassword: '',
@@ -209,7 +206,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
             ? normalizePermissions(form.permissions)
             : DEFAULT_USER_PERMISSIONS,
         phone: formatPhoneNumber(form.phone),
-        profileTags: normalizeProfileTags(form.profileTags),
+        profileTags: canManageAdminUsers
+          ? normalizeProfileTags(form.profileTags)
+          : normalizeProfileTags(user.profileTags),
         role: form.role,
         status: form.role === 'Super User' ? 'Active' : form.status,
         userId: form.userId
@@ -498,7 +497,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     onChange={updatePermission}
                   />
                 ) : null}
-                <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
+                {canManageAdminUsers ? (
+                  <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
+                ) : null}
               </div>
             </div>
             <div className="card-actions">
@@ -689,7 +690,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                         onChange={updatePermission}
                       />
                     ) : null}
-                    <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
+                    {canManageAdminUsers ? (
+                      <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
+                    ) : null}
                     {canManageAdminUsers ? (
                       <div className="password-panel">
                         <span className="field-label">Change Password</span>
@@ -923,10 +926,12 @@ function UserTable({
                             ? 'All Permissions'
                             : getPermissionSummary(displayPermissions)}
                         </span>
-                        <span>
-                          <strong>Tags</strong>
-                          {getProfileTagSummary(normalizeProfileTags(user.profileTags))}
-                        </span>
+                        {canManageAdminUsers ? (
+                          <span>
+                            <strong>Tags</strong>
+                            {normalizeProfileTags(user.profileTags).join(', ') || 'No Tags'}
+                          </span>
+                        ) : null}
                         <span>
                           <strong>Billing Address</strong>
                           {formatAddress(user.billingAddress)}
