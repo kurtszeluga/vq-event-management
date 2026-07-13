@@ -1268,6 +1268,10 @@ body.popup-mode .page-content {
   gap: 8px;
 }
 
+.configuration-section-header-stacked .configuration-section-header-actions {
+  justify-content: flex-start;
+}
+
 .configuration-section p,
 .empty-inline {
   color: #5c6966;

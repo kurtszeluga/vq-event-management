@@ -56,6 +56,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [membershipSectionOpen, setMembershipSectionOpen] = useState(false);
   const [locationSectionOpen, setLocationSectionOpen] = useState(false);
   const [locationFormOpen, setLocationFormOpen] = useState(false);
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
@@ -333,69 +334,84 @@ function ConfigurationPanel({ currentUserProfile }) {
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
 
       <form className="configuration-section" onSubmit={handleSaveSettings}>
-        <div>
-          <h3>Membership Check</h3>
-          <p>
-            Control whether new user accounts should be checked against the member list.
-          </p>
+        <div className="configuration-section-header configuration-section-header-stacked">
+          <div>
+            <h3>Membership Check</h3>
+            {membershipSectionOpen ? (
+              <p>Control whether new user accounts should be checked against the member list.</p>
+            ) : null}
+          </div>
+          <div className="configuration-actions configuration-section-header-actions">
+            <button
+              className="button-link button-reset secondary-action"
+              type="button"
+              onClick={() => setMembershipSectionOpen((current) => !current)}
+            >
+              {membershipSectionOpen ? 'Hide Membership Check' : 'Show Membership Check'}
+            </button>
+          </div>
         </div>
-        <label className="checkbox-label">
-          <input
-            checked={settings.requireMembershipCheck}
-            type="checkbox"
-            onChange={(event) =>
-              setSettings((current) => ({
-                ...current,
-                requireMembershipCheck: event.target.checked
-              }))
-            }
-          />
-          <span>Require Membership Check For New Users</span>
-        </label>
-        <label className="checkbox-label">
-          <input
-            checked={settings.matchByEmail}
-            type="checkbox"
-            onChange={(event) =>
-              setSettings((current) => ({ ...current, matchByEmail: event.target.checked }))
-            }
-          />
-          <span>Match Members By Email</span>
-        </label>
-        <label className="checkbox-label">
-          <input
-            checked={settings.matchByPhone}
-            type="checkbox"
-            onChange={(event) =>
-              setSettings((current) => ({ ...current, matchByPhone: event.target.checked }))
-            }
-          />
-          <span>Match Members By Phone</span>
-        </label>
-        <label className="checkbox-label">
-          <input
-            checked={settings.allowAdminSkipMembershipCheck}
-            type="checkbox"
-            onChange={(event) =>
-              setSettings((current) => ({
-                ...current,
-                allowAdminSkipMembershipCheck: event.target.checked
-              }))
-            }
-          />
-          <span>Allow Admins To Skip Membership Check</span>
-        </label>
-        <button
-          className="button-link button-reset configuration-submit-button"
-          disabled={savingSection === 'settings'}
-          type="submit"
-        >
-          {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
-        </button>
+        {membershipSectionOpen ? (
+          <>
+            <label className="checkbox-label">
+              <input
+                checked={settings.requireMembershipCheck}
+                type="checkbox"
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    requireMembershipCheck: event.target.checked
+                  }))
+                }
+              />
+              <span>Require Membership Check For New Users</span>
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={settings.matchByEmail}
+                type="checkbox"
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, matchByEmail: event.target.checked }))
+                }
+              />
+              <span>Match Members By Email</span>
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={settings.matchByPhone}
+                type="checkbox"
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, matchByPhone: event.target.checked }))
+                }
+              />
+              <span>Match Members By Phone</span>
+            </label>
+            <label className="checkbox-label">
+              <input
+                checked={settings.allowAdminSkipMembershipCheck}
+                type="checkbox"
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    allowAdminSkipMembershipCheck: event.target.checked
+                  }))
+                }
+              />
+              <span>Allow Admins To Skip Membership Check</span>
+            </label>
+            <button
+              className="button-link button-reset configuration-submit-button"
+              disabled={savingSection === 'settings'}
+              type="submit"
+            >
+              {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
+            </button>
+          </>
+        ) : null}
       </form>
 
       <section className="configuration-section">
-        <div className="configuration-section-header">
+        <div className="configuration-section-header configuration-section-header-stacked">
           <div>
             <h3>Member List</h3>
             {memberListOpen ? (
@@ -408,13 +424,15 @@ function ConfigurationPanel({ currentUserProfile }) {
               </>
             ) : null}
           </div>
-          <button
-            className="button-link button-reset secondary-action"
-            type="button"
-            onClick={() => setMemberListOpen((current) => !current)}
-          >
-            {memberListOpen ? 'Hide Member List' : 'Show Member List'}
-          </button>
+          <div className="configuration-actions configuration-section-header-actions">
+            <button
+              className="button-link button-reset secondary-action"
+              type="button"
+              onClick={() => setMemberListOpen((current) => !current)}
+            >
+              {memberListOpen ? 'Hide Member List' : 'Show Member List'}
+            </button>
+          </div>
         </div>
         {memberListOpen ? (
           <>
@@ -506,20 +524,22 @@ function ConfigurationPanel({ currentUserProfile }) {
       </section>
 
       <section className="configuration-section">
-        <div className="configuration-section-header">
+        <div className="configuration-section-header configuration-section-header-stacked">
           <div>
             <h3>Default Locations</h3>
             {locationSectionOpen ? (
               <p>These locations appear in the event/activity location dropdown.</p>
             ) : null}
           </div>
-          <button
-            className="button-link button-reset secondary-action"
-            type="button"
-            onClick={() => setLocationSectionOpen((current) => !current)}
-          >
-            {locationSectionOpen ? 'Hide Locations' : 'Show Locations'}
-          </button>
+          <div className="configuration-actions configuration-section-header-actions">
+            <button
+              className="button-link button-reset secondary-action"
+              type="button"
+              onClick={() => setLocationSectionOpen((current) => !current)}
+            >
+              {locationSectionOpen ? 'Hide Locations' : 'Show Locations'}
+            </button>
+          </div>
         </div>
         {locationSectionOpen ? (
           <>
@@ -636,20 +656,22 @@ function ConfigurationPanel({ currentUserProfile }) {
       </section>
 
       <section className="configuration-section">
-        <div className="configuration-section-header">
+        <div className="configuration-section-header configuration-section-header-stacked">
           <div>
             <h3>Default Start/End Times</h3>
             {timeSectionOpen ? (
               <p>These time blocks appear in the event/activity time dropdown.</p>
             ) : null}
           </div>
-          <button
-            className="button-link button-reset secondary-action"
-            type="button"
-            onClick={() => setTimeSectionOpen((current) => !current)}
-          >
-            {timeSectionOpen ? 'Hide Start/End Times' : 'Show Start/End Times'}
-          </button>
+          <div className="configuration-actions configuration-section-header-actions">
+            <button
+              className="button-link button-reset secondary-action"
+              type="button"
+              onClick={() => setTimeSectionOpen((current) => !current)}
+            >
+              {timeSectionOpen ? 'Hide Start/End Times' : 'Show Start/End Times'}
+            </button>
+          </div>
         </div>
         {timeSectionOpen ? (
           <>
