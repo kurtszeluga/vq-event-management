@@ -325,9 +325,6 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           </button>
         </div>
       </div>
-      <span className="form-help profile-match-count">
-        {searchedUsers.length} shown of {users.length} total profiles
-      </span>
       <p className="form-help">
         {canManageAdminUsers
           ? 'Super Users control profile roles and admin permissions.'
@@ -353,11 +350,11 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           </button>
         ) : null}
       </div>
-      {searchTerm ? (
-        <span className="form-help profile-match-count profile-search-count">
-          {searchedUsers.length} matching {filteredUsers.length} filtered profiles
-        </span>
-      ) : null}
+      <span className="form-help profile-match-count profile-search-count" aria-live="polite">
+        {searchTerm
+          ? `${searchedUsers.length} matching ${filteredUsers.length} filtered profiles`
+          : `${filteredUsers.length} shown of ${users.length} total profiles`}
+      </span>
       <div className="status-filter-group" aria-label="Quick profile filter">
         {QUICK_FILTERS.filter((filter) => canManageAdminUsers || filter.key !== 'admins').map((filter) => (
           <button

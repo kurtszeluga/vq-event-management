@@ -1483,8 +1483,9 @@ body.popup-mode .page-content {
   align-items: end;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(260px, 1fr) max-content;
-  margin: 14px 0 4px;
+  grid-template-columns: minmax(260px, 460px) max-content;
+  justify-content: start;
+  margin: 14px 0 8px;
 }
 
 .profile-search-row label {
@@ -1502,12 +1503,12 @@ body.popup-mode .page-content {
   display: block;
   font-size: 1.05rem;
   font-weight: 900;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .profile-search-count {
-  margin-top: 8px;
-  margin-bottom: 18px;
+  margin-top: 4px;
+  margin-bottom: 22px;
 }
 
 .compact-action {
