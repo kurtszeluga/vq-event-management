@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { normalizeProfileTags } from '../../data/profileTags.js';
+import { PROFILE_TAG_OPTIONS, normalizeProfileTags } from '../../data/profileTags.js';
 import { US_STATES } from '../../data/usStates.js';
 import {
   DEFAULT_USER_PERMISSIONS,
