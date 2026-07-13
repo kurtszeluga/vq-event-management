@@ -1,11 +1,7 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
-
-const FIREBASE_JWKS = createRemoteJWKSet(
-  new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
-);
+import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 let firebaseProjectId = '';
 
@@ -66,7 +62,7 @@ export default async function handler(request, response) {
 
     const auth = getAuth();
     const db = getFirestore();
-    const decodedToken = await verifyFirebaseIdToken(idToken);
+    const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
     const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
 
     if (!actorUid) {
@@ -115,21 +111,6 @@ export default async function handler(request, response) {
   } catch (error) {
     response.status(500).json({ error: error.message });
   }
-}
-
-async function verifyFirebaseIdToken(idToken) {
-  initializeAdminApp();
-
-  if (!firebaseProjectId) {
-    throw new Error('Firebase project ID is not configured.');
-  }
-
-  const { payload } = await jwtVerify(idToken, FIREBASE_JWKS, {
-    audience: firebaseProjectId,
-    issuer: `https://securetoken.google.com/${firebaseProjectId}`
-  });
-
-  return payload;
 }
 
 function parseServiceAccountJson(serviceAccountJson) {
