@@ -894,6 +894,14 @@ body.popup-mode .page-content {
   padding: 18px;
 }
 
+.user-admin-card {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.user-admin-card .card-actions {
+  justify-content: flex-start;
+}
+
 .event-admin-card-main {
   display: grid;
   gap: 8px;
