@@ -1241,39 +1241,36 @@ body.popup-mode .page-content {
 
 .configuration-panel {
   display: grid;
-  gap: 26px;
+  gap: 18px;
 }
 
-.configuration-section {
-  border-top: 1px solid #e6ddd3;
+.configuration-card {
   display: grid;
   gap: 16px;
-  padding-top: 22px;
 }
 
-.configuration-section h3,
-.configuration-section p {
+.configuration-card h3,
+.configuration-card p {
   margin: 0;
 }
 
-.configuration-section-header {
-  align-items: flex-start;
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-}
-
-.configuration-section-header > div {
+.configuration-card-header {
   display: grid;
   gap: 8px;
 }
 
-.configuration-section-header-actions {
-  justify-content: flex-start;
-  width: fit-content;
+.configuration-card-body {
+  display: grid;
+  gap: 16px;
 }
 
-.configuration-section p,
+.configuration-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
 .empty-inline {
   color: #5c6966;
 }

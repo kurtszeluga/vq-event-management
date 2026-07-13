@@ -333,9 +333,13 @@ function ConfigurationPanel({ currentUserProfile }) {
       {error ? <p className="form-error">{error}</p> : null}
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
 
-      <form className="configuration-section" onSubmit={handleSaveSettings}>
-        <div className="configuration-section-header">
-          <div className="configuration-actions configuration-section-header-actions">
+      <article className="admin-list-panel configuration-card">
+        <div className="configuration-card-header">
+          <h3>Membership Check</h3>
+          {membershipSectionOpen ? (
+            <p>Control whether new user accounts should be checked against the member list.</p>
+          ) : null}
+          <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
               type="button"
@@ -344,15 +348,9 @@ function ConfigurationPanel({ currentUserProfile }) {
               {membershipSectionOpen ? 'Hide Membership Check' : 'Show Membership Check'}
             </button>
           </div>
-          <div>
-            <h3>Membership Check</h3>
-            {membershipSectionOpen ? (
-              <p>Control whether new user accounts should be checked against the member list.</p>
-            ) : null}
-          </div>
         </div>
         {membershipSectionOpen ? (
-          <>
+          <form className="configuration-card-body" onSubmit={handleSaveSettings}>
             <label className="checkbox-label">
               <input
                 checked={settings.requireMembershipCheck}
@@ -406,13 +404,23 @@ function ConfigurationPanel({ currentUserProfile }) {
             >
               {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
             </button>
-          </>
+          </form>
         ) : null}
-      </form>
+      </article>
 
-      <section className="configuration-section">
-        <div className="configuration-section-header">
-          <div className="configuration-actions configuration-section-header-actions">
+      <article className="admin-list-panel configuration-card">
+        <div className="configuration-card-header">
+          <h3>Member List</h3>
+          {memberListOpen ? (
+            <>
+              <p>Upload a CSV or manually add members for email/phone matching.</p>
+              <p>
+                CSV columns should use First Name, Last Name, Email, and Phone. Status and
+                Notes are optional.
+              </p>
+            </>
+          ) : null}
+          <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
               type="button"
@@ -420,18 +428,6 @@ function ConfigurationPanel({ currentUserProfile }) {
             >
               {memberListOpen ? 'Hide Member List' : 'Show Member List'}
             </button>
-          </div>
-          <div>
-            <h3>Member List</h3>
-            {memberListOpen ? (
-              <>
-                <p>Upload a CSV or manually add members for email/phone matching.</p>
-                <p>
-                  CSV columns should use First Name, Last Name, Email, and Phone. Status
-                  and Notes are optional.
-                </p>
-              </>
-            ) : null}
           </div>
         </div>
         {memberListOpen ? (
@@ -521,11 +517,15 @@ function ConfigurationPanel({ currentUserProfile }) {
             />
           </>
         ) : null}
-      </section>
+      </article>
 
-      <section className="configuration-section">
-        <div className="configuration-section-header">
-          <div className="configuration-actions configuration-section-header-actions">
+      <article className="admin-list-panel configuration-card">
+        <div className="configuration-card-header">
+          <h3>Default Locations</h3>
+          {locationSectionOpen ? (
+            <p>These locations appear in the event/activity location dropdown.</p>
+          ) : null}
+          <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
               type="button"
@@ -533,12 +533,6 @@ function ConfigurationPanel({ currentUserProfile }) {
             >
               {locationSectionOpen ? 'Hide Locations' : 'Show Locations'}
             </button>
-          </div>
-          <div>
-            <h3>Default Locations</h3>
-            {locationSectionOpen ? (
-              <p>These locations appear in the event/activity location dropdown.</p>
-            ) : null}
           </div>
         </div>
         {locationSectionOpen ? (
@@ -653,11 +647,15 @@ function ConfigurationPanel({ currentUserProfile }) {
             />
           </>
         ) : null}
-      </section>
+      </article>
 
-      <section className="configuration-section">
-        <div className="configuration-section-header">
-          <div className="configuration-actions configuration-section-header-actions">
+      <article className="admin-list-panel configuration-card">
+        <div className="configuration-card-header">
+          <h3>Default Start/End Times</h3>
+          {timeSectionOpen ? (
+            <p>These time blocks appear in the event/activity time dropdown.</p>
+          ) : null}
+          <div className="configuration-card-actions">
             <button
               className="button-link button-reset secondary-action"
               type="button"
@@ -665,12 +663,6 @@ function ConfigurationPanel({ currentUserProfile }) {
             >
               {timeSectionOpen ? 'Hide Start/End Times' : 'Show Start/End Times'}
             </button>
-          </div>
-          <div>
-            <h3>Default Start/End Times</h3>
-            {timeSectionOpen ? (
-              <p>These time blocks appear in the event/activity time dropdown.</p>
-            ) : null}
           </div>
         </div>
         {timeSectionOpen ? (
@@ -793,7 +785,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             />
           </>
         ) : null}
-      </section>
+      </article>
     </section>
   );
 }
