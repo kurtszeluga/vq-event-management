@@ -3,6 +3,8 @@ import { EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
 const ALL_TYPES = 'All';
+const ALL_STATUSES = 'All';
+const EVENT_STATUS_FILTERS = ['All', 'Active', 'Archived'];
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const FILTER_TYPES = [
   'All',
@@ -20,6 +22,7 @@ function EventList({
 }) {
   const excludedTypes = useMemo(() => new Set(excludedEventTypes), [excludedEventTypes]);
   const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
+  const [eventStatusFilter, setEventStatusFilter] = useState(ALL_STATUSES);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   const eventTypeCounts = useMemo(
@@ -42,14 +45,27 @@ function EventList({
     () =>
       events
         .filter((event) => !excludedTypes.has(event.eventType || 'Other'))
+        .filter((event) => {
+          if (eventStatusFilter === 'All') {
+            return true;
+          }
+
+          return eventStatusFilter === 'Archived'
+            ? event.status === 'Archived'
+            : event.status !== 'Archived';
+        })
         .filter((event) =>
           eventTypeFilter === ALL_TYPES ? true : (event.eventType || 'Other') === eventTypeFilter
         ),
-    [eventTypeFilter, events, excludedTypes]
+    [eventStatusFilter, eventTypeFilter, events, excludedTypes]
   );
 
   useEffect(() => {
     setEventTypeFilter(defaultEventTypeFilter);
+  }, [defaultEventTypeFilter]);
+
+  useEffect(() => {
+    setEventStatusFilter(ALL_STATUSES);
   }, [defaultEventTypeFilter]);
 
   function toggleDescription(eventId) {
@@ -79,6 +95,18 @@ function EventList({
 
   return (
     <div className="event-admin-list">
+      <div className="status-filter-group separated-filter-row" aria-label="Event status filters">
+        {EVENT_STATUS_FILTERS.map((status) => (
+          <button
+            className={`status-filter-button${eventStatusFilter === status ? ' active' : ''}`}
+            key={status}
+            type="button"
+            onClick={() => setEventStatusFilter(status)}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
       {showTypeFilters ? (
         <div className="status-filter-group separated-filter-row" aria-label="Event type filters">
           {eventTypeFilters.map((type) => (

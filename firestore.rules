@@ -110,7 +110,7 @@ service cloud.firestore {
         && request.resource.data.isPaid is bool
         && request.resource.data.cost is number
         && request.resource.data.serviceFee is number
-        && validStatus(request.resource.data.status, ['Draft', 'Published', 'Closed', 'Cancelled'])
+        && validStatus(request.resource.data.status, ['Draft', 'Published', 'Closed', 'Cancelled', 'Archived'])
         && request.resource.data.registrationOpen is bool
         && request.resource.data.registrationMode is string
         && request.resource.data.listingMode is string
