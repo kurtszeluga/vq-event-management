@@ -4,10 +4,9 @@ import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/ev
 
 const ALL_TYPES = 'All';
 const DESCRIPTION_PREVIEW_LENGTH = 180;
-const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale', 'Challenges']);
 const FILTER_TYPES = [
   'All',
-  ...EVENT_TYPES.filter((type) => !EXCLUDED_EVENT_TYPES.has(type))
+  ...EVENT_TYPES
 ];
 
 function EventList({
@@ -17,8 +16,10 @@ function EventList({
   onDelete,
   onEdit,
   defaultEventTypeFilter = ALL_TYPES,
-  showTypeFilters = true
+  showTypeFilters = true,
+  excludedEventTypes = []
 }) {
+  const excludedTypes = useMemo(() => new Set(excludedEventTypes), [excludedEventTypes]);
   const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
@@ -26,7 +27,7 @@ function EventList({
     () =>
       events.reduce((counts, event) => {
         const type = event.eventType || 'Other';
-        if (EXCLUDED_EVENT_TYPES.has(type)) {
+        if (excludedTypes.has(type)) {
           return counts;
         }
 
@@ -41,11 +42,11 @@ function EventList({
   const filteredEvents = useMemo(
     () =>
       events
-        .filter((event) => !EXCLUDED_EVENT_TYPES.has(event.eventType || 'Other'))
+        .filter((event) => !excludedTypes.has(event.eventType || 'Other'))
         .filter((event) =>
           eventTypeFilter === ALL_TYPES ? true : (event.eventType || 'Other') === eventTypeFilter
         ),
-    [eventTypeFilter, events]
+    [eventTypeFilter, events, excludedTypes]
   );
 
   useEffect(() => {

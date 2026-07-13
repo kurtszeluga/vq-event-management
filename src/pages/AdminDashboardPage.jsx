@@ -27,28 +27,32 @@ function AdminDashboardPage() {
       filter: 'All',
       showTypeFilters: true,
       createLabel: 'Create New Event/Activity',
-      createType: ''
+      createType: '',
+      excludedEventTypes: ['Business Listing', 'For Sale', 'Challenges']
     },
     challenges: {
       title: 'Challenges',
       filter: 'Challenges',
       showTypeFilters: false,
       createLabel: 'Create New Challenge',
-      createType: 'Challenges'
+      createType: 'Challenges',
+      excludedEventTypes: []
     },
     'business-listings': {
       title: 'Business Listings',
       filter: 'Business Listing',
       showTypeFilters: false,
       createLabel: 'Create New Business Listing',
-      createType: 'Business Listing'
+      createType: 'Business Listing',
+      excludedEventTypes: []
     },
     'for-sale': {
       title: 'For Sale',
       filter: 'For Sale',
       showTypeFilters: false,
       createLabel: 'Create New For Sale Listing',
-      createType: 'For Sale'
+      createType: 'For Sale',
+      excludedEventTypes: []
     }
   };
 
@@ -231,6 +235,7 @@ function AdminDashboardPage() {
               isSuperUser={isSuperUser}
               defaultEventTypeFilter={eventModuleConfig[activeModule].filter}
               showTypeFilters={eventModuleConfig[activeModule].showTypeFilters}
+              excludedEventTypes={eventModuleConfig[activeModule].excludedEventTypes}
             />
           </section>
         ) : null}
