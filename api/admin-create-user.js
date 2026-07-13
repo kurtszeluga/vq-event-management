@@ -4,6 +4,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 let firebaseProjectId = '';
+let firebaseApiKey = '';
 
 function initializeAdminApp() {
   const existingApp = getApps()[0];
@@ -49,6 +50,7 @@ export default async function handler(request, response) {
     }
 
     const db = getFirestore();
+    firebaseApiKey = getFirebaseApiKey();
     const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
     const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
 
@@ -135,28 +137,30 @@ export default async function handler(request, response) {
 }
 
 async function createOrUpdateAuthUser(payload, temporaryPassword) {
-  const auth = await getFirebaseAuth();
+  const existingUser = await lookupAuthUserByEmail(payload.email);
 
-  try {
-    const existingUser = await auth.getUserByEmail(payload.email);
-    return auth.updateUser(existingUser.uid, {
+  if (existingUser) {
+    await updateAuthUser(existingUser.localId, {
       disabled: payload.status !== 'Active',
       displayName: payload.name,
       password: temporaryPassword
     });
-  } catch (error) {
-    if (error.code !== 'auth/user-not-found') {
-      throw error;
-    }
 
-    return auth.createUser({
-      disabled: payload.status !== 'Active',
-      displayName: payload.name,
-      email: payload.email,
-      emailVerified: false,
-      password: temporaryPassword
-    });
+    return {
+      uid: existingUser.localId
+    };
   }
+
+  const createdUser = await createAuthUser({
+    disabled: payload.status !== 'Active',
+    displayName: payload.name,
+    email: payload.email,
+    password: temporaryPassword
+  });
+
+  return {
+    uid: createdUser.localId
+  };
 }
 
 function sanitizePayload(payload, actorProfile) {
@@ -212,15 +216,18 @@ function normalizeProfileTags(profileTags = []) {
 }
 
 async function assertActorCanCreateOrUpdateProfile(db, actorProfile, email) {
-  const auth = await getFirebaseAuth();
-
   if (actorProfile.role === 'Super User') {
     return;
   }
 
   try {
-    const existingUser = await auth.getUserByEmail(email);
-    const existingProfile = await db.collection('users').doc(existingUser.uid).get();
+    const existingUser = await lookupAuthUserByEmail(email);
+
+    if (!existingUser) {
+      return;
+    }
+
+    const existingProfile = await db.collection('users').doc(existingUser.localId).get();
 
     if (existingProfile.exists && existingProfile.data().role !== 'General User') {
       const permissionError = new Error('Admins can only add or update General User profiles.');
@@ -228,10 +235,6 @@ async function assertActorCanCreateOrUpdateProfile(db, actorProfile, email) {
       throw permissionError;
     }
   } catch (error) {
-    if (error.code === 'auth/user-not-found') {
-      return;
-    }
-
     throw error;
   }
 }
@@ -260,9 +263,87 @@ function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-async function getFirebaseAuth() {
-  const { getAuth } = await import('firebase-admin/auth');
-  return getAuth();
+function getFirebaseApiKey() {
+  return process.env.VITE_FIREBASE_API_KEY
+    || process.env.FIREBASE_API_KEY
+    || '';
+}
+
+async function lookupAuthUserByEmail(email) {
+  const result = await firebaseAuthRequest('accounts:lookup', {
+    email: [email]
+  });
+
+  return result.users?.[0] || null;
+}
+
+async function createAuthUser({ disabled, displayName, email, password }) {
+  const result = await firebaseAuthRequest('accounts:signUp', {
+    displayName,
+    email,
+    password,
+    returnSecureToken: false
+  });
+
+  await updateAuthUser(result.localId, {
+    disabled,
+    displayName,
+    password
+  });
+
+  return result;
+}
+
+async function updateAuthUser(localId, { disabled, displayName, password }) {
+  const body = {
+    localId,
+    displayName,
+    password,
+    returnSecureToken: false
+  };
+
+  if (typeof disabled === 'boolean') {
+    body.disableUser = disabled;
+  }
+
+  return firebaseAuthRequest('accounts:update', body);
+}
+
+async function firebaseAuthRequest(path, body) {
+  if (!firebaseApiKey) {
+    throw new Error('Firebase API key is not configured.');
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/${path}?key=${firebaseApiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }
+  );
+
+  const text = await response.text();
+  const data = text ? safeJsonParse(text) : {};
+
+  if (!response.ok) {
+    const message = data.error?.message || data.error || 'Firebase Auth request failed.';
+    const error = new Error(message);
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+function safeJsonParse(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
 }
 
 function parseServiceAccountJson(serviceAccountJson) {

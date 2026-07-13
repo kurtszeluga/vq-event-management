@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 let firebaseProjectId = '';
+let firebaseApiKey = '';
 
 function initializeAdminApp() {
   const existingApp = getApps()[0];
@@ -60,6 +61,7 @@ export default async function handler(request, response) {
     }
 
     const db = getFirestore();
+    firebaseApiKey = getFirebaseApiKey();
     const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
     const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
 
@@ -85,8 +87,7 @@ export default async function handler(request, response) {
     }
 
     const userProfile = userSnap.data();
-    const auth = await getFirebaseAuth();
-    await auth.updateUser(userProfile.userId || userId, { password });
+    await updateAuthUser(userProfile.userId || userId, { password });
 
     await db.collection('auditLogs').doc().set({
       action: 'Update',
@@ -126,7 +127,45 @@ function parseServiceAccountJson(serviceAccountJson) {
   }
 }
 
-async function getFirebaseAuth() {
-  const { getAuth } = await import('firebase-admin/auth');
-  return getAuth();
+function getFirebaseApiKey() {
+  return process.env.VITE_FIREBASE_API_KEY
+    || process.env.FIREBASE_API_KEY
+    || '';
+}
+
+async function updateAuthUser(localId, { password }) {
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        localId,
+        password,
+        returnSecureToken: false
+      })
+    }
+  );
+
+  const text = await response.text();
+  const data = text ? safeJsonParse(text) : {};
+
+  if (!response.ok) {
+    const message = data.error?.message || data.error || 'Firebase Auth request failed.';
+    const error = new Error(message);
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+function safeJsonParse(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
 }
