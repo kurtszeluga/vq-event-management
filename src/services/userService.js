@@ -9,6 +9,7 @@ import {
   where,
   writeBatch
 } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
 import { normalizePermissions } from '../data/userRoles.js';
@@ -53,7 +54,7 @@ export async function updateUserProfile(userId, updates, actorProfile) {
 }
 
 export async function createUserByAdmin(userData) {
-  const idToken = await auth.currentUser?.getIdToken();
+  const idToken = await getAdminIdToken();
 
   if (!idToken) {
     throw new Error('You must be signed in to add users.');
@@ -77,7 +78,7 @@ export async function createUserByAdmin(userData) {
 }
 
 export async function updateUserPasswordByAdmin(userId, password) {
-  const idToken = await auth.currentUser?.getIdToken();
+  const idToken = await getAdminIdToken();
 
   if (!idToken) {
     throw new Error('You must be signed in to change user passwords.');
@@ -121,6 +122,36 @@ async function parseJsonResponse(response) {
   } catch {
     return { error: bodyText };
   }
+}
+
+async function getAdminIdToken() {
+  if (!auth) {
+    return '';
+  }
+
+  const currentUser = auth.currentUser || (await waitForCurrentUser());
+
+  if (!currentUser) {
+    return '';
+  }
+
+  return currentUser.getIdToken();
+}
+
+function waitForCurrentUser() {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (firebaseUser) => {
+        unsubscribe();
+        resolve(firebaseUser);
+      },
+      () => {
+        unsubscribe();
+        resolve(null);
+      }
+    );
+  });
 }
 
 function addAuditLog(batch, { actorProfile, after, before, entityId, summary }) {
