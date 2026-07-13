@@ -264,6 +264,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
         setForm(null);
       }
 
+      setQuickFilter('archived');
       setSuccessMessage('User profile archived.');
     } catch (archiveError) {
       setError(archiveError.message);

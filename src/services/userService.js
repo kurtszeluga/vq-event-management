@@ -67,7 +67,7 @@ export async function createUserByAdmin(userData) {
     },
     method: 'POST'
   });
-  const result = await response.json();
+  const result = await parseJsonResponse(response);
 
   if (!response.ok) {
     throw new Error(result.error || 'User could not be added.');
@@ -91,13 +91,36 @@ export async function updateUserPasswordByAdmin(userId, password) {
     },
     method: 'POST'
   });
-  const result = await response.json();
+  const result = await parseJsonResponse(response);
 
   if (!response.ok) {
     throw new Error(result.error || 'Password could not be changed.');
   }
 
   return result;
+}
+
+async function parseJsonResponse(response) {
+  const contentType = response.headers.get('content-type') || '';
+  const bodyText = await response.text();
+
+  if (contentType.includes('application/json')) {
+    try {
+      return bodyText ? JSON.parse(bodyText) : {};
+    } catch {
+      return { error: bodyText || 'Unexpected server response.' };
+    }
+  }
+
+  if (!bodyText) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    return { error: bodyText };
+  }
 }
 
 function addAuditLog(batch, { actorProfile, after, before, entityId, summary }) {
