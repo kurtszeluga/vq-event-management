@@ -20,6 +20,24 @@ function AdminDashboardPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
+  const eventModuleConfig = {
+    'events-activities': {
+      title: 'Events/Activities',
+      filter: 'All',
+      showTypeFilters: true,
+      createLabel: 'Create New Event/Activity'
+    },
+    'business-listings': {
+      title: 'Business Listings',
+      filter: 'Business Listing',
+      showTypeFilters: false
+    },
+    'for-sale': {
+      title: 'For Sale',
+      filter: 'For Sale',
+      showTypeFilters: false
+    }
+  };
 
   useEffect(() => {
     if (!canManageEvents) {
@@ -82,21 +100,30 @@ function AdminDashboardPage() {
           <>
             <button
               className={`button-link button-reset ${
-                activeModule === 'event-details' ? '' : 'secondary-action'
+                activeModule === 'events-activities' ? '' : 'secondary-action'
               }`}
               type="button"
-              onClick={() => setActiveModule('event-details')}
+              onClick={() => setActiveModule('events-activities')}
             >
-              Create New Event/Activity
+              Events/Activities
             </button>
             <button
               className={`button-link button-reset ${
-                activeModule === 'existing-events' ? '' : 'secondary-action'
+                activeModule === 'business-listings' ? '' : 'secondary-action'
               }`}
               type="button"
-              onClick={() => setActiveModule('existing-events')}
+              onClick={() => setActiveModule('business-listings')}
             >
-              Existing Events
+              Business Listings
+            </button>
+            <button
+              className={`button-link button-reset ${
+                activeModule === 'for-sale' ? '' : 'secondary-action'
+              }`}
+              type="button"
+              onClick={() => setActiveModule('for-sale')}
+            >
+              For Sale
             </button>
           </>
         ) : null}
@@ -141,18 +168,34 @@ function AdminDashboardPage() {
             />
           </div>
         ) : null}
-        {canManageEvents && activeModule === 'existing-events' ? (
+        {canManageEvents && activeModule in eventModuleConfig ? (
           <section className="admin-list-panel" id="existing-events-card">
             <div className="form-section-header">
-              <h2>Existing events</h2>
+              <h2>{eventModuleConfig[activeModule].title}</h2>
               <span>{events.length} total</span>
             </div>
+            {activeModule === 'events-activities' ? (
+              <div className="admin-list-panel-actions">
+                <button
+                  className="button-link button-reset secondary-action"
+                  type="button"
+                  onClick={() => {
+                    setEditingEvent(null);
+                    setActiveModule('event-details');
+                  }}
+                >
+                  Create New Event/Activity
+                </button>
+              </div>
+            ) : null}
             <EventList
               events={events}
               loading={loadingEvents}
               onDelete={handleDelete}
               onEdit={handleEditEvent}
               isSuperUser={isSuperUser}
+              defaultEventTypeFilter={eventModuleConfig[activeModule].filter}
+              showTypeFilters={eventModuleConfig[activeModule].showTypeFilters}
             />
           </section>
         ) : null}

@@ -1356,6 +1356,12 @@ body.popup-mode .page-content {
   gap: 12px;
 }
 
+.admin-list-panel-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
 .compact-action {
   font-size: 0.84rem;
   padding: 6px 8px;

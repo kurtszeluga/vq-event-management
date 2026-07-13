@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
@@ -6,8 +6,16 @@ const ALL_TYPES = 'All';
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const FILTER_TYPES = ['All', ...EVENT_TYPES];
 
-function EventList({ events, isSuperUser, loading, onDelete, onEdit }) {
-  const [eventTypeFilter, setEventTypeFilter] = useState(ALL_TYPES);
+function EventList({
+  events,
+  isSuperUser,
+  loading,
+  onDelete,
+  onEdit,
+  defaultEventTypeFilter = ALL_TYPES,
+  showTypeFilters = true
+}) {
+  const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
 
   const eventTypeCounts = useMemo(
@@ -29,6 +37,10 @@ function EventList({ events, isSuperUser, loading, onDelete, onEdit }) {
         : events.filter((event) => (event.eventType || 'Other') === eventTypeFilter),
     [eventTypeFilter, events]
   );
+
+  useEffect(() => {
+    setEventTypeFilter(defaultEventTypeFilter);
+  }, [defaultEventTypeFilter]);
 
   function toggleDescription(eventId) {
     setExpandedDescriptions((current) => ({
@@ -57,18 +69,20 @@ function EventList({ events, isSuperUser, loading, onDelete, onEdit }) {
 
   return (
     <div className="event-admin-list">
-      <div className="status-filter-group separated-filter-row" aria-label="Event type filters">
-        {eventTypeFilters.map((type) => (
-          <button
-            className={`status-filter-button${eventTypeFilter === type ? ' active' : ''}`}
-            key={type}
-            type="button"
-            onClick={() => setEventTypeFilter(type)}
-          >
-            {type === ALL_TYPES ? `All (${events.length})` : `${type} (${eventTypeCounts[type] || 0})`}
-          </button>
-        ))}
-      </div>
+      {showTypeFilters ? (
+        <div className="status-filter-group separated-filter-row" aria-label="Event type filters">
+          {eventTypeFilters.map((type) => (
+            <button
+              className={`status-filter-button${eventTypeFilter === type ? ' active' : ''}`}
+              key={type}
+              type="button"
+              onClick={() => setEventTypeFilter(type)}
+            >
+              {type === ALL_TYPES ? `All (${events.length})` : `${type} (${eventTypeCounts[type] || 0})`}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {!filteredEvents.length ? (
         <div className="empty-state compact-empty-state">
           <h2>No matching events</h2>
