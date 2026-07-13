@@ -334,13 +334,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
 
       <form className="configuration-section" onSubmit={handleSaveSettings}>
-        <div className="configuration-section-header configuration-section-header-stacked">
-          <div>
-            <h3>Membership Check</h3>
-            {membershipSectionOpen ? (
-              <p>Control whether new user accounts should be checked against the member list.</p>
-            ) : null}
-          </div>
+        <div className="configuration-section-header">
           <div className="configuration-actions configuration-section-header-actions">
             <button
               className="button-link button-reset secondary-action"
@@ -349,6 +343,12 @@ function ConfigurationPanel({ currentUserProfile }) {
             >
               {membershipSectionOpen ? 'Hide Membership Check' : 'Show Membership Check'}
             </button>
+          </div>
+          <div>
+            <h3>Membership Check</h3>
+            {membershipSectionOpen ? (
+              <p>Control whether new user accounts should be checked against the member list.</p>
+            ) : null}
           </div>
         </div>
         {membershipSectionOpen ? (
@@ -411,7 +411,16 @@ function ConfigurationPanel({ currentUserProfile }) {
       </form>
 
       <section className="configuration-section">
-        <div className="configuration-section-header configuration-section-header-stacked">
+        <div className="configuration-section-header">
+          <div className="configuration-actions configuration-section-header-actions">
+            <button
+              className="button-link button-reset secondary-action"
+              type="button"
+              onClick={() => setMemberListOpen((current) => !current)}
+            >
+              {memberListOpen ? 'Hide Member List' : 'Show Member List'}
+            </button>
+          </div>
           <div>
             <h3>Member List</h3>
             {memberListOpen ? (
@@ -423,15 +432,6 @@ function ConfigurationPanel({ currentUserProfile }) {
                 </p>
               </>
             ) : null}
-          </div>
-          <div className="configuration-actions configuration-section-header-actions">
-            <button
-              className="button-link button-reset secondary-action"
-              type="button"
-              onClick={() => setMemberListOpen((current) => !current)}
-            >
-              {memberListOpen ? 'Hide Member List' : 'Show Member List'}
-            </button>
           </div>
         </div>
         {memberListOpen ? (
@@ -524,13 +524,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       </section>
 
       <section className="configuration-section">
-        <div className="configuration-section-header configuration-section-header-stacked">
-          <div>
-            <h3>Default Locations</h3>
-            {locationSectionOpen ? (
-              <p>These locations appear in the event/activity location dropdown.</p>
-            ) : null}
-          </div>
+        <div className="configuration-section-header">
           <div className="configuration-actions configuration-section-header-actions">
             <button
               className="button-link button-reset secondary-action"
@@ -539,6 +533,12 @@ function ConfigurationPanel({ currentUserProfile }) {
             >
               {locationSectionOpen ? 'Hide Locations' : 'Show Locations'}
             </button>
+          </div>
+          <div>
+            <h3>Default Locations</h3>
+            {locationSectionOpen ? (
+              <p>These locations appear in the event/activity location dropdown.</p>
+            ) : null}
           </div>
         </div>
         {locationSectionOpen ? (
@@ -656,13 +656,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       </section>
 
       <section className="configuration-section">
-        <div className="configuration-section-header configuration-section-header-stacked">
-          <div>
-            <h3>Default Start/End Times</h3>
-            {timeSectionOpen ? (
-              <p>These time blocks appear in the event/activity time dropdown.</p>
-            ) : null}
-          </div>
+        <div className="configuration-section-header">
           <div className="configuration-actions configuration-section-header-actions">
             <button
               className="button-link button-reset secondary-action"
@@ -671,6 +665,12 @@ function ConfigurationPanel({ currentUserProfile }) {
             >
               {timeSectionOpen ? 'Hide Start/End Times' : 'Show Start/End Times'}
             </button>
+          </div>
+          <div>
+            <h3>Default Start/End Times</h3>
+            {timeSectionOpen ? (
+              <p>These time blocks appear in the event/activity time dropdown.</p>
+            ) : null}
           </div>
         </div>
         {timeSectionOpen ? (

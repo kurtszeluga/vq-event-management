@@ -1263,18 +1263,12 @@ body.popup-mode .page-content {
   justify-content: space-between;
 }
 
-.configuration-section-header-stacked {
-  display: grid;
-  gap: 10px;
-}
-
 .configuration-section-header > div {
   display: grid;
   gap: 8px;
 }
 
-.configuration-section-header-stacked .configuration-section-header-actions {
-  display: flex;
+.configuration-section-header-actions {
   justify-content: flex-start;
   width: fit-content;
 }
