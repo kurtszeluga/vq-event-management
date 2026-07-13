@@ -133,6 +133,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       name: user.name || '',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
+      profileTags: normalizeProfileTags(user.profileTags),
       role: user.role || 'General User',
       status: user.role === 'Super User' ? 'Active' : user.status || 'Active',
       temporaryPassword: '',
