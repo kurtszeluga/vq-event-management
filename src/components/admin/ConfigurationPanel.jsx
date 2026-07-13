@@ -333,6 +333,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       {error ? <p className="form-error">{error}</p> : null}
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
 
+      <div className="configuration-card-grid">
       <article className="admin-list-panel configuration-card">
         <div className="configuration-card-header">
           <h3>Membership Check</h3>
@@ -786,6 +787,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           </>
         ) : null}
       </article>
+      </div>
     </section>
   );
 }

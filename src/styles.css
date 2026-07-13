@@ -1244,6 +1244,12 @@ body.popup-mode .page-content {
   gap: 18px;
 }
 
+.configuration-card-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .configuration-card {
   display: grid;
   gap: 16px;
@@ -1269,6 +1275,12 @@ body.popup-mode .page-content {
   flex-wrap: wrap;
   gap: 12px;
   justify-content: flex-start;
+}
+
+@media (max-width: 960px) {
+  .configuration-card-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .empty-inline {
