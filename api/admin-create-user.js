@@ -1,6 +1,5 @@
 import { randomInt } from 'node:crypto';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
@@ -49,7 +48,6 @@ export default async function handler(request, response) {
       return;
     }
 
-    const auth = getAuth();
     const db = getFirestore();
     const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
     const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
@@ -74,10 +72,10 @@ export default async function handler(request, response) {
       return;
     }
 
-    await assertActorCanCreateOrUpdateProfile(auth, db, actorProfile, payload.email);
+    await assertActorCanCreateOrUpdateProfile(db, actorProfile, payload.email);
 
     const temporaryPassword = payload.temporaryPassword || createTemporaryPassword();
-    const userRecord = await createOrUpdateAuthUser(auth, payload, temporaryPassword);
+    const userRecord = await createOrUpdateAuthUser(payload, temporaryPassword);
     const userRef = db.collection('users').doc(userRecord.uid);
     const existingProfile = await userRef.get();
     const before = existingProfile.exists ? existingProfile.data() : {};
@@ -136,7 +134,9 @@ export default async function handler(request, response) {
   }
 }
 
-async function createOrUpdateAuthUser(auth, payload, temporaryPassword) {
+async function createOrUpdateAuthUser(payload, temporaryPassword) {
+  const auth = await getFirebaseAuth();
+
   try {
     const existingUser = await auth.getUserByEmail(payload.email);
     return auth.updateUser(existingUser.uid, {
@@ -211,7 +211,9 @@ function normalizeProfileTags(profileTags = []) {
     : [];
 }
 
-async function assertActorCanCreateOrUpdateProfile(auth, db, actorProfile, email) {
+async function assertActorCanCreateOrUpdateProfile(db, actorProfile, email) {
+  const auth = await getFirebaseAuth();
+
   if (actorProfile.role === 'Super User') {
     return;
   }
@@ -256,6 +258,11 @@ function createTemporaryPassword() {
 
 function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+async function getFirebaseAuth() {
+  const { getAuth } = await import('firebase-admin/auth');
+  return getAuth();
 }
 
 function parseServiceAccountJson(serviceAccountJson) {

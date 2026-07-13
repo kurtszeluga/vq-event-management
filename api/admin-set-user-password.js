@@ -1,5 +1,4 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
@@ -60,7 +59,6 @@ export default async function handler(request, response) {
       return;
     }
 
-    const auth = getAuth();
     const db = getFirestore();
     const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
     const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
@@ -87,6 +85,7 @@ export default async function handler(request, response) {
     }
 
     const userProfile = userSnap.data();
+    const auth = await getFirebaseAuth();
     await auth.updateUser(userProfile.userId || userId, { password });
 
     await db.collection('auditLogs').doc().set({
@@ -125,4 +124,9 @@ function parseServiceAccountJson(serviceAccountJson) {
       throw new Error(`Unable to parse FIREBASE_SERVICE_ACCOUNT_JSON: ${error.message}`);
     }
   }
+}
+
+async function getFirebaseAuth() {
+  const { getAuth } = await import('firebase-admin/auth');
+  return getAuth();
 }
