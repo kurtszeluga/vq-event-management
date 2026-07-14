@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Village Quilters Event Feed Demo</title>
+    <style>
+      body {
+        background: #f4efe8;
+        color: #1d2927;
+        font-family: Inter, Arial, sans-serif;
+        margin: 0;
+        padding: 32px 18px 48px;
+      }
+      .demo-shell {
+        margin: 0 auto;
+        max-width: 1120px;
+      }
+      .demo-header {
+        margin-bottom: 24px;
+      }
+      .demo-header h1 {
+        font-size: 2rem;
+        margin: 0 0 8px;
+      }
+      .demo-header p {
+        line-height: 1.5;
+        margin: 0;
+        max-width: 760px;
+      }
+      .demo-code {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 8px;
+        margin: 0 0 24px;
+        padding: 18px;
+      }
+      .demo-code code,
+      .demo-code pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.92rem;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="demo-shell">
+      <header class="demo-header">
+        <h1>GoDaddy Event Feed Demo</h1>
+        <p>
+          This is a draft embeddable version of the public events listing. If this looks right,
+          we can use the same feed on a GoDaddy test page without finishing the whole registration
+          workflow first.
+        </p>
+      </header>
+
+      <section class="demo-code">
+        <strong>Paste this into a GoDaddy HTML block:</strong>
+        <pre><code>&lt;div
+  data-vq-feed
+  data-category="events"
+  data-source-url="https://vq-event-management.vercel.app/api/public-events"
+&gt;&lt;/div&gt;
+&lt;script src="https://vq-event-management.vercel.app/godaddy-event-feed.js" defer&gt;&lt;/script&gt;</code></pre>
+      </section>
+
+      <div
+        data-vq-feed
+        data-category="events"
+        data-source-url="/api/public-events"
+      ></div>
+    </main>
+
+    <script src="/godaddy-event-feed.js" defer></script>
+  </body>
+</html>
