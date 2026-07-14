@@ -139,8 +139,9 @@ Administrator Features
   * Registration membership checks use the profile membership fields.
   * Super User profiles display as Active with membership N/A and are excluded from membership counts.
 * Super Users can manage a Configuration module.
-  * Enable or disable membership checks for new users.
-  * Configure membership matching by email and phone.
+  * Enable or disable active Guild membership checks for registration.
+  * Membership imports match automatically by email.
+  * Phone-only matches are treated as review exceptions and are not applied automatically.
   * Configure whether admins may skip the membership check.
   * Upload a membership CSV file that creates or updates profiles directly.
   * CSV imports support Add/Update Only mode and Annual Refresh mode.

@@ -22,7 +22,7 @@ const auditLogsCollection = () => collection(db, 'auditLogs');
 export const DEFAULT_MEMBERSHIP_SETTINGS = {
   allowAdminSkipMembershipCheck: false,
   matchByEmail: true,
-  matchByPhone: true,
+  matchByPhone: false,
   requireMembershipCheck: false
 };
 
@@ -93,8 +93,8 @@ export async function saveMembershipSettings(settings, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
     allowAdminSkipMembershipCheck: Boolean(settings.allowAdminSkipMembershipCheck),
-    matchByEmail: Boolean(settings.matchByEmail),
-    matchByPhone: Boolean(settings.matchByPhone),
+    matchByEmail: true,
+    matchByPhone: false,
     requireMembershipCheck: Boolean(settings.requireMembershipCheck),
     updatedDate: serverTimestamp()
   };

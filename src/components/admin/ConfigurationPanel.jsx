@@ -324,7 +324,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Membership Check</h3>
-          <p>Control whether new user accounts should be checked against profile membership status.</p>
+          <p>Control whether event and activity registration requires an active Guild membership on the profile.</p>
         </div>
         <form className="configuration-card-body" onSubmit={handleSaveSettings}>
           <label className="checkbox-label">
@@ -338,28 +338,11 @@ function ConfigurationPanel({ currentUserProfile }) {
                 }))
               }
             />
-            <span>Require Membership Check For New Users</span>
+            <span>Require Active Guild Membership For Registration</span>
           </label>
-          <label className="checkbox-label">
-            <input
-              checked={settings.matchByEmail}
-              type="checkbox"
-              onChange={(event) =>
-                setSettings((current) => ({ ...current, matchByEmail: event.target.checked }))
-              }
-            />
-            <span>Match Members By Email</span>
-          </label>
-          <label className="checkbox-label">
-            <input
-              checked={settings.matchByPhone}
-              type="checkbox"
-              onChange={(event) =>
-                setSettings((current) => ({ ...current, matchByPhone: event.target.checked }))
-              }
-            />
-            <span>Match Members By Phone</span>
-          </label>
+          <p className="form-help">
+            Email is used for automatic matching. Phone-only matches are held for review.
+          </p>
           <label className="checkbox-label">
             <input
               checked={settings.allowAdminSkipMembershipCheck}
