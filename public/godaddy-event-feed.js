@@ -112,9 +112,11 @@
         <div class="vq-feed-card-main">
           <div class="vq-feed-card-top">
             <div class="vq-feed-card-top-left">
-              <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+              <div class="vq-feed-pill-row">
+                <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+                <span class="vq-feed-status-pill">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
+              </div>
               <div class="vq-feed-status-row">
-                <strong>${event.registrationOpen ? 'Registration open' : 'Registration closed'}</strong>
                 ${registerLink ? `<span class="vq-feed-register-wrap">${registerLink}</span>` : ''}
               </div>
             </div>
@@ -240,7 +242,7 @@
         border: 1px solid #ded5ca;
         border-radius: 10px;
         box-shadow: 0 10px 24px rgba(29, 41, 39, 0.06);
-        padding: 20px;
+        padding: 18px;
       }
       .vq-feed-card.is-hidden,
       .vq-feed-description .is-hidden {
@@ -255,11 +257,18 @@
       }
       .vq-feed-card-top-left {
         display: grid;
-        gap: 10px;
+        gap: 8px;
         min-width: 0;
+        flex: 1 1 auto;
       }
       .vq-feed-title-row {
-        margin-top: 12px;
+        margin-top: 8px;
+      }
+      .vq-feed-pill-row {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
       }
       .vq-feed-type {
         background: #e9f2ef;
@@ -270,15 +279,25 @@
         font-weight: 800;
         padding: 6px 10px;
       }
+      .vq-feed-status-pill {
+        background: #f3f0ea;
+        border: 1px solid #d8cdc0;
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.82rem;
+        font-weight: 800;
+        padding: 6px 10px;
+      }
       .vq-feed-status-row {
         align-items: center;
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 10px;
         justify-content: flex-start;
+        min-height: 42px;
       }
       .vq-feed-register-wrap {
-        margin-left: 4px;
+        margin-left: 0;
       }
       .vq-feed-primary,
       .vq-feed-secondary {
@@ -301,9 +320,10 @@
       }
       .vq-feed-date {
         color: #9a4d2f;
-        font-size: 1.18rem;
+        font-size: 1.32rem;
         font-weight: 800;
-        margin-bottom: 6px;
+        line-height: 1.1;
+        margin-bottom: 4px;
       }
       .vq-feed-card h3 {
         font-size: 1.4rem;
@@ -317,15 +337,15 @@
       .vq-feed-thumb-placeholder {
         border-radius: 8px;
         display: block;
-        height: 132px;
+        height: 144px;
         object-fit: cover;
-        width: 184px;
+        width: 196px;
       }
       .vq-feed-thumb-placeholder {
         background: linear-gradient(135deg, #f6efe9, #ebe3da);
       }
       .vq-feed-description {
-        margin-top: 14px;
+        margin-top: 10px;
       }
       .vq-feed-description p {
         line-height: 1.55;
@@ -347,7 +367,7 @@
         display: grid;
         gap: 10px;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        margin: 16px 0 0;
+        margin: 12px 0 0;
       }
       .vq-feed-meta div {
         display: grid;
@@ -365,12 +385,16 @@
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
-        margin-top: 18px;
+        margin-top: 14px;
       }
       @media (max-width: 720px) {
         .vq-feed-card-top,
         .vq-feed-title-row {
           flex-direction: column;
+        }
+        .vq-feed-status-row {
+          flex-wrap: wrap;
+          min-height: 0;
         }
         .vq-feed-register-wrap {
           margin-left: 0;
