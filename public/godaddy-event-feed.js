@@ -509,8 +509,9 @@
 
   function buildImageViewerUrl(imageUrl, title, sourceUrl) {
     const feedUrl = new URL(sourceUrl || DEFAULTS.sourceUrl, window.location.href);
-    const viewerUrl = new URL('/godaddy-image-viewer.html', feedUrl);
+    const viewerUrl = new URL('/godaddy-image-viewer-v2.html', feedUrl);
     const params = new URLSearchParams({
+      cv: '20260714-1',
       src: String(imageUrl || ''),
       title: String(title || 'Event image')
     });

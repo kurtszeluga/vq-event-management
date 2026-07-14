@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Image Viewer</title>
+    <style>
+      :root {
+        color: #1d2927;
+        background: #f4efe8;
+        font-family: Inter, Arial, sans-serif;
+      }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        padding: 24px 18px 32px;
+      }
+      .viewer-shell {
+        margin: 0 auto;
+        max-width: 960px;
+      }
+      .viewer-topbar {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .viewer-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .viewer-close {
+        appearance: none;
+        background: #225c56;
+        border: 1px solid #225c56;
+        border-radius: 999px;
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 16px;
+      }
+      .viewer-card {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
+        padding: 14px;
+      }
+      .viewer-image {
+        display: block;
+        height: auto;
+        max-width: 100%;
+        width: 100%;
+      }
+      .viewer-empty {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 12px;
+        padding: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <div class="viewer-topbar">
+        <h1 class="viewer-title" id="viewer-title">Image Viewer</h1>
+        <button class="viewer-close" type="button" id="viewer-close">Close</button>
+      </div>
+      <div id="viewer-content"></div>
+    </main>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const src = params.get('src') || '';
+      const title = params.get('title') || 'Event image';
+      const titleNode = document.getElementById('viewer-title');
+      const contentNode = document.getElementById('viewer-content');
+      const closeButton = document.getElementById('viewer-close');
+
+      titleNode.textContent = title;
+
+      closeButton.addEventListener('click', () => {
+        if (window.opener) {
+          window.close();
+          return;
+        }
+
+        if (window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+
+        window.location.href = '/';
+      });
+
+      if (!src) {
+        contentNode.innerHTML = '<div class="viewer-empty">Image unavailable.</div>';
+      } else {
+        const card = document.createElement('div');
+        card.className = 'viewer-card';
+
+        const image = document.createElement('img');
+        image.className = 'viewer-image';
+        image.alt = title;
+        image.src = src;
+
+        card.appendChild(image);
+        contentNode.appendChild(card);
+      }
+    </script>
+  </body>
+</html>
