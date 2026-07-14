@@ -34,14 +34,26 @@ export async function updateUserProfile(userId, updates, actorProfile) {
   const batch = writeBatch(db);
   const normalizedPermissions = normalizePermissions(updates.permissions);
   const normalizedProfileTags = normalizeProfileTags(updates.profileTags);
-  const userPayload = {
-    ...before,
-    ...updates,
+  const userPayload = removeUndefinedFields({
+    archivedBy: before.archivedBy,
+    archivedDate: before.archivedDate,
+    billingAddress: updates.billingAddress,
     createdDate: before.createdDate || serverTimestamp(),
+    email: updates.email,
+    firstName: updates.firstName,
+    lastName: updates.lastName,
+    membershipMatchedBy: before.membershipMatchedBy,
+    membershipMemberId: before.membershipMemberId,
+    membershipStatus: updates.membershipStatus ?? before.membershipStatus,
+    membershipUpdatedDate: before.membershipUpdatedDate,
+    name: updates.name,
+    phone: updates.phone,
     permissions: normalizedPermissions,
     profileTags: normalizedProfileTags,
+    role: updates.role,
+    status: updates.status,
     userId: updates.userId || before.userId || userId
-  };
+  });
 
   batch.update(userRef, {
     ...userPayload,
@@ -233,4 +245,10 @@ function addAuditLog(batch, { actorProfile, after, before, entityId, summary }) 
     entityType: 'User',
     summary
   });
+}
+
+function removeUndefinedFields(value) {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
+  );
 }
