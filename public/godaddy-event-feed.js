@@ -114,19 +114,17 @@
             <div class="vq-feed-card-top-left">
               <div class="vq-feed-pill-row">
                 <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
-                <span class="vq-feed-status-pill">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
+                <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
               </div>
               <div class="vq-feed-status-row">
                 ${registerLink ? `<span class="vq-feed-register-wrap">${registerLink}</span>` : ''}
               </div>
+              <div class="vq-feed-title-block">
+                <div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>
+                <h3>${escapeHtml(event.title)}</h3>
+              </div>
             </div>
             <div class="vq-feed-thumb">${thumbnail}</div>
-          </div>
-          <div class="vq-feed-title-row">
-            <div>
-              <div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>
-              <h3>${escapeHtml(event.title)}</h3>
-            </div>
           </div>
           ${description ? `
             <div class="vq-feed-description">
@@ -248,21 +246,17 @@
       .vq-feed-description .is-hidden {
         display: none;
       }
-      .vq-feed-card-top,
-      .vq-feed-title-row {
+      .vq-feed-card-top {
         align-items: flex-start;
         display: flex;
-        gap: 16px;
+        gap: 14px;
         justify-content: space-between;
       }
       .vq-feed-card-top-left {
         display: grid;
-        gap: 8px;
+        gap: 6px;
         min-width: 0;
         flex: 1 1 auto;
-      }
-      .vq-feed-title-row {
-        margin-top: 8px;
       }
       .vq-feed-pill-row {
         align-items: center;
@@ -280,33 +274,46 @@
         padding: 6px 10px;
       }
       .vq-feed-status-pill {
-        background: #f3f0ea;
-        border: 1px solid #d8cdc0;
         border-radius: 999px;
         display: inline-flex;
         font-size: 0.82rem;
         font-weight: 800;
         padding: 6px 10px;
       }
+      .vq-feed-status-pill.is-open {
+        background: #e7f6ea;
+        border: 1px solid #8bc79a;
+        color: #1f6a31;
+      }
+      .vq-feed-status-pill.is-closed {
+        background: #fff6d9;
+        border: 1px solid #ddc66b;
+        color: #876d14;
+      }
+      .vq-feed-title-block {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
       .vq-feed-status-row {
         align-items: center;
         display: flex;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         gap: 10px;
         justify-content: flex-start;
-        min-height: 42px;
       }
       .vq-feed-register-wrap {
-        margin-left: 0;
+        display: inline-flex;
       }
       .vq-feed-primary,
       .vq-feed-secondary {
-        border-radius: 8px;
+        border-radius: 999px;
         display: inline-flex;
         font-size: 0.95rem;
         font-weight: 700;
-        padding: 10px 14px;
+        padding: 9px 14px;
         text-decoration: none;
+        white-space: nowrap;
       }
       .vq-feed-primary {
         background: #225c56;
@@ -320,7 +327,7 @@
       }
       .vq-feed-date {
         color: #9a4d2f;
-        font-size: 1.32rem;
+        font-size: 1.48rem;
         font-weight: 800;
         line-height: 1.1;
         margin-bottom: 4px;
@@ -337,9 +344,9 @@
       .vq-feed-thumb-placeholder {
         border-radius: 8px;
         display: block;
-        height: 144px;
+        height: 132px;
         object-fit: cover;
-        width: 196px;
+        width: 172px;
       }
       .vq-feed-thumb-placeholder {
         background: linear-gradient(135deg, #f6efe9, #ebe3da);
@@ -388,16 +395,8 @@
         margin-top: 14px;
       }
       @media (max-width: 720px) {
-        .vq-feed-card-top,
-        .vq-feed-title-row {
+        .vq-feed-card-top {
           flex-direction: column;
-        }
-        .vq-feed-status-row {
-          flex-wrap: wrap;
-          min-height: 0;
-        }
-        .vq-feed-register-wrap {
-          margin-left: 0;
         }
         .vq-feed-thumb-image,
         .vq-feed-thumb-placeholder {
