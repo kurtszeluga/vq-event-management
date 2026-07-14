@@ -556,12 +556,19 @@
       return;
     }
 
-    const url = new URL('/api/godaddy-supply-list-viewer', getSourceOrigin(sourceUrl));
-    url.searchParams.set('cv', '20260714-7');
-    url.searchParams.set('url', pdfUrl);
-    url.searchParams.set('title', title || 'Supply list');
-    url.searchParams.set('filename', fileName || 'supply-list.pdf');
-    window.open(url.toString(), 'vq-supply-list', 'popup,width=1100,height=900');
+    const popup = window.open('', 'vq-supply-list', 'popup,width=1100,height=900');
+
+    if (!popup) {
+      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const html = buildSupplyListHtml(pdfUrl, title, fileName, sourceUrl);
+
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
   }
 
   function getSourceOrigin(sourceUrl) {
@@ -570,6 +577,144 @@
     } catch {
       return window.location.origin;
     }
+  }
+
+  function buildSupplyListHtml(pdfUrl, title, fileName, sourceUrl) {
+    const safeTitle = escapeHtml(title || 'Supply list');
+    const safeFileName = escapeHtml(fileName || 'supply-list.pdf');
+    const proxyOrigin = getSourceOrigin(sourceUrl);
+    const inlineUrl = buildProxyUrl(proxyOrigin, pdfUrl, fileName, 'inline');
+    const saveUrl = buildProxyUrl(proxyOrigin, pdfUrl, fileName, 'attachment');
+
+    return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>${safeTitle}</title>
+      <style>
+        :root {
+          background: #f4efe8;
+          color: #1d2927;
+          font-family: Inter, Arial, sans-serif;
+        }
+        html,
+        body {
+          height: 100%;
+          margin: 0;
+        }
+        body {
+          display: flex;
+          flex-direction: column;
+        }
+        .viewer-toolbar {
+          align-items: center;
+          background: #ffffff;
+          border-bottom: 1px solid #ded5ca;
+          display: flex;
+          gap: 14px;
+          justify-content: space-between;
+          padding: 14px 18px;
+        }
+        .viewer-title {
+          display: grid;
+          gap: 2px;
+          min-width: 0;
+        }
+        .viewer-title span {
+          color: #9a4d2f;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        h1 {
+          font-size: 20px;
+          line-height: 1.2;
+          margin: 0;
+        }
+        .viewer-actions {
+          display: inline-flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+        .viewer-button {
+          appearance: none;
+          background: #225c56;
+          border: 1px solid #225c56;
+          border-radius: 999px;
+          color: #ffffff;
+          cursor: pointer;
+          display: inline-flex;
+          font: inherit;
+          font-weight: 700;
+          padding: 9px 14px;
+          text-decoration: none;
+        }
+        .viewer-button.secondary {
+          background: #ffffff;
+          color: #225c56;
+        }
+        .viewer-frame {
+          background: #ffffff;
+          border: 0;
+          flex: 1 1 auto;
+          width: 100%;
+        }
+        .viewer-help {
+          background: #fff8dc;
+          border-top: 1px solid #ddc66b;
+          color: #5b4a10;
+          font-size: 14px;
+          padding: 8px 18px;
+        }
+        @media print {
+          .viewer-toolbar,
+          .viewer-help {
+            display: none;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <header class="viewer-toolbar">
+        <div class="viewer-title">
+          <span>Supply List</span>
+          <h1>${safeTitle}</h1>
+        </div>
+        <div class="viewer-actions">
+          <a class="viewer-button secondary" href="${escapeAttribute(inlineUrl)}" target="_blank" rel="noopener noreferrer">Open PDF</a>
+          <a class="viewer-button secondary" href="${escapeAttribute(saveUrl)}" download="${escapeAttribute(safeFileName)}">Save</a>
+          <button class="viewer-button" type="button" onclick="triggerPrint()">Print</button>
+          <button class="viewer-button secondary" type="button" onclick="window.close()">Close</button>
+        </div>
+      </header>
+      <iframe class="viewer-frame" src="${escapeAttribute(inlineUrl)}" title="${safeTitle}"></iframe>
+      <div class="viewer-help">If the PDF does not display, select Open PDF.</div>
+      <script>
+        function triggerPrint() {
+          window.focus();
+          window.setTimeout(function () {
+            try {
+              window.print();
+            } catch (error) {}
+          }, 100);
+        }
+      </script>
+    </body>
+  </html>`;
+  }
+
+  function buildProxyUrl(origin, pdfUrl, fileName, disposition) {
+    const params = new URLSearchParams({
+      cv: '20260714-9',
+      disposition,
+      filename: fileName || 'supply-list.pdf',
+      url: pdfUrl
+    });
+
+    return `${origin}/api/file-proxy?${params.toString()}`;
   }
 
   function openEventPrintPopup(event) {
@@ -723,7 +868,7 @@
         }
       </style>
     </head>
-    <body onload="window.setTimeout(function () { window.print(); }, 150)">
+    <body onload="window.setTimeout(function () { triggerPrint(); }, 150)">
       <main class="page">
         <div class="topbar">
           <div>
@@ -731,7 +876,7 @@
             <h1>${title}</h1>
           </div>
           <div class="actions">
-            <button type="button" onclick="window.print()">Print</button>
+            <button type="button" onclick="triggerPrint()">Print</button>
             <button type="button" class="secondary" onclick="window.close()">Close</button>
           </div>
         </div>
@@ -747,6 +892,16 @@
         ${imageBlock}
         ${description}
       </main>
+      <script>
+        function triggerPrint() {
+          window.focus();
+          window.setTimeout(function () {
+            try {
+              window.print();
+            } catch (error) {}
+          }, 100);
+        }
+      </script>
     </body>
   </html>`;
   }
