@@ -12,6 +12,8 @@ function AdminDashboardPage() {
   const location = useLocation();
   const { hasPermission, isSuperUser, userProfile } = useAuth();
   const [activeModule, setActiveModule] = useState(location.state?.module || '');
+  const [userControlsQuickFilter, setUserControlsQuickFilter] = useState(location.state?.userControlsQuickFilter || 'all');
+  const [userControlsMembershipFilter, setUserControlsMembershipFilter] = useState(location.state?.userControlsMembershipFilter || 'All');
   const [editingEvent, setEditingEvent] = useState(null);
   const [draftEventType, setDraftEventType] = useState('');
   const [events, setEvents] = useState([]);
@@ -19,6 +21,20 @@ function AdminDashboardPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
+
+  useEffect(() => {
+    if (location.state?.module) {
+      setActiveModule(location.state.module);
+    }
+
+    if (location.state?.userControlsQuickFilter) {
+      setUserControlsQuickFilter(location.state.userControlsQuickFilter);
+    }
+
+    if (location.state?.userControlsMembershipFilter) {
+      setUserControlsMembershipFilter(location.state.userControlsMembershipFilter);
+    }
+  }, [location.state]);
   const eventModuleConfig = {
     'events-activities': {
       title: 'Events/Activities',
@@ -239,6 +255,8 @@ function AdminDashboardPage() {
           <UserControlPanel
             canManageAdminUsers={isSuperUser}
             currentUserProfile={userProfile}
+            initialMembershipFilter={userControlsMembershipFilter}
+            initialQuickFilter={userControlsQuickFilter}
           />
         ) : null}
         {isSuperUser && activeModule === 'configuration' ? (

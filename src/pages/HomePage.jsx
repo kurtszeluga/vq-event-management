@@ -1,15 +1,51 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
+import { subscribeToUsers } from '../services/userService.js';
 
 function HomePage() {
   const { currentUser, hasPermission, isSuperUser } = useAuth();
   const navigate = useNavigate();
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
+  const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
+  const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser || !canReviewMemberships) {
+      setPendingMembershipCount(0);
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToUsers(
+      (snapshot) => {
+        const pendingCount = snapshot.docs
+          .map((userDoc) => userDoc.data())
+          .filter((user) => user.role !== 'Super User' && user.membershipStatus === 'Pending').length;
+        setPendingMembershipCount(pendingCount);
+      },
+      () => {
+        setPendingMembershipCount(0);
+      },
+      { includeAdminProfiles: false }
+    );
+
+    return unsubscribe;
+  }, [canReviewMemberships, currentUser]);
 
   function openAdminModule(module) {
     navigate('/admin', { state: { module } });
+  }
+
+  function openPendingMembershipReview() {
+    navigate('/admin', {
+      state: {
+        module: 'user-controls',
+        userControlsMembershipFilter: 'Pending',
+        userControlsQuickFilter: 'pending-review'
+      }
+    });
   }
 
   return (
@@ -117,6 +153,26 @@ function HomePage() {
                 onClick={() => openAdminModule('user-controls')}
               >
                 Open User Controls
+              </button>
+            </div>
+          </article>
+        ) : null}
+
+        {canReviewMemberships ? (
+          <article className={`home-card${pendingMembershipCount ? ' pending-home-card' : ''}`}>
+            <h2>Pending Membership Reviews</h2>
+            <p>
+              {pendingMembershipCount
+                ? `${pendingMembershipCount} membership ${pendingMembershipCount === 1 ? 'profile is' : 'profiles are'} waiting for review.`
+                : 'No membership profiles are waiting for review right now.'}
+            </p>
+            <div className="card-actions home-card-actions">
+              <button
+                className={`button-link button-reset ${pendingMembershipCount ? '' : 'secondary-action'}`}
+                type="button"
+                onClick={openPendingMembershipReview}
+              >
+                Open Pending Review
               </button>
             </div>
           </article>

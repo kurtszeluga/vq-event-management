@@ -290,6 +290,11 @@ body.popup-mode .page-content {
   gap: 12px;
 }
 
+.pending-home-card {
+  border-color: #d5a14a;
+  box-shadow: inset 0 0 0 1px rgba(213, 161, 74, 0.25);
+}
+
 .home-card-actions {
   justify-self: start;
 }
@@ -331,6 +336,10 @@ body.popup-mode .page-content {
 
 .status-dot.good {
   background: #225c56;
+}
+
+.status-dot.pending {
+  background: #d5a14a;
 }
 
 .form-panel {
@@ -1593,6 +1602,12 @@ body.popup-mode .page-content {
   color: #fff;
 }
 
+.status-filter-button.pending-active {
+  background: #d5a14a;
+  border-color: #d5a14a;
+  color: #2a2315;
+}
+
 .status-filter-button.archive-active {
   background: #9a341f;
   border-color: #9a341f;
@@ -1652,6 +1667,14 @@ body.popup-mode .page-content {
 .profile-search-count {
   margin-top: 4px;
   margin-bottom: 22px;
+}
+
+.pending-review-panel {
+  margin-top: 18px;
+}
+
+.pending-review-help {
+  margin: 10px 0 0;
 }
 
 .compact-action {

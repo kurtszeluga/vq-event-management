@@ -29,19 +29,25 @@ import {
 const MEMBERSHIP_FILTERS = ['All', 'Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
 const QUICK_FILTERS = [
   { key: 'all', label: 'All Profiles' },
+  { key: 'pending-review', label: 'Pending Review' },
   { key: 'admins', label: 'Admins' },
   { key: 'archived', label: 'Archived' }
 ];
 
-function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
+function UserControlPanel({
+  canManageAdminUsers = false,
+  currentUserProfile,
+  initialMembershipFilter = 'All',
+  initialQuickFilter = 'all'
+}) {
   const [detailsUserId, setDetailsUserId] = useState('');
   const [editingUserId, setEditingUserId] = useState('');
   const [error, setError] = useState('');
   const [form, setForm] = useState(null);
   const [formError, setFormError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [membershipFilter, setMembershipFilter] = useState('All');
-  const [quickFilter, setQuickFilter] = useState('all');
+  const [membershipFilter, setMembershipFilter] = useState(initialMembershipFilter);
+  const [quickFilter, setQuickFilter] = useState(initialQuickFilter);
   const [savingUserId, setSavingUserId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'lastName', direction: 'asc' });
@@ -49,6 +55,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [users, setUsers] = useState([]);
   const canEditMembershipStatus =
     canManageAdminUsers || Boolean(currentUserProfile?.permissions?.manageMembershipStatus);
+  const pendingReviewCount = getFilteredUsers(users, 'pending-review', 'All').length;
 
   useEffect(() => {
     const unsubscribe = subscribeToUsers(
@@ -351,6 +358,24 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           ? 'Super Users control profile roles and admin permissions.'
           : 'Admins can add and update General User profiles.'}
       </p>
+      {pendingReviewCount ? (
+        <div className="status-panel pending-review-panel">
+          <span className="status-dot pending" />
+          <span>
+            <strong>{pendingReviewCount}</strong> membership {pendingReviewCount === 1 ? 'profile is' : 'profiles are'} waiting for review.
+          </span>
+          <button
+            className="button-link button-reset secondary-action compact-action"
+            type="button"
+            onClick={() => {
+              setQuickFilter('pending-review');
+              setMembershipFilter('Pending');
+            }}
+          >
+            Open Pending Review
+          </button>
+        </div>
+      ) : null}
       <div className="profile-search-row">
         <label>
           <span>Search Profiles</span>
@@ -379,23 +404,24 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       <div className="status-filter-group" aria-label="Quick profile filter">
         {QUICK_FILTERS.filter((filter) => canManageAdminUsers || filter.key !== 'admins').map((filter) => (
           <button
-            className={`status-filter-button${quickFilter === filter.key ? ' active' : ''}${filter.key === 'archived' && quickFilter === filter.key ? ' archive-active' : ''}`}
+            className={`status-filter-button${quickFilter === filter.key ? ' active' : ''}${filter.key === 'archived' && quickFilter === filter.key ? ' archive-active' : ''}${filter.key === 'pending-review' && quickFilter === filter.key ? ' pending-active' : ''}`}
             key={filter.key}
             type="button"
             onClick={() => setQuickFilter(filter.key)}
           >
-            {filter.key === 'admins'
-              ? `${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`
-              : filter.key === 'archived'
-                ? `${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`
-                : `${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`}
+            {`${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`}
           </button>
         ))}
       </div>
+      {quickFilter === 'pending-review' ? (
+        <p className="form-help pending-review-help">
+          Pending Review shows active profiles that still need Guild membership approval or follow-up.
+        </p>
+      ) : null}
       <div className="status-filter-group separated-filter-row" aria-label="Membership filter">
         {MEMBERSHIP_FILTERS.map((status) => (
           <button
-            className={`status-filter-button${membershipFilter === status ? ' active' : ''}${status === 'Archived' && membershipFilter === status ? ' archive-active' : ''}`}
+            className={`status-filter-button${membershipFilter === status ? ' active' : ''}${status === 'Archived' && membershipFilter === status ? ' archive-active' : ''}${status === 'Pending' && membershipFilter === status ? ' pending-active' : ''}`}
             disabled={quickFilter !== 'all'}
             key={status}
             type="button"
@@ -932,6 +958,12 @@ function getUserSortValue(user, key) {
 
 function getFilteredUsers(users, quickFilter, membershipFilter) {
   return users.filter((user) => {
+    if (quickFilter === 'pending-review') {
+      return !isArchivedProfile(user)
+        && user.role !== 'Super User'
+        && getDisplayMembershipStatus(user) === 'Pending';
+    }
+
     if (quickFilter === 'admins') {
       return isVisibleAdminProfile(user);
     }
@@ -1023,7 +1055,7 @@ function UserTable({
             <SortableHeader label="Role" sortKey="role" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Email" sortKey="email" sortConfig={sortConfig} onSort={onSort} />
             <th>Membership</th>
-            <th>Status</th>
+            <th>Profile Status</th>
             <th>Permissions</th>
             <th>Actions</th>
             <th>Details</th>
@@ -1049,7 +1081,7 @@ function UserTable({
                   <td data-label="Role">{user.role || 'General User'}</td>
                   <td data-label="Email">{user.email || 'Email TBD'}</td>
                   <td data-label="Membership">{displayMembership}</td>
-                  <td data-label="Status">{displayStatus}</td>
+                  <td data-label="Profile Status">{displayStatus}</td>
                   <td data-label="Permissions">
                     {user.role === 'Super User'
                       ? 'All Permissions'
