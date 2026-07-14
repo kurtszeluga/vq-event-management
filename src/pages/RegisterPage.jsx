@@ -106,7 +106,7 @@ function RegisterPage() {
   }, [event]);
 
   const membershipBlocked = lookupComplete
-    && ['profile-membership-blocked', 'membership-blocked'].includes(lookup?.status);
+    && ['profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
   const matchedProfile = lookup?.profile || null;
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const needsProfileConfirmation = matchedProfile
@@ -598,6 +598,14 @@ function LookupResult({
     return null;
   }
 
+  if (lookup.status === 'membership-not-found') {
+    return (
+      <div className="form-error">
+        We could not find a membership record for this email address. Please contact an administrator for assistance.
+      </div>
+    );
+  }
+
   if (['profile-membership-blocked', 'membership-blocked'].includes(lookup.status)) {
     return (
       <div className="form-error">
@@ -610,7 +618,7 @@ function LookupResult({
     return (
       <div className="registration-lookup-card">
         <strong>No Profile Found</strong>
-        <span>Continue entering your information. Membership will be checked again when you submit.</span>
+        <span>Membership confirmed. Continue entering your information.</span>
       </div>
     );
   }

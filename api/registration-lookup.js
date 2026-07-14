@@ -81,6 +81,10 @@ function getLookupStatus({ member, membershipStatus, profile, profileStatus }) {
     return 'profile-membership-blocked';
   }
 
+  if (!profile && !member) {
+    return 'membership-not-found';
+  }
+
   if (!profile && member && membershipStatus !== 'Active') {
     return 'membership-blocked';
   }
