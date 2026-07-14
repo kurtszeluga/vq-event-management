@@ -121,7 +121,7 @@ function RegisterPage() {
     && ['profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
   const matchedProfile = lookup?.profile || null;
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
-  const showAddressFields = requiresBillingAddress || Boolean(matchedProfile && needsProfileEdits);
+  const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
   const needsAccountPassword = lookupComplete
     && Boolean(matchedProfile)
     && !membershipBlocked
@@ -678,43 +678,23 @@ function RegisterPage() {
                   </dl>
                 </div>
               )}
-              {matchedProfile && (profileConfirmed || reactivateProfile) ? (
-                <>
-                  <div className="registration-edit-prompt">
-                    <strong>
-                      {needsProfileEdits
-                        ? 'Update your profile details before registering.'
-                        : 'Need to update your profile details first?'}
-                    </strong>
-                    {!needsProfileEdits ? (
-                      <button
-                        className="button-link secondary-action"
-                        type="button"
-                        onClick={handleStartProfileEdit}
-                      >
-                        Yes, Update My Information
-                      </button>
-                    ) : null}
-                  </div>
-                  {needsProfileEdits ? (
-                    <div className="detail-actions">
-                      <button
-                        className="button-link button-reset"
-                        type="button"
-                        onClick={handleSaveProfileEdit}
-                      >
-                        Save Changes
-                      </button>
-                      <button
-                        className="button-link secondary-action"
-                        type="button"
-                        onClick={handleCancelProfileEdit}
-                      >
-                        Cancel Changes
-                      </button>
-                    </div>
-                  ) : null}
-                </>
+              {needsProfileEdits ? (
+                <div className="detail-actions">
+                  <button
+                    className="button-link button-reset"
+                    type="button"
+                    onClick={handleSaveProfileEdit}
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    className="button-link secondary-action"
+                    type="button"
+                    onClick={handleCancelProfileEdit}
+                  >
+                    Cancel Changes
+                  </button>
+                </div>
               ) : null}
               {!needsProfileEdits ? (
                 <button
@@ -728,7 +708,7 @@ function RegisterPage() {
             </>
           ) : null}
           <button className="button-link secondary-action" type="button" onClick={handleClose}>
-            Close
+            Cancel
           </button>
         </form>
       </div>
