@@ -110,7 +110,7 @@
     return [
       { count: programsCount, label: 'Programs', value: 'Programs' },
       { count: workshopsCount, label: 'Workshops', value: 'Workshops' }
-    ].filter((filter) => filter.count > 0);
+    ];
   }
 
   function buildCardMarkup(event, config) {
@@ -163,8 +163,8 @@
           <div class="vq-feed-actions">
             ${supplyListLink}
             <a class="vq-feed-secondary" href="${escapeAttribute(event.printUrl)}" target="_blank" rel="noopener noreferrer">Print ${escapeHtml(event.eventType)}</a>
+            ${event.registrationOpen ? registerLink : ''}
             <a class="vq-feed-secondary" href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">View Details</a>
-            ${event.registrationOpen ? `<span class="vq-feed-register-action">${registerLink}</span>` : ''}
           </div>
         </div>
       </article>
@@ -438,16 +438,9 @@
         margin-top: 14px;
         justify-content: flex-start;
       }
-      .vq-feed-register-action {
-        display: inline-flex;
-        margin-left: auto;
-      }
       @media (max-width: 720px) {
         .vq-feed-card-top {
           flex-direction: column;
-        }
-        .vq-feed-register-action {
-          margin-left: 0;
         }
         .vq-feed-thumb-image,
         .vq-feed-thumb-placeholder {
