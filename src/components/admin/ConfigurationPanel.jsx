@@ -265,10 +265,13 @@ function ConfigurationPanel({ currentUserProfile }) {
       const importResult = await importMembersFromCsvRows(rows, currentUserProfile, {
         mode: memberImportMode
       });
+      const skippedText = importResult.skippedSuperUserCount
+        ? ` ${importResult.skippedSuperUserCount} Super User row(s) skipped.`
+        : '';
       setImportMessage(
         memberImportMode === 'annualRefresh'
-          ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.`
-          : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.`
+          ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.${skippedText}`
+          : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.${skippedText}`
       );
     });
     event.target.value = '';

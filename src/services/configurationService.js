@@ -127,14 +127,25 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
   });
   const userSnapshot = await getDocs(usersCollection());
   const users = userSnapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() }));
+  const allProfilesByEmail = new Map();
   const profilesByEmail = new Map();
   const profilesByPhone = new Map();
   const importedProfileIds = new Set();
   const reviewRows = [];
+  const skippedSuperUserRows = [];
 
   users.forEach((profile) => {
     const email = cleanText(profile.email).toLowerCase();
     const phone = normalizePhone(cleanText(profile.phone));
+
+    if (email && !allProfilesByEmail.has(email)) {
+      allProfilesByEmail.set(email, profile);
+    }
+
+    if (isSuperUserProfile(profile)) {
+      importedProfileIds.add(profile.id);
+      return;
+    }
 
     if (email && !profilesByEmail.has(email)) {
       profilesByEmail.set(email, profile);
@@ -146,6 +157,14 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
   });
 
   const profileWrites = importedProfiles.flatMap((profile) => {
+    const existingAnyProfileByEmail = profile.email ? allProfilesByEmail.get(profile.email) : null;
+
+    if (isSuperUserProfile(existingAnyProfileByEmail)) {
+      skippedSuperUserRows.push(profile);
+      importedProfileIds.add(existingAnyProfileByEmail.id);
+      return [];
+    }
+
     const existingByEmail = profile.email ? profilesByEmail.get(profile.email) : null;
     const phoneMatches = !existingByEmail && profile.normalizedPhone
       ? profilesByPhone.get(profile.normalizedPhone) || []
@@ -216,6 +235,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
           importedCount: importedProfiles.length,
           inactivatedCount: profilesToInactivate.length,
           reviewCount: reviewRows.length,
+          skippedSuperUserCount: skippedSuperUserRows.length,
           updatedCount: profileWrites.filter((write) => users.some((user) => write.ref.id === user.id)).length
         },
         entityId: 'profiles-csv-import',
@@ -239,6 +259,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     inactivatedCount: profilesToInactivate.length,
     reviewCount: reviewRows.length,
     reviewRows,
+    skippedSuperUserCount: skippedSuperUserRows.length,
     updatedCount
   };
 }
@@ -479,6 +500,10 @@ function getProfilesMissingFromImport(users, importedProfileIds) {
       && profile.membershipStatus !== 'Archived'
       && !importedProfileIds.has(profile.id)
   );
+}
+
+function isSuperUserProfile(profile) {
+  return profile?.role === 'Super User';
 }
 
 function getEmptyBillingAddress() {
