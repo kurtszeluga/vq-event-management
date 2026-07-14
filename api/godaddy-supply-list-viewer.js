@@ -136,6 +136,7 @@ function buildViewerHtml({ fileUrl, filename, title }) {
         <h1>${safeTitle}</h1>
       </div>
       <div class="viewer-actions">
+        <a class="viewer-button secondary" id="open-link" href="#" target="_blank" rel="noopener noreferrer">Open PDF</a>
         <a class="viewer-button secondary" id="save-link" href="#">Save</a>
         <button class="viewer-button" type="button" id="print-button">Print</button>
         <button class="viewer-button secondary" type="button" id="close-button">Close</button>
@@ -147,6 +148,7 @@ function buildViewerHtml({ fileUrl, filename, title }) {
         var pdfUrl = ${JSON.stringify(fileUrl)};
         var filename = ${JSON.stringify(filename)};
         var frame = document.getElementById('pdf-frame');
+        var openLink = document.getElementById('open-link');
         var saveLink = document.getElementById('save-link');
         var printButton = document.getElementById('print-button');
         var closeButton = document.getElementById('close-button');
@@ -160,6 +162,7 @@ function buildViewerHtml({ fileUrl, filename, title }) {
         var saveUrl = buildProxyUrl('attachment');
 
         frame.src = inlineUrl;
+        openLink.href = inlineUrl;
         saveLink.href = saveUrl;
         saveLink.setAttribute('download', filename);
 
