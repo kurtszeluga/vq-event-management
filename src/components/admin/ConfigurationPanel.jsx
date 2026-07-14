@@ -1,18 +1,18 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_MEMBERSHIP_SETTINGS,
-  archiveMember,
+  archiveMembershipProfile,
   deleteEventLocationDefault,
   deleteEventTimeDefault,
   importMembersFromCsvRows,
-  reactivateMember,
+  reactivateMembershipProfile,
   saveEventLocationDefault,
   saveEventTimeDefault,
-  saveMember,
+  saveMembershipProfile,
   saveMembershipSettings,
   subscribeToEventLocationDefaults,
   subscribeToEventTimeDefaults,
-  subscribeToMembers,
+  subscribeToMembershipProfiles,
   subscribeToMembershipSettings
 } from '../../services/configurationService.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
@@ -24,7 +24,6 @@ const EMPTY_MEMBER_FORM = {
   id: '',
   lastName: '',
   name: '',
-  notes: '',
   phone: '',
   status: 'Active'
 };
@@ -48,7 +47,7 @@ const EMPTY_TIME_FORM = {
   value: ''
 };
 
-const MEMBER_FILTERS = ['Active', 'Inactive', 'Archived'];
+const MEMBER_FILTERS = ['Active', 'Inactive', 'Archived', 'Unknown'];
 
 function ConfigurationPanel({ currentUserProfile }) {
   const csvInputRef = useRef(null);
@@ -56,6 +55,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
+  const [importReviewRows, setImportReviewRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [locationFormOpen, setLocationFormOpen] = useState(false);
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
@@ -71,7 +71,9 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
   const memberCounts = getMemberCounts(members);
-  const filteredMembers = members.filter((member) => (member.status || 'Active') === memberStatusFilter);
+  const filteredMembers = members.filter((member) =>
+    (member.membershipStatus || 'Unknown') === memberStatusFilter
+  );
 
   function renderMemberForm() {
     return (
@@ -134,20 +136,12 @@ function ConfigurationPanel({ currentUserProfile }) {
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
             <option value="Archived">Archived</option>
+            <option value="Unknown">Unknown</option>
           </select>
-        </label>
-        <label className="configuration-span">
-          <span>Notes</span>
-          <input
-            value={memberForm.notes}
-            onChange={(event) =>
-              setMemberForm((current) => ({ ...current, notes: event.target.value }))
-            }
-          />
         </label>
         <div className="configuration-actions configuration-span">
           <button className="button-link button-reset" disabled={savingSection === 'member'} type="submit">
-            {savingSection === 'member' ? 'Saving...' : memberForm.id ? 'Save Member' : 'Save New Member'}
+            {savingSection === 'member' ? 'Saving...' : memberForm.id ? 'Save Membership Profile' : 'Save New Profile'}
           </button>
           <button
             className="button-link button-reset secondary-action"
@@ -181,7 +175,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         setSettings(nextSettings);
         markLoaded();
       }, handleError),
-      subscribeToMembers((snapshot) => {
+      subscribeToMembershipProfiles((snapshot) => {
         setMembers(snapshot.docs.map((memberDoc) => ({ id: memberDoc.id, ...memberDoc.data() })));
         markLoaded();
       }, handleError),
@@ -218,14 +212,14 @@ function ConfigurationPanel({ currentUserProfile }) {
       && !memberForm.email.trim()
       && !memberForm.phone.trim()
     ) {
-      setError('Enter at least a name, email, or phone number for the member.');
+      setError('Enter at least a name, email, or phone number for the profile.');
       return;
     }
 
     await runSave('member', async () => {
       const firstName = toTitleCase(memberForm.firstName);
       const lastName = toTitleCase(memberForm.lastName);
-      await saveMember(
+      await saveMembershipProfile(
         {
           ...memberForm,
           firstName,
@@ -236,7 +230,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       );
       setMemberForm(EMPTY_MEMBER_FORM);
       setMemberFormOpen(false);
-      setSuccessMessage('Member saved.');
+      setSuccessMessage('Membership profile saved.');
     });
   }
 
@@ -248,23 +242,25 @@ function ConfigurationPanel({ currentUserProfile }) {
     }
 
     if (!memberImportMode) {
-      setError('Choose an import mode before uploading the member CSV.');
+      setError('Choose an import mode before uploading the membership CSV.');
       event.target.value = '';
       return;
     }
 
     setImportMessage('');
+    setImportReviewRows([]);
     await runSave('csv', async () => {
       const text = await file.text();
       const rows = parseMemberCsv(text);
 
       if (!rows.length) {
-        throw new Error('No member rows were found in the CSV file.');
+        throw new Error('No membership rows were found in the CSV file.');
       }
 
       const importResult = await importMembersFromCsvRows(rows, currentUserProfile, {
         mode: memberImportMode
       });
+      setImportReviewRows(importResult.reviewRows || []);
       const skippedText = importResult.skippedSuperUserCount
         ? ` ${importResult.skippedSuperUserCount} Super User row(s) skipped.`
         : '';
@@ -328,7 +324,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Membership Check</h3>
-          <p>Control whether new user accounts should be checked against the member list.</p>
+          <p>Control whether new user accounts should be checked against profile membership status.</p>
         </div>
         <form className="configuration-card-body" onSubmit={handleSaveSettings}>
           <label className="checkbox-label">
@@ -393,14 +389,15 @@ function ConfigurationPanel({ currentUserProfile }) {
     return (
       <article className="configuration-mini-card">
         <div className="configuration-card-header">
-          <h3>Member List</h3>
+          <h3>Membership Profiles</h3>
           <p>Upload a CSV to update profile membership. Email matches update automatically; phone-only matches are held for review.</p>
-          <p>CSV columns should use First Name, Last Name, Email, and Phone. Status and Notes are optional.</p>
+          <p>CSV columns should use First Name, Last Name, Email, and Phone. Status is optional.</p>
         </div>
-        <div className="configuration-summary" aria-label="Member list totals">
+        <div className="configuration-summary" aria-label="Membership profile totals">
           <span>Active: {memberCounts.active}</span>
           <span>Inactive: {memberCounts.inactive}</span>
           <span>Archived: {memberCounts.archived}</span>
+          <span>Unknown: {memberCounts.unknown}</span>
           <span>Total: {memberCounts.total}</span>
         </div>
         <div className="configuration-actions">
@@ -438,11 +435,30 @@ function ConfigurationPanel({ currentUserProfile }) {
               setMemberFormOpen(true);
             }}
           >
-            Add Member
+            Add Profile
           </button>
           {importMessage ? <span className="form-help">{importMessage}</span> : null}
         </div>
-        <div className="status-filter-group" aria-label="Member status filter">
+        {importReviewRows.length ? (
+          <div className="configuration-review-list">
+            <h4>Import Review</h4>
+            <p className="form-help">
+              These CSV rows matched by phone only and were not updated automatically.
+            </p>
+            {importReviewRows.map((row, index) => (
+              <div className="configuration-review-item" key={`${row.csvEmail}-${row.csvPhone}-${index}`}>
+                <strong>{row.csvName || row.csvEmail || row.csvPhone || 'CSV Row'}</strong>
+                <span>{row.csvEmail || 'No Email'} | {row.csvPhone || 'No Phone'}</span>
+                <span>
+                  Possible profile: {row.possibleMatches
+                    .map((match) => match.name || match.email || match.phone)
+                    .join(', ')}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div className="status-filter-group" aria-label="Membership status filter">
           {MEMBER_FILTERS.map((status) => (
             <button
               className={`status-filter-button${memberStatusFilter === status ? ' active' : ''}${status === 'Archived' && memberStatusFilter === status ? ' archive-active' : ''}`}
@@ -456,8 +472,8 @@ function ConfigurationPanel({ currentUserProfile }) {
         </div>
         {memberFormOpen && !memberForm.id ? renderMemberForm() : null}
         <ConfigurationTable
-          columns={['First Name', 'Last Name', 'Email', 'Phone', 'Status', 'Actions']}
-          emptyText={`No ${memberStatusFilter.toLowerCase()} members found.`}
+          columns={['First Name', 'Last Name', 'Email', 'Phone', 'Membership', 'Profile', 'Actions']}
+          emptyText={`No ${memberStatusFilter.toLowerCase()} membership profiles found.`}
           rows={filteredMembers.map((member) => ({
             id: member.id,
             cells: [
@@ -465,20 +481,25 @@ function ConfigurationPanel({ currentUserProfile }) {
               member.lastName || getLastNameFallback(member.name) || '-',
               member.email || '-',
               member.phone || '-',
+              member.membershipStatus || 'Unknown',
               member.status || 'Active',
             <RowActions
                 key={member.id}
                 deleteConfirm={`${
-                  member.status === 'Archived' ? 'Reactivate' : 'Archive'
+                  member.membershipStatus === 'Archived' ? 'Reactivate' : 'Archive'
                 } ${member.name || member.email || member.phone}?`}
-                deleteLabel={member.status === 'Archived' ? 'Reactivate' : 'Archive'}
+                deleteLabel={member.membershipStatus === 'Archived' ? 'Reactivate' : 'Archive'}
                 onDelete={() =>
-                  (member.status === 'Archived'
-                    ? reactivateMember(member, currentUserProfile)
-                    : archiveMember(member, currentUserProfile))
+                  (member.membershipStatus === 'Archived'
+                    ? reactivateMembershipProfile(member, currentUserProfile)
+                    : archiveMembershipProfile(member, currentUserProfile))
                 }
                 onEdit={() => {
-                  setMemberForm({ ...EMPTY_MEMBER_FORM, ...member });
+                  setMemberForm({
+                    ...EMPTY_MEMBER_FORM,
+                    ...member,
+                    status: member.membershipStatus || 'Unknown'
+                  });
                   setMemberFormOpen(true);
                 }}
               />
@@ -751,7 +772,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           <div className="configuration-card-actions configuration-shell-actions">
             {[
               ['membership', 'Membership Check'],
-              ['members', 'Member List'],
+              ['members', 'Membership Profiles'],
               ['locations', 'Default Locations'],
               ['times', 'Default Start/End Times']
             ].map(([value, label]) => (
@@ -845,18 +866,20 @@ function ConfigurationTable({ columns, emptyText, rows }) {
 function getMemberCounts(members) {
   return members.reduce(
     (counts, member) => {
-      if (member.status === 'Archived') {
+      if (member.membershipStatus === 'Archived') {
         counts.archived += 1;
-      } else if (member.status === 'Inactive') {
+      } else if (member.membershipStatus === 'Inactive') {
         counts.inactive += 1;
-      } else {
+      } else if (member.membershipStatus === 'Active') {
         counts.active += 1;
+      } else {
+        counts.unknown += 1;
       }
 
       counts.total += 1;
       return counts;
     },
-    { active: 0, archived: 0, inactive: 0, total: 0 }
+    { active: 0, archived: 0, inactive: 0, total: 0, unknown: 0 }
   );
 }
 

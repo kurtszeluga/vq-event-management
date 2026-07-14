@@ -1516,6 +1516,33 @@ body.popup-mode .page-content {
   gap: 12px;
 }
 
+.configuration-review-list {
+  border: 1px solid #ead4c8;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.configuration-review-list h4 {
+  color: #8a2f1f;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.configuration-review-item {
+  background: #fff7f2;
+  border-left: 4px solid #c2573f;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.configuration-review-item span {
+  color: #5c6966;
+  font-size: 0.95rem;
+}
+
 .configuration-submit-button {
   justify-self: start;
   width: fit-content;

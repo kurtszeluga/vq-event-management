@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   deleteField,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -41,6 +42,19 @@ export function subscribeToMembershipSettings(onNext, onError) {
 export function subscribeToMembers(onNext, onError) {
   const membersQuery = query(membersCollection(), orderBy('name', 'asc'));
   return onSnapshot(membersQuery, onNext, onError);
+}
+
+export function subscribeToMembershipProfiles(onNext, onError) {
+  const profilesQuery = query(usersCollection(), orderBy('name', 'asc'));
+  return onSnapshot(
+    profilesQuery,
+    (snapshot) => {
+      onNext({
+        docs: snapshot.docs.filter((profileDoc) => profileDoc.data().role !== 'Super User')
+      });
+    },
+    onError
+  );
 }
 
 export function subscribeToEventLocationDefaults(onNext, onError) {
@@ -108,6 +122,25 @@ export async function saveMember(member, actorProfile) {
     after: payload,
     entityId: memberRef.id,
     summary: `Saved member "${payload.name || payload.email || payload.phone}"`
+  });
+
+  return batch.commit();
+}
+
+export async function saveMembershipProfile(profile, actorProfile) {
+  const batch = writeBatch(db);
+  const profileRef = profile.id ? doc(db, 'users', profile.id) : doc(usersCollection());
+  const profileSnap = profile.id ? await getDoc(profileRef) : null;
+  const before = profileSnap?.exists() ? { id: profileRef.id, ...profileSnap.data() } : {};
+  const payload = buildManualMembershipProfile(profile, before, profileRef.id);
+
+  batch.set(profileRef, payload, { merge: false });
+  addConfigurationAuditLog(batch, {
+    actorProfile,
+    after: payload,
+    before,
+    entityId: profileRef.id,
+    summary: `Saved membership profile "${payload.name || payload.email || payload.phone}"`
   });
 
   return batch.commit();
@@ -287,6 +320,26 @@ export async function archiveMember(member, actorProfile) {
   return batch.commit();
 }
 
+export async function archiveMembershipProfile(profile, actorProfile) {
+  const batch = writeBatch(db);
+  const profileRef = doc(db, 'users', profile.id);
+  const payload = buildMembershipStatusProfile(profile, 'Archived');
+
+  batch.set(profileRef, payload, { merge: false });
+  addConfigurationAuditLog(batch, {
+    action: 'Archive',
+    actorProfile,
+    after: {
+      membershipStatus: 'Archived'
+    },
+    before: profile,
+    entityId: profile.id,
+    summary: `Archived membership for "${profile.name || profile.email || profile.phone}"`
+  });
+
+  return batch.commit();
+}
+
 export async function reactivateMember(member, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
@@ -311,6 +364,26 @@ export async function reactivateMember(member, actorProfile) {
     before: member,
     entityId: member.id,
     summary: `Reactivated member "${member.name || member.email || member.phone}"`
+  });
+
+  return batch.commit();
+}
+
+export async function reactivateMembershipProfile(profile, actorProfile) {
+  const batch = writeBatch(db);
+  const profileRef = doc(db, 'users', profile.id);
+  const payload = buildMembershipStatusProfile(profile, 'Active');
+
+  batch.set(profileRef, payload, { merge: false });
+  addConfigurationAuditLog(batch, {
+    action: 'Reactivate',
+    actorProfile,
+    after: {
+      membershipStatus: 'Active'
+    },
+    before: profile,
+    entityId: profile.id,
+    summary: `Reactivated membership for "${profile.name || profile.email || profile.phone}"`
   });
 
   return batch.commit();
@@ -488,6 +561,58 @@ function buildImportedNewProfile(importedProfile) {
   };
 }
 
+function buildManualMembershipProfile(profile, existingProfile, profileId) {
+  const firstName = cleanText(profile.firstName || existingProfile.firstName || getFirstNameFallback(existingProfile.name));
+  const lastName = cleanText(profile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name));
+  const name = cleanText(profile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' '));
+
+  return {
+    billingAddress: existingProfile.billingAddress || getEmptyBillingAddress(),
+    createdDate: existingProfile.createdDate || serverTimestamp(),
+    email: cleanText(profile.email || existingProfile.email).toLowerCase(),
+    firstName,
+    lastName,
+    membershipMatchedBy: 'manual',
+    membershipMemberId: existingProfile.membershipMemberId || '',
+    membershipStatus: getValidProfileMembershipStatus(profile.status || profile.membershipStatus),
+    membershipUpdatedDate: serverTimestamp(),
+    name,
+    permissions: normalizeUserPermissions(existingProfile.permissions),
+    phone: cleanText(profile.phone || existingProfile.phone),
+    profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
+    role: existingProfile.role || 'General User',
+    status: existingProfile.status || 'Active',
+    updatedDate: serverTimestamp(),
+    userId: existingProfile.userId || profileId
+  };
+}
+
+function buildMembershipStatusProfile(profile, membershipStatus) {
+  const firstName = profile.firstName || getFirstNameFallback(profile.name);
+  const lastName = profile.lastName || getLastNameFallback(profile.name);
+  const name = profile.name || [firstName, lastName].filter(Boolean).join(' ');
+
+  return {
+    billingAddress: profile.billingAddress || getEmptyBillingAddress(),
+    createdDate: profile.createdDate || serverTimestamp(),
+    email: profile.email || '',
+    firstName,
+    lastName,
+    membershipMatchedBy: profile.membershipMatchedBy || 'manual',
+    membershipMemberId: profile.membershipMemberId || '',
+    membershipStatus,
+    membershipUpdatedDate: serverTimestamp(),
+    name,
+    permissions: normalizeUserPermissions(profile.permissions),
+    phone: profile.phone || '',
+    profileTags: Array.isArray(profile.profileTags) ? profile.profileTags : [],
+    role: profile.role || 'General User',
+    status: profile.status || 'Active',
+    updatedDate: serverTimestamp(),
+    userId: profile.userId || profile.id
+  };
+}
+
 function buildInactivatedMembershipProfile(profile) {
   const firstName = profile.firstName || getFirstNameFallback(profile.name);
   const lastName = profile.lastName || getLastNameFallback(profile.name);
@@ -623,6 +748,14 @@ function getValidMemberStatus(status) {
   }
 
   return 'Active';
+}
+
+function getValidProfileMembershipStatus(status) {
+  if (status === 'Active' || status === 'Inactive' || status === 'Archived' || status === 'Unknown') {
+    return status;
+  }
+
+  return 'Unknown';
 }
 
 function getMembershipStatusPriority(status) {
