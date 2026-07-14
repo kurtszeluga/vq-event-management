@@ -72,6 +72,7 @@
     }
 
     wireDescriptionToggles(root);
+    wireImageViewerLinks(root);
   }
 
   function buildFilterMarkup(payload, events) {
@@ -122,7 +123,7 @@
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
     const cost = event.isPaid ? formatCurrency(event.cost) : 'Free';
     const thumbnail = event.imageUrl
-      ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${buildImageViewerUrl(event.imageUrl, event.title, config.sourceUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
+      ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(event.supplyListUrl)}" target="_blank" rel="noopener noreferrer">View and print ${escapeHtml(event.supplyListTitle || 'document')}</a>`
@@ -224,6 +225,15 @@
 
   function renderShell(container) {
     container.innerHTML = '<div class="vq-feed-root"></div>';
+  }
+
+  function wireImageViewerLinks(root) {
+    root.querySelectorAll('[data-image-viewer-src]').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        openImageViewer(link.dataset.imageViewerSrc || '', link.dataset.imageViewerTitle || 'Event image');
+      });
+    });
   }
 
   function ensureStyles() {
@@ -507,17 +517,98 @@
       || eventType === 'Class (Full Day)';
   }
 
-  function buildImageViewerUrl(imageUrl, title, sourceUrl) {
-    const feedUrl = new URL(sourceUrl || DEFAULTS.sourceUrl, window.location.href);
-    const viewerUrl = new URL('/godaddy-image-viewer-v2.html', feedUrl);
-    const params = new URLSearchParams({
-      cv: '20260714-1',
-      src: String(imageUrl || ''),
-      title: String(title || 'Event image')
-    });
+  function openImageViewer(imageUrl, title) {
+    if (!imageUrl) {
+      return;
+    }
 
-    viewerUrl.search = params.toString();
-    return viewerUrl.toString();
+    const popup = window.open('', 'vq-image-viewer', 'popup,width=1100,height=900');
+
+    if (!popup) {
+      window.open(imageUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const safeTitle = escapeHtml(title || 'Event image');
+    const safeImageUrl = escapeAttribute(imageUrl);
+
+    popup.document.open();
+    popup.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <style>
+      :root {
+        color: #1d2927;
+        background: #f4efe8;
+        font-family: Inter, Arial, sans-serif;
+      }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        padding: 24px 18px 32px;
+      }
+      .viewer-shell {
+        margin: 0 auto;
+        max-width: 960px;
+      }
+      .viewer-topbar {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .viewer-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .viewer-close {
+        appearance: none;
+        background: #225c56;
+        border: 1px solid #225c56;
+        border-radius: 999px;
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 16px;
+      }
+      .viewer-card {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
+        padding: 14px;
+      }
+      .viewer-image {
+        display: block;
+        height: auto;
+        max-width: 100%;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <div class="viewer-topbar">
+        <h1 class="viewer-title">${safeTitle}</h1>
+        <button class="viewer-close" type="button" onclick="window.close()">Close</button>
+      </div>
+      <div class="viewer-card">
+        <img class="viewer-image" src="${safeImageUrl}" alt="${safeTitle}" />
+      </div>
+    </main>
+  </body>
+</html>`);
+    popup.document.close();
+    popup.focus();
   }
 
   function escapeHtml(value) {
