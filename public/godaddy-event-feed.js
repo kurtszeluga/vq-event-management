@@ -556,8 +556,8 @@
       return;
     }
 
-    const url = new URL('/godaddy-supply-list-viewer-v1.html', getSourceOrigin(sourceUrl));
-    url.searchParams.set('cv', '20260714-6');
+    const url = new URL('/api/godaddy-supply-list-viewer', getSourceOrigin(sourceUrl));
+    url.searchParams.set('cv', '20260714-7');
     url.searchParams.set('url', pdfUrl);
     url.searchParams.set('title', title || 'Supply list');
     url.searchParams.set('filename', fileName || 'supply-list.pdf');

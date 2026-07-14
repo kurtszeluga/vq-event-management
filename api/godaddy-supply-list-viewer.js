@@ -1,0 +1,211 @@
+export default function handler(request, response) {
+  if (request.method !== 'GET') {
+    response.setHeader('Allow', 'GET');
+    response.status(405).send('Method not allowed.');
+    return;
+  }
+
+  const title = getQueryValue(request.query.title) || 'Supply List';
+  const filename = getQueryValue(request.query.filename) || 'supply-list.pdf';
+  const fileUrl = getQueryValue(request.query.url) || '';
+
+  response.setHeader('Content-Type', 'text/html; charset=utf-8');
+  response.setHeader('Cache-Control', 'private, max-age=0, no-cache, no-store, must-revalidate');
+  response.status(200).send(buildViewerHtml({ fileUrl, filename, title }));
+}
+
+function getQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function buildViewerHtml({ fileUrl, filename, title }) {
+  const safeTitle = escapeHtml(title);
+  const safeFileUrl = escapeAttribute(fileUrl);
+  const safeFilename = escapeAttribute(filename);
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <style>
+      :root {
+        background: #f4efe8;
+        color: #1d2927;
+        font-family: Inter, Arial, sans-serif;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .viewer-toolbar {
+        align-items: center;
+        background: #ffffff;
+        border-bottom: 1px solid #ded5ca;
+        display: flex;
+        gap: 14px;
+        justify-content: space-between;
+        padding: 14px 18px;
+      }
+
+      .viewer-title {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .viewer-title span {
+        color: #9a4d2f;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: 1.2rem;
+        line-height: 1.2;
+        margin: 0;
+      }
+
+      .viewer-actions {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .viewer-button {
+        appearance: none;
+        background: #225c56;
+        border: 1px solid #225c56;
+        border-radius: 999px;
+        color: #ffffff;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-weight: 700;
+        padding: 9px 14px;
+        text-decoration: none;
+      }
+
+      .viewer-button.secondary {
+        background: #ffffff;
+        color: #225c56;
+      }
+
+      .viewer-frame {
+        border: 0;
+        flex: 1 1 auto;
+        width: 100%;
+      }
+
+      .viewer-message {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 10px;
+        margin: 24px auto;
+        max-width: 680px;
+        padding: 20px;
+      }
+
+      @media print {
+        .viewer-toolbar {
+          display: none;
+        }
+
+        body {
+          background: #ffffff;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="viewer-toolbar">
+      <div class="viewer-title">
+        <span>Supply List</span>
+        <h1>${safeTitle}</h1>
+      </div>
+      <div class="viewer-actions">
+        <a class="viewer-button secondary" id="save-link" href="#">Save</a>
+        <button class="viewer-button" type="button" id="print-button">Print</button>
+        <button class="viewer-button secondary" type="button" id="close-button">Close</button>
+      </div>
+    </header>
+    <iframe class="viewer-frame" id="pdf-frame" title="${safeTitle}"></iframe>
+    <script>
+      (function () {
+        var pdfUrl = ${JSON.stringify(fileUrl)};
+        var filename = ${JSON.stringify(filename)};
+        var frame = document.getElementById('pdf-frame');
+        var saveLink = document.getElementById('save-link');
+        var printButton = document.getElementById('print-button');
+        var closeButton = document.getElementById('close-button');
+
+        if (!pdfUrl) {
+          document.body.innerHTML = '<main class="viewer-message"><h1>Supply list unavailable</h1><p>The document link was missing.</p><button class="viewer-button" type="button" onclick="window.close()">Close</button></main>';
+          return;
+        }
+
+        var inlineUrl = buildProxyUrl('inline');
+        var saveUrl = buildProxyUrl('attachment');
+
+        frame.src = inlineUrl;
+        saveLink.href = saveUrl;
+        saveLink.setAttribute('download', filename);
+
+        printButton.addEventListener('click', function () {
+          var frameWindow = frame.contentWindow;
+
+          if (frameWindow) {
+            frameWindow.focus();
+            window.setTimeout(function () {
+              frameWindow.print();
+            }, 150);
+            return;
+          }
+
+          window.print();
+        });
+
+        closeButton.addEventListener('click', function () {
+          window.close();
+        });
+
+        function buildProxyUrl(disposition) {
+          var proxyParams = new URLSearchParams({
+            cv: '20260714-7',
+            disposition: disposition,
+            filename: filename,
+            url: pdfUrl
+          });
+
+          return '/api/file-proxy?' + proxyParams.toString();
+        }
+      })();
+    </script>
+  </body>
+</html>`;
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
