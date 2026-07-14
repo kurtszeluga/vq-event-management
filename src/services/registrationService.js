@@ -32,6 +32,23 @@ export async function createRegistration(registrationData) {
   return result;
 }
 
+export async function verifyRegistrationPhone(email, phone) {
+  const response = await fetch('/api/verify-registration-phone', {
+    body: JSON.stringify({ email, phone }),
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Phone verification failed.');
+  }
+
+  return result;
+}
+
 async function parseJsonResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   const bodyText = await response.text();

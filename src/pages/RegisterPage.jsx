@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { US_STATES } from '../data/usStates.js';
 import { getEvent } from '../services/eventService.js';
 import {
   createRegistration,
-  lookupRegistrationEmail
+  lookupRegistrationEmail,
+  verifyRegistrationPhone
 } from '../services/registrationService.js';
+import { auth } from '../lib/firebase.js';
 import {
   formatCurrency,
   formatEventDate,
@@ -31,6 +34,9 @@ function RegisterPage() {
   const [billingPostalCode, setBillingPostalCode] = useState('');
   const [billingState, setBillingState] = useState('');
   const [billingStreet, setBillingStreet] = useState('');
+  const [accountVerified, setAccountVerified] = useState(false);
+  const [authPassword, setAuthPassword] = useState('');
+  const [authSubmitting, setAuthSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const [email, setEmail] = useState('');
   const [event, setEvent] = useState(null);
@@ -45,8 +51,11 @@ function RegisterPage() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [phone, setPhone] = useState('');
+  const [phoneVerificationSubmitting, setPhoneVerificationSubmitting] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
   const [profileConfirmed, setProfileConfirmed] = useState(false);
   const [reactivateProfile, setReactivateProfile] = useState(false);
+  const [showPhoneVerification, setShowPhoneVerification] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -109,27 +118,35 @@ function RegisterPage() {
     && ['profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
   const matchedProfile = lookup?.profile || null;
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
-  const needsProfileConfirmation = matchedProfile
-    && matchedProfile.status === 'Active'
-    && !profileConfirmed;
-  const needsProfileReactivation = matchedProfile
-    && matchedProfile.status !== 'Active'
-    && !reactivateProfile;
+  const needsAccountPassword = lookupComplete
+    && Boolean(matchedProfile)
+    && !membershipBlocked
+    && !accountVerified
+    && !phoneVerified;
+  const needsPhoneVerification = lookupComplete
+    && !membershipBlocked
+    && (
+      (!matchedProfile && !phoneVerified)
+      || (Boolean(matchedProfile) && showPhoneVerification && !phoneVerified)
+    );
   const canShowRegistrantFields = lookupComplete
     && !membershipBlocked
-    && !needsProfileConfirmation
-    && !needsProfileReactivation;
+    && (accountVerified || phoneVerified);
 
   async function handleEmailLookup() {
     const normalizedEmail = email.trim().toLowerCase();
 
     setFieldErrors({});
+    setAccountVerified(false);
+    setAuthPassword('');
     setFormError('');
     setConfirmation(null);
     setLookup(null);
     setLookupComplete(false);
+    setPhoneVerified(false);
     setProfileConfirmed(false);
     setReactivateProfile(false);
+    setShowPhoneVerification(false);
 
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       setFieldErrors({ email: 'Valid email is required.' });
@@ -147,8 +164,10 @@ function RegisterPage() {
 
       if (result.profile) {
         applyProfileToForm(result.profile);
+        setShowPhoneVerification(false);
       } else {
         resetRegistrantFields();
+        setShowPhoneVerification(result.status === 'new-registrant');
       }
     } catch (error) {
       setFormError(error.message);
@@ -171,8 +190,8 @@ function RegisterPage() {
       return;
     }
 
-    if (needsProfileConfirmation || needsProfileReactivation) {
-      setFormError('Please confirm the matched profile before registering.');
+    if (!accountVerified && !phoneVerified) {
+      setFormError('Please verify your account information before registering.');
       return;
     }
 
@@ -219,6 +238,63 @@ function RegisterPage() {
       setFormError(error.message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handlePasswordSignIn() {
+    if (!matchedProfile) {
+      return;
+    }
+
+    if (!authPassword) {
+      setFormError('Enter your password to continue.');
+      return;
+    }
+
+    setAuthSubmitting(true);
+    setFormError('');
+
+    try {
+      await signInWithEmailAndPassword(auth, email, authPassword);
+      setAccountVerified(true);
+      setPhoneVerified(false);
+      setShowPhoneVerification(false);
+      setProfileConfirmed(matchedProfile.status === 'Active');
+      setReactivateProfile(matchedProfile.status !== 'Active');
+    } catch {
+      setAccountVerified(false);
+      setShowPhoneVerification(true);
+      setFormError('We could not sign you in. You can continue by verifying your phone number.');
+    } finally {
+      setAuthSubmitting(false);
+    }
+  }
+
+  async function handlePhoneVerification() {
+    const normalizedPhone = formatPhoneNumber(phone);
+
+    setPhone(normalizedPhone);
+    setFormError('');
+
+    if (normalizedPhone.replace(/\D/g, '').length < 10) {
+      setFieldErrors((current) => ({ ...current, phone: 'Phone number is required.' }));
+      setFormError('Enter the phone number tied to your membership record.');
+      return;
+    }
+
+    setPhoneVerificationSubmitting(true);
+
+    try {
+      await verifyRegistrationPhone(email, normalizedPhone);
+      setAccountVerified(false);
+      setPhoneVerified(true);
+      setProfileConfirmed(Boolean(matchedProfile) && matchedProfile.status === 'Active');
+      setReactivateProfile(Boolean(matchedProfile) && matchedProfile.status !== 'Active');
+    } catch (error) {
+      setPhoneVerified(false);
+      setFormError(error.message);
+    } finally {
+      setPhoneVerificationSubmitting(false);
     }
   }
 
@@ -357,6 +433,10 @@ function RegisterPage() {
                 setLookup(null);
                 setProfileConfirmed(false);
                 setReactivateProfile(false);
+                setAccountVerified(false);
+                setAuthPassword('');
+                setPhoneVerified(false);
+                setShowPhoneVerification(false);
                 setNeedsProfileEdits(false);
                 resetRegistrantFields();
               }}
@@ -383,12 +463,59 @@ function RegisterPage() {
               }}
               lookup={lookup}
               needsProfileEdits={needsProfileEdits}
-              onConfirmProfile={() => setProfileConfirmed(true)}
               onEditProfile={handleStartProfileEdit}
-              onReactivate={() => setReactivateProfile(true)}
+              verificationPassed={accountVerified || phoneVerified}
               profileConfirmed={profileConfirmed}
-              reactivateProfile={reactivateProfile}
             />
+          ) : null}
+          {needsAccountPassword ? (
+            <div className="registration-lookup-card">
+              <strong>Account Found</strong>
+              <span>Enter your password to sign in and continue with registration.</span>
+              <label>
+                <span>Password *</span>
+                <input
+                  disabled={authSubmitting || Boolean(confirmation)}
+                  onChange={(inputEvent) => setAuthPassword(inputEvent.target.value)}
+                  type="password"
+                  value={authPassword}
+                />
+              </label>
+              <button
+                className="button-link button-reset"
+                disabled={authSubmitting || Boolean(confirmation)}
+                type="button"
+                onClick={handlePasswordSignIn}
+              >
+                {authSubmitting ? 'Signing in...' : 'Sign In And Continue'}
+              </button>
+            </div>
+          ) : null}
+          {needsPhoneVerification ? (
+            <div className="registration-lookup-card">
+              <strong>{matchedProfile ? 'Verify With Phone Number' : 'Membership Verification'}</strong>
+              <span>
+                Enter the phone number tied to this membership record so we can continue.
+              </span>
+              <label>
+                <span>Phone Number *</span>
+                <input
+                  className={fieldErrors.phone ? 'field-invalid' : ''}
+                  disabled={phoneVerificationSubmitting || Boolean(confirmation)}
+                  onChange={(inputEvent) => setPhone(formatPhoneNumber(inputEvent.target.value))}
+                  type="tel"
+                  value={phone}
+                />
+              </label>
+              <button
+                className="button-link button-reset"
+                disabled={phoneVerificationSubmitting || Boolean(confirmation)}
+                type="button"
+                onClick={handlePhoneVerification}
+              >
+                {phoneVerificationSubmitting ? 'Verifying...' : 'Verify Phone And Continue'}
+              </button>
+            </div>
           ) : null}
           {canShowRegistrantFields ? (
             <>
@@ -586,11 +713,9 @@ function LookupResult({
   billingAddress,
   lookup,
   needsProfileEdits,
-  onConfirmProfile,
   onEditProfile,
-  onReactivate,
+  verificationPassed,
   profileConfirmed,
-  reactivateProfile
 }) {
   const profile = lookup?.profile;
 
@@ -652,47 +777,17 @@ function LookupResult({
           <dd>{formatAddress(billingAddress)}</dd>
         </div>
       </dl>
-      {profile.status === 'Active' ? (
+      {verificationPassed && !needsProfileEdits ? (
         <div className="detail-actions">
           <button
-            className="button-link button-reset"
-            disabled={profileConfirmed}
+            className="button-link secondary-action"
             type="button"
-            onClick={onConfirmProfile}
+            onClick={onEditProfile}
           >
-            {profileConfirmed ? 'Profile Confirmed' : 'Yes, This Is Me'}
+            {profileConfirmed ? 'I Need To Edit Something' : 'Edit My Information'}
           </button>
-          {profileConfirmed && !needsProfileEdits ? (
-            <button
-              className="button-link secondary-action"
-              type="button"
-              onClick={onEditProfile}
-            >
-              I Need To Edit Something
-            </button>
-          ) : null}
         </div>
-      ) : (
-        <div className="detail-actions">
-          <button
-            className="button-link button-reset"
-            disabled={reactivateProfile}
-            type="button"
-            onClick={onReactivate}
-          >
-            {reactivateProfile ? 'Profile Will Be Reactivated' : 'Reactivate And Continue'}
-          </button>
-          {reactivateProfile && !needsProfileEdits ? (
-            <button
-              className="button-link secondary-action"
-              type="button"
-              onClick={onEditProfile}
-            >
-              I Need To Edit Something
-            </button>
-          ) : null}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
