@@ -32,11 +32,15 @@ export async function updateUserProfile(userId, updates, actorProfile) {
   const userSnap = await getDoc(userRef);
   const before = userSnap.exists() ? userSnap.data() : {};
   const batch = writeBatch(db);
+  const normalizedPermissions = normalizePermissions(updates.permissions);
+  const normalizedProfileTags = normalizeProfileTags(updates.profileTags);
   const userPayload = {
     ...before,
     ...updates,
-    permissions: normalizePermissions(updates.permissions),
-    profileTags: normalizeProfileTags(updates.profileTags)
+    createdDate: before.createdDate || serverTimestamp(),
+    permissions: normalizedPermissions,
+    profileTags: normalizedProfileTags,
+    userId: updates.userId || before.userId || userId
   };
 
   batch.update(userRef, {
