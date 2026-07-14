@@ -481,7 +481,6 @@ function RegisterPage() {
               needsProfileEdits={needsProfileEdits}
               onEditProfile={handleStartProfileEdit}
               verificationPassed={accountVerified || phoneVerified}
-              profileConfirmed={profileConfirmed}
             />
           ) : null}
           {needsAccountPassword ? (
@@ -643,52 +642,7 @@ function RegisterPage() {
                     </>
                   ) : null}
                 </div>
-              ) : (
-                <div className="registration-lookup-card">
-                  <strong>Registration Details</strong>
-                  <dl>
-                    <div>
-                      <dt>Email</dt>
-                      <dd>{email || 'Not listed'}</dd>
-                    </div>
-                    <div>
-                      <dt>First Name</dt>
-                      <dd>{firstName || 'Not listed'}</dd>
-                    </div>
-                    <div>
-                      <dt>Last Name</dt>
-                      <dd>{lastName || 'Not listed'}</dd>
-                    </div>
-                    <div>
-                      <dt>Phone</dt>
-                      <dd>{phone || 'Not listed'}</dd>
-                    </div>
-                    {showAddressFields ? (
-                      <div>
-                        <dt>Address</dt>
-                        <dd>{formatAddress({
-                          city: billingCity,
-                          country: billingCountry,
-                          postalCode: billingPostalCode,
-                          state: billingState,
-                          street: billingStreet
-                        })}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                  {matchedProfile ? (
-                    <div className="detail-actions">
-                      <button
-                        className="button-link secondary-action"
-                        type="button"
-                        onClick={handleStartProfileEdit}
-                      >
-                        Edit Profile
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              )}
+              ) : null}
               {needsProfileEdits ? (
                 <div className="detail-actions">
                   <button
@@ -731,6 +685,8 @@ function LookupResult({
   billingAddress,
   lookup,
   needsProfileEdits,
+  onEditProfile,
+  verificationPassed,
 }) {
   const profile = lookup?.profile;
 
@@ -792,6 +748,17 @@ function LookupResult({
           <dd>{formatAddress(billingAddress)}</dd>
         </div>
       </dl>
+      {verificationPassed && !needsProfileEdits ? (
+        <div className="detail-actions">
+          <button
+            className="button-link secondary-action"
+            type="button"
+            onClick={onEditProfile}
+          >
+            Edit Profile
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
