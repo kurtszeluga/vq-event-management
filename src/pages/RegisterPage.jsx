@@ -35,6 +35,7 @@ function RegisterPage() {
   const [billingState, setBillingState] = useState('');
   const [billingStreet, setBillingStreet] = useState('');
   const [accountVerified, setAccountVerified] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
@@ -51,6 +52,8 @@ function RegisterPage() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [phone, setPhone] = useState('');
+  const [phoneVerificationError, setPhoneVerificationError] = useState('');
+  const [phoneVerificationInput, setPhoneVerificationInput] = useState('');
   const [phoneVerificationSubmitting, setPhoneVerificationSubmitting] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [profileConfirmed, setProfileConfirmed] = useState(false);
@@ -138,11 +141,14 @@ function RegisterPage() {
 
     setFieldErrors({});
     setAccountVerified(false);
+    setAuthError('');
     setAuthPassword('');
     setFormError('');
     setConfirmation(null);
     setLookup(null);
     setLookupComplete(false);
+    setPhoneVerificationError('');
+    setPhoneVerificationInput('');
     setPhoneVerified(false);
     setProfileConfirmed(false);
     setReactivateProfile(false);
@@ -167,6 +173,7 @@ function RegisterPage() {
         setShowPhoneVerification(false);
       } else {
         resetRegistrantFields();
+        setPhoneVerificationInput('');
         setShowPhoneVerification(result.status === 'new-registrant');
       }
     } catch (error) {
@@ -247,12 +254,13 @@ function RegisterPage() {
     }
 
     if (!authPassword) {
-      setFormError('Enter your password to continue.');
+      setAuthError('Enter your password to continue.');
       return;
     }
 
     setAuthSubmitting(true);
-    setFormError('');
+    setAuthError('');
+    setPhoneVerificationError('');
 
     try {
       await signInWithEmailAndPassword(auth, email, authPassword);
@@ -263,22 +271,24 @@ function RegisterPage() {
       setReactivateProfile(matchedProfile.status !== 'Active');
     } catch {
       setAccountVerified(false);
+      setAuthPassword('');
+      setPhoneVerificationInput('');
+      setPhoneVerificationError('We could not sign you in. You can continue by verifying your phone number.');
       setShowPhoneVerification(true);
-      setFormError('We could not sign you in. You can continue by verifying your phone number.');
     } finally {
       setAuthSubmitting(false);
     }
   }
 
   async function handlePhoneVerification() {
-    const normalizedPhone = formatPhoneNumber(phone);
+    const normalizedPhone = formatPhoneNumber(phoneVerificationInput);
 
-    setPhone(normalizedPhone);
-    setFormError('');
+    setPhoneVerificationInput(normalizedPhone);
+    setPhoneVerificationError('');
 
     if (normalizedPhone.replace(/\D/g, '').length < 10) {
       setFieldErrors((current) => ({ ...current, phone: 'Phone number is required.' }));
-      setFormError('Enter the phone number tied to your membership record.');
+      setPhoneVerificationError('Enter the phone number tied to your membership record.');
       return;
     }
 
@@ -287,12 +297,14 @@ function RegisterPage() {
     try {
       await verifyRegistrationPhone(email, normalizedPhone);
       setAccountVerified(false);
+      setPhone(normalizedPhone);
       setPhoneVerified(true);
+      setPhoneVerificationError('');
       setProfileConfirmed(Boolean(matchedProfile) && matchedProfile.status === 'Active');
       setReactivateProfile(Boolean(matchedProfile) && matchedProfile.status !== 'Active');
     } catch (error) {
       setPhoneVerified(false);
-      setFormError(error.message);
+      setPhoneVerificationError(error.message);
     } finally {
       setPhoneVerificationSubmitting(false);
     }
@@ -434,7 +446,10 @@ function RegisterPage() {
                 setProfileConfirmed(false);
                 setReactivateProfile(false);
                 setAccountVerified(false);
+                setAuthError('');
                 setAuthPassword('');
+                setPhoneVerificationError('');
+                setPhoneVerificationInput('');
                 setPhoneVerified(false);
                 setShowPhoneVerification(false);
                 setNeedsProfileEdits(false);
@@ -472,11 +487,16 @@ function RegisterPage() {
             <div className="registration-lookup-card">
               <strong>Account Found</strong>
               <span>Enter your password to sign in and continue with registration.</span>
+              {authError ? <p className="form-error">{authError}</p> : null}
               <label>
                 <span>Password *</span>
                 <input
+                  autoComplete="current-password"
                   disabled={authSubmitting || Boolean(confirmation)}
-                  onChange={(inputEvent) => setAuthPassword(inputEvent.target.value)}
+                  onChange={(inputEvent) => {
+                    setAuthPassword(inputEvent.target.value);
+                    setAuthError('');
+                  }}
                   type="password"
                   value={authPassword}
                 />
@@ -497,14 +517,20 @@ function RegisterPage() {
               <span>
                 Enter the phone number tied to this membership record so we can continue.
               </span>
+              {phoneVerificationError ? <p className="form-error">{phoneVerificationError}</p> : null}
               <label>
                 <span>Phone Number *</span>
                 <input
                   className={fieldErrors.phone ? 'field-invalid' : ''}
+                  autoComplete="off"
                   disabled={phoneVerificationSubmitting || Boolean(confirmation)}
-                  onChange={(inputEvent) => setPhone(formatPhoneNumber(inputEvent.target.value))}
+                  name="registration-verification-phone"
+                  onChange={(inputEvent) => {
+                    setPhoneVerificationInput(formatPhoneNumber(inputEvent.target.value));
+                    setPhoneVerificationError('');
+                  }}
                   type="tel"
-                  value={phone}
+                  value={phoneVerificationInput}
                 />
               </label>
               <button
@@ -726,7 +752,7 @@ function LookupResult({
   if (lookup.status === 'membership-not-found') {
     return (
       <div className="form-error">
-        We could not find a membership record for this email address. Please contact an administrator for assistance.
+        We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.
       </div>
     );
   }

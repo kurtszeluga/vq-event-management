@@ -232,7 +232,7 @@ function validateRegistrationEligibility(
   }
 
   if (!member) {
-    throw httpError(403, 'We could not find a membership record for this email address. Please contact an administrator before registering.');
+    throw httpError(403, 'We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.');
   }
 
   if (!doesPhoneMatchMember(member, phone)) {
