@@ -116,9 +116,6 @@
                 <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
                 <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
               </div>
-              <div class="vq-feed-status-row">
-                ${registerLink ? `<span class="vq-feed-register-wrap">${registerLink}</span>` : ''}
-              </div>
               <div class="vq-feed-title-block">
                 <div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>
                 <h3>${escapeHtml(event.title)}</h3>
@@ -140,6 +137,7 @@
             <div><dt>Cost</dt><dd>${escapeHtml(cost)}</dd></div>
           </dl>
           <div class="vq-feed-actions">
+            ${event.registrationOpen ? registerLink : ''}
             ${supplyListLink}
             <a class="vq-feed-secondary" href="${escapeAttribute(event.printUrl)}" target="_blank" rel="noopener noreferrer">Print ${escapeHtml(event.eventType)}</a>
             <a class="vq-feed-secondary" href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">View Details</a>
@@ -295,16 +293,6 @@
         gap: 3px;
         min-width: 0;
       }
-      .vq-feed-status-row {
-        align-items: center;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: flex-start;
-      }
-      .vq-feed-register-wrap {
-        display: inline-flex;
-      }
       .vq-feed-primary,
       .vq-feed-secondary {
         border-radius: 999px;
@@ -393,6 +381,7 @@
         flex-wrap: wrap;
         gap: 10px;
         margin-top: 14px;
+        justify-content: flex-start;
       }
       @media (max-width: 720px) {
         .vq-feed-card-top {
