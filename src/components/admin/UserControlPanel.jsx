@@ -38,6 +38,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   const [editingUserId, setEditingUserId] = useState('');
   const [error, setError] = useState('');
   const [form, setForm] = useState(null);
+  const [formError, setFormError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [membershipFilter, setMembershipFilter] = useState('All');
   const [quickFilter, setQuickFilter] = useState('all');
@@ -61,7 +62,6 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
               )
             )
         );
-        setError('');
         setLoadingUsers(false);
       },
       (snapshotError) => {
@@ -79,6 +79,8 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
 
   const startAddUser = useCallback(() => {
     setEditingUserId('new');
+    setError('');
+    setFormError('');
     setSuccessMessage('');
     setForm({
       billingAddress: {
@@ -105,6 +107,8 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     const billingAddress = user.billingAddress || {};
 
     setEditingUserId(user.id);
+    setError('');
+    setFormError('');
     setSuccessMessage('');
     setForm({
       billingAddress: {
@@ -129,11 +133,13 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   }
 
   function updateFormField(name, value) {
+    setFormError('');
     setSuccessMessage('');
     setForm((current) => ({ ...current, [name]: value }));
   }
 
   function updateRole(role) {
+    setFormError('');
     setSuccessMessage('');
     setForm((current) => ({
       ...current,
@@ -144,6 +150,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   }
 
   function updatePermission(permissionKey, value) {
+    setFormError('');
     setSuccessMessage('');
     setForm((current) => ({
       ...current,
@@ -155,6 +162,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   }
 
   function updateProfileTag(tagKey, value) {
+    setFormError('');
     setSuccessMessage('');
     setForm((current) => {
       const currentTags = normalizeProfileTags(current.profileTags);
@@ -169,6 +177,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
   }
 
   function updateBillingAddressField(name, value) {
+    setFormError('');
     setSuccessMessage('');
     setForm((current) => ({
       ...current,
@@ -181,6 +190,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
 
   async function handleSave(user) {
     setError('');
+    setFormError('');
     setSuccessMessage('');
     setSavingUserId(user.id);
 
@@ -250,7 +260,9 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       setEditingUserId('');
       setForm(null);
     } catch (saveError) {
-      setError(saveError?.message || saveError?.code || 'User profile could not be saved.');
+      const message = saveError?.message || saveError?.code || 'User profile could not be saved.';
+      setError(message);
+      setFormError(message);
     } finally {
       setSavingUserId('');
     }
@@ -273,6 +285,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
     }
 
     setError('');
+    setFormError('');
     setSuccessMessage('');
     setSavingUserId(user.id);
 
@@ -291,7 +304,10 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       setQuickFilter(isArchived ? 'all' : 'archived');
       setSuccessMessage(isArchived ? 'User profile reactivated.' : 'User profile archived.');
     } catch (archiveError) {
-      setError(archiveError?.message || archiveError?.code || 'User profile could not be updated.');
+      const message =
+        archiveError?.message || archiveError?.code || 'User profile could not be updated.';
+      setError(message);
+      setFormError(message);
     } finally {
       setSavingUserId('');
     }
@@ -549,7 +565,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 ) : null}
               </div>
             </div>
-            {error ? <p className="form-error">{error}</p> : null}
+            {formError ? <p className="form-error">{formError}</p> : null}
             <div className="card-actions">
               <button
                 className="button-link button-reset"
@@ -787,7 +803,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     ) : null}
                 </div>
               </div>
-              {error ? <p className="form-error">{error}</p> : null}
+              {formError ? <p className="form-error">{formError}</p> : null}
               <div className="card-actions">
                 <button
                   className="button-link button-reset"
