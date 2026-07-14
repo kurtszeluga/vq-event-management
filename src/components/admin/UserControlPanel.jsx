@@ -121,6 +121,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       email: user.email || '',
       firstName: getProfileFirstName(user),
       lastName: getProfileLastName(user),
+      membershipReviewNote: user.membershipReviewNote || '',
       membershipStatus: user.membershipStatus || 'Unknown',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
@@ -238,6 +239,10 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
           canEditMembershipStatus && user.id !== 'new' && user.role !== 'Super User'
             ? form.membershipStatus || 'Unknown'
             : user.membershipStatus || 'Unknown',
+        membershipReviewNote:
+          canEditMembershipStatus && user.id !== 'new' && user.role !== 'Super User'
+            ? form.membershipReviewNote || ''
+            : user.membershipReviewNote || '',
         role: form.role,
         status: form.role === 'Super User' ? 'Active' : form.status,
         userId: form.userId
@@ -751,21 +756,38 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     <div className="password-panel">
                       <span className="field-label">Membership</span>
                       {canEditMembershipStatus && user.role !== 'Super User' ? (
-                        <label>
-                          <span>Membership Status</span>
-                          <select
-                            value={form.membershipStatus}
-                            onChange={(event) =>
-                              updateFormField('membershipStatus', event.target.value)
-                            }
-                          >
-                            {MEMBERSHIP_STATUS_OPTIONS.map((status) => (
-                              <option key={status} value={status}>
-                                {status}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                        <>
+                          <label>
+                            <span>Membership Status</span>
+                            <select
+                              value={form.membershipStatus}
+                              onChange={(event) =>
+                                updateFormField('membershipStatus', event.target.value)
+                              }
+                            >
+                              {MEMBERSHIP_STATUS_OPTIONS.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>Membership Review Note</span>
+                            <textarea
+                              placeholder="Add a short review note for this membership profile"
+                              rows="3"
+                              value={form.membershipReviewNote}
+                              onChange={(event) =>
+                                updateFormField('membershipReviewNote', event.target.value)
+                              }
+                            />
+                          </label>
+                          <span className="form-help">
+                            Last reviewed by {user.membershipReviewedBy || 'not recorded'} on{' '}
+                            {formatDateTime(user.membershipReviewedDate)}
+                          </span>
+                        </>
                       ) : (
                         <span className="form-help">
                           {getDisplayMembershipStatus(user)}
@@ -1097,6 +1119,18 @@ function UserTable({
                         <span>
                           <strong>Membership Status</strong>
                           {displayMembership}
+                        </span>
+                        <span>
+                          <strong>Membership Review Note</strong>
+                          {user.membershipReviewNote || 'No Review Note'}
+                        </span>
+                        <span>
+                          <strong>Membership Reviewed By</strong>
+                          {user.membershipReviewedBy || 'Not Recorded'}
+                        </span>
+                        <span>
+                          <strong>Membership Reviewed</strong>
+                          {formatDateTime(user.membershipReviewedDate)}
                         </span>
                         <span>
                           <strong>Permissions</strong>

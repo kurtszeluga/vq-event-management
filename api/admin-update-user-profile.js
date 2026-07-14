@@ -95,6 +95,10 @@ export default async function handler(request, response) {
     }
 
     const now = FieldValue.serverTimestamp();
+    const membershipReviewChanged =
+      payload.membershipStatus !== (before.membershipStatus || 'Unknown')
+      || payload.membershipReviewNote !== (before.membershipReviewNote || '');
+    const reviewerName = actorProfile.name || actorProfile.email || 'Unknown Admin';
     const profile = removeUndefinedFields({
       archivedBy: before.archivedBy,
       archivedDate: before.archivedDate,
@@ -105,6 +109,13 @@ export default async function handler(request, response) {
       lastName: payload.lastName,
       membershipMatchedBy: before.membershipMatchedBy || '',
       membershipMemberId: before.membershipMemberId || '',
+      membershipReviewNote: payload.membershipReviewNote,
+      membershipReviewedBy: membershipReviewChanged
+        ? reviewerName
+        : before.membershipReviewedBy || '',
+      membershipReviewedDate: membershipReviewChanged
+        ? now
+        : before.membershipReviewedDate || undefined,
       membershipStatus: payload.membershipStatus,
       membershipUpdatedDate:
         payload.membershipStatus !== before.membershipStatus
@@ -184,6 +195,7 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
   )
     ? payload.membershipStatus
     : before.membershipStatus || 'Unknown';
+  const requestedMembershipReviewNote = cleanText(payload.membershipReviewNote);
 
   return {
     billingAddress: {
@@ -196,6 +208,9 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
     email: cleanText(payload.email).toLowerCase(),
     firstName: toTitleCase(cleanText(payload.firstName)),
     lastName: toTitleCase(cleanText(payload.lastName)),
+    membershipReviewNote: canManageMembershipStatus
+      ? requestedMembershipReviewNote
+      : before.membershipReviewNote || '',
     membershipStatus: canManageMembershipStatus
       ? requestedMembershipStatus
       : before.membershipStatus || 'Unknown',

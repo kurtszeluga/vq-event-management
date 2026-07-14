@@ -159,6 +159,9 @@ service cloud.firestore {
           'email',
           'membershipMatchedBy',
           'membershipMemberId',
+          'membershipReviewNote',
+          'membershipReviewedBy',
+          'membershipReviewedDate',
           'membershipStatus',
           'membershipUpdatedDate',
           'phone',
@@ -198,6 +201,12 @@ service cloud.firestore {
           || validStatus(request.resource.data.membershipMatchedBy, ['email', 'phone', 'csv', 'manual', 'account', '']))
         && (!('membershipMemberId' in request.resource.data)
           || request.resource.data.membershipMemberId is string)
+        && (!('membershipReviewNote' in request.resource.data)
+          || request.resource.data.membershipReviewNote is string)
+        && (!('membershipReviewedBy' in request.resource.data)
+          || request.resource.data.membershipReviewedBy is string)
+        && (!('membershipReviewedDate' in request.resource.data)
+          || request.resource.data.membershipReviewedDate is timestamp)
         && (!('membershipStatus' in request.resource.data)
           || validStatus(request.resource.data.membershipStatus, ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown']))
         && (!('membershipUpdatedDate' in request.resource.data)
@@ -269,6 +278,18 @@ service cloud.firestore {
           || 'membershipMemberId' in resource.data
             && 'membershipMemberId' in request.resource.data
             && request.resource.data.membershipMemberId == resource.data.membershipMemberId)
+        && (!('membershipReviewNote' in resource.data) && !('membershipReviewNote' in request.resource.data)
+          || 'membershipReviewNote' in resource.data
+            && 'membershipReviewNote' in request.resource.data
+            && request.resource.data.membershipReviewNote == resource.data.membershipReviewNote)
+        && (!('membershipReviewedBy' in resource.data) && !('membershipReviewedBy' in request.resource.data)
+          || 'membershipReviewedBy' in resource.data
+            && 'membershipReviewedBy' in request.resource.data
+            && request.resource.data.membershipReviewedBy == resource.data.membershipReviewedBy)
+        && (!('membershipReviewedDate' in resource.data) && !('membershipReviewedDate' in request.resource.data)
+          || 'membershipReviewedDate' in resource.data
+            && 'membershipReviewedDate' in request.resource.data
+            && request.resource.data.membershipReviewedDate == resource.data.membershipReviewedDate)
         && (!('membershipStatus' in resource.data) && !('membershipStatus' in request.resource.data)
           || 'membershipStatus' in resource.data
             && 'membershipStatus' in request.resource.data
@@ -290,6 +311,12 @@ service cloud.firestore {
           || 'membershipMemberId' in resource.data
             && 'membershipMemberId' in request.resource.data
             && request.resource.data.membershipMemberId == resource.data.membershipMemberId)
+        && (!('membershipReviewNote' in request.resource.data)
+          || request.resource.data.membershipReviewNote is string)
+        && (!('membershipReviewedBy' in request.resource.data)
+          || request.resource.data.membershipReviewedBy is string)
+        && (!('membershipReviewedDate' in request.resource.data)
+          || request.resource.data.membershipReviewedDate is timestamp)
         && validStatus(request.resource.data.membershipStatus, ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown']);
     }
 

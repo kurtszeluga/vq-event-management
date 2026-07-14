@@ -334,7 +334,10 @@ email	Email
 phone	Phone
 membershipStatus	Guild membership status: Pending, Active, Inactive, Archived, Unknown, or N/A for Super Users
 membershipMatchedBy	How the profile was matched or updated: email, phone, csv, manual, or account
+membershipReviewNote	Admin review note for pending or updated membership records
+membershipReviewedBy	Admin or super user who last reviewed the membership record
 membershipUpdatedDate	Last membership update timestamp
+membershipReviewedDate	Last membership review timestamp
 billingAddress	Billing address for future payment processing
 role	Super User, Admin, or General User
 permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments, addUsers

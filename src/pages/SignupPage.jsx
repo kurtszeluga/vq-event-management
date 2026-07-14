@@ -71,6 +71,8 @@ function SignupPage() {
         lastName: formattedLastName,
         membershipMatchedBy: 'account',
         membershipMemberId: '',
+        membershipReviewNote: '',
+        membershipReviewedBy: '',
         membershipStatus: 'Pending',
         membershipUpdatedDate: serverTimestamp(),
         name: displayName,
