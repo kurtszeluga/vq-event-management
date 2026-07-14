@@ -676,6 +676,17 @@ function RegisterPage() {
                       </div>
                     ) : null}
                   </dl>
+                  {matchedProfile ? (
+                    <div className="detail-actions">
+                      <button
+                        className="button-link secondary-action"
+                        type="button"
+                        onClick={handleStartProfileEdit}
+                      >
+                        Edit Profile
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
               {needsProfileEdits ? (
@@ -720,9 +731,6 @@ function LookupResult({
   billingAddress,
   lookup,
   needsProfileEdits,
-  onEditProfile,
-  verificationPassed,
-  profileConfirmed,
 }) {
   const profile = lookup?.profile;
 
@@ -784,17 +792,6 @@ function LookupResult({
           <dd>{formatAddress(billingAddress)}</dd>
         </div>
       </dl>
-      {verificationPassed && !needsProfileEdits ? (
-        <div className="detail-actions">
-          <button
-            className="button-link secondary-action"
-            type="button"
-            onClick={onEditProfile}
-          >
-            {profileConfirmed ? 'I Need To Edit Something' : 'Edit My Information'}
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }
