@@ -56,7 +56,6 @@ function SupplyListViewerPage() {
     const popup = window.open('', 'vq-supply-list-print', 'popup,width=1100,height=900');
 
     if (!popup) {
-      window.open(inlineProxyUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -156,26 +155,10 @@ function SupplyListViewerPage() {
     </main>
     <script>
       document.getElementById('viewer-print').addEventListener('click', function () {
-        var frame = document.getElementById('viewer-frame');
-        var frameWindow = frame && frame.contentWindow;
-
-        if (!frameWindow) {
-          window.open('${safePdfUrl}', '_blank', 'noopener,noreferrer');
-          return;
-        }
-
-        try {
-          frameWindow.focus();
-          setTimeout(function () {
-            try {
-              frameWindow.print();
-            } catch (error) {
-              window.open('${safePdfUrl}', '_blank', 'noopener,noreferrer');
-            }
-          }, 250);
-        } catch (error) {
-          window.open('${safePdfUrl}', '_blank', 'noopener,noreferrer');
-        }
+        window.focus();
+        setTimeout(function () {
+          window.print();
+        }, 150);
       });
     </script>
   </body>
