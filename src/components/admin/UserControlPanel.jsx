@@ -58,6 +58,14 @@ function UserControlPanel({
   const pendingReviewCount = getFilteredUsers(users, 'pending-review', 'All').length;
 
   useEffect(() => {
+    setMembershipFilter(initialMembershipFilter);
+  }, [initialMembershipFilter]);
+
+  useEffect(() => {
+    setQuickFilter(initialQuickFilter);
+  }, [initialQuickFilter]);
+
+  useEffect(() => {
     const unsubscribe = subscribeToUsers(
       (snapshot) => {
         setUsers(

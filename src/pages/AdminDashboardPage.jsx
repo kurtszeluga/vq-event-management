@@ -7,6 +7,7 @@ import EventList from '../components/admin/EventList.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
+import { subscribeToUsers } from '../services/userService.js';
 
 function AdminDashboardPage() {
   const location = useLocation();
@@ -19,8 +20,10 @@ function AdminDashboardPage() {
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
+  const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
 
   useEffect(() => {
     if (location.state?.module) {
@@ -91,6 +94,28 @@ function AdminDashboardPage() {
     return unsubscribe;
   }, [canManageEvents]);
 
+  useEffect(() => {
+    if (!canReviewMemberships) {
+      setPendingMembershipCount(0);
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToUsers(
+      (snapshot) => {
+        const pendingCount = snapshot.docs
+          .map((userDoc) => userDoc.data())
+          .filter((user) => user.role !== 'Super User' && user.membershipStatus === 'Pending').length;
+        setPendingMembershipCount(pendingCount);
+      },
+      () => {
+        setPendingMembershipCount(0);
+      },
+      { includeAdminProfiles: false }
+    );
+
+    return unsubscribe;
+  }, [canReviewMemberships]);
+
   async function handleDelete(event) {
     const isArchived = event.status === 'Archived';
     const confirmed = window.confirm(
@@ -116,6 +141,12 @@ function AdminDashboardPage() {
     setEditingEvent(null);
     setDraftEventType(initialEventType);
     setActiveModule('event-details');
+  }
+
+  function openPendingMembershipReview() {
+    setUserControlsQuickFilter('pending-review');
+    setUserControlsMembershipFilter('Pending');
+    setActiveModule('user-controls');
   }
 
   return (
@@ -195,6 +226,23 @@ function AdminDashboardPage() {
           </button>
         ) : null}
       </nav>
+      {canReviewMemberships ? (
+        <div className={`status-panel pending-review-panel${pendingMembershipCount ? ' pending-home-card' : ''}`}>
+          <span className={`status-dot ${pendingMembershipCount ? 'pending' : 'good'}`} />
+          <span>
+            {pendingMembershipCount
+              ? `${pendingMembershipCount} membership ${pendingMembershipCount === 1 ? 'profile is' : 'profiles are'} waiting for review.`
+              : 'No membership profiles are waiting for review right now.'}
+          </span>
+          <button
+            className={`button-link button-reset ${pendingMembershipCount ? '' : 'secondary-action'} compact-action`}
+            type="button"
+            onClick={openPendingMembershipReview}
+          >
+            Open Pending Review
+          </button>
+        </div>
+      ) : null}
       {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
         {!activeModule && (canManageEvents || isSuperUser || canAddUsers) ? (

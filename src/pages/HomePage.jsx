@@ -7,9 +7,10 @@ import { subscribeToUsers } from '../services/userService.js';
 function HomePage() {
   const { currentUser, hasPermission, isSuperUser } = useAuth();
   const navigate = useNavigate();
-  const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
   const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
+  const hasAdminDashboardAccess =
+    isSuperUser || canAddUsers || hasPermission('manageEvents') || hasPermission('manageMembershipStatus');
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
 
   useEffect(() => {
@@ -33,10 +34,6 @@ function HomePage() {
 
     return unsubscribe;
   }, [canReviewMemberships, currentUser]);
-
-  function openAdminModule(module) {
-    navigate('/admin', { state: { module } });
-  }
 
   function openPendingMembershipReview() {
     navigate('/admin', {
@@ -68,95 +65,33 @@ function HomePage() {
       <div className="feature-grid home-grid">
         <article className="home-card">
           <h2>Events / Activities</h2>
-          <p>Browse published events or jump straight into event management if you have access.</p>
+          <p>Browse published classes, workshops, lectures, retreats, and other activities.</p>
           <div className="card-actions home-card-actions">
-            {canManageEvents ? (
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => openAdminModule('events-activities')}
-              >
-                Manage Events / Activities
-              </button>
-            ) : (
-              <Link className="button-link" to="/events">
-                View Events / Activities
-              </Link>
-            )}
+            <Link className="button-link" to="/events">
+              View Events / Activities
+            </Link>
           </div>
         </article>
 
         <article className="home-card">
           <h2>Business Listings</h2>
-          <p>View the public business directory or manage listings if you are authorized.</p>
+          <p>Browse the public business directory and quilting-related services.</p>
           <div className="card-actions home-card-actions">
-            {canManageEvents ? (
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => openAdminModule('business-listings')}
-              >
-                Manage Business Listings
-              </button>
-            ) : (
-              <Link className="button-link" to="/business-listings">
-                View Business Listings
-              </Link>
-            )}
+            <Link className="button-link" to="/business-listings">
+              View Business Listings
+            </Link>
           </div>
         </article>
 
         <article className="home-card">
           <h2>For Sale</h2>
-          <p>See current for-sale postings or manage them from the admin side.</p>
+          <p>See current for-sale postings from guild members and related listings.</p>
           <div className="card-actions home-card-actions">
-            {canManageEvents ? (
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => openAdminModule('for-sale')}
-              >
-                Manage For Sale
-              </button>
-            ) : (
-              <Link className="button-link" to="/for-sale">
-                View For Sale
-              </Link>
-            )}
+            <Link className="button-link" to="/for-sale">
+              View For Sale
+            </Link>
           </div>
         </article>
-
-        {canManageEvents ? (
-          <article className="home-card">
-            <h2>Challenges</h2>
-            <p>Open challenge records directly in the admin workspace.</p>
-            <div className="card-actions home-card-actions">
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => openAdminModule('challenges')}
-              >
-                Manage Challenges
-              </button>
-            </div>
-          </article>
-        ) : null}
-
-        {isSuperUser || canAddUsers ? (
-          <article className="home-card">
-            <h2>User Controls</h2>
-            <p>Manage profiles, permissions, and account details from one place.</p>
-            <div className="card-actions home-card-actions">
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => openAdminModule('user-controls')}
-              >
-                Open User Controls
-              </button>
-            </div>
-          </article>
-        ) : null}
 
         {canReviewMemberships ? (
           <article className={`home-card${pendingMembershipCount ? ' pending-home-card' : ''}`}>
@@ -178,17 +113,17 @@ function HomePage() {
           </article>
         ) : null}
 
-        {isSuperUser ? (
+        {hasAdminDashboardAccess ? (
           <article className="home-card">
-            <h2>Configuration</h2>
-            <p>Manage default locations, times, and member settings.</p>
+            <h2>Admin Dashboard</h2>
+            <p>Open the admin workspace to manage events, listings, users, challenges, and configuration tools.</p>
             <div className="card-actions home-card-actions">
               <button
                 className="button-link button-reset secondary-action"
                 type="button"
-                onClick={() => openAdminModule('configuration')}
+                onClick={() => navigate('/admin')}
               >
-                Open Configuration
+                Open Admin Dashboard
               </button>
             </div>
           </article>
