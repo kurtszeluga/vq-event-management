@@ -179,7 +179,7 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
   const role = isSuperUser ? requestedRole : 'General User';
   const canManageMembershipStatus =
     isSuperUser || actorProfile.permissions?.manageMembershipStatus === true;
-  const requestedMembershipStatus = ['Active', 'Inactive', 'Archived', 'Unknown'].includes(
+  const requestedMembershipStatus = ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown'].includes(
     payload.membershipStatus
   )
     ? payload.membershipStatus

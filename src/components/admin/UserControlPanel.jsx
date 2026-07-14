@@ -26,7 +26,7 @@ import {
   toTitleCase
 } from '../../utils/profileFormat.js';
 
-const MEMBERSHIP_FILTERS = ['All', 'Active', 'Inactive', 'Archived', 'Unknown'];
+const MEMBERSHIP_FILTERS = ['All', 'Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
 const QUICK_FILTERS = [
   { key: 'all', label: 'All Profiles' },
   { key: 'admins', label: 'Admins' },

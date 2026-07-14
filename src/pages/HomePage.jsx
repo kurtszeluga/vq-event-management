@@ -141,14 +141,14 @@ function HomePage() {
 
       {!currentUser ? (
         <div className="empty-state home-sign-in-callout">
-          <h2>Need an account?</h2>
-          <p>Sign in or create an account to access member features and any admin tools you are allowed to use.</p>
+          <h2>Need to become a member?</h2>
+          <p>Sign in or start a membership signup to access member features and any admin tools you are allowed to use.</p>
           <div className="card-actions home-card-actions">
             <Link className="button-link" to="/login">
               Sign In
             </Link>
             <Link className="button-link secondary-action" to="/signup">
-              Create Account
+              Become A Member
             </Link>
           </div>
         </div>

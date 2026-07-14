@@ -160,7 +160,7 @@ function ProfilePage() {
           <h2>Profile Needed</h2>
           <p>{profileError}</p>
           <Link className="button-link" to="/signup">
-            Create Account
+            Become A Member
           </Link>
         </div>
       ) : (

@@ -47,7 +47,7 @@ const EMPTY_TIME_FORM = {
   value: ''
 };
 
-const MEMBER_FILTERS = ['Active', 'Inactive', 'Archived', 'Unknown'];
+const MEMBER_FILTERS = ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
 
 function ConfigurationPanel({ currentUserProfile }) {
   const csvInputRef = useRef(null);
@@ -133,6 +133,7 @@ function ConfigurationPanel({ currentUserProfile }) {
               setMemberForm((current) => ({ ...current, status: event.target.value }))
             }
           >
+            <option value="Pending">Pending</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
             <option value="Archived">Archived</option>
@@ -377,6 +378,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           <p>CSV columns should use First Name, Last Name, Email, and Phone. Status is optional.</p>
         </div>
         <div className="configuration-summary" aria-label="Membership profile totals">
+          <span>Pending: {memberCounts.pending}</span>
           <span>Active: {memberCounts.active}</span>
           <span>Inactive: {memberCounts.inactive}</span>
           <span>Archived: {memberCounts.archived}</span>
@@ -849,7 +851,9 @@ function ConfigurationTable({ columns, emptyText, rows }) {
 function getMemberCounts(members) {
   return members.reduce(
     (counts, member) => {
-      if (member.membershipStatus === 'Archived') {
+      if (member.membershipStatus === 'Pending') {
+        counts.pending += 1;
+      } else if (member.membershipStatus === 'Archived') {
         counts.archived += 1;
       } else if (member.membershipStatus === 'Inactive') {
         counts.inactive += 1;
@@ -862,7 +866,7 @@ function getMemberCounts(members) {
       counts.total += 1;
       return counts;
     },
-    { active: 0, archived: 0, inactive: 0, total: 0, unknown: 0 }
+    { active: 0, archived: 0, inactive: 0, pending: 0, total: 0, unknown: 0 }
   );
 }
 

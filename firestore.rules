@@ -199,7 +199,7 @@ service cloud.firestore {
         && (!('membershipMemberId' in request.resource.data)
           || request.resource.data.membershipMemberId is string)
         && (!('membershipStatus' in request.resource.data)
-          || validStatus(request.resource.data.membershipStatus, ['Active', 'Inactive', 'Archived', 'Unknown']))
+          || validStatus(request.resource.data.membershipStatus, ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown']))
         && (!('membershipUpdatedDate' in request.resource.data)
           || request.resource.data.membershipUpdatedDate is timestamp)
         && request.resource.data.phone is string
@@ -290,7 +290,7 @@ service cloud.firestore {
           || 'membershipMemberId' in resource.data
             && 'membershipMemberId' in request.resource.data
             && request.resource.data.membershipMemberId == resource.data.membershipMemberId)
-        && validStatus(request.resource.data.membershipStatus, ['Active', 'Inactive', 'Archived', 'Unknown']);
+        && validStatus(request.resource.data.membershipStatus, ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown']);
     }
 
     function validPayment() {

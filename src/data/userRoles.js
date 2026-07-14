@@ -2,7 +2,7 @@ export const USER_ROLES = ['Super User', 'Admin', 'General User'];
 
 export const USER_STATUSES = ['Active', 'Inactive'];
 
-export const MEMBERSHIP_STATUS_OPTIONS = ['Active', 'Inactive', 'Archived', 'Unknown'];
+export const MEMBERSHIP_STATUS_OPTIONS = ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
 
 export const USER_PERMISSION_OPTIONS = [
   {

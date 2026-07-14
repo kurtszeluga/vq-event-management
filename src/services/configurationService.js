@@ -751,7 +751,7 @@ function getValidMemberStatus(status) {
 }
 
 function getValidProfileMembershipStatus(status) {
-  if (status === 'Active' || status === 'Inactive' || status === 'Archived' || status === 'Unknown') {
+  if (status === 'Pending' || status === 'Active' || status === 'Inactive' || status === 'Archived' || status === 'Unknown') {
     return status;
   }
 

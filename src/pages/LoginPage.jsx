@@ -145,7 +145,7 @@ function LoginPage() {
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>
           <span className="form-help">
-            Need an account? <Link to="/signup">Create one here.</Link>
+            Need to become a member? <Link to="/signup">Start here.</Link>
           </span>
       </form>
     </section>

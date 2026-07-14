@@ -69,9 +69,9 @@ function SignupPage() {
         email: email.trim(),
         firstName: formattedFirstName,
         lastName: formattedLastName,
-        membershipMatchedBy: '',
+        membershipMatchedBy: 'account',
         membershipMemberId: '',
-        membershipStatus: 'Unknown',
+        membershipStatus: 'Pending',
         membershipUpdatedDate: serverTimestamp(),
         name: displayName,
         permissions: DEFAULT_USER_PERMISSIONS,
@@ -94,9 +94,9 @@ function SignupPage() {
   return (
     <section>
       <PageHeader
-        eyebrow="Account"
-        title="Create Account"
-        description="Create a member account for event registration and future account features."
+        eyebrow="Membership"
+        title="Become A Member"
+        description="Create your Guild member profile and login. New membership requests stay pending until an administrator records payment or activates the membership."
       />
       <div className="status-panel">
         <span className={firebaseConfigured ? 'status-dot good' : 'status-dot'} />
@@ -226,7 +226,7 @@ function SignupPage() {
           disabled={!firebaseConfigured || submitting}
           type="submit"
         >
-          {submitting ? 'Creating Account...' : 'Create Account'}
+          {submitting ? 'Submitting Membership Request...' : 'Become A Member'}
         </button>
       </form>
     </section>

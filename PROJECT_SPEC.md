@@ -332,7 +332,7 @@ lastName	Last name
 name	Full name
 email	Email
 phone	Phone
-membershipStatus	Guild membership status: Active, Inactive, Archived, Unknown, or N/A for Super Users
+membershipStatus	Guild membership status: Pending, Active, Inactive, Archived, Unknown, or N/A for Super Users
 membershipMatchedBy	How the profile was matched or updated: email, phone, csv, manual, or account
 membershipUpdatedDate	Last membership update timestamp
 billingAddress	Billing address for future payment processing
