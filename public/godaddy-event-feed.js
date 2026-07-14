@@ -73,6 +73,8 @@
 
     wireDescriptionToggles(root);
     wireImageViewerLinks(root);
+    wireSupplyListLinks(root, config);
+    wireEventPrintLinks(root);
   }
 
   function buildFilterMarkup(payload, events) {
@@ -126,11 +128,12 @@
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListLink = event.supplyListUrl
-      ? `<a class="vq-feed-secondary" href="${escapeAttribute(event.supplyListUrl)}" target="_blank" rel="noopener noreferrer">View and print ${escapeHtml(event.supplyListTitle || 'document')}</a>`
+      ? `<button class="vq-feed-secondary" type="button" data-supply-list-url="${escapeAttribute(event.supplyListUrl)}" data-supply-list-title="${escapeAttribute(event.supplyListTitle || 'document')}" data-supply-list-filename="${escapeAttribute(event.supplyListTitle || 'supply-list.pdf')}">View and print ${escapeHtml(event.supplyListTitle || 'document')}</button>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">Register</a>`
       : '';
+    const eventPrintPayload = escapeAttribute(JSON.stringify(event));
 
     return `
       <article class="vq-feed-card" data-event-type="${escapeAttribute(event.eventType)}">
@@ -163,7 +166,7 @@
           </dl>
           <div class="vq-feed-actions">
             ${supplyListLink}
-            <a class="vq-feed-secondary" href="${escapeAttribute(event.printUrl)}" target="_blank" rel="noopener noreferrer">Print ${escapeHtml(event.eventType)}</a>
+            <button class="vq-feed-secondary" type="button" data-event-print="${eventPrintPayload}">Print ${escapeHtml(event.eventType)}</button>
             <a class="vq-feed-secondary" href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">View Details</a>
             ${event.registrationOpen ? registerLink : ''}
           </div>
@@ -232,6 +235,31 @@
       link.addEventListener('click', (event) => {
         event.preventDefault();
         openImageViewer(link.dataset.imageViewerSrc || '', link.dataset.imageViewerTitle || 'Event image');
+      });
+    });
+  }
+
+  function wireSupplyListLinks(root, config) {
+    root.querySelectorAll('[data-supply-list-url]').forEach((button) => {
+      button.addEventListener('click', () => {
+        openSupplyListPopup({
+          fileName: button.dataset.supplyListFilename || 'supply-list.pdf',
+          sourceUrl: config.sourceUrl,
+          title: button.dataset.supplyListTitle || 'Supply list',
+          url: button.dataset.supplyListUrl || ''
+        });
+      });
+    });
+  }
+
+  function wireEventPrintLinks(root) {
+    root.querySelectorAll('[data-event-print]').forEach((button) => {
+      button.addEventListener('click', () => {
+        try {
+          openEventPrintPopup(JSON.parse(button.dataset.eventPrint || '{}'));
+        } catch {
+          return;
+        }
       });
     });
   }
@@ -344,6 +372,7 @@
       }
       .vq-feed-primary,
       .vq-feed-secondary {
+        appearance: none;
         border-radius: 999px;
         display: inline-flex;
         font-size: 0.95rem;
@@ -351,6 +380,11 @@
         padding: 9px 14px;
         text-decoration: none;
         white-space: nowrap;
+      }
+      button.vq-feed-primary,
+      button.vq-feed-secondary {
+        cursor: pointer;
+        font-family: inherit;
       }
       .vq-feed-primary {
         background: #225c56;
@@ -515,6 +549,327 @@
     return eventType === 'Lecture'
       || eventType === 'Class (Half Day)'
       || eventType === 'Class (Full Day)';
+  }
+
+  function buildProxyUrl(fileUrl, disposition, fileName, sourceUrl) {
+    const feedUrl = new URL(sourceUrl || DEFAULTS.sourceUrl, window.location.href);
+    const proxyUrl = new URL('/api/file-proxy', feedUrl);
+    proxyUrl.search = new URLSearchParams({
+      cv: '20260714-4',
+      disposition,
+      filename: fileName || 'supply-list.pdf',
+      url: fileUrl
+    }).toString();
+    return proxyUrl.toString();
+  }
+
+  function openSupplyListPopup({ fileName, sourceUrl, title, url }) {
+    if (!url) {
+      return;
+    }
+
+    const popup = window.open('', 'vq-supply-list-print', 'popup,width=1100,height=900');
+
+    if (!popup) {
+      return;
+    }
+
+    const inlineUrl = buildProxyUrl(url, 'inline', fileName, sourceUrl);
+    const attachmentUrl = buildProxyUrl(url, 'attachment', fileName, sourceUrl);
+    const safeTitle = escapeHtml(title || 'Supply list');
+    const safeInlineUrl = escapeAttribute(inlineUrl);
+    const safeAttachmentUrl = escapeAttribute(attachmentUrl);
+
+    popup.document.open();
+    popup.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <style>
+      :root {
+        color: #1d2927;
+        background: #f4efe8;
+        font-family: Inter, Arial, sans-serif;
+      }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        padding: 24px 18px 32px;
+      }
+      .viewer-shell {
+        margin: 0 auto;
+        max-width: 1100px;
+      }
+      .viewer-topbar {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .viewer-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .viewer-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .viewer-button,
+      .viewer-link {
+        appearance: none;
+        background: #225c56;
+        border: 1px solid #225c56;
+        border-radius: 999px;
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 16px;
+        text-decoration: none;
+      }
+      .viewer-link.secondary,
+      .viewer-button.secondary {
+        background: #ffffff;
+        color: #225c56;
+      }
+      .viewer-frame-wrap {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
+        overflow: hidden;
+      }
+      .viewer-frame {
+        border: 0;
+        display: block;
+        height: 78vh;
+        width: 100%;
+      }
+      @media print {
+        body {
+          background: #ffffff;
+          padding: 0;
+        }
+        .viewer-topbar {
+          display: none;
+        }
+        .viewer-frame-wrap {
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+        .viewer-frame {
+          height: 100vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <div class="viewer-topbar">
+        <h1 class="viewer-title">${safeTitle}</h1>
+        <div class="viewer-actions">
+          <a class="viewer-link secondary" href="${safeAttachmentUrl}">Save</a>
+          <a class="viewer-link secondary" href="${safeInlineUrl}" target="_blank" rel="noopener noreferrer">Open PDF</a>
+          <button class="viewer-button secondary" type="button" onclick="window.print()">Print</button>
+          <button class="viewer-button" type="button" onclick="window.close()">Close</button>
+        </div>
+      </div>
+      <div class="viewer-frame-wrap">
+        <iframe class="viewer-frame" src="${safeInlineUrl}" title="${safeTitle}"></iframe>
+      </div>
+    </main>
+  </body>
+</html>`);
+    popup.document.close();
+    popup.focus();
+  }
+
+  function openEventPrintPopup(event) {
+    if (!event?.id) {
+      return;
+    }
+
+    const popup = window.open('', 'vq-event-print', 'popup,width=1100,height=900');
+
+    if (!popup) {
+      return;
+    }
+
+    const html = buildEventPrintHtml(event);
+
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
+  }
+
+  function buildEventPrintHtml(event) {
+    const title = escapeHtml(event.title || 'Event');
+    const eventType = escapeHtml(event.eventType || 'Other');
+    const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
+    const date = escapeHtml(formatEventDate(event.date));
+    const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
+    const location = escapeHtml(event.location || 'To be announced');
+    const presenter = escapeHtml(event.presenter || 'To be announced');
+    const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'Free');
+    const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
+    const imageBlock = event.imageUrl
+      ? `<div class="image-wrap"><img alt="${title} thumbnail" src="${escapeAttribute(event.imageUrl)}" /></div>`
+      : '<div class="image-wrap image-placeholder" aria-label="No image uploaded"></div>';
+
+    return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Print ${title}</title>
+      <style>
+        :root {
+          color: #1d2927;
+          background: #ffffff;
+          font-family: Inter, Arial, sans-serif;
+        }
+        html, body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          padding: 32px 28px 40px;
+        }
+        .page {
+          margin: 0 auto;
+          max-width: 760px;
+        }
+        .topbar {
+          align-items: flex-start;
+          display: flex;
+          gap: 16px;
+          justify-content: space-between;
+          margin-bottom: 22px;
+        }
+        .eyebrow {
+          color: #9a4d2f;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          margin: 0 0 8px;
+          text-transform: uppercase;
+        }
+        h1 {
+          font-size: 28px;
+          line-height: 1.15;
+          margin: 0;
+        }
+        .meta {
+          display: grid;
+          gap: 12px;
+          margin: 20px 0 0;
+        }
+        .meta-row {
+          display: grid;
+          grid-template-columns: 120px 1fr;
+          gap: 12px;
+        }
+        .meta-label {
+          font-weight: 800;
+        }
+        .pill {
+          align-items: center;
+          background: #e9f2ef;
+          border: 1px solid #c6dad5;
+          border-radius: 999px;
+          display: inline-flex;
+          font-size: 12px;
+          font-weight: 800;
+          padding: 6px 10px;
+        }
+        .image-wrap {
+          border: 1px solid #ded5ca;
+          border-radius: 8px;
+          margin-top: 18px;
+          overflow: hidden;
+          width: 180px;
+        }
+        .image-wrap img {
+          display: block;
+          height: 180px;
+          object-fit: cover;
+          width: 100%;
+        }
+        .image-placeholder {
+          background: linear-gradient(135deg, #f6efe9, #ebe3da);
+          height: 180px;
+        }
+        .actions {
+          display: inline-flex;
+          gap: 8px;
+          margin-top: 4px;
+        }
+        button {
+          appearance: none;
+          background: #225c56;
+          border: 1px solid #225c56;
+          border-radius: 8px;
+          color: #fff;
+          cursor: pointer;
+          font: inherit;
+          font-weight: 700;
+          padding: 10px 14px;
+        }
+        button.secondary {
+          background: #fff;
+          color: #225c56;
+        }
+        .description {
+          line-height: 1.55;
+          margin: 16px 0 0;
+          white-space: pre-wrap;
+        }
+        @media print {
+          body {
+            padding: 0;
+          }
+          .actions {
+            display: none;
+          }
+        }
+      </style>
+    </head>
+    <body onload="window.setTimeout(function () { window.print(); }, 150)">
+      <main class="page">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Event listing</p>
+            <h1>${title}</h1>
+          </div>
+          <div class="actions">
+            <button type="button" onclick="window.print()">Print</button>
+            <button type="button" class="secondary" onclick="window.close()">Close</button>
+          </div>
+        </div>
+        <div class="pill">${eventType}</div>
+        <div class="meta">
+          <div class="meta-row"><div class="meta-label">Status</div><div>${registration}</div></div>
+          <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+          <div class="meta-row"><div class="meta-label">Time</div><div>${time}</div></div>
+          <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
+          <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
+          <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
+        </div>
+        ${imageBlock}
+        ${description}
+      </main>
+    </body>
+  </html>`;
   }
 
   function openImageViewer(imageUrl, title) {
