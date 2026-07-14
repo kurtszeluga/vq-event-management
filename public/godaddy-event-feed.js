@@ -464,6 +464,16 @@
       return [parts[1], parts[2], parts[0]].join('/');
     }
 
+    const parsed = new Date(value);
+
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric'
+      }).format(parsed);
+    }
+
     return value;
   }
 
