@@ -118,6 +118,13 @@ function getProfileStatus(profile) {
 
 function serializeProfile(profile, profileStatus, membershipStatus) {
   return {
+    billingAddress: {
+      city: profile.billingAddress?.city || '',
+      country: profile.billingAddress?.country || 'United States',
+      postalCode: profile.billingAddress?.postalCode || '',
+      state: profile.billingAddress?.state || '',
+      street: profile.billingAddress?.street || ''
+    },
     email: profile.email || '',
     membershipStatus,
     name: profile.name || [profile.firstName, profile.lastName].filter(Boolean).join(' '),

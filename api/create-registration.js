@@ -108,6 +108,17 @@ async function createRegistration(db, payload) {
       });
     }
 
+    if (profile && payload.profileUpdates) {
+      transaction.update(db.collection('users').doc(profile.id), {
+        billingAddress: sanitizeBillingAddress(payload.profileUpdates.billingAddress),
+        firstName: payload.profileUpdates.firstName,
+        lastName: payload.profileUpdates.lastName,
+        name: buildDisplayName(payload.profileUpdates.firstName, payload.profileUpdates.lastName),
+        phone: payload.profileUpdates.phone,
+        updatedDate: FieldValue.serverTimestamp()
+      });
+    }
+
     transaction.set(registrationRef, registration);
     transaction.set(auditRef, {
       action: 'Register',
@@ -277,7 +288,24 @@ function sanitizeRegistrationPayload(payload) {
     name: normalizeName(payload.name || ''),
     phone: String(payload.phone || '').trim(),
     profileUserId: String(payload.profileUserId || '').trim(),
+    profileUpdates: sanitizeProfileUpdates(payload.profileUpdates || {}),
     reactivateProfile: Boolean(payload.reactivateProfile)
+  };
+}
+
+function sanitizeProfileUpdates(profileUpdates) {
+  const firstName = normalizeName(profileUpdates.firstName || '');
+  const lastName = normalizeName(profileUpdates.lastName || '');
+
+  if (!firstName && !lastName && !profileUpdates.phone && !profileUpdates.billingAddress) {
+    return null;
+  }
+
+  return {
+    billingAddress: profileUpdates.billingAddress || {},
+    firstName,
+    lastName,
+    phone: String(profileUpdates.phone || '').trim()
   };
 }
 
@@ -294,6 +322,20 @@ function normalizeName(value) {
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').slice(-10);
+}
+
+function buildDisplayName(firstName = '', lastName = '') {
+  return [firstName, lastName].filter(Boolean).join(' ');
+}
+
+function sanitizeBillingAddress(billingAddress = {}) {
+  return {
+    city: normalizeName(billingAddress.city || ''),
+    country: normalizeName(billingAddress.country || '') || 'United States',
+    postalCode: String(billingAddress.postalCode || '').trim(),
+    state: String(billingAddress.state || '').trim().toUpperCase(),
+    street: normalizeName(billingAddress.street || '')
+  };
 }
 
 function httpError(statusCode, message) {

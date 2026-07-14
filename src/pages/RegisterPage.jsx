@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
+import { US_STATES } from '../data/usStates.js';
 import { getEvent } from '../services/eventService.js';
 import {
   createRegistration,
@@ -16,7 +17,13 @@ import { formatPhoneNumber, toTitleCase } from '../utils/profileFormat.js';
 
 function RegisterPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const eventId = searchParams.get('eventId') || '';
+  const [billingCity, setBillingCity] = useState('');
+  const [billingCountry, setBillingCountry] = useState('United States');
+  const [billingPostalCode, setBillingPostalCode] = useState('');
+  const [billingState, setBillingState] = useState('');
+  const [billingStreet, setBillingStreet] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [email, setEmail] = useState('');
   const [event, setEvent] = useState(null);
@@ -28,6 +35,7 @@ function RegisterPage() {
   const [lookupComplete, setLookupComplete] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [name, setName] = useState('');
+  const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [phone, setPhone] = useState('');
   const [profileConfirmed, setProfileConfirmed] = useState(false);
   const [reactivateProfile, setReactivateProfile] = useState(false);
@@ -131,6 +139,11 @@ function RegisterPage() {
       if (result.profile) {
         setName(result.profile.name || '');
         setPhone(result.profile.phone || '');
+        setBillingCity(result.profile.billingAddress?.city || '');
+        setBillingCountry(result.profile.billingAddress?.country || 'United States');
+        setBillingPostalCode(result.profile.billingAddress?.postalCode || '');
+        setBillingState(result.profile.billingAddress?.state || '');
+        setBillingStreet(result.profile.billingAddress?.street || '');
       }
     } catch (error) {
       setFormError(error.message);
@@ -176,6 +189,18 @@ function RegisterPage() {
         name,
         phone,
         profileUserId: matchedProfile?.userId || '',
+        profileUpdates: matchedProfile ? {
+          billingAddress: {
+            city: billingCity,
+            country: billingCountry,
+            postalCode: billingPostalCode,
+            state: billingState,
+            street: billingStreet
+          },
+          firstName: getFirstName(name),
+          lastName: getLastName(name),
+          phone
+        } : null,
         reactivateProfile
       });
       setConfirmation(result);
@@ -184,6 +209,15 @@ function RegisterPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleClose() {
+    if (window.opener) {
+      window.close();
+      return;
+    }
+
+    navigate(`/events/${eventId}`);
   }
 
   if (!eventId) {
@@ -243,7 +277,7 @@ function RegisterPage() {
           ) : null}
           {formError ? <p className="form-error">{formError}</p> : null}
           {confirmation ? (
-            <RegistrationConfirmation confirmation={confirmation} event={event} email={email} />
+            <RegistrationConfirmation confirmation={confirmation} event={event} />
           ) : null}
           <label>
             <span>Email *</span>
@@ -256,6 +290,7 @@ function RegisterPage() {
                 setLookup(null);
                 setProfileConfirmed(false);
                 setReactivateProfile(false);
+                setNeedsProfileEdits(false);
               }}
               type="email"
               value={email}
@@ -271,8 +306,17 @@ function RegisterPage() {
           </button>
           {lookupComplete ? (
             <LookupResult
+              billingAddress={{
+                city: billingCity,
+                country: billingCountry,
+                postalCode: billingPostalCode,
+                state: billingState,
+                street: billingStreet
+              }}
               lookup={lookup}
+              needsProfileEdits={needsProfileEdits}
               onConfirmProfile={() => setProfileConfirmed(true)}
+              onEditProfile={() => setNeedsProfileEdits(true)}
               onReactivate={() => setReactivateProfile(true)}
               profileConfirmed={profileConfirmed}
               reactivateProfile={reactivateProfile}
@@ -300,6 +344,80 @@ function RegisterPage() {
                   value={phone}
                 />
               </label>
+              {matchedProfile && (profileConfirmed || reactivateProfile) ? (
+                <>
+                  <div className="registration-edit-prompt">
+                    <strong>
+                      {needsProfileEdits
+                        ? 'Update your profile details before registering.'
+                        : 'Need to update your profile details first?'}
+                    </strong>
+                    {!needsProfileEdits ? (
+                      <button
+                        className="button-link secondary-action"
+                        type="button"
+                        onClick={() => setNeedsProfileEdits(true)}
+                      >
+                        Yes, Update My Information
+                      </button>
+                    ) : null}
+                  </div>
+                  {needsProfileEdits ? (
+                    <div className="registration-profile-edit-grid">
+                      <label>
+                        <span>Street Address</span>
+                        <input
+                          disabled={submitting || Boolean(confirmation)}
+                          onBlur={(inputEvent) => setBillingStreet(toTitleCase(inputEvent.target.value))}
+                          onChange={(inputEvent) => setBillingStreet(inputEvent.target.value)}
+                          value={billingStreet}
+                        />
+                      </label>
+                      <label>
+                        <span>City</span>
+                        <input
+                          disabled={submitting || Boolean(confirmation)}
+                          onBlur={(inputEvent) => setBillingCity(toTitleCase(inputEvent.target.value))}
+                          onChange={(inputEvent) => setBillingCity(inputEvent.target.value)}
+                          value={billingCity}
+                        />
+                      </label>
+                      <label>
+                        <span>State</span>
+                        <select
+                          disabled={submitting || Boolean(confirmation)}
+                          onChange={(inputEvent) => setBillingState(inputEvent.target.value)}
+                          value={billingState}
+                        >
+                          <option value="">Select State</option>
+                          {US_STATES.map((state) => (
+                            <option key={state.value} value={state.value}>
+                              {state.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span>Postal Code</span>
+                        <input
+                          disabled={submitting || Boolean(confirmation)}
+                          onChange={(inputEvent) => setBillingPostalCode(inputEvent.target.value)}
+                          value={billingPostalCode}
+                        />
+                      </label>
+                      <label>
+                        <span>Country</span>
+                        <input
+                          disabled={submitting || Boolean(confirmation)}
+                          onBlur={(inputEvent) => setBillingCountry(toTitleCase(inputEvent.target.value))}
+                          onChange={(inputEvent) => setBillingCountry(inputEvent.target.value)}
+                          value={billingCountry}
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
               <button
                 className="button-link button-reset"
                 disabled={submitting || Boolean(confirmation) || Boolean(registrationUnavailable)}
@@ -309,9 +427,9 @@ function RegisterPage() {
               </button>
             </>
           ) : null}
-          <Link className="button-link secondary-action" to={`/events/${eventId}`}>
-            Cancel
-          </Link>
+          <button className="button-link secondary-action" type="button" onClick={handleClose}>
+            Close
+          </button>
         </form>
       </div>
     </section>
@@ -319,8 +437,11 @@ function RegisterPage() {
 }
 
 function LookupResult({
+  billingAddress,
   lookup,
+  needsProfileEdits,
   onConfirmProfile,
+  onEditProfile,
   onReactivate,
   profileConfirmed,
   reactivateProfile
@@ -372,25 +493,51 @@ function LookupResult({
           <dt>Membership</dt>
           <dd>{profile.membershipStatus}</dd>
         </div>
+        <div>
+          <dt>Address</dt>
+          <dd>{formatAddress(billingAddress)}</dd>
+        </div>
       </dl>
       {profile.status === 'Active' ? (
-        <button
-          className="button-link button-reset"
-          disabled={profileConfirmed}
-          type="button"
-          onClick={onConfirmProfile}
-        >
-          {profileConfirmed ? 'Profile Confirmed' : 'Yes, This Is Me'}
-        </button>
+        <div className="detail-actions">
+          <button
+            className="button-link button-reset"
+            disabled={profileConfirmed}
+            type="button"
+            onClick={onConfirmProfile}
+          >
+            {profileConfirmed ? 'Profile Confirmed' : 'Yes, This Is Me'}
+          </button>
+          {profileConfirmed && !needsProfileEdits ? (
+            <button
+              className="button-link secondary-action"
+              type="button"
+              onClick={onEditProfile}
+            >
+              I Need To Edit Something
+            </button>
+          ) : null}
+        </div>
       ) : (
-        <button
-          className="button-link button-reset"
-          disabled={reactivateProfile}
-          type="button"
-          onClick={onReactivate}
-        >
-          {reactivateProfile ? 'Profile Will Be Reactivated' : 'Reactivate And Continue'}
-        </button>
+        <div className="detail-actions">
+          <button
+            className="button-link button-reset"
+            disabled={reactivateProfile}
+            type="button"
+            onClick={onReactivate}
+          >
+            {reactivateProfile ? 'Profile Will Be Reactivated' : 'Reactivate And Continue'}
+          </button>
+          {reactivateProfile && !needsProfileEdits ? (
+            <button
+              className="button-link secondary-action"
+              type="button"
+              onClick={onEditProfile}
+            >
+              I Need To Edit Something
+            </button>
+          ) : null}
+        </div>
       )}
     </div>
   );
@@ -432,7 +579,7 @@ function EventSummary({ event }) {
   );
 }
 
-function RegistrationConfirmation({ confirmation, email, event }) {
+function RegistrationConfirmation({ confirmation, event }) {
   return (
     <div className="form-success">
       <strong>
@@ -446,14 +593,27 @@ function RegistrationConfirmation({ confirmation, email, event }) {
           ? ' Payment is pending and will be handled when the payment module is enabled.'
           : ` You are registered for ${event.title}.`}
       </span>
-      <div className="registration-account-prompt">
-        <span>Want faster registration next time?</span>
-        <Link className="button-link secondary-action" to={`/signup?email=${encodeURIComponent(email)}`}>
-          Create Account
-        </Link>
-      </div>
     </div>
   );
+}
+
+function getFirstName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return parts[0] || '';
+}
+
+function getLastName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return parts.length > 1 ? parts.slice(1).join(' ') : '';
+}
+
+function formatAddress(address = {}) {
+  return [
+    address.street,
+    address.city,
+    [address.state, address.postalCode].filter(Boolean).join(' '),
+    address.country
+  ].filter(Boolean).join(', ') || 'Not listed';
 }
 
 function validateForm({ email, name, phone }) {
