@@ -126,6 +126,7 @@ function serializeEvent(event, origin) {
     imageUrl: Array.isArray(event.imageUrls) ? event.imageUrls.find(Boolean) || '' : '',
     supplyListTitle: event.supplyListTitle || event.supplyListFileName || '',
     supplyListUrl: event.supplyListUrl || '',
+    supplyListViewerUrl: event.supplyListUrl ? `${safeOrigin}/events/${event.id}/supply-list` : '',
     detailUrl: `${safeOrigin}/events/${event.id}`,
     registerUrl: event.registrationOpen ? `${safeOrigin}/events/${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
