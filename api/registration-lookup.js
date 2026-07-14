@@ -89,16 +89,16 @@ function getLookupStatus({ member, membershipStatus, profile, profileStatus }) {
 }
 
 function getMembershipStatus(profile, member) {
-  if (member?.status === 'Active') {
-    return 'Active';
-  }
-
-  if (profile?.membershipStatus) {
-    return profile.membershipStatus;
-  }
-
   if (member?.status) {
     return member.status;
+  }
+
+  if (profile?.membershipStatus === 'Archived') {
+    return 'Archived';
+  }
+
+  if (profile?.membershipStatus === 'Inactive') {
+    return 'Inactive';
   }
 
   return 'Unknown';

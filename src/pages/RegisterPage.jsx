@@ -601,7 +601,7 @@ function LookupResult({
   if (['profile-membership-blocked', 'membership-blocked'].includes(lookup.status)) {
     return (
       <div className="form-error">
-        Your membership status is not currently active. Please contact an administrator before registering.
+        Your membership status is not currently active. Please contact an administrator for assistance.
       </div>
     );
   }

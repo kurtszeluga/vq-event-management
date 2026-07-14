@@ -50,12 +50,14 @@ async function createRegistration(db, payload) {
     const profile = payload.profileUserId
       ? await getProfileById(transaction, db, payload.profileUserId, payload.email)
       : await findUserProfileByEmail(db, payload.email);
-    const member = await findBestMemberMatch(db, payload.email, payload.phone);
+    const member = await findMemberByEmail(db, payload.email);
     const membershipStatus = getMembershipStatus(profile, member);
     const profileStatus = getProfileStatus(profile);
 
     validateRegistrationEligibility(event, {
       membershipStatus,
+      member,
+      phone: payload.phone,
       profile,
       profileStatus,
       reactivateProfile: payload.reactivateProfile
@@ -183,22 +185,15 @@ async function findUserProfileByEmail(db, email) {
   return { id: docSnapshot.id, ...docSnapshot.data() };
 }
 
-async function findBestMemberMatch(db, email, phone) {
-  const byEmail = await findMemberByField(db, 'normalizedEmail', email)
-    || await findMemberByField(db, 'email', email);
+async function findMemberByEmail(db, email) {
+  const byNormalizedEmail = await findMemberByField(db, 'normalizedEmail', email);
 
-  if (byEmail) {
-    return { ...byEmail, matchedBy: 'email' };
+  if (byNormalizedEmail) {
+    return { ...byNormalizedEmail, matchedBy: 'email' };
   }
 
-  const normalizedPhone = normalizePhone(phone);
-
-  if (!normalizedPhone) {
-    return null;
-  }
-
-  const byPhone = await findMemberByField(db, 'normalizedPhone', normalizedPhone);
-  return byPhone ? { ...byPhone, matchedBy: 'phone' } : null;
+  const byEmail = await findMemberByField(db, 'email', email);
+  return byEmail ? { ...byEmail, matchedBy: 'email' } : null;
 }
 
 async function findMemberByField(db, field, value) {
@@ -216,7 +211,10 @@ async function findMemberByField(db, field, value) {
   return { id: docSnapshot.id, ...docSnapshot.data() };
 }
 
-function validateRegistrationEligibility(event, { membershipStatus, profile, profileStatus, reactivateProfile }) {
+function validateRegistrationEligibility(
+  event,
+  { member, membershipStatus, phone, profile, profileStatus, reactivateProfile }
+) {
   if (!isEventVisible(event)) {
     throw httpError(404, 'This event is not currently available.');
   }
@@ -233,22 +231,30 @@ function validateRegistrationEligibility(event, { membershipStatus, profile, pro
     throw httpError(400, 'Please confirm whether you want to reactivate the matched profile.');
   }
 
+  if (!member) {
+    throw httpError(403, 'We could not find a membership record for this email address. Please contact an administrator before registering.');
+  }
+
+  if (!doesPhoneMatchMember(member, phone)) {
+    throw httpError(403, 'The phone number does not match the membership record for this email address.');
+  }
+
   if (membershipStatus !== 'Active') {
-    throw httpError(403, 'Your membership status is not currently active. Please contact an administrator before registering.');
+    throw httpError(403, 'Your membership status is not currently active. Please contact an administrator for assistance.');
   }
 }
 
 function getMembershipStatus(profile, member) {
-  if (member?.status === 'Active') {
-    return 'Active';
-  }
-
-  if (profile?.membershipStatus) {
-    return profile.membershipStatus;
-  }
-
   if (member?.status) {
     return member.status;
+  }
+
+  if (profile?.membershipStatus === 'Archived') {
+    return 'Archived';
+  }
+
+  if (profile?.membershipStatus === 'Inactive') {
+    return 'Inactive';
   }
 
   return 'Unknown';
@@ -333,6 +339,17 @@ function normalizeName(value) {
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').slice(-10);
+}
+
+function doesPhoneMatchMember(member, phone) {
+  const memberPhone = normalizePhone(member?.normalizedPhone || member?.phone || '');
+  const submittedPhone = normalizePhone(phone);
+
+  if (!memberPhone) {
+    return true;
+  }
+
+  return Boolean(submittedPhone) && memberPhone === submittedPhone;
 }
 
 function buildDisplayName(firstName = '', lastName = '') {
