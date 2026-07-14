@@ -53,17 +53,7 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    const frameWindow = pdfFrameRef.current?.contentWindow;
-
-    if (!frameWindow) {
-      window.open(inlineProxyUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    frameWindow.focus();
-    window.setTimeout(() => {
-      frameWindow.print();
-    }, 200);
+    window.open(inlineProxyUrl, 'vq-supply-list-print', 'popup,width=1100,height=900');
   }
 
   if (loading) {
