@@ -7,15 +7,12 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   where,
   writeBatch
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
-import { normalizePermissions } from '../data/userRoles.js';
-import { normalizeProfileTags } from '../data/profileTags.js';
 
 const usersCollection = () => collection(db, 'users');
 const auditLogsCollection = () => collection(db, 'auditLogs');
@@ -29,51 +26,30 @@ export function subscribeToUsers(onNext, onError, { includeAdminProfiles = false
 }
 
 export async function updateUserProfile(userId, updates, actorProfile) {
-  const userRef = doc(db, 'users', userId);
-  const userSnap = await getDoc(userRef);
-  const before = userSnap.exists() ? userSnap.data() : {};
-  const normalizedPermissions = normalizePermissions(updates.permissions);
-  const normalizedProfileTags = normalizeProfileTags(updates.profileTags);
-  const userPayload = removeUndefinedFields({
-    archivedBy: before.archivedBy,
-    archivedDate: before.archivedDate,
-    billingAddress: updates.billingAddress,
-    createdDate: before.createdDate || serverTimestamp(),
-    email: updates.email,
-    firstName: updates.firstName,
-    lastName: updates.lastName,
-    membershipMatchedBy: before.membershipMatchedBy,
-    membershipMemberId: before.membershipMemberId,
-    membershipStatus: updates.membershipStatus ?? before.membershipStatus,
-    membershipUpdatedDate: before.membershipUpdatedDate,
-    name: updates.name,
-    phone: updates.phone,
-    permissions: normalizedPermissions,
-    profileTags: normalizedProfileTags,
-    role: updates.role,
-    status: updates.status,
-    userId: updates.userId || before.userId || userId
-  });
-  const writePayload = {
-    ...userPayload,
-    updatedDate: serverTimestamp()
-  };
+  const idToken = await getAdminIdToken();
 
-  await setDoc(userRef, writePayload);
-
-  try {
-    const auditBatch = writeBatch(db);
-    addAuditLog(auditBatch, {
-      actorProfile,
-      after: userPayload,
-      before,
-      entityId: userId,
-      summary: `Updated user "${userPayload.name || userPayload.email || userId}"`
-    });
-    await auditBatch.commit();
-  } catch (auditError) {
-    console.warn('User profile audit log failed', auditError);
+  if (!idToken) {
+    throw new Error('You must be signed in to update users.');
   }
+
+  const response = await fetch('/api/admin-update-user-profile', {
+    body: JSON.stringify({
+      ...updates,
+      profileId: userId
+    }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'User profile could not be saved.');
+  }
+
+  return result;
 }
 
 export async function archiveUserProfile(userId, actorProfile) {
@@ -251,10 +227,4 @@ function addAuditLog(batch, { actorProfile, after, before, entityId, summary }) 
     entityType: 'User',
     summary
   });
-}
-
-function removeUndefinedFields(value) {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
-  );
 }
