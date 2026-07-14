@@ -1,6 +1,6 @@
-export async function lookupRegistrationEmail(email) {
+export async function lookupRegistrationEmail(email, eventId = '') {
   const response = await fetch('/api/registration-lookup', {
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, eventId }),
     headers: {
       'Content-Type': 'application/json'
     },

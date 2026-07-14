@@ -12,6 +12,7 @@ export default async function handler(request, response) {
     initializeAdminApp();
 
     const email = normalizeEmail(request.body?.email);
+    const eventId = String(request.body?.eventId || '').trim();
 
     if (!email) {
       response.status(400).json({ error: 'Email is required.' });
@@ -21,14 +22,24 @@ export default async function handler(request, response) {
     const db = getFirestore();
     const profile = await findUserProfileByEmail(db, email);
     const member = await findMemberByEmail(db, email);
+    const hasExistingRegistration = eventId
+      ? await findActiveRegistration(db, eventId, email, profile?.userId || profile?.id || '')
+      : false;
     const membershipStatus = getMembershipStatus(profile, member);
     const profileStatus = getProfileStatus(profile);
 
     response.status(200).json({
+      hasExistingRegistration,
       membership: member ? serializeMember(member) : null,
       membershipStatus,
       profile: profile ? serializeProfile(profile, profileStatus, membershipStatus) : null,
-      status: getLookupStatus({ member, membershipStatus, profile, profileStatus })
+      status: getLookupStatus({
+        hasExistingRegistration,
+        member,
+        membershipStatus,
+        profile,
+        profileStatus
+      })
     });
   } catch (error) {
     response.status(500).json({ error: error.message || 'Lookup failed.' });
@@ -68,7 +79,28 @@ async function findMemberByEmail(db, email) {
   return { id: docSnapshot.id, ...docSnapshot.data() };
 }
 
-function getLookupStatus({ member, membershipStatus, profile, profileStatus }) {
+async function findActiveRegistration(db, eventId, email, userId) {
+  const snapshot = await db
+    .collection('registrations')
+    .where('eventId', '==', eventId)
+    .get();
+
+  return snapshot.docs.some((docSnapshot) => {
+    const registration = docSnapshot.data();
+
+    if (!['Registered', 'Waitlisted'].includes(registration.status)) {
+      return false;
+    }
+
+    return normalizeEmail(registration.email) === email || (userId && registration.userId === userId);
+  });
+}
+
+function getLookupStatus({ hasExistingRegistration, member, membershipStatus, profile, profileStatus }) {
+  if (hasExistingRegistration) {
+    return 'already-registered';
+  }
+
   if (profile && profileStatus === 'Active' && membershipStatus === 'Active') {
     return 'profile-active';
   }

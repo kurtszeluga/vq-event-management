@@ -118,7 +118,7 @@ function RegisterPage() {
   }, [event]);
 
   const membershipBlocked = lookupComplete
-    && ['profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
+    && ['already-registered', 'profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
   const matchedProfile = lookup?.profile || null;
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
@@ -164,7 +164,7 @@ function RegisterPage() {
     setLookupLoading(true);
 
     try {
-      const result = await lookupRegistrationEmail(normalizedEmail);
+      const result = await lookupRegistrationEmail(normalizedEmail, eventId);
       setEmail(normalizedEmail);
       setLookup(result);
       setLookupComplete(true);
@@ -698,6 +698,14 @@ function LookupResult({
     return (
       <div className="form-error">
         We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.
+      </div>
+    );
+  }
+
+  if (lookup.status === 'already-registered') {
+    return (
+      <div className="form-error">
+        An active registration already exists for this email and event.
       </div>
     );
   }
