@@ -98,7 +98,7 @@
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
     const cost = event.isPaid ? formatCurrency(event.cost) : 'Free';
     const thumbnail = event.imageUrl
-      ? `<a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a>`
+      ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${buildImageViewerUrl(event.imageUrl, event.title)}" target="_blank" rel="noopener noreferrer" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(event.supplyListUrl)}" target="_blank" rel="noopener noreferrer">View and print ${escapeHtml(event.supplyListTitle || 'document')}</a>`
@@ -328,10 +328,21 @@
       .vq-feed-thumb {
         flex: 0 0 auto;
       }
+      .vq-feed-thumb-stack {
+        align-items: flex-start;
+        display: grid;
+        gap: 6px;
+      }
       .vq-feed-thumb-link {
         border-radius: 8px;
         display: block;
         overflow: hidden;
+      }
+      .vq-feed-thumb-hint {
+        color: #5a6b67;
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.2;
       }
       .vq-feed-thumb-image,
       .vq-feed-thumb-placeholder {
@@ -445,6 +456,15 @@
       style: 'currency',
       currency: 'USD'
     }).format(Number(value || 0));
+  }
+
+  function buildImageViewerUrl(imageUrl, title) {
+    const params = new URLSearchParams({
+      src: String(imageUrl || ''),
+      title: String(title || 'Event image')
+    });
+
+    return `/godaddy-image-viewer.html?${params.toString()}`;
   }
 
   function escapeHtml(value) {
