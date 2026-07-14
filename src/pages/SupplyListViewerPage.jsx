@@ -53,7 +53,8 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    window.open(inlineProxyUrl, 'vq-supply-list-print', 'popup,width=1100,height=900');
+    const printUrl = buildSupplyListPrintUrl(event, inlineProxyUrl);
+    window.open(printUrl, 'vq-supply-list-print', 'popup,width=1100,height=900');
   }
 
   if (loading) {
@@ -125,6 +126,16 @@ function buildProxyUrl(event, disposition) {
   });
 
   return `/api/file-proxy?${params.toString()}`;
+}
+
+function buildSupplyListPrintUrl(event, pdfUrl) {
+  const params = new URLSearchParams({
+    cv: '20260714-3',
+    pdf: pdfUrl,
+    title: event?.supplyListTitle || event?.supplyListFileName || event?.title || 'Supply list'
+  });
+
+  return `/supply-list-print.html?${params.toString()}`;
 }
 
 export default SupplyListViewerPage;

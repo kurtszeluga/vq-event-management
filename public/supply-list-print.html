@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Supply List Print</title>
+    <style>
+      :root {
+        color: #1d2927;
+        background: #f4efe8;
+        font-family: Inter, Arial, sans-serif;
+      }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        padding: 24px 18px 32px;
+      }
+      .viewer-shell {
+        margin: 0 auto;
+        max-width: 1100px;
+      }
+      .viewer-topbar {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      .viewer-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .viewer-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .viewer-button,
+      .viewer-link {
+        appearance: none;
+        background: #225c56;
+        border: 1px solid #225c56;
+        border-radius: 999px;
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 16px;
+        text-decoration: none;
+      }
+      .viewer-link.secondary,
+      .viewer-button.secondary {
+        background: #ffffff;
+        color: #225c56;
+      }
+      .viewer-frame-wrap {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
+        overflow: hidden;
+      }
+      .viewer-frame {
+        border: 0;
+        display: block;
+        height: 78vh;
+        width: 100%;
+      }
+      .viewer-empty {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 12px;
+        padding: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <div class="viewer-topbar">
+        <h1 class="viewer-title" id="viewer-title">Supply List</h1>
+        <div class="viewer-actions">
+          <a class="viewer-link secondary" id="viewer-open" href="#" target="_blank" rel="noopener noreferrer">Open PDF</a>
+          <button class="viewer-button secondary" type="button" id="viewer-print">Print</button>
+          <button class="viewer-button" type="button" id="viewer-close">Close</button>
+        </div>
+      </div>
+      <div id="viewer-content"></div>
+    </main>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const pdf = params.get('pdf') || '';
+      const title = params.get('title') || 'Supply List';
+      const titleNode = document.getElementById('viewer-title');
+      const contentNode = document.getElementById('viewer-content');
+      const closeButton = document.getElementById('viewer-close');
+      const printButton = document.getElementById('viewer-print');
+      const openLink = document.getElementById('viewer-open');
+
+      titleNode.textContent = title;
+      openLink.href = pdf || '#';
+
+      closeButton.addEventListener('click', () => {
+        if (window.opener) {
+          window.close();
+          return;
+        }
+
+        if (window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+
+        window.location.href = '/';
+      });
+
+      if (!pdf) {
+        contentNode.innerHTML = '<div class="viewer-empty">Supply list unavailable.</div>';
+        printButton.disabled = true;
+      } else {
+        const wrap = document.createElement('div');
+        wrap.className = 'viewer-frame-wrap';
+
+        const frame = document.createElement('iframe');
+        frame.className = 'viewer-frame';
+        frame.src = pdf;
+        frame.title = title;
+
+        wrap.appendChild(frame);
+        contentNode.appendChild(wrap);
+
+        printButton.addEventListener('click', () => {
+          const frameWindow = frame.contentWindow;
+
+          if (!frameWindow) {
+            window.open(pdf, '_blank', 'noopener,noreferrer');
+            return;
+          }
+
+          frameWindow.focus();
+          window.setTimeout(() => {
+            try {
+              frameWindow.print();
+            } catch {
+              window.open(pdf, '_blank', 'noopener,noreferrer');
+            }
+          }, 250);
+        });
+      }
+    </script>
+  </body>
+</html>
