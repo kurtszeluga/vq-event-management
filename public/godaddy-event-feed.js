@@ -551,7 +551,9 @@
       return;
     }
 
-    window.open(viewerUrl, 'vq-supply-list', 'popup,width=1100,height=900');
+    const url = new URL(viewerUrl, window.location.href);
+    url.searchParams.set('cv', '20260714-5');
+    window.open(url.toString(), 'vq-supply-list', 'popup,width=1100,height=900');
   }
 
   function openEventPrintPopup(event) {
