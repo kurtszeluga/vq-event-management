@@ -1608,6 +1608,12 @@ body.popup-mode .page-content {
   color: #2a2315;
 }
 
+.pending-review-button {
+  background: #d5a14a;
+  border-color: #d5a14a;
+  color: #2a2315;
+}
+
 .status-filter-button.archive-active {
   background: #9a341f;
   border-color: #9a341f;

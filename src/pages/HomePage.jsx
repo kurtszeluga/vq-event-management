@@ -103,7 +103,7 @@ function HomePage() {
             </p>
             <div className="card-actions home-card-actions">
               <button
-                className={`button-link button-reset ${pendingMembershipCount ? '' : 'secondary-action'}`}
+                className={`button-link button-reset${pendingMembershipCount ? ' pending-review-button' : ' secondary-action'}`}
                 type="button"
                 onClick={openPendingMembershipReview}
               >
