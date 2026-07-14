@@ -98,7 +98,7 @@
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
     const cost = event.isPaid ? formatCurrency(event.cost) : 'Free';
     const thumbnail = event.imageUrl
-      ? `<img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" />`
+      ? `<a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(event.supplyListUrl)}" target="_blank" rel="noopener noreferrer">View and print ${escapeHtml(event.supplyListTitle || 'document')}</a>`
@@ -137,10 +137,10 @@
             <div><dt>Cost</dt><dd>${escapeHtml(cost)}</dd></div>
           </dl>
           <div class="vq-feed-actions">
-            ${event.registrationOpen ? registerLink : ''}
             ${supplyListLink}
             <a class="vq-feed-secondary" href="${escapeAttribute(event.printUrl)}" target="_blank" rel="noopener noreferrer">Print ${escapeHtml(event.eventType)}</a>
             <a class="vq-feed-secondary" href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">View Details</a>
+            ${event.registrationOpen ? `<span class="vq-feed-register-action">${registerLink}</span>` : ''}
           </div>
         </div>
       </article>
@@ -328,6 +328,11 @@
       .vq-feed-thumb {
         flex: 0 0 auto;
       }
+      .vq-feed-thumb-link {
+        border-radius: 8px;
+        display: block;
+        overflow: hidden;
+      }
       .vq-feed-thumb-image,
       .vq-feed-thumb-placeholder {
         border-radius: 8px;
@@ -383,9 +388,16 @@
         margin-top: 14px;
         justify-content: flex-start;
       }
+      .vq-feed-register-action {
+        display: inline-flex;
+        margin-left: auto;
+      }
       @media (max-width: 720px) {
         .vq-feed-card-top {
           flex-direction: column;
+        }
+        .vq-feed-register-action {
+          margin-left: 0;
         }
         .vq-feed-thumb-image,
         .vq-feed-thumb-placeholder {
