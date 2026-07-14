@@ -144,16 +144,16 @@
                 <div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>
                 <h3>${escapeHtml(event.title)}</h3>
               </div>
+              ${description ? `
+                <div class="vq-feed-description">
+                  <p data-role="preview">${escapeHtml(preview)}</p>
+                  ${longDescription ? `<p class="is-hidden" data-role="full">${escapeHtml(description)}</p>` : ''}
+                  ${longDescription ? '<button class="vq-feed-text-button" data-action="toggle-description" type="button">Show Full Description</button>' : ''}
+                </div>
+              ` : ''}
             </div>
             <div class="vq-feed-thumb">${thumbnail}</div>
           </div>
-          ${description ? `
-            <div class="vq-feed-description">
-              <p data-role="preview">${escapeHtml(preview)}</p>
-              ${longDescription ? `<p class="is-hidden" data-role="full">${escapeHtml(description)}</p>` : ''}
-              ${longDescription ? '<button class="vq-feed-text-button" data-action="toggle-description" type="button">Show Full Description</button>' : ''}
-            </div>
-          ` : ''}
           <dl class="vq-feed-meta">
             <div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>
             ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
@@ -163,8 +163,8 @@
           <div class="vq-feed-actions">
             ${supplyListLink}
             <a class="vq-feed-secondary" href="${escapeAttribute(event.printUrl)}" target="_blank" rel="noopener noreferrer">Print ${escapeHtml(event.eventType)}</a>
-            ${event.registrationOpen ? registerLink : ''}
             <a class="vq-feed-secondary" href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">View Details</a>
+            ${event.registrationOpen ? registerLink : ''}
           </div>
         </div>
       </article>
@@ -395,7 +395,8 @@
         background: linear-gradient(135deg, #f6efe9, #ebe3da);
       }
       .vq-feed-description {
-        margin-top: 10px;
+        margin-top: 8px;
+        max-width: 100%;
       }
       .vq-feed-description p {
         line-height: 1.55;
