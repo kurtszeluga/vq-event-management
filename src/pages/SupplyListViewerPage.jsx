@@ -118,6 +118,7 @@ function buildProxyUrl(event, disposition) {
   }
 
   const params = new URLSearchParams({
+    cv: '20260714-2',
     disposition,
     filename: event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`,
     url: event.supplyListUrl
