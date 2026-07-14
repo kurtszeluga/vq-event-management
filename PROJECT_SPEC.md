@@ -132,22 +132,28 @@ Administrator Features
 * All user profile types include billing address fields for future payment processing
 * User profiles can be tagged for VQ Booking and VQ Hosting functions
 * Phone numbers should be formatted consistently as users enter them
+* User profiles are the master person records.
+  * Membership status is stored and managed on the user profile.
+  * A profile does not require a login account.
+  * Firebase Authentication is optional and is attached only when a person activates login access.
+  * Registration membership checks use the profile membership fields.
+  * Super User profiles display as Active with membership N/A and are excluded from membership counts.
 * Super Users can manage a Configuration module.
   * Enable or disable membership checks for new users.
-  * Configure membership matching by email and/or phone.
+  * Configure membership matching by email and phone.
   * Configure whether admins may skip the membership check.
-  * Upload a CSV file of members.
+  * Upload a membership CSV file that creates or updates profiles directly.
   * CSV imports support Add/Update Only mode and Annual Refresh mode.
-  * Member CSV upload stays disabled until the Super User selects an import mode.
-  * Annual Refresh mode marks uploaded members Active and marks existing non-archived members missing from the CSV as Inactive.
+  * Membership CSV upload stays disabled until the Super User selects an import mode.
+  * Annual Refresh mode marks uploaded profiles with Active membership and marks existing non-archived profiles missing from the CSV as Inactive membership.
   * CSV imports support common headers including Name, First Name, Last Name, Email, Phone, Status, and Notes.
-  * Member records store First Name and Last Name as separate fields.
-  * Member status changes sync to matching user profiles by email first and phone second.
+  * Profile records store First Name and Last Name as separate fields.
+  * Membership imports match existing profiles by email first and phone second.
   * User profiles store membership status fields for member-only registration eligibility.
-  * Manually add, edit, or archive members from the membership list.
-  * Member list filters include Active, Inactive, and Archived; Active is the default view.
-  * Keep the member list, default locations, and default start/end time sections collapsed until the Super User chooses to show them.
-  * Open member edits inline at the selected member row.
+  * Manually add or edit profile membership from the configuration area or user controls.
+  * Membership profile filters include Active, Inactive, and Archived; Active is the default view.
+  * Keep membership tools, default locations, and default start/end time sections collapsed until the Super User chooses to show them.
+  * Open membership/profile edits inline at the selected profile row.
   * Manage default event/activity locations.
   * Manage default event/activity start/end time choices.
   * Default time choices display in standard time format.
@@ -318,23 +324,25 @@ status	Registered, Cancelled, Waitlisted
 users
 
 Field	Description
-userId	Firebase UID
+userId	Profile ID; Firebase UID when login access has been activated
+authUserId	Firebase Auth UID when login access exists; blank for profile-only people
+firstName	First name
+lastName	Last name
 name	Full name
 email	Email
 phone	Phone
-membershipStatus	Synced guild membership status: Active, Inactive, Archived, or Unknown
-membershipMemberId	Matched member record ID
-membershipMatchedBy	How the profile matched the member record: email, phone, or manual
-membershipUpdatedDate	Last membership sync timestamp
+membershipStatus	Guild membership status: Active, Inactive, Archived, Unknown, or N/A for Super Users
+membershipMatchedBy	How the profile was matched or updated: email, phone, csv, manual, or account
+membershipUpdatedDate	Last membership update timestamp
 billingAddress	Billing address for future payment processing
 role	Super User, Admin, or General User
 permissions	Admin permission flags: manageEvents, viewRegistrations, managePayments, addUsers
 profileTags	Functional tags such as vqBooking and vqHosting
-status	Active or Inactive
+status	Profile status: Active, Inactive, or Archived
 
 ⸻
 
-members
+members (transition only)
 
 Field	Description
 memberId	Unique member record ID
@@ -343,6 +351,8 @@ lastName	Member last name
 email	Member email
 phone	Member phone
 status	Active, Inactive, or Archived
+
+The members collection is a transitional structure from the earlier design. The target model is to remove membership as a separate collection and manage membership status directly on profiles in the users collection.
 
 ⸻
 
@@ -409,6 +419,31 @@ src/
 ├── App.jsx
 ├── main.jsx
 └── routes.jsx
+
+⸻
+
+Profile And Membership Source Of Truth
+
+The users collection is the source of truth for people, contact information, profile status, and guild membership status.
+
+Target behavior:
+
+* Every registrant/member/contact can have a profile record, even if they never log in.
+* Login access is optional and is attached to an existing profile when the person activates an account.
+* Membership CSV imports update profiles directly.
+* Registration membership checks use the profile returned by email lookup.
+* If a profile is found, phone or password verification can be used to confirm identity before registration continues.
+* If no profile is found, the registration flow checks whether a profile should be created from the membership CSV import result before allowing registration.
+* Annual membership refresh should update membershipStatus on profiles rather than maintaining a separate member record.
+
+Transition plan:
+
+1. Keep the current members collection in place until the profile-based flow is fully tested.
+2. Change membership CSV import to create/update users profiles directly.
+3. Change registration lookup and registration creation APIs to use users membership fields only.
+4. Replace the Configuration member list UI with a profile membership management view.
+5. Stop writing new records to members.
+6. Archive or remove the members collection only after production registration and CSV import are verified.
 
 ⸻
 

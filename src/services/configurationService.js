@@ -115,45 +115,88 @@ export async function saveMember(member, actorProfile) {
 
 export async function importMembersFromCsvRows(rows, actorProfile, options = {}) {
   const isAnnualRefresh = options.mode === 'annualRefresh';
-  const members = rows.map((row) => {
-    const memberId = makeMemberDocumentId(row) || doc(membersCollection()).id;
-    return buildMemberPayload(
+  const importedProfiles = rows.map((row) => {
+    const profileId = makeProfileDocumentId(row) || doc(usersCollection()).id;
+    return buildProfileImportPayload(
       {
         ...row,
         status: isAnnualRefresh ? 'Active' : row.status
       },
-      memberId
+      profileId
     );
   });
-  const importedMemberIds = new Set(members.map((member) => member.memberId));
-  const membersToInactivate = isAnnualRefresh
-    ? await getMembersMissingFromImport(importedMemberIds)
+  const userSnapshot = await getDocs(usersCollection());
+  const users = userSnapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() }));
+  const profilesByEmail = new Map();
+  const profilesByPhone = new Map();
+  const importedProfileIds = new Set();
+  const reviewRows = [];
+
+  users.forEach((profile) => {
+    const email = cleanText(profile.email).toLowerCase();
+    const phone = normalizePhone(cleanText(profile.phone));
+
+    if (email && !profilesByEmail.has(email)) {
+      profilesByEmail.set(email, profile);
+    }
+
+    if (phone) {
+      profilesByPhone.set(phone, [...(profilesByPhone.get(phone) || []), profile]);
+    }
+  });
+
+  const profileWrites = importedProfiles.flatMap((profile) => {
+    const existingByEmail = profile.email ? profilesByEmail.get(profile.email) : null;
+    const phoneMatches = !existingByEmail && profile.normalizedPhone
+      ? profilesByPhone.get(profile.normalizedPhone) || []
+      : [];
+
+    if (existingByEmail) {
+      importedProfileIds.add(existingByEmail.id);
+      return [{
+        ref: doc(db, 'users', existingByEmail.id),
+        value: buildImportedExistingProfile(existingByEmail, profile, 'email')
+      }];
+    }
+
+    if (phoneMatches.length) {
+      phoneMatches.forEach((match) => importedProfileIds.add(match.id));
+      reviewRows.push({
+        csvEmail: profile.email,
+        csvName: profile.name,
+        csvPhone: profile.phone,
+        possibleMatches: phoneMatches.map((match) => ({
+          email: match.email || '',
+          id: match.id,
+          name: match.name || '',
+          phone: match.phone || ''
+        }))
+      });
+      return [];
+    }
+
+    importedProfileIds.add(profile.profileId);
+    return [{
+      ref: doc(db, 'users', profile.profileId),
+      value: buildImportedNewProfile(profile)
+    }];
+  });
+  const profilesToInactivate = isAnnualRefresh
+    ? getProfilesMissingFromImport(users, importedProfileIds)
     : [];
-  const membershipSyncMembers = [
-    ...members,
-    ...membersToInactivate.map((member) => ({
-      ...member,
-      memberId: member.memberId || member.id,
-      status: 'Inactive'
-    }))
-  ];
-  const membershipSyncWrites = await getMembershipSyncWrites(membershipSyncMembers);
   const chunkSize = 400;
   const writes = [
-    ...members.map((member) => ({
-      ref: doc(db, 'members', member.memberId),
-      type: 'set',
-      value: member
-    })),
-    ...membersToInactivate.map((member) => ({
-      ref: doc(db, 'members', member.id),
-      type: 'set',
+    ...profileWrites,
+    ...profilesToInactivate.map((profile) => ({
+      ref: doc(db, 'users', profile.id),
       value: {
-        status: 'Inactive',
+        membershipMatchedBy: profile.membershipMatchedBy || '',
+        membershipMemberId: profile.membershipMemberId || '',
+        membershipStatus: 'Inactive',
+        membershipUpdatedDate: serverTimestamp(),
         updatedDate: serverTimestamp()
       }
-    })),
-    ...membershipSyncWrites
+    }))
   ];
 
   for (let startIndex = 0; startIndex < writes.length; startIndex += chunkSize) {
@@ -169,21 +212,34 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
         actorProfile,
         after: {
           importMode: isAnnualRefresh ? 'Annual Refresh' : 'Add/Update Only',
-          importedCount: members.length,
-          inactivatedCount: membersToInactivate.length
+          createdCount: profileWrites.filter((write) => !users.some((user) => write.ref.id === user.id)).length,
+          importedCount: importedProfiles.length,
+          inactivatedCount: profilesToInactivate.length,
+          reviewCount: reviewRows.length,
+          updatedCount: profileWrites.filter((write) => users.some((user) => write.ref.id === user.id)).length
         },
-        entityId: 'members-csv-import',
+        entityId: 'profiles-csv-import',
         summary: isAnnualRefresh
-          ? `Imported ${members.length} members and marked ${membersToInactivate.length} missing members inactive`
-          : `Imported ${members.length} members from CSV`
+          ? `Imported ${importedProfiles.length} membership profiles and marked ${profilesToInactivate.length} missing profiles inactive`
+          : `Imported ${importedProfiles.length} membership profiles from CSV`
       });
     }
 
     await batch.commit();
   }
+
+  const updatedCount = profileWrites.filter((write) =>
+    users.some((user) => write.ref.id === user.id)
+  ).length;
+  const createdCount = profileWrites.length - updatedCount;
+
   return {
-    importedCount: members.length,
-    inactivatedCount: membersToInactivate.length
+    createdCount,
+    importedCount: importedProfiles.length,
+    inactivatedCount: profilesToInactivate.length,
+    reviewCount: reviewRows.length,
+    reviewRows,
+    updatedCount
   };
 }
 
@@ -349,6 +405,102 @@ function buildMemberPayload(member, memberId) {
   };
 }
 
+function buildProfileImportPayload(profile, profileId) {
+  const email = cleanText(profile.email).toLowerCase();
+  const firstName = cleanText(profile.firstName);
+  const lastName = cleanText(profile.lastName);
+  const name = cleanText(profile.name || [firstName, lastName].filter(Boolean).join(' '));
+  const phone = cleanText(profile.phone);
+
+  return {
+    email,
+    firstName,
+    lastName,
+    name,
+    normalizedPhone: normalizePhone(phone),
+    phone,
+    profileId,
+    status: getValidMemberStatus(profile.status)
+  };
+}
+
+function buildImportedExistingProfile(existingProfile, importedProfile, matchedBy) {
+  const firstName = importedProfile.firstName || existingProfile.firstName || getFirstNameFallback(existingProfile.name);
+  const lastName = importedProfile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name);
+  const name = importedProfile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' ');
+
+  return {
+    billingAddress: existingProfile.billingAddress || getEmptyBillingAddress(),
+    createdDate: existingProfile.createdDate || serverTimestamp(),
+    email: importedProfile.email || existingProfile.email || '',
+    firstName,
+    lastName,
+    membershipMatchedBy: matchedBy,
+    membershipMemberId: '',
+    membershipStatus: importedProfile.status,
+    membershipUpdatedDate: serverTimestamp(),
+    name,
+    permissions: normalizeUserPermissions(existingProfile.permissions),
+    phone: importedProfile.phone || existingProfile.phone || '',
+    profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
+    role: existingProfile.role || 'General User',
+    status: existingProfile.role === 'Super User' ? 'Active' : existingProfile.status || 'Active',
+    updatedDate: serverTimestamp(),
+    userId: existingProfile.userId || existingProfile.id
+  };
+}
+
+function buildImportedNewProfile(importedProfile) {
+  return {
+    billingAddress: getEmptyBillingAddress(),
+    createdDate: serverTimestamp(),
+    email: importedProfile.email,
+    firstName: importedProfile.firstName,
+    lastName: importedProfile.lastName,
+    membershipMatchedBy: 'csv',
+    membershipMemberId: '',
+    membershipStatus: importedProfile.status,
+    membershipUpdatedDate: serverTimestamp(),
+    name: importedProfile.name,
+    permissions: normalizeUserPermissions(),
+    phone: importedProfile.phone,
+    profileTags: [],
+    role: 'General User',
+    status: 'Active',
+    updatedDate: serverTimestamp(),
+    userId: importedProfile.profileId
+  };
+}
+
+function getProfilesMissingFromImport(users, importedProfileIds) {
+  return users.filter((profile) =>
+    profile.role === 'General User'
+      && profile.status !== 'Archived'
+      && profile.membershipStatus !== 'Archived'
+      && !importedProfileIds.has(profile.id)
+  );
+}
+
+function getEmptyBillingAddress() {
+  return {
+    city: '',
+    country: 'United States',
+    postalCode: '',
+    state: '',
+    street: ''
+  };
+}
+
+function normalizeUserPermissions(permissions = {}) {
+  return {
+    addUsers: Boolean(permissions.addUsers),
+    manageEvents: Boolean(permissions.manageEvents),
+    manageMembershipStatus: Boolean(permissions.manageMembershipStatus),
+    managePayments: Boolean(permissions.managePayments),
+    viewRegistrations: Boolean(permissions.viewRegistrations)
+  };
+}
+
 async function getMembersMissingFromImport(importedMemberIds) {
   const snapshot = await getDocs(membersCollection());
 
@@ -455,6 +607,33 @@ function makeMemberDocumentId(member) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 120);
+}
+
+function makeProfileDocumentId(profile) {
+  const email = cleanText(profile.email).toLowerCase();
+  const name = cleanText(
+    profile.name || [profile.firstName, profile.lastName].filter(Boolean).join(' ')
+  ).toLowerCase();
+  const source = email || name;
+
+  if (!source) {
+    return '';
+  }
+
+  return source
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120);
+}
+
+function getFirstNameFallback(name = '') {
+  return cleanText(name).split(/\s+/)[0] || '';
+}
+
+function getLastNameFallback(name = '') {
+  const parts = cleanText(name).split(/\s+/).filter(Boolean);
+
+  return parts.length > 1 ? parts.slice(1).join(' ') : '';
 }
 
 function addConfigurationAuditLog(

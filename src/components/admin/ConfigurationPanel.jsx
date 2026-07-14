@@ -267,8 +267,8 @@ function ConfigurationPanel({ currentUserProfile }) {
       });
       setImportMessage(
         memberImportMode === 'annualRefresh'
-          ? `${importResult.importedCount} members imported. ${importResult.inactivatedCount} missing members marked inactive.`
-          : `${importResult.importedCount} members imported.`
+          ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.`
+          : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.`
       );
     });
     event.target.value = '';
@@ -391,7 +391,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Member List</h3>
-          <p>Upload a CSV or manually add members for email/phone matching.</p>
+          <p>Upload a CSV to update profile membership. Email matches update automatically; phone-only matches are held for review.</p>
           <p>CSV columns should use First Name, Last Name, Email, and Phone. Status and Notes are optional.</p>
         </div>
         <div className="configuration-summary" aria-label="Member list totals">
@@ -425,7 +425,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             type="button"
             onClick={() => csvInputRef.current?.click()}
           >
-            {savingSection === 'csv' ? 'Importing...' : 'Upload Member CSV'}
+            {savingSection === 'csv' ? 'Importing...' : 'Upload Membership CSV'}
           </button>
           <button
             className="button-link button-reset secondary-action"

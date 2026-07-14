@@ -195,7 +195,7 @@ service cloud.firestore {
         && (!('archivedDate' in request.resource.data)
           || request.resource.data.archivedDate is timestamp)
         && (!('membershipMatchedBy' in request.resource.data)
-          || validStatus(request.resource.data.membershipMatchedBy, ['email', 'phone', 'manual', '']))
+          || validStatus(request.resource.data.membershipMatchedBy, ['email', 'phone', 'csv', 'manual', 'account', '']))
         && (!('membershipMemberId' in request.resource.data)
           || request.resource.data.membershipMemberId is string)
         && (!('membershipStatus' in request.resource.data)
