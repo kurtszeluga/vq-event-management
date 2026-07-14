@@ -55,7 +55,7 @@ export async function updateUserProfile(userId, updates, actorProfile) {
     userId: updates.userId || before.userId || userId
   });
 
-  batch.update(userRef, {
+  batch.set(userRef, {
     ...userPayload,
     updatedDate: serverTimestamp()
   });
