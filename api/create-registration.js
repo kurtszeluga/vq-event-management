@@ -109,14 +109,19 @@ async function createRegistration(db, payload) {
     }
 
     if (profile && payload.profileUpdates) {
-      transaction.update(db.collection('users').doc(profile.id), {
-        billingAddress: sanitizeBillingAddress(payload.profileUpdates.billingAddress),
+      const profileUpdatePayload = {
         firstName: payload.profileUpdates.firstName,
         lastName: payload.profileUpdates.lastName,
         name: buildDisplayName(payload.profileUpdates.firstName, payload.profileUpdates.lastName),
         phone: payload.profileUpdates.phone,
         updatedDate: FieldValue.serverTimestamp()
-      });
+      };
+
+      if ('billingAddress' in payload.profileUpdates) {
+        profileUpdatePayload.billingAddress = sanitizeBillingAddress(payload.profileUpdates.billingAddress);
+      }
+
+      transaction.update(db.collection('users').doc(profile.id), profileUpdatePayload);
     }
 
     transaction.set(registrationRef, registration);
@@ -296,17 +301,23 @@ function sanitizeRegistrationPayload(payload) {
 function sanitizeProfileUpdates(profileUpdates) {
   const firstName = normalizeName(profileUpdates.firstName || '');
   const lastName = normalizeName(profileUpdates.lastName || '');
+  const hasBillingAddress = Object.prototype.hasOwnProperty.call(profileUpdates, 'billingAddress');
 
-  if (!firstName && !lastName && !profileUpdates.phone && !profileUpdates.billingAddress) {
+  if (!firstName && !lastName && !profileUpdates.phone && !hasBillingAddress) {
     return null;
   }
 
-  return {
-    billingAddress: profileUpdates.billingAddress || {},
+  const sanitized = {
     firstName,
     lastName,
     phone: String(profileUpdates.phone || '').trim()
   };
+
+  if (hasBillingAddress) {
+    sanitized.billingAddress = profileUpdates.billingAddress || {};
+  }
+
+  return sanitized;
 }
 
 function normalizeEmail(value) {
