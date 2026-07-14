@@ -75,7 +75,9 @@ function EventListingPrintPage() {
 
   function handlePrint() {
     window.focus();
-    window.print();
+    window.setTimeout(() => {
+      window.print();
+    }, 150);
   }
 
   if (loading) {

@@ -8,11 +8,9 @@ function SupplyListViewerPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const pdfFrameRef = useRef(null);
-  const printFrameRef = useRef(null);
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [pdfUrl, setPdfUrl] = useState('');
   const inlineProxyUrl = buildProxyUrl(event, 'inline');
   const attachmentProxyUrl = buildProxyUrl(event, 'attachment');
 
@@ -45,50 +43,6 @@ function SupplyListViewerPage() {
     };
   }, [eventId]);
 
-  useEffect(() => {
-    if (!event?.supplyListUrl) {
-      setPdfUrl('');
-      return undefined;
-    }
-
-    let active = true;
-    let objectUrl = '';
-
-    async function loadPdf() {
-      try {
-        const response = await fetch(inlineProxyUrl);
-
-        if (!response.ok) {
-          throw new Error('Unable to load the supply list.');
-        }
-
-        const blob = await response.blob();
-        objectUrl = window.URL.createObjectURL(blob);
-
-        if (active) {
-          setPdfUrl(objectUrl);
-        } else {
-          window.URL.revokeObjectURL(objectUrl);
-        }
-      } catch (loadError) {
-        if (active) {
-          setError(loadError.message);
-          setPdfUrl('');
-        }
-      }
-    }
-
-    loadPdf();
-
-    return () => {
-      active = false;
-
-      if (objectUrl) {
-        window.URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [inlineProxyUrl, event?.supplyListUrl]);
-
   function handleClose() {
     if (window.opener) {
       window.close();
@@ -99,26 +53,17 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    if (!pdfUrl) {
+    const frameWindow = pdfFrameRef.current?.contentWindow;
+
+    if (!frameWindow) {
+      window.open(inlineProxyUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
-    const printFrame = printFrameRef.current || document.createElement('iframe');
-    printFrameRef.current = printFrame;
-    printFrame.className = 'print-helper-frame';
-    printFrame.src = pdfUrl;
-    printFrame.onload = () => {
-      const frameWindow = printFrame.contentWindow;
-
-      if (frameWindow) {
-        frameWindow.focus();
-        window.setTimeout(() => frameWindow.print(), 250);
-      }
-    };
-
-    if (!printFrame.isConnected) {
-      document.body.appendChild(printFrame);
-    }
+    frameWindow.focus();
+    window.setTimeout(() => {
+      frameWindow.print();
+    }, 200);
   }
 
   if (loading) {
@@ -140,18 +85,6 @@ function SupplyListViewerPage() {
         <Link className="button-link" to={`/events/${eventId}`}>
           Return to event
         </Link>
-      </section>
-    );
-  }
-
-  if (event?.supplyListUrl && !pdfUrl) {
-    return (
-      <section className="viewer-page">
-        <PageHeader
-          eyebrow="Supply list"
-          title="Loading PDF"
-          description="Preparing the document for viewing and printing."
-        />
       </section>
     );
   }
@@ -182,7 +115,7 @@ function SupplyListViewerPage() {
       <iframe
         ref={pdfFrameRef}
         className="viewer-frame"
-        src={pdfUrl || inlineProxyUrl}
+        src={inlineProxyUrl}
         title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
       />
     </section>

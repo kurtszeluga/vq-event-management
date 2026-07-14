@@ -60,7 +60,6 @@ function openEventPrintView(event) {
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.focus();
-  printWindow.print();
 }
 
 function buildEventPrintHtml(event) {
@@ -196,7 +195,7 @@ function buildEventPrintHtml(event) {
         }
       </style>
     </head>
-    <body>
+    <body onload="window.setTimeout(function () { window.print(); }, 150)">
       <main class="page">
         <div class="topbar">
           <div>
