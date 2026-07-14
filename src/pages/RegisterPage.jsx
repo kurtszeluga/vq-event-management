@@ -121,6 +121,7 @@ function RegisterPage() {
     && ['profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
   const matchedProfile = lookup?.profile || null;
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
+  const showAddressFields = requiresBillingAddress || Boolean(matchedProfile && needsProfileEdits);
   const needsAccountPassword = lookupComplete
     && Boolean(matchedProfile)
     && !membershipBlocked
@@ -585,7 +586,7 @@ function RegisterPage() {
                       value={phone}
                     />
                   </label>
-                  {requiresBillingAddress ? (
+                  {showAddressFields ? (
                     <>
                       <label>
                         <span>Street Address</span>
@@ -662,7 +663,7 @@ function RegisterPage() {
                       <dt>Phone</dt>
                       <dd>{phone || 'Not listed'}</dd>
                     </div>
-                    {requiresBillingAddress ? (
+                    {showAddressFields ? (
                       <div>
                         <dt>Address</dt>
                         <dd>{formatAddress({
