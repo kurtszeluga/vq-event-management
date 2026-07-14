@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
@@ -14,12 +14,13 @@ import {
 } from '../utils/profileFormat.js';
 
 function SignupPage() {
+  const [searchParams] = useSearchParams();
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
   const [billingState, setBillingState] = useState('');
   const [billingStreet, setBillingStreet] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(searchParams.get('email') || '');
   const [firstName, setFirstName] = useState('');
   const [formError, setFormError] = useState('');
   const [lastName, setLastName] = useState('');

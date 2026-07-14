@@ -341,7 +341,7 @@ function EventsPage() {
               <div className="card-kicker">
                 <span className="event-type-pill">{getEventTypeLabel(event)}</span>
                 {event.registrationOpen ? (
-                  <Link className="button-link" to={`/events/${event.id}`}>
+                  <Link className="button-link" to={`/register?eventId=${event.id}`}>
                     Register
                   </Link>
                 ) : null}

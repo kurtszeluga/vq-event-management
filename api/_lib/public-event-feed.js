@@ -129,7 +129,7 @@ function serializeEvent(event, origin) {
     supplyListUrl: event.supplyListUrl || '',
     supplyListViewerUrl: event.supplyListUrl ? `${safeOrigin}/events/${event.id}/supply-list` : '',
     detailUrl: `${safeOrigin}/events/${event.id}`,
-    registerUrl: event.registrationOpen ? `${safeOrigin}/events/${event.id}` : '',
+    registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
   };
 }

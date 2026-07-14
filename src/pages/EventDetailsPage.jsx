@@ -126,6 +126,11 @@ function EventDetailsPage() {
             <p className="form-error">Registration is not currently open.</p>
           ) : null}
           <div className="detail-actions">
+            {event.registrationOpen ? (
+              <Link className="button-link" to={`/register?eventId=${event.id}`}>
+                Register
+              </Link>
+            ) : null}
             <button
               className="button-link button-reset"
               type="button"

@@ -364,6 +364,11 @@ body.popup-mode .page-content {
   width: 100%;
 }
 
+.form-panel .field-invalid {
+  border-color: #c24124;
+  outline: 3px solid #f8d6ca;
+}
+
 .form-panel input:focus,
 .form-panel select:focus {
   border-color: #225c56;
@@ -1139,6 +1144,91 @@ body.popup-mode .page-content {
   margin-top: 18px;
 }
 
+.registration-layout {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(260px, 360px) minmax(280px, 520px);
+  margin-top: 30px;
+}
+
+.registration-summary {
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.registration-summary h2 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.registration-summary dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.registration-summary div {
+  display: grid;
+  gap: 4px;
+}
+
+.registration-summary dt {
+  color: #5a6b67;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.registration-summary dd {
+  margin: 0;
+}
+
+.registration-form {
+  margin-top: 0;
+}
+
+.registration-lookup-card {
+  background: #f7f4ef;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.registration-lookup-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.registration-lookup-card div {
+  display: grid;
+  gap: 3px;
+}
+
+.registration-lookup-card dt {
+  color: #5a6b67;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.registration-lookup-card dd {
+  margin: 0;
+}
+
+.registration-account-prompt {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .user-edit-grid {
   display: grid;
   gap: 14px;
@@ -1604,6 +1694,7 @@ body.popup-mode .page-content {
   .user-admin-card,
   .public-event-card,
   .event-detail-layout,
+  .registration-layout,
   .capacity-row,
   .form-grid,
   .form-grid.compact,
