@@ -63,7 +63,7 @@
     root.innerHTML = `
       ${filterMarkup}
       <div class="vq-feed-list">
-        ${events.map((event) => buildCardMarkup(event)).join('')}
+        ${events.map((event) => buildCardMarkup(event, config)).join('')}
       </div>
     `;
 
@@ -75,21 +75,45 @@
   }
 
   function buildFilterMarkup(payload, events) {
-    const types = Object.keys(payload.typeCounts || {}).sort((left, right) => left.localeCompare(right));
+    const filters = getVisibleFilters(payload, events);
+
+    if (!filters.length) {
+      return '';
+    }
+
     return `
       <div class="vq-feed-filters" aria-label="Event type filters">
-        <button class="vq-feed-filter is-active" data-filter="All" type="button">All (${events.length})</button>
-        ${types
+        ${filters
           .map(
-            (type) =>
-              `<button class="vq-feed-filter" data-filter="${escapeHtml(type)}" type="button">${escapeHtml(type)} (${payload.typeCounts[type] || 0})</button>`
+            (filter, index) =>
+              `<button class="vq-feed-filter${index === 0 ? ' is-active' : ''}" data-filter="${escapeHtml(filter.value)}" type="button">${escapeHtml(filter.label)} (${filter.count})</button>`
           )
           .join('')}
       </div>
     `;
   }
 
-  function buildCardMarkup(event) {
+  function getVisibleFilters(payload, events) {
+    if (payload.category !== 'events') {
+      return Object.keys(payload.typeCounts || {})
+        .sort((left, right) => left.localeCompare(right))
+        .map((type) => ({
+          count: payload.typeCounts[type] || 0,
+          label: type,
+          value: type
+        }));
+    }
+
+    const programsCount = events.filter((event) => isProgramType(event.eventType)).length;
+    const workshopsCount = events.filter((event) => event.eventType === 'Workshop').length;
+
+    return [
+      { count: programsCount, label: 'Programs', value: 'Programs' },
+      { count: workshopsCount, label: 'Workshops', value: 'Workshops' }
+    ].filter((filter) => filter.count > 0);
+  }
+
+  function buildCardMarkup(event, config) {
     const description = event.description || '';
     const longDescription = description.length > DESCRIPTION_PREVIEW_LENGTH;
     const preview = longDescription
@@ -98,7 +122,7 @@
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
     const cost = event.isPaid ? formatCurrency(event.cost) : 'Free';
     const thumbnail = event.imageUrl
-      ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${buildImageViewerUrl(event.imageUrl, event.title)}" target="_blank" rel="noopener noreferrer" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
+      ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${buildImageViewerUrl(event.imageUrl, event.title, config.sourceUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(event.supplyListUrl)}" target="_blank" rel="noopener noreferrer">View and print ${escapeHtml(event.supplyListTitle || 'document')}</a>`
@@ -151,16 +175,31 @@
     const buttons = Array.from(root.querySelectorAll('.vq-feed-filter'));
     const cards = Array.from(root.querySelectorAll('.vq-feed-card'));
 
+    if (!buttons.length) {
+      return;
+    }
+
+    applyFilter(buttons[0].dataset.filter || '', cards);
+
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
         const filterValue = button.dataset.filter || 'All';
 
         buttons.forEach((item) => item.classList.toggle('is-active', item === button));
-        cards.forEach((card) => {
-          const matches = filterValue === 'All' || card.dataset.eventType === filterValue;
-          card.classList.toggle('is-hidden', !matches);
-        });
+        applyFilter(filterValue, cards);
       });
+    });
+  }
+
+  function applyFilter(filterValue, cards) {
+    cards.forEach((card) => {
+      const eventType = card.dataset.eventType || '';
+      const matches = filterValue === 'Programs'
+        ? isProgramType(eventType)
+        : filterValue === 'Workshops'
+          ? eventType === 'Workshop'
+          : eventType === filterValue;
+      card.classList.toggle('is-hidden', !matches);
     });
   }
 
@@ -458,13 +497,22 @@
     }).format(Number(value || 0));
   }
 
-  function buildImageViewerUrl(imageUrl, title) {
+  function isProgramType(eventType) {
+    return eventType === 'Lecture'
+      || eventType === 'Class (Half Day)'
+      || eventType === 'Class (Full Day)';
+  }
+
+  function buildImageViewerUrl(imageUrl, title, sourceUrl) {
+    const feedUrl = new URL(sourceUrl || DEFAULTS.sourceUrl, window.location.href);
+    const viewerUrl = new URL('/godaddy-image-viewer.html', feedUrl);
     const params = new URLSearchParams({
       src: String(imageUrl || ''),
       title: String(title || 'Event image')
     });
 
-    return `/godaddy-image-viewer.html?${params.toString()}`;
+    viewerUrl.search = params.toString();
+    return viewerUrl.toString();
   }
 
   function escapeHtml(value) {
