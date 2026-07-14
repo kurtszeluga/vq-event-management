@@ -749,13 +749,14 @@ function LookupResult({
         </div>
       </dl>
       {verificationPassed && !needsProfileEdits ? (
-        <div className="detail-actions">
+        <div className="registration-edit-prompt">
+          <strong>Need to update your profile details first?</strong>
           <button
             className="button-link secondary-action"
             type="button"
             onClick={onEditProfile}
           >
-            Edit Profile
+            Yes, Update My Information
           </button>
         </div>
       ) : null}
