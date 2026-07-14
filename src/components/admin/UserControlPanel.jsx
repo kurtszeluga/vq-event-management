@@ -250,7 +250,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       setEditingUserId('');
       setForm(null);
     } catch (saveError) {
-      setError(saveError.message);
+      setError(saveError?.message || saveError?.code || 'User profile could not be saved.');
     } finally {
       setSavingUserId('');
     }
@@ -291,7 +291,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
       setQuickFilter(isArchived ? 'all' : 'archived');
       setSuccessMessage(isArchived ? 'User profile reactivated.' : 'User profile archived.');
     } catch (archiveError) {
-      setError(archiveError.message);
+      setError(archiveError?.message || archiveError?.code || 'User profile could not be updated.');
     } finally {
       setSavingUserId('');
     }
@@ -549,6 +549,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                 ) : null}
               </div>
             </div>
+            {error ? <p className="form-error">{error}</p> : null}
             <div className="card-actions">
               <button
                 className="button-link button-reset"
@@ -786,6 +787,7 @@ function UserControlPanel({ canManageAdminUsers = false, currentUserProfile }) {
                     ) : null}
                 </div>
               </div>
+              {error ? <p className="form-error">{error}</p> : null}
               <div className="card-actions">
                 <button
                   className="button-link button-reset"

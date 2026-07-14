@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   where,
   writeBatch
 } from 'firebase/firestore';
@@ -31,7 +32,6 @@ export async function updateUserProfile(userId, updates, actorProfile) {
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
   const before = userSnap.exists() ? userSnap.data() : {};
-  const batch = writeBatch(db);
   const normalizedPermissions = normalizePermissions(updates.permissions);
   const normalizedProfileTags = normalizeProfileTags(updates.profileTags);
   const userPayload = removeUndefinedFields({
@@ -54,20 +54,26 @@ export async function updateUserProfile(userId, updates, actorProfile) {
     status: updates.status,
     userId: updates.userId || before.userId || userId
   });
-
-  batch.set(userRef, {
+  const writePayload = {
     ...userPayload,
     updatedDate: serverTimestamp()
-  });
-  addAuditLog(batch, {
-    actorProfile,
-    after: userPayload,
-    before,
-    entityId: userId,
-    summary: `Updated user "${userPayload.name || userPayload.email || userId}"`
-  });
+  };
 
-  return batch.commit();
+  await setDoc(userRef, writePayload);
+
+  try {
+    const auditBatch = writeBatch(db);
+    addAuditLog(auditBatch, {
+      actorProfile,
+      after: userPayload,
+      before,
+      entityId: userId,
+      summary: `Updated user "${userPayload.name || userPayload.email || userId}"`
+    });
+    await auditBatch.commit();
+  } catch (auditError) {
+    console.warn('User profile audit log failed', auditError);
+  }
 }
 
 export async function archiveUserProfile(userId, actorProfile) {
