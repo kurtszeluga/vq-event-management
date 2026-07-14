@@ -111,18 +111,20 @@
       <article class="vq-feed-card" data-event-type="${escapeAttribute(event.eventType)}">
         <div class="vq-feed-card-main">
           <div class="vq-feed-card-top">
-            <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
-            <div class="vq-feed-status-row">
-              ${registerLink}
-              <strong>${event.registrationOpen ? 'Registration open' : 'Registration closed'}</strong>
+            <div class="vq-feed-card-top-left">
+              <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+              <div class="vq-feed-status-row">
+                <strong>${event.registrationOpen ? 'Registration open' : 'Registration closed'}</strong>
+                ${registerLink ? `<span class="vq-feed-register-wrap">${registerLink}</span>` : ''}
+              </div>
             </div>
+            <div class="vq-feed-thumb">${thumbnail}</div>
           </div>
           <div class="vq-feed-title-row">
             <div>
               <div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>
               <h3>${escapeHtml(event.title)}</h3>
             </div>
-            <div class="vq-feed-thumb">${thumbnail}</div>
           </div>
           ${description ? `
             <div class="vq-feed-description">
@@ -251,8 +253,13 @@
         gap: 16px;
         justify-content: space-between;
       }
+      .vq-feed-card-top-left {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
       .vq-feed-title-row {
-        margin-top: 10px;
+        margin-top: 12px;
       }
       .vq-feed-type {
         background: #e9f2ef;
@@ -268,7 +275,10 @@
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
-        justify-content: flex-end;
+        justify-content: flex-start;
+      }
+      .vq-feed-register-wrap {
+        margin-left: 4px;
       }
       .vq-feed-primary,
       .vq-feed-secondary {
@@ -291,7 +301,7 @@
       }
       .vq-feed-date {
         color: #9a4d2f;
-        font-size: 1rem;
+        font-size: 1.18rem;
         font-weight: 800;
         margin-bottom: 6px;
       }
@@ -307,9 +317,9 @@
       .vq-feed-thumb-placeholder {
         border-radius: 8px;
         display: block;
-        height: 112px;
+        height: 132px;
         object-fit: cover;
-        width: 160px;
+        width: 184px;
       }
       .vq-feed-thumb-placeholder {
         background: linear-gradient(135deg, #f6efe9, #ebe3da);
@@ -362,8 +372,8 @@
         .vq-feed-title-row {
           flex-direction: column;
         }
-        .vq-feed-status-row {
-          justify-content: flex-start;
+        .vq-feed-register-wrap {
+          margin-left: 0;
         }
         .vq-feed-thumb-image,
         .vq-feed-thumb-placeholder {
