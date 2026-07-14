@@ -124,6 +124,7 @@ function serializeEvent(event, origin) {
     visibleFrom: event.visibleFrom || '',
     visibleUntil: event.visibleUntil || '',
     imageUrl: Array.isArray(event.imageUrls) ? event.imageUrls.find(Boolean) || '' : '',
+    supplyListFileName: event.supplyListFileName || '',
     supplyListTitle: event.supplyListTitle || event.supplyListFileName || '',
     supplyListUrl: event.supplyListUrl || '',
     supplyListViewerUrl: event.supplyListUrl ? `${safeOrigin}/events/${event.id}/supply-list` : '',

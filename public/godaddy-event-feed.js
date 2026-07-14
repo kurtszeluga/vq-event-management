@@ -128,7 +128,7 @@
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListLink = event.supplyListUrl
-      ? `<button class="vq-feed-secondary" type="button" data-supply-list-viewer-url="${escapeAttribute(event.supplyListViewerUrl || `${event.detailUrl}/supply-list`)}">View and print ${escapeHtml(event.supplyListTitle || 'document')}</button>`
+      ? `<button class="vq-feed-secondary" type="button" data-supply-list-url="${escapeAttribute(event.supplyListUrl)}" data-supply-list-title="${escapeAttribute(event.supplyListTitle || 'Supply list')}" data-supply-list-file-name="${escapeAttribute(event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`)}">View and print ${escapeHtml(event.supplyListTitle || 'document')}</button>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">Register</a>`
@@ -239,10 +239,15 @@
     });
   }
 
-  function wireSupplyListLinks(root) {
-    root.querySelectorAll('[data-supply-list-viewer-url]').forEach((button) => {
+  function wireSupplyListLinks(root, config) {
+    root.querySelectorAll('[data-supply-list-url]').forEach((button) => {
       button.addEventListener('click', () => {
-        openSupplyListPopup(button.dataset.supplyListViewerUrl || '');
+        openSupplyListPopup(
+          button.dataset.supplyListUrl || '',
+          button.dataset.supplyListTitle || 'Supply list',
+          button.dataset.supplyListFileName || 'supply-list.pdf',
+          config.sourceUrl
+        );
       });
     });
   }
@@ -546,14 +551,25 @@
       || eventType === 'Class (Full Day)';
   }
 
-  function openSupplyListPopup(viewerUrl) {
-    if (!viewerUrl) {
+  function openSupplyListPopup(pdfUrl, title, fileName, sourceUrl) {
+    if (!pdfUrl) {
       return;
     }
 
-    const url = new URL(viewerUrl, window.location.href);
-    url.searchParams.set('cv', '20260714-5');
+    const url = new URL('/godaddy-supply-list-viewer-v1.html', getSourceOrigin(sourceUrl));
+    url.searchParams.set('cv', '20260714-6');
+    url.searchParams.set('url', pdfUrl);
+    url.searchParams.set('title', title || 'Supply list');
+    url.searchParams.set('filename', fileName || 'supply-list.pdf');
     window.open(url.toString(), 'vq-supply-list', 'popup,width=1100,height=900');
+  }
+
+  function getSourceOrigin(sourceUrl) {
+    try {
+      return new URL(sourceUrl, window.location.href).origin;
+    } catch {
+      return window.location.origin;
+    }
   }
 
   function openEventPrintPopup(event) {

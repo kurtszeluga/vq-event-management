@@ -4,6 +4,7 @@ export default async function handler(request, response) {
   response.setHeader('Access-Control-Allow-Origin', '*');
   response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Cache-Control', 'private, max-age=0, no-cache, no-store, must-revalidate');
 
   if (request.method === 'OPTIONS') {
     response.status(204).end();
