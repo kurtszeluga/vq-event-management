@@ -207,14 +207,9 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
   const writes = [
     ...profileWrites,
     ...profilesToInactivate.map((profile) => ({
+      merge: false,
       ref: doc(db, 'users', profile.id),
-      value: {
-        membershipMatchedBy: profile.membershipMatchedBy || '',
-        membershipMemberId: profile.membershipMemberId || '',
-        membershipStatus: 'Inactive',
-        membershipUpdatedDate: serverTimestamp(),
-        updatedDate: serverTimestamp()
-      }
+      value: buildInactivatedMembershipProfile(profile)
     }))
   ];
 
@@ -223,7 +218,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     const chunk = writes.slice(startIndex, startIndex + chunkSize);
 
     chunk.forEach((write) => {
-      batch.set(write.ref, write.value, { merge: true });
+      batch.set(write.ref, write.value, { merge: write.merge !== false });
     });
 
     if (startIndex === 0) {
@@ -490,6 +485,32 @@ function buildImportedNewProfile(importedProfile) {
     status: 'Active',
     updatedDate: serverTimestamp(),
     userId: importedProfile.profileId
+  };
+}
+
+function buildInactivatedMembershipProfile(profile) {
+  const firstName = profile.firstName || getFirstNameFallback(profile.name);
+  const lastName = profile.lastName || getLastNameFallback(profile.name);
+  const name = profile.name || [firstName, lastName].filter(Boolean).join(' ');
+
+  return {
+    billingAddress: profile.billingAddress || getEmptyBillingAddress(),
+    createdDate: profile.createdDate || serverTimestamp(),
+    email: profile.email || '',
+    firstName,
+    lastName,
+    membershipMatchedBy: profile.membershipMatchedBy || '',
+    membershipMemberId: profile.membershipMemberId || '',
+    membershipStatus: 'Inactive',
+    membershipUpdatedDate: serverTimestamp(),
+    name,
+    permissions: normalizeUserPermissions(profile.permissions),
+    phone: profile.phone || '',
+    profileTags: Array.isArray(profile.profileTags) ? profile.profileTags : [],
+    role: profile.role || 'General User',
+    status: profile.status || 'Active',
+    updatedDate: serverTimestamp(),
+    userId: profile.userId || profile.id
   };
 }
 
