@@ -73,7 +73,6 @@
 
     wireDescriptionToggles(root);
     wireImageViewerLinks(root);
-    wireSupplyListDownloadLinks(root);
     wireEventDetailsLinks(root);
   }
 
@@ -127,16 +126,10 @@
     const thumbnail = event.imageUrl
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
-    const supplyListDownloadUrl = event.supplyListUrl
-      ? event.supplyListDownloadUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
-      : '';
-    const supplyListViewUrl = event.supplyListUrl
-      ? event.supplyListProxyUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf')
-      : '';
-    const supplyListFileName = event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf';
     const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
+    const supplyListViewerUrl = event.supplyListViewerUrl || buildEventPageUrl(config.sourceUrl, event.id, 'supply-list');
     const supplyListLink = event.supplyListUrl
-      ? `<button class="vq-feed-secondary" type="button" data-supply-list-view-url="${escapeAttribute(supplyListViewUrl)}" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}" data-supply-list-file-name="${escapeAttribute(supplyListFileName)}" data-supply-list-title="${escapeAttribute(supplyListTitle)}">View/Download ${escapeHtml(supplyListTitle)}</button>`
+      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" target="_blank" rel="noopener noreferrer">View/Download ${escapeHtml(supplyListTitle)}</a>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -297,23 +290,6 @@
       link.addEventListener('click', (event) => {
         event.preventDefault();
         openImageViewer(link.dataset.imageViewerSrc || '', link.dataset.imageViewerTitle || 'Event image');
-      });
-    });
-  }
-
-  function wireSupplyListDownloadLinks(root) {
-    root.querySelectorAll('[data-supply-list-download-url]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const viewUrl = button.dataset.supplyListViewUrl || '';
-        const downloadUrl = button.dataset.supplyListDownloadUrl || '';
-        const fileName = button.dataset.supplyListFileName || 'supply-list.pdf';
-        const title = button.dataset.supplyListTitle || 'Supply List PDF';
-
-        if (!viewUrl && !downloadUrl) {
-          return;
-        }
-
-        openSupplyListPopup(viewUrl || downloadUrl, downloadUrl || viewUrl, title, fileName);
       });
     });
   }
@@ -664,6 +640,13 @@
     return `${origin}/api/file-proxy?${params.toString()}`;
   }
 
+  function buildEventPageUrl(sourceUrl, eventId, childPath = '') {
+    const origin = getSourceOrigin(sourceUrl);
+    const suffix = childPath ? `/${childPath}` : '';
+
+    return `${origin}/events/${encodeURIComponent(eventId || '')}${suffix}`;
+  }
+
   function getSourceOrigin(sourceUrl) {
     try {
       return new URL(sourceUrl, window.location.href).origin;
@@ -990,160 +973,6 @@
 </html>`);
     popup.document.close();
     popup.focus();
-  }
-
-  function openSupplyListPopup(viewUrl, downloadUrl, title, fileName) {
-    const popup = window.open('', 'vq-supply-list-viewer', 'popup,width=1000,height=900');
-
-    if (!popup) {
-      window.open(viewUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    const safeTitle = escapeHtml(title || 'Supply List PDF');
-    const safeFileName = escapeHtml(fileName || 'supply-list.pdf');
-    const safeViewUrl = escapeAttribute(viewUrl);
-    const safeDownloadUrl = escapeAttribute(downloadUrl);
-    const canPreviewPdf = navigator.userAgent.toLowerCase().includes('firefox');
-
-    popup.document.open();
-    popup.document.write(buildSupplyListViewerHtml(safeTitle, safeFileName, safeViewUrl, safeDownloadUrl, canPreviewPdf));
-    popup.document.close();
-    popup.focus();
-  }
-
-  function buildSupplyListViewerHtml(title, fileName, viewUrl, downloadUrl, canPreviewPdf) {
-    const content = canPreviewPdf
-      ? `
-      <p class="message">Use the Download button above if you want to save a copy.</p>
-      <section class="viewer-card">
-        <iframe class="pdf-frame" src="${viewUrl}" title="${title}"></iframe>
-      </section>`
-      : `
-      <section class="viewer-card download-only">
-        <p class="message">Your browser does not reliably preview this PDF here.</p>
-        <p class="message">Click Download Supply List. If nothing appears, check your browser Downloads folder.</p>
-        <a class="button primary large" href="${downloadUrl}" target="_blank" rel="noopener noreferrer" download="${fileName}">Download Supply List</a>
-      </section>`;
-
-    return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-    ${buildSupplyListViewerStyles()}
-  </head>
-  <body>
-    <main class="viewer-shell">
-      <div class="viewer-topbar">
-        <h1>${title}</h1>
-        <div class="actions">
-          <a class="button primary" href="${downloadUrl}" target="_blank" rel="noopener noreferrer" download="${fileName}">Download</a>
-          <button class="button" type="button" onclick="window.close()">Close</button>
-        </div>
-      </div>
-      ${content}
-    </main>
-  </body>
-</html>`;
-  }
-
-  function buildSupplyListViewerStyles() {
-    return `<style>
-      :root {
-        background: #f4efe8;
-        color: #1d2927;
-        font-family: Inter, Arial, sans-serif;
-      }
-      html,
-      body {
-        margin: 0;
-        min-height: 100%;
-      }
-      body {
-        padding: 22px;
-      }
-      .viewer-shell {
-        display: grid;
-        gap: 16px;
-        margin: 0 auto;
-        max-width: 960px;
-      }
-      .viewer-topbar {
-        align-items: center;
-        display: flex;
-        gap: 12px;
-        justify-content: space-between;
-      }
-      h1 {
-        font-size: 1.25rem;
-        line-height: 1.2;
-        margin: 0;
-      }
-      .actions {
-        display: inline-flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .button {
-        appearance: none;
-        background: #ffffff;
-        border: 1px solid #225c56;
-        border-radius: 999px;
-        color: #225c56;
-        cursor: pointer;
-        display: inline-flex;
-        font: inherit;
-        font-weight: 800;
-        padding: 10px 16px;
-        text-decoration: none;
-      }
-      .button.primary {
-        background: #225c56;
-        color: #ffffff;
-      }
-      .button.large {
-        font-size: 1.05rem;
-        justify-content: center;
-        margin-top: 8px;
-        padding: 13px 18px;
-      }
-      .viewer-card {
-        background: #ffffff;
-        border: 1px solid #ded5ca;
-        border-radius: 10px;
-        min-height: 70vh;
-        padding: 12px;
-      }
-      .viewer-card.download-only {
-        align-content: center;
-        display: grid;
-        justify-items: start;
-        min-height: 260px;
-        padding: 22px;
-      }
-      .pdf-frame {
-        border: 0;
-        display: block;
-        height: 76vh;
-        width: 100%;
-      }
-      .message {
-        font-size: 1rem;
-        font-weight: 800;
-        margin: 10px;
-      }
-      @media (max-width: 640px) {
-        body {
-          padding: 12px;
-        }
-        .viewer-topbar {
-          align-items: flex-start;
-          display: grid;
-        }
-      }
-    </style>`;
   }
 
   function escapeHtml(value) {
