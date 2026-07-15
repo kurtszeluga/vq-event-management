@@ -222,6 +222,26 @@ a {
   width: 100%;
 }
 
+.viewer-download-panel {
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+  padding: 22px;
+}
+
+.viewer-download-panel h2 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.viewer-download-panel p {
+  line-height: 1.55;
+  margin: 0;
+}
+
 .event-print-page .public-event-card--print {
   display: flex;
   flex-direction: column;

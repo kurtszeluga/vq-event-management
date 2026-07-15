@@ -13,6 +13,7 @@ function SupplyListViewerPage() {
   const [loading, setLoading] = useState(true);
   const inlineProxyUrl = buildProxyUrl(event, 'inline');
   const attachmentProxyUrl = buildProxyUrl(event, 'attachment');
+  const canPreviewPdf = canBrowserPreviewPdf();
 
   useEffect(() => {
     let active = true;
@@ -103,26 +104,65 @@ function SupplyListViewerPage() {
           <a
             className="button-link secondary-action"
             href={attachmentProxyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             download={event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`}
           >
             Save
           </a>
-          <button className="button-link secondary-action" type="button" onClick={handlePrint}>
-            Print
-          </button>
+          <a className="button-link secondary-action" href={inlineProxyUrl} target="_blank" rel="noopener noreferrer">
+            Open PDF
+          </a>
+          {canPreviewPdf ? (
+            <button className="button-link secondary-action" type="button" onClick={handlePrint}>
+              Print
+            </button>
+          ) : null}
           <button className="button-link" type="button" onClick={handleClose}>
             Close
           </button>
         </div>
       </div>
-      <iframe
-        ref={pdfFrameRef}
-        className="viewer-frame"
-        src={inlineProxyUrl}
-        title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
-      />
+      {canPreviewPdf ? (
+        <iframe
+          ref={pdfFrameRef}
+          className="viewer-frame"
+          src={inlineProxyUrl}
+          title={event.supplyListTitle || event.supplyListFileName || 'Supply list'}
+        />
+      ) : (
+        <div className="viewer-download-panel">
+          <h2>Supply List Ready</h2>
+          <p>
+            This browser may show a blank preview for PDFs opened from the Village Quilters site.
+            Use Save or Open PDF above to view, print, or download the supply list.
+          </p>
+          <div className="viewer-actions">
+            <a
+              className="button-link"
+              href={attachmentProxyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`}
+            >
+              Save Supply List
+            </a>
+            <a className="button-link secondary-action" href={inlineProxyUrl} target="_blank" rel="noopener noreferrer">
+              Open PDF
+            </a>
+          </div>
+        </div>
+      )}
     </section>
   );
+}
+
+function canBrowserPreviewPdf() {
+  if (typeof navigator === 'undefined') {
+    return true;
+  }
+
+  return navigator.userAgent.toLowerCase().includes('firefox');
 }
 
 function buildProxyUrl(event, disposition) {
