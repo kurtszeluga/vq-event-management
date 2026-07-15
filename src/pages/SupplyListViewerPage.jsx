@@ -8,6 +8,7 @@ function SupplyListViewerPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const pdfFrameRef = useRef(null);
+  const [downloadMessage, setDownloadMessage] = useState('');
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -70,6 +71,17 @@ function SupplyListViewerPage() {
     }, 150);
   }
 
+  function handleDownload() {
+    if (!attachmentProxyUrl) {
+      return;
+    }
+
+    setDownloadMessage('Starting download. If nothing appears, check your Downloads folder.');
+    window.setTimeout(() => {
+      window.location.assign(attachmentProxyUrl);
+    }, 50);
+  }
+
   if (loading) {
     return (
       <section className="viewer-page">
@@ -101,13 +113,9 @@ function SupplyListViewerPage() {
           <h1>{event.supplyListTitle || event.supplyListFileName || event.title}</h1>
         </div>
         <div className="viewer-actions">
-          <a
-            className="button-link secondary-action"
-            href={attachmentProxyUrl}
-            download={event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`}
-          >
+          <button className="button-link button-reset secondary-action" type="button" onClick={handleDownload}>
             Save
-          </a>
+          </button>
           {canPreviewPdf ? (
             <a className="button-link secondary-action" href={inlineProxyUrl} target="_blank" rel="noopener noreferrer">
               Open PDF
@@ -123,6 +131,7 @@ function SupplyListViewerPage() {
           </button>
         </div>
       </div>
+      {downloadMessage ? <p className="form-success">{downloadMessage}</p> : null}
       {canPreviewPdf ? (
         <iframe
           ref={pdfFrameRef}
@@ -138,13 +147,9 @@ function SupplyListViewerPage() {
             Use Save Supply List below to download it, then open it from your Downloads folder to view or print.
           </p>
           <div className="viewer-actions">
-            <a
-              className="button-link"
-              href={attachmentProxyUrl}
-              download={event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`}
-            >
+            <button className="button-link button-reset" type="button" onClick={handleDownload}>
               Save Supply List
-            </a>
+            </button>
           </div>
         </div>
       )}
