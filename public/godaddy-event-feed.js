@@ -135,6 +135,7 @@
       : '';
     const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
     const availabilityTone = event.registrationIsFull ? 'is-waitlist' : 'is-open';
+    const registrationStats = getRegistrationStats(event);
     const eventPrintPayload = escapeAttribute(JSON.stringify(event));
 
     return `
@@ -167,6 +168,14 @@
             ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
             <div><dt>Cost</dt><dd>${escapeHtml(cost)}</dd></div>
           </dl>
+          <div class="vq-feed-registration-stats" aria-label="Registration statistics">
+            ${registrationStats.map((stat) => `
+              <span class="${stat.tone ? `is-${stat.tone}` : ''}">
+                <strong>${escapeHtml(stat.value)}</strong>
+                ${escapeHtml(stat.label)}
+              </span>
+            `).join('')}
+          </div>
           <div class="vq-feed-actions">
             ${supplyListLink}
             <button class="vq-feed-secondary" type="button" data-event-print="${eventPrintPayload}">Print ${escapeHtml(event.eventType)}</button>
@@ -224,6 +233,33 @@
     return Number(event.registeredCount || 0) >= capacity
       ? { isFull: true, label: 'Full - waitlist available' }
       : { isFull: false, label: 'Seats available' };
+  }
+
+  function getRegistrationStats(event) {
+    const registered = Number(event.registeredCount || 0);
+    const waitlisted = Number(event.waitlistedCount || 0);
+
+    if (event.capacityUnlimited) {
+      return [
+        { label: 'Capacity', value: 'Unlimited' },
+        { label: 'Registered', value: String(registered) },
+        { label: 'Waitlisted', tone: waitlisted ? 'waitlist' : '', value: String(waitlisted) }
+      ];
+    }
+
+    const capacity = Number(event.capacity || 0);
+    const remaining = capacity ? Math.max(capacity - registered, 0) : null;
+
+    return [
+      { label: 'Capacity', value: capacity ? String(capacity) : 'Not Set' },
+      { label: 'Registered', value: String(registered) },
+      { label: 'Waitlisted', tone: waitlisted ? 'waitlist' : '', value: String(waitlisted) },
+      {
+        label: registered >= capacity && capacity ? 'Waitlist Available' : 'Open Seats',
+        tone: registered >= capacity && capacity ? 'waitlist' : 'open',
+        value: remaining === null ? 'N/A' : String(remaining)
+      }
+    ];
   }
 
   function wireDescriptionToggles(root) {
@@ -499,6 +535,37 @@
       }
       .vq-feed-meta dd {
         margin: 0;
+      }
+      .vq-feed-registration-stats {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0 0;
+      }
+      .vq-feed-registration-stats span {
+        background: #f7f1e8;
+        border: 1px solid #decfbd;
+        border-radius: 999px;
+        color: #36433f;
+        display: inline-flex;
+        font-size: 0.82rem;
+        font-weight: 800;
+        gap: 4px;
+        padding: 6px 10px;
+      }
+      .vq-feed-registration-stats strong {
+        color: #1d2927;
+      }
+      .vq-feed-registration-stats .is-open {
+        background: #e7f6ea;
+        border-color: #8bc79a;
+        color: #1f6a31;
+      }
+      .vq-feed-registration-stats .is-waitlist {
+        background: #fff3c4;
+        border-color: #ddc66b;
+        color: #7a5200;
       }
       .vq-feed-actions {
         display: flex;

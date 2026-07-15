@@ -438,7 +438,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       <div className="registration-admin-list">
         {groupedRegistrations.map((group) => {
           const eventTitle = getEventDisplayTitle(group.event, group.eventId, group.snapshot);
-          const capacitySummary = getCapacitySummary(group.event, group.counts.registered);
 
           return (
             <article className="registration-admin-card" key={group.eventId}>
@@ -453,12 +452,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     {formatEventDate(group.event?.date || group.snapshot.eventDate)}
                     {group.event?.location ? ` | ${group.event.location}` : ''}
                   </p>
-                </div>
-                <div className="registration-admin-metrics">
-                  <span className="registration-capacity-pill">{capacitySummary}</span>
-                  <span><strong>{group.counts.registered}</strong> Registered</span>
-                  <span><strong>{group.counts.waitlisted}</strong> Waitlisted</span>
-                  <span><strong>{group.counts.cancelled}</strong> Cancelled</span>
                 </div>
               </div>
               <div className="user-table-wrap">
@@ -504,13 +497,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                 >
                                   {isExpanded ? 'Hide Details' : 'Details'}
                                 </button>
-                                <button
-                                  className="button-link button-reset secondary-action compact-action"
-                                  type="button"
-                                  onClick={() => handleOpenEdit(registration)}
-                                >
-                                  Edit
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -518,7 +504,22 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                             <tr className="registration-detail-row">
                               <td colSpan="7">
                                 <div className="registration-inline-details">
-                                  <div className="registration-detail-grid">
+                                  <div className="registration-detail-summary">
+                                    <div>
+                                      <span>{getCapacitySummary(group.event, group.counts.registered)}</span>
+                                      <span>{group.counts.registered} Registered</span>
+                                      <span>{group.counts.waitlisted} Waitlisted</span>
+                                      <span>{group.counts.cancelled} Cancelled</span>
+                                    </div>
+                                    <button
+                                      className="button-link button-reset secondary-action compact-action"
+                                      type="button"
+                                      onClick={() => handleOpenEdit(registration)}
+                                    >
+                                      Edit Registration
+                                    </button>
+                                  </div>
+                                  <dl className="registration-detail-grid">
                                     <DetailItem
                                       label="Event / Activity"
                                       value={getEventDisplayTitle(group.event, group.eventId, registration)}
@@ -550,7 +551,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                       value={registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
                                     />
                                     <DetailItem label="Payment Note" value={registration.paymentNote || 'None'} />
-                                  </div>
+                                  </dl>
                                 </div>
                               </td>
                             </tr>
