@@ -73,7 +73,6 @@
 
     wireDescriptionToggles(root);
     wireImageViewerLinks(root);
-    wireSupplyListLinks(root, config);
     wireEventDetailsLinks(root);
   }
 
@@ -128,7 +127,7 @@
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListLink = event.supplyListUrl
-      ? `<button class="vq-feed-secondary" type="button" data-supply-list-url="${escapeAttribute(event.supplyListUrl)}" data-supply-list-title="${escapeAttribute(event.supplyListTitle || 'Supply list')}" data-supply-list-file-name="${escapeAttribute(event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`)}">View and print ${escapeHtml(event.supplyListTitle || 'document')}</button>`
+      ? `<a class="vq-feed-secondary" href="${escapeAttribute(event.supplyListUrl)}" target="_blank" rel="noopener noreferrer">Open ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</a>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -289,19 +288,6 @@
       link.addEventListener('click', (event) => {
         event.preventDefault();
         openImageViewer(link.dataset.imageViewerSrc || '', link.dataset.imageViewerTitle || 'Event image');
-      });
-    });
-  }
-
-  function wireSupplyListLinks(root, config) {
-    root.querySelectorAll('[data-supply-list-url]').forEach((button) => {
-      button.addEventListener('click', () => {
-        openSupplyListPopup(
-          button.dataset.supplyListUrl || '',
-          button.dataset.supplyListTitle || 'Supply list',
-          button.dataset.supplyListFileName || 'supply-list.pdf',
-          config.sourceUrl
-        );
       });
     });
   }
@@ -639,168 +625,6 @@
     return eventType === 'Lecture'
       || eventType === 'Class (Half Day)'
       || eventType === 'Class (Full Day)';
-  }
-
-  function openSupplyListPopup(pdfUrl, title, fileName, sourceUrl) {
-    if (!pdfUrl) {
-      return;
-    }
-
-    const popup = window.open('', 'vq-supply-list', 'popup,width=1100,height=900');
-
-    if (!popup) {
-      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    const html = buildSupplyListHtml(pdfUrl, title, fileName, sourceUrl);
-
-    popup.document.open();
-    popup.document.write(html);
-    popup.document.close();
-    popup.focus();
-  }
-
-  function getSourceOrigin(sourceUrl) {
-    try {
-      return new URL(sourceUrl, window.location.href).origin;
-    } catch {
-      return window.location.origin;
-    }
-  }
-
-  function buildSupplyListHtml(pdfUrl, title, fileName, sourceUrl) {
-    const safeTitle = escapeHtml(title || 'Supply list');
-    const proxyOrigin = getSourceOrigin(sourceUrl);
-    const inlineUrl = buildProxyUrl(proxyOrigin, pdfUrl, fileName, 'inline');
-
-    return `<!doctype html>
-  <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>${safeTitle}</title>
-      <style>
-        :root {
-          background: #f4efe8;
-          color: #1d2927;
-          font-family: Inter, Arial, sans-serif;
-        }
-        html,
-        body {
-          height: 100%;
-          margin: 0;
-        }
-        body {
-          display: flex;
-          flex-direction: column;
-        }
-        .viewer-toolbar {
-          align-items: center;
-          background: #ffffff;
-          border-bottom: 1px solid #ded5ca;
-          display: flex;
-          gap: 14px;
-          justify-content: space-between;
-          padding: 14px 18px;
-        }
-        .viewer-title {
-          display: grid;
-          gap: 2px;
-          min-width: 0;
-        }
-        .viewer-title span {
-          color: #9a4d2f;
-          font-size: 12px;
-          font-weight: 800;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-        h1 {
-          font-size: 20px;
-          line-height: 1.2;
-          margin: 0;
-        }
-        .viewer-actions {
-          display: inline-flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          justify-content: flex-end;
-        }
-        .viewer-button {
-          appearance: none;
-          background: #225c56;
-          border: 1px solid #225c56;
-          border-radius: 999px;
-          color: #ffffff;
-          cursor: pointer;
-          display: inline-flex;
-          font: inherit;
-          font-weight: 700;
-          padding: 9px 14px;
-          text-decoration: none;
-        }
-        .viewer-button.secondary {
-          background: #ffffff;
-          color: #225c56;
-        }
-        .viewer-frame {
-          background: #ffffff;
-          border: 0;
-          flex: 1 1 auto;
-          width: 100%;
-        }
-        .viewer-help {
-          background: #fff8dc;
-          border-top: 1px solid #ddc66b;
-          color: #5b4a10;
-          font-size: 14px;
-          padding: 8px 18px;
-        }
-        @media print {
-          .viewer-toolbar,
-          .viewer-help {
-            display: none;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <header class="viewer-toolbar">
-        <div class="viewer-title">
-          <span>Supply List</span>
-          <h1>${safeTitle}</h1>
-        </div>
-        <div class="viewer-actions">
-          <button class="viewer-button" type="button" onclick="triggerPrint()">Print</button>
-          <button class="viewer-button secondary" type="button" onclick="window.close()">Close</button>
-        </div>
-      </header>
-      <iframe class="viewer-frame" src="${escapeAttribute(inlineUrl)}" title="${safeTitle}"></iframe>
-      <div class="viewer-help">Use Print to print or save the supply list from your browser print dialog.</div>
-      <script>
-        function triggerPrint() {
-          window.focus();
-          window.setTimeout(function () {
-            try {
-              window.print();
-            } catch (error) {}
-          }, 100);
-        }
-      </script>
-    </body>
-  </html>`;
-  }
-
-  function buildProxyUrl(origin, pdfUrl, fileName, disposition) {
-    const params = new URLSearchParams({
-      cv: '20260714-9',
-      disposition,
-      filename: fileName || 'supply-list.pdf',
-      url: pdfUrl
-    });
-
-    return `${origin}/api/file-proxy?${params.toString()}`;
   }
 
   function openEventDetailsPopup(event) {
