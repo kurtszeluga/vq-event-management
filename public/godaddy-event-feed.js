@@ -73,6 +73,7 @@
 
     wireDescriptionToggles(root);
     wireImageViewerLinks(root);
+    wireSupplyListLinks(root);
     wireEventDetailsLinks(root);
   }
 
@@ -129,7 +130,7 @@
     const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
     const supplyListViewerUrl = event.supplyListViewerUrl || buildEventPageUrl(config.sourceUrl, event.id, 'supply-list');
     const supplyListLink = event.supplyListUrl
-      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" target="_blank" rel="noopener noreferrer">View/Download ${escapeHtml(supplyListTitle)}</a>`
+      ? `<button class="vq-feed-secondary" type="button" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</button>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -290,6 +291,24 @@
       link.addEventListener('click', (event) => {
         event.preventDefault();
         openImageViewer(link.dataset.imageViewerSrc || '', link.dataset.imageViewerTitle || 'Event image');
+      });
+    });
+  }
+
+  function wireSupplyListLinks(root) {
+    root.querySelectorAll('[data-supply-list-url]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const url = button.dataset.supplyListUrl || '';
+
+        if (!url) {
+          return;
+        }
+
+        try {
+          window.top.location.href = url;
+        } catch {
+          window.location.href = url;
+        }
       });
     });
   }
