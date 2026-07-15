@@ -396,10 +396,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                   </p>
                 </div>
                 <div className="registration-admin-metrics">
-                  <span>{capacitySummary}</span>
-                  <span>Registered: {group.counts.registered}</span>
-                  <span>Waitlisted: {group.counts.waitlisted}</span>
-                  <span>Cancelled: {group.counts.cancelled}</span>
+                  <span className="registration-capacity-pill">{capacitySummary}</span>
+                  <span><strong>{group.counts.registered}</strong> Registered</span>
+                  <span><strong>{group.counts.waitlisted}</strong> Waitlisted</span>
+                  <span><strong>{group.counts.cancelled}</strong> Cancelled</span>
                 </div>
               </div>
               <div className="user-table-wrap">

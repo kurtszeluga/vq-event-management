@@ -165,6 +165,17 @@ function AdminDashboardPage() {
         </span>
       </div>
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
+        {canViewRegistrations ? (
+          <button
+            className={`button-link button-reset ${
+              activeModule === 'registrations' ? '' : 'secondary-action'
+            }`}
+            type="button"
+            onClick={() => setActiveModule('registrations')}
+          >
+            View Current Registrations
+          </button>
+        ) : null}
         {canManageEvents ? (
           <>
             <button
@@ -214,17 +225,6 @@ function AdminDashboardPage() {
             onClick={() => setActiveModule('user-controls')}
           >
             User Controls
-          </button>
-        ) : null}
-        {canViewRegistrations ? (
-          <button
-            className={`button-link button-reset ${
-              activeModule === 'registrations' ? '' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={() => setActiveModule('registrations')}
-          >
-            Registrations
           </button>
         ) : null}
         {isSuperUser ? (
