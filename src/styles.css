@@ -1675,6 +1675,92 @@ body.popup-mode .page-content {
   margin-bottom: 22px;
 }
 
+.registration-admin-controls {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 220px)) minmax(280px, 1fr);
+  margin-top: 18px;
+}
+
+.registration-admin-controls label {
+  display: grid;
+  gap: 8px;
+}
+
+.registration-admin-controls label span {
+  color: #3b4b48;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.registration-admin-controls input,
+.registration-admin-controls select,
+.registration-status-select {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
+  height: 44px;
+  padding: 8px 12px;
+  width: 100%;
+}
+
+.registration-search-label {
+  min-width: 0;
+}
+
+.registration-admin-list {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.registration-admin-card {
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.registration-admin-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.registration-admin-card-header h3,
+.registration-admin-card-header p {
+  margin: 0;
+}
+
+.registration-admin-card-header p {
+  color: #5c6966;
+}
+
+.registration-admin-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.registration-admin-metrics span {
+  background: #e9f2ef;
+  border: 1px solid #cfe3de;
+  border-radius: 999px;
+  color: #225c56;
+  font-size: 0.92rem;
+  font-weight: 900;
+  padding: 7px 12px;
+}
+
+.registration-table {
+  min-width: 980px;
+}
+
 .pending-review-panel {
   margin-top: 18px;
 }

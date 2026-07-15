@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader.jsx';
 import ConfigurationPanel from '../components/admin/ConfigurationPanel.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
 import EventList from '../components/admin/EventList.jsx';
+import RegistrationPanel from '../components/admin/RegistrationPanel.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
@@ -24,6 +25,7 @@ function AdminDashboardPage() {
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
   const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
+  const canViewRegistrations = hasPermission('viewRegistrations');
 
   useEffect(() => {
     if (location.state?.module) {
@@ -214,6 +216,17 @@ function AdminDashboardPage() {
             User Controls
           </button>
         ) : null}
+        {canViewRegistrations ? (
+          <button
+            className={`button-link button-reset ${
+              activeModule === 'registrations' ? '' : 'secondary-action'
+            }`}
+            type="button"
+            onClick={() => setActiveModule('registrations')}
+          >
+            Registrations
+          </button>
+        ) : null}
         {isSuperUser ? (
           <button
             className={`button-link button-reset ${
@@ -307,10 +320,16 @@ function AdminDashboardPage() {
             initialQuickFilter={userControlsQuickFilter}
           />
         ) : null}
+        {canViewRegistrations && activeModule === 'registrations' ? (
+          <RegistrationPanel
+            canManageEvents={canManageEvents}
+            currentUserProfile={userProfile}
+          />
+        ) : null}
         {isSuperUser && activeModule === 'configuration' ? (
           <ConfigurationPanel currentUserProfile={userProfile} />
         ) : null}
-        {!canManageEvents && !isSuperUser && !canAddUsers ? (
+        {!canManageEvents && !isSuperUser && !canAddUsers && !canViewRegistrations ? (
           <div className="empty-state">
             <h2>No Admin Modules Enabled</h2>
             <p>Ask the Super User to update this profile's permissions.</p>
