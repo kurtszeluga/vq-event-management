@@ -300,16 +300,26 @@
     root.querySelectorAll('[data-supply-list-download-url]').forEach((button) => {
       button.addEventListener('click', () => {
         const url = button.dataset.supplyListDownloadUrl || '';
+        const originalText = button.textContent;
 
         if (!url) {
           return;
         }
 
-        const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        const iframe = document.createElement('iframe');
+        iframe.hidden = true;
+        iframe.title = 'Supply list download';
+        iframe.src = url;
+        document.body.appendChild(iframe);
 
-        if (!openedWindow) {
-          window.location.href = url;
-        }
+        button.textContent = 'Download Started';
+        window.setTimeout(() => {
+          button.textContent = originalText;
+        }, 3000);
+
+        window.setTimeout(() => {
+          iframe.remove();
+        }, 60000);
       });
     });
   }
