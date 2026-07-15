@@ -1272,11 +1272,13 @@ function EventForm({
                   handleAllowNonMemberRegistration(event.target.checked)
                 }
               />
-              <span>Allow Non-Members To Register</span>
+              <span className="checkbox-label-copy">
+                <span>Allow Non-Members To Register</span>
+                <span className="form-help">
+                  Use only for rare events where Guild membership is not required.
+                </span>
+              </span>
             </label>
-            <span className="form-help">
-              Use only for rare events where Guild membership is not required.
-            </span>
           </div>
           ) : null}
         </div>

@@ -131,6 +131,8 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
           'registrationId',
           'eventId',
+          'amountDue',
+          'amountPaid',
           'eventCost',
           'eventDate',
           'eventPaymentRequired',
@@ -147,10 +149,15 @@ service cloud.firestore {
           'registrationDate',
           'registrantFirstName',
           'registrantLastName',
+          'paymentMethod',
+          'paymentNote',
           'paymentStatus',
+          'paymentUpdatedDate',
           'status'
         ])
         && request.resource.data.eventId is string
+        && (!('amountDue' in request.resource.data) || request.resource.data.amountDue is number)
+        && (!('amountPaid' in request.resource.data) || request.resource.data.amountPaid is number)
         && (!('eventCost' in request.resource.data) || request.resource.data.eventCost is number)
         && (!('eventDate' in request.resource.data) || request.resource.data.eventDate is string)
         && (!('eventPaymentRequired' in request.resource.data) || request.resource.data.eventPaymentRequired is bool)
@@ -169,7 +176,12 @@ service cloud.firestore {
         && request.resource.data.registrationDate is timestamp
         && (!('registrantFirstName' in request.resource.data) || request.resource.data.registrantFirstName is string)
         && (!('registrantLastName' in request.resource.data) || request.resource.data.registrantLastName is string)
-        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded'])
+        && (!('paymentMethod' in request.resource.data)
+          || validStatus(request.resource.data.paymentMethod, ['None', 'Online', 'Cash', 'Check', 'Comped']))
+        && (!('paymentNote' in request.resource.data) || request.resource.data.paymentNote is string)
+        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived'])
+        && (!('paymentUpdatedDate' in request.resource.data)
+          || request.resource.data.paymentUpdatedDate is timestamp)
         && validStatus(request.resource.data.status, ['Registered', 'Cancelled', 'Waitlisted'])
         && (!('userId' in request.resource.data) || request.resource.data.userId is string)
         && (hasPermission('viewRegistrations')

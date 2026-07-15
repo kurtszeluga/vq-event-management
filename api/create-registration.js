@@ -86,6 +86,9 @@ async function createRegistration(db, payload) {
     const hasCapacity = Boolean(event.capacityUnlimited) || registeredCount < Number(event.capacity || 0);
     const status = hasCapacity ? 'Registered' : 'Waitlisted';
     const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
+    const eventCost = Number(event.cost || 0);
+    const eventServiceFee = Number(event.serviceFee || 0);
+    const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
     const userId = profile?.userId || profile?.id || '';
     const profileUpdates = payload.profileUpdates || {};
     const registrantFirstName = profileUpdates.firstName || profile?.firstName || getFirstName(payload.name);
@@ -93,15 +96,20 @@ async function createRegistration(db, payload) {
     const registration = {
       email: payload.email,
       eventId: payload.eventId,
-      eventCost: Number(event.cost || 0),
+      amountDue,
+      amountPaid: isPaidEvent ? 0 : amountDue,
+      eventCost,
       eventDate: event.date || '',
       eventPaymentRequired: isPaidEvent,
-      eventServiceFee: Number(event.serviceFee || 0),
+      eventServiceFee,
       eventTitle: event.title || '',
       eventType: event.eventType || '',
       name: payload.name,
       membershipStatusAtRegistration: membershipStatus,
+      paymentMethod: 'None',
+      paymentNote: '',
       paymentStatus: isPaidEvent ? 'Pending' : 'Paid',
+      paymentUpdatedDate: FieldValue.serverTimestamp(),
       phone: payload.phone,
       profileMatchedAtRegistration: Boolean(profile),
       profileStatusAtRegistration: profileStatus || '',

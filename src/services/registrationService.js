@@ -118,6 +118,42 @@ export async function updateRegistrationStatus(registrationId, status, actorProf
   return batch.commit();
 }
 
+export async function updateRegistrationPayment(registrationId, paymentData, actorProfile) {
+  const registrationRef = doc(db, 'registrations', registrationId);
+  const registrationSnap = await getDoc(registrationRef);
+
+  if (!registrationSnap.exists()) {
+    throw new Error('Registration record could not be found.');
+  }
+
+  const before = registrationSnap.data();
+  const updatePayload = {
+    amountPaid: Number(paymentData.amountPaid || 0),
+    paymentMethod: paymentData.paymentMethod || 'None',
+    paymentNote: paymentData.paymentNote || '',
+    paymentStatus: paymentData.paymentStatus || 'Pending',
+    paymentUpdatedDate: serverTimestamp()
+  };
+  const batch = writeBatch(db);
+
+  batch.update(registrationRef, updatePayload);
+  batch.set(doc(auditLogsCollection()), {
+    action: updatePayload.paymentStatus === 'Refunded' ? 'Refund' : 'Pay',
+    actorEmail: actorProfile?.email || '',
+    actorName: actorProfile?.name || actorProfile?.email || 'Unknown Admin',
+    actorRole: actorProfile?.role || '',
+    actorUserId: actorProfile?.userId || actorProfile?.id || '',
+    after: updatePayload,
+    before,
+    createdDate: serverTimestamp(),
+    entityId: registrationId,
+    entityType: 'Registration',
+    summary: `Updated payment for "${before.name || before.email || registrationId}" to ${updatePayload.paymentStatus}`
+  });
+
+  return batch.commit();
+}
+
 async function parseJsonResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   const bodyText = await response.text();

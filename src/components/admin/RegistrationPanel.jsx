@@ -5,13 +5,15 @@ import {
 } from '../../services/eventService.js';
 import {
   subscribeToRegistrations,
+  updateRegistrationPayment,
   updateRegistrationStatus
 } from '../../services/registrationService.js';
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatEventDate } from '../../utils/eventFormat.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Registered', 'Waitlisted', 'Cancelled'];
-const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded'];
+const PAYMENT_METHOD_OPTIONS = ['None', 'Online', 'Cash', 'Check', 'Comped'];
+const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
 
 function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [error, setError] = useState('');
@@ -24,6 +26,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
+  const [selectedPaymentAmount, setSelectedPaymentAmount] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('None');
+  const [selectedPaymentNote, setSelectedPaymentNote] = useState('');
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('Pending');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
@@ -112,13 +118,27 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           counts.paid += 1;
         } else if (registration.paymentStatus === 'Refunded') {
           counts.refunded += 1;
+        } else if (registration.paymentStatus === 'Failed') {
+          counts.failed += 1;
+        } else if (registration.paymentStatus === 'Waived') {
+          counts.waived += 1;
         } else {
           counts.pending += 1;
         }
 
         return counts;
       },
-      { cancelled: 0, paid: 0, pending: 0, refunded: 0, registered: 0, total: 0, waitlisted: 0 }
+      {
+        cancelled: 0,
+        failed: 0,
+        paid: 0,
+        pending: 0,
+        refunded: 0,
+        registered: 0,
+        total: 0,
+        waived: 0,
+        waitlisted: 0
+      }
     ),
     [registrations]
   );
@@ -154,6 +174,8 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           registration.phone,
           registration.status,
           registration.paymentStatus,
+          registration.paymentMethod,
+          registration.paymentNote,
           registration.membershipStatusAtRegistration,
           event?.title,
           event?.eventType,
@@ -260,6 +282,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSuccessMessage('');
     setSelectedRegistrationId(registration.id);
     setSelectedStatus(registration.status || 'Registered');
+    setSelectedPaymentAmount(String(registration.amountPaid ?? ''));
+    setSelectedPaymentMethod(registration.paymentMethod || 'None');
+    setSelectedPaymentNote(registration.paymentNote || '');
+    setSelectedPaymentStatus(registration.paymentStatus || 'Pending');
   }
 
   function handleCloseDetails() {
@@ -268,6 +294,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     }
 
     setSelectedRegistrationId('');
+    setSelectedPaymentAmount('');
+    setSelectedPaymentMethod('None');
+    setSelectedPaymentNote('');
+    setSelectedPaymentStatus('Pending');
     setSelectedStatus('');
   }
 
@@ -286,9 +316,46 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       await updateRegistrationStatus(selectedRegistration.id, nextStatus, currentUserProfile);
       setSuccessMessage('Registration updated.');
       setSelectedRegistrationId('');
+      setSelectedPaymentAmount('');
+      setSelectedPaymentMethod('None');
+      setSelectedPaymentNote('');
+      setSelectedPaymentStatus('Pending');
       setSelectedStatus('');
     } catch (saveError) {
       setError(saveError.message || 'Registration could not be updated.');
+    } finally {
+      setSavingRegistrationId('');
+    }
+  }
+
+  async function handleSavePayment() {
+    if (!selectedRegistration) {
+      return;
+    }
+
+    const amountPaid = Number(selectedPaymentAmount || 0);
+    const nextPayment = {
+      amountPaid,
+      paymentMethod: selectedPaymentMethod,
+      paymentNote: selectedPaymentNote.trim(),
+      paymentStatus: selectedPaymentStatus
+    };
+
+    setError('');
+    setSuccessMessage('');
+    setSavingRegistrationId(selectedRegistration.id);
+
+    try {
+      await updateRegistrationPayment(selectedRegistration.id, nextPayment, currentUserProfile);
+      setSuccessMessage('Payment updated.');
+      setSelectedRegistrationId('');
+      setSelectedPaymentAmount('');
+      setSelectedPaymentMethod('None');
+      setSelectedPaymentNote('');
+      setSelectedPaymentStatus('Pending');
+      setSelectedStatus('');
+    } catch (saveError) {
+      setError(saveError.message || 'Payment could not be updated.');
     } finally {
       setSavingRegistrationId('');
     }
@@ -320,6 +387,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         <span>Cancelled: {registrationSummary.cancelled}</span>
         <span>Pending Payment: {registrationSummary.pending}</span>
         <span>Paid: {registrationSummary.paid}</span>
+        <span>Waived: {registrationSummary.waived}</span>
       </div>
       <div className="registration-admin-controls">
         <label>
@@ -436,7 +504,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                           <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
                           <td data-label="Membership">{user?.membershipStatus || 'Unknown'}</td>
                           <td data-label="Registration Status">{registration.status || 'Registered'}</td>
-                          <td data-label="Payment">{registration.paymentStatus || 'Pending'}</td>
+                          <td data-label="Payment">{formatPaymentSummary(registration)}</td>
                           <td data-label="Profile">
                             {registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
                           </td>
@@ -507,27 +575,82 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 label="Membership When Registered"
                 value={selectedRegistration.membershipStatusAtRegistration || 'Unknown'}
               />
-              <DetailItem label="Payment Status" value={selectedRegistration.paymentStatus || 'Pending'} />
+              <DetailItem label="Amount Due" value={formatCurrencyValue(getAmountDue(selectedRegistration))} />
+              <DetailItem label="Amount Paid" value={formatCurrencyValue(selectedRegistration.amountPaid || 0)} />
+              <DetailItem label="Payment Status" value={formatPaymentSummary(selectedRegistration)} />
+              <DetailItem label="Payment Updated" value={formatDateTime(selectedRegistration.paymentUpdatedDate)} />
               <DetailItem
                 label="Profile"
                 value={selectedRegistration.userId ? 'Matched Profile' : 'Guest / Email Only'}
               />
             </div>
             {error ? <p className="form-error">{error}</p> : null}
-            <label className="registration-modal-status">
-              <span>Registration Status</span>
-              <select
-                className="registration-status-select"
-                value={selectedStatus}
-                onChange={(event) => setSelectedStatus(event.target.value)}
-              >
-                {REGISTRATION_STATUS_FILTERS.filter((status) => status !== 'All').map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="registration-edit-section">
+              <h3>Registration Status</h3>
+              <label className="registration-modal-status">
+                <span>Registration Status</span>
+                <select
+                  className="registration-status-select"
+                  value={selectedStatus}
+                  onChange={(event) => setSelectedStatus(event.target.value)}
+                >
+                  {REGISTRATION_STATUS_FILTERS.filter((status) => status !== 'All').map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="registration-edit-section">
+              <h3>Payment</h3>
+              <div className="registration-payment-grid">
+                <label>
+                  <span>Payment Status</span>
+                  <select
+                    value={selectedPaymentStatus}
+                    onChange={(event) => setSelectedPaymentStatus(event.target.value)}
+                  >
+                    {PAYMENT_STATUS_FILTERS.filter((status) => status !== 'All').map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Payment Method</span>
+                  <select
+                    value={selectedPaymentMethod}
+                    onChange={(event) => setSelectedPaymentMethod(event.target.value)}
+                  >
+                    {PAYMENT_METHOD_OPTIONS.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Amount Paid</span>
+                  <input
+                    min="0"
+                    step="0.01"
+                    type="number"
+                    value={selectedPaymentAmount}
+                    onChange={(event) => setSelectedPaymentAmount(event.target.value)}
+                  />
+                </label>
+                <label className="registration-payment-note">
+                  <span>Payment Note</span>
+                  <textarea
+                    rows="3"
+                    value={selectedPaymentNote}
+                    onChange={(event) => setSelectedPaymentNote(event.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
             <div className="form-actions">
               <button
                 className="button-link button-reset"
@@ -539,6 +662,22 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 onClick={handleSaveStatus}
               >
                 {savingRegistrationId === selectedRegistration.id ? 'Saving...' : 'Save Status'}
+              </button>
+              <button
+                className="button-link button-reset"
+                disabled={
+                  savingRegistrationId === selectedRegistration.id
+                  || !hasPaymentChanged(selectedRegistration, {
+                    amountPaid: selectedPaymentAmount,
+                    paymentMethod: selectedPaymentMethod,
+                    paymentNote: selectedPaymentNote,
+                    paymentStatus: selectedPaymentStatus
+                  })
+                }
+                type="button"
+                onClick={handleSavePayment}
+              >
+                {savingRegistrationId === selectedRegistration.id ? 'Saving...' : 'Save Payment'}
               </button>
               <button
                 className="button-link button-reset secondary-action"
@@ -589,6 +728,36 @@ function formatDateTime(value) {
 
   const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
   return Number.isNaN(date.getTime()) ? 'Not Set' : date.toLocaleString();
+}
+
+function formatCurrencyValue(value) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString(undefined, {
+    currency: 'USD',
+    style: 'currency'
+  });
+}
+
+function formatPaymentSummary(registration) {
+  const status = registration.paymentStatus || 'Pending';
+  const method = registration.paymentMethod || 'None';
+
+  return method === 'None' ? status : `${status} (${method})`;
+}
+
+function getAmountDue(registration) {
+  if (registration.amountDue !== undefined) {
+    return registration.amountDue;
+  }
+
+  return Number(registration.eventCost || 0) + Number(registration.eventServiceFee || 0);
+}
+
+function hasPaymentChanged(registration, paymentEdit) {
+  return Number(paymentEdit.amountPaid || 0) !== Number(registration.amountPaid || 0)
+    || paymentEdit.paymentMethod !== (registration.paymentMethod || 'None')
+    || paymentEdit.paymentNote.trim() !== (registration.paymentNote || '')
+    || paymentEdit.paymentStatus !== (registration.paymentStatus || 'Pending');
 }
 
 function getEventSortValue(event) {
