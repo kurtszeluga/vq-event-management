@@ -511,13 +511,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                       <span>{group.counts.waitlisted} Waitlisted</span>
                                       <span>{group.counts.cancelled} Cancelled</span>
                                     </div>
-                                    <button
-                                      className="button-link button-reset secondary-action compact-action"
-                                      type="button"
-                                      onClick={() => handleOpenEdit(registration)}
-                                    >
-                                      Edit Registration
-                                    </button>
                                   </div>
                                   <dl className="registration-detail-grid">
                                     <DetailItem
