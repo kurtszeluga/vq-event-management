@@ -104,15 +104,15 @@ function SupplyListViewerPage() {
           <a
             className="button-link secondary-action"
             href={attachmentProxyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
             download={event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`}
           >
             Save
           </a>
-          <a className="button-link secondary-action" href={inlineProxyUrl} target="_blank" rel="noopener noreferrer">
-            Open PDF
-          </a>
+          {canPreviewPdf ? (
+            <a className="button-link secondary-action" href={inlineProxyUrl} target="_blank" rel="noopener noreferrer">
+              Open PDF
+            </a>
+          ) : null}
           {canPreviewPdf ? (
             <button className="button-link secondary-action" type="button" onClick={handlePrint}>
               Print
@@ -135,20 +135,15 @@ function SupplyListViewerPage() {
           <h2>Supply List Ready</h2>
           <p>
             This browser may show a blank preview for PDFs opened from the Village Quilters site.
-            Use Save or Open PDF above to view, print, or download the supply list.
+            Use Save Supply List below to download it, then open it from your Downloads folder to view or print.
           </p>
           <div className="viewer-actions">
             <a
               className="button-link"
               href={attachmentProxyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
               download={event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`}
             >
               Save Supply List
-            </a>
-            <a className="button-link secondary-action" href={inlineProxyUrl} target="_blank" rel="noopener noreferrer">
-              Open PDF
             </a>
           </div>
         </div>
