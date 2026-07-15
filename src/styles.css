@@ -269,6 +269,19 @@ body.popup-mode .page-content {
   line-height: 1.7;
 }
 
+.admin-dashboard-page {
+  margin-top: calc(clamp(32px, 7vw, 72px) * -0.45);
+}
+
+.admin-dashboard-page .page-header h1 {
+  font-size: clamp(2rem, 3vw, 3.25rem);
+  margin-bottom: 12px;
+}
+
+.admin-dashboard-page .page-header span {
+  line-height: 1.45;
+}
+
 .feature-grid {
   display: grid;
   gap: 18px;

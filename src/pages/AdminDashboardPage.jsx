@@ -152,18 +152,12 @@ function AdminDashboardPage() {
   }
 
   return (
-    <section>
+    <section className="admin-dashboard-page">
       <PageHeader
         eyebrow="Admin"
-        title="Event/Activities Management Dashboard"
+        title="Admin Dashboard"
         description="Create classes, workshops, retreats, lectures, challenges, business listings, and sale listings."
       />
-      <div className="status-panel">
-        <span className="status-dot good" />
-        <span>
-          Signed in as <strong>{userProfile?.name || userProfile?.email}</strong>.
-        </span>
-      </div>
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
         {canViewRegistrations ? (
           <button
