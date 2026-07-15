@@ -497,6 +497,13 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                 >
                                   {isExpanded ? 'Hide Details' : 'Details'}
                                 </button>
+                                <button
+                                  className="button-link button-reset secondary-action compact-action"
+                                  type="button"
+                                  onClick={() => handleOpenEdit(registration)}
+                                >
+                                  Edit
+                                </button>
                               </div>
                             </td>
                           </tr>

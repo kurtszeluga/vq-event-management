@@ -672,10 +672,8 @@
 
   function buildSupplyListHtml(pdfUrl, title, fileName, sourceUrl) {
     const safeTitle = escapeHtml(title || 'Supply list');
-    const safeFileName = escapeHtml(fileName || 'supply-list.pdf');
     const proxyOrigin = getSourceOrigin(sourceUrl);
     const inlineUrl = buildProxyUrl(proxyOrigin, pdfUrl, fileName, 'inline');
-    const saveUrl = buildProxyUrl(proxyOrigin, pdfUrl, fileName, 'attachment');
 
     return `<!doctype html>
   <html lang="en">
@@ -775,14 +773,12 @@
           <h1>${safeTitle}</h1>
         </div>
         <div class="viewer-actions">
-          <a class="viewer-button secondary" href="${escapeAttribute(inlineUrl)}" target="_blank" rel="noopener noreferrer">Open PDF</a>
-          <a class="viewer-button secondary" href="${escapeAttribute(saveUrl)}" download="${escapeAttribute(safeFileName)}">Save</a>
           <button class="viewer-button" type="button" onclick="triggerPrint()">Print</button>
           <button class="viewer-button secondary" type="button" onclick="window.close()">Close</button>
         </div>
       </header>
       <iframe class="viewer-frame" src="${escapeAttribute(inlineUrl)}" title="${safeTitle}"></iframe>
-      <div class="viewer-help">If the PDF does not display, select Open PDF.</div>
+      <div class="viewer-help">Use Print to print or save the supply list from your browser print dialog.</div>
       <script>
         function triggerPrint() {
           window.focus();
