@@ -821,6 +821,13 @@
           flex-wrap: wrap;
           gap: 8px;
         }
+        .print-status {
+          color: #5a6b67;
+          font-size: 13px;
+          font-weight: 700;
+          margin-top: 10px;
+          min-height: 18px;
+        }
         .button {
           appearance: none;
           background: #ffffff;
@@ -872,10 +879,11 @@
             <h1>${title}</h1>
           </div>
           <div class="actions">
-            <button class="button primary" type="button" onclick="window.print()">Print</button>
+            <button class="button primary" type="button" id="print-button">Print</button>
             <button class="button" type="button" onclick="window.close()">Close</button>
           </div>
         </div>
+        <div class="print-status" id="print-status" aria-live="polite"></div>
         <div class="pill-row">
           <span class="pill">${eventType}</span>
           <span class="pill">${registration}</span>
@@ -898,6 +906,24 @@
         </div>
         ${description}
       </main>
+      <script>
+        (function () {
+          var printButton = document.getElementById('print-button');
+          var printStatus = document.getElementById('print-status');
+
+          printButton.addEventListener('click', function () {
+            printStatus.textContent = 'Opening print dialog...';
+            window.focus();
+
+            requestAnimationFrame(function () {
+              window.print();
+              window.setTimeout(function () {
+                printStatus.textContent = '';
+              }, 1200);
+            });
+          });
+        })();
+      </script>
     </body>
   </html>`;
   }
