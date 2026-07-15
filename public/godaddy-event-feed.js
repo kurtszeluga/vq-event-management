@@ -73,6 +73,7 @@
 
     wireDescriptionToggles(root);
     wireImageViewerLinks(root);
+    wireSupplyListDownloadLinks(root);
     wireEventDetailsLinks(root);
   }
 
@@ -130,7 +131,7 @@
       ? event.supplyListDownloadUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
       : '';
     const supplyListLink = event.supplyListUrl
-      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListDownloadUrl)}">Download ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</a>`
+      ? `<button class="vq-feed-secondary" type="button" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}">Download ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</button>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -291,6 +292,24 @@
       link.addEventListener('click', (event) => {
         event.preventDefault();
         openImageViewer(link.dataset.imageViewerSrc || '', link.dataset.imageViewerTitle || 'Event image');
+      });
+    });
+  }
+
+  function wireSupplyListDownloadLinks(root) {
+    root.querySelectorAll('[data-supply-list-download-url]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const url = button.dataset.supplyListDownloadUrl || '';
+
+        if (!url) {
+          return;
+        }
+
+        const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+
+        if (!openedWindow) {
+          window.location.href = url;
+        }
       });
     });
   }
