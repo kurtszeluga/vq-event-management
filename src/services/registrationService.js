@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
+import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
 
 const registrationsCollection = () => collection(db, 'registrations');
@@ -119,39 +120,30 @@ export async function updateRegistrationStatus(registrationId, status, actorProf
 }
 
 export async function updateRegistrationPayment(registrationId, paymentData, actorProfile) {
-  const registrationRef = doc(db, 'registrations', registrationId);
-  const registrationSnap = await getDoc(registrationRef);
+  const idToken = await auth?.currentUser?.getIdToken();
 
-  if (!registrationSnap.exists()) {
-    throw new Error('Registration record could not be found.');
+  if (!idToken) {
+    throw new Error('You must be signed in to update registration payments.');
   }
 
-  const before = registrationSnap.data();
-  const updatePayload = {
-    amountPaid: Number(paymentData.amountPaid || 0),
-    paymentMethod: paymentData.paymentMethod || 'None',
-    paymentNote: paymentData.paymentNote || '',
-    paymentStatus: paymentData.paymentStatus || 'Pending',
-    paymentUpdatedDate: serverTimestamp()
-  };
-  const batch = writeBatch(db);
-
-  batch.update(registrationRef, updatePayload);
-  batch.set(doc(auditLogsCollection()), {
-    action: updatePayload.paymentStatus === 'Refunded' ? 'Refund' : 'Pay',
-    actorEmail: actorProfile?.email || '',
-    actorName: actorProfile?.name || actorProfile?.email || 'Unknown Admin',
-    actorRole: actorProfile?.role || '',
-    actorUserId: actorProfile?.userId || actorProfile?.id || '',
-    after: updatePayload,
-    before,
-    createdDate: serverTimestamp(),
-    entityId: registrationId,
-    entityType: 'Registration',
-    summary: `Updated payment for "${before.name || before.email || registrationId}" to ${updatePayload.paymentStatus}`
+  const response = await fetch('/api/admin-update-registration-payment', {
+    body: JSON.stringify({
+      ...paymentData,
+      registrationId
+    }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
   });
+  const result = await parseJsonResponse(response);
 
-  return batch.commit();
+  if (!response.ok) {
+    throw new Error(result.error || 'Payment could not be updated.');
+  }
+
+  return result;
 }
 
 async function parseJsonResponse(response) {

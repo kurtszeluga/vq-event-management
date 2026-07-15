@@ -301,38 +301,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSelectedStatus('');
   }
 
-  async function handleSaveStatus() {
-    const nextStatus = selectedStatus;
-
-    if (!selectedRegistration || !nextStatus || nextStatus === selectedRegistration.status) {
-      return;
-    }
-
-    setError('');
-    setSuccessMessage('');
-    setSavingRegistrationId(selectedRegistration.id);
-
-    try {
-      await updateRegistrationStatus(selectedRegistration.id, nextStatus, currentUserProfile);
-      setSuccessMessage('Registration updated.');
-      setSelectedRegistrationId('');
-      setSelectedPaymentAmount('');
-      setSelectedPaymentMethod('None');
-      setSelectedPaymentNote('');
-      setSelectedPaymentStatus('Pending');
-      setSelectedStatus('');
-    } catch (saveError) {
-      setError(saveError.message || 'Registration could not be updated.');
-    } finally {
-      setSavingRegistrationId('');
-    }
-  }
-
-  async function handleSavePayment() {
+  async function handleSaveChanges() {
     if (!selectedRegistration) {
       return;
     }
 
+    const statusChanged = selectedStatus !== selectedRegistration.status;
     const amountPaid = Number(selectedPaymentAmount || 0);
     const nextPayment = {
       amountPaid,
@@ -340,14 +314,31 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       paymentNote: selectedPaymentNote.trim(),
       paymentStatus: selectedPaymentStatus
     };
+    const paymentChanged = hasPaymentChanged(selectedRegistration, {
+      amountPaid: selectedPaymentAmount,
+      paymentMethod: selectedPaymentMethod,
+      paymentNote: selectedPaymentNote,
+      paymentStatus: selectedPaymentStatus
+    });
+
+    if (!statusChanged && !paymentChanged) {
+      return;
+    }
 
     setError('');
     setSuccessMessage('');
     setSavingRegistrationId(selectedRegistration.id);
 
     try {
-      await updateRegistrationPayment(selectedRegistration.id, nextPayment, currentUserProfile);
-      setSuccessMessage('Payment updated.');
+      if (statusChanged) {
+        await updateRegistrationStatus(selectedRegistration.id, selectedStatus, currentUserProfile);
+      }
+
+      if (paymentChanged) {
+        await updateRegistrationPayment(selectedRegistration.id, nextPayment, currentUserProfile);
+      }
+
+      setSuccessMessage('Registration changes saved.');
       setSelectedRegistrationId('');
       setSelectedPaymentAmount('');
       setSelectedPaymentMethod('None');
@@ -355,7 +346,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       setSelectedPaymentStatus('Pending');
       setSelectedStatus('');
     } catch (saveError) {
-      setError(saveError.message || 'Payment could not be updated.');
+      setError(saveError.message || 'Registration changes could not be saved.');
     } finally {
       setSavingRegistrationId('');
     }
@@ -656,28 +647,18 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 className="button-link button-reset"
                 disabled={
                   savingRegistrationId === selectedRegistration.id
-                  || selectedStatus === selectedRegistration.status
-                }
-                type="button"
-                onClick={handleSaveStatus}
-              >
-                {savingRegistrationId === selectedRegistration.id ? 'Saving...' : 'Save Status'}
-              </button>
-              <button
-                className="button-link button-reset"
-                disabled={
-                  savingRegistrationId === selectedRegistration.id
-                  || !hasPaymentChanged(selectedRegistration, {
+                  || !hasRegistrationChanges(selectedRegistration, {
                     amountPaid: selectedPaymentAmount,
                     paymentMethod: selectedPaymentMethod,
                     paymentNote: selectedPaymentNote,
-                    paymentStatus: selectedPaymentStatus
+                    paymentStatus: selectedPaymentStatus,
+                    status: selectedStatus
                   })
                 }
                 type="button"
-                onClick={handleSavePayment}
+                onClick={handleSaveChanges}
               >
-                {savingRegistrationId === selectedRegistration.id ? 'Saving...' : 'Save Payment'}
+                {savingRegistrationId === selectedRegistration.id ? 'Saving...' : 'Save Changes'}
               </button>
               <button
                 className="button-link button-reset secondary-action"
@@ -758,6 +739,11 @@ function hasPaymentChanged(registration, paymentEdit) {
     || paymentEdit.paymentMethod !== (registration.paymentMethod || 'None')
     || paymentEdit.paymentNote.trim() !== (registration.paymentNote || '')
     || paymentEdit.paymentStatus !== (registration.paymentStatus || 'Pending');
+}
+
+function hasRegistrationChanges(registration, edit) {
+  return edit.status !== (registration.status || 'Registered')
+    || hasPaymentChanged(registration, edit);
 }
 
 function getEventSortValue(event) {
