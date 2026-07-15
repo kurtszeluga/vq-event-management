@@ -1,9 +1,34 @@
-import { getAuth } from 'firebase-admin/auth';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { initializeAdminApp } from './_lib/public-event-feed.js';
+import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 const PAYMENT_METHODS = ['None', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
+
+let firebaseProjectId = '';
+
+function initializeAdminApp() {
+  const existingApp = getApps()[0];
+
+  if (existingApp) {
+    firebaseProjectId = existingApp.options.projectId || firebaseProjectId;
+    return existingApp;
+  }
+
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
+  if (!serviceAccountJson) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured.');
+  }
+
+  const serviceAccount = parseServiceAccountJson(serviceAccountJson);
+  firebaseProjectId = serviceAccount.project_id;
+
+  return initializeApp({
+    credential: cert(serviceAccount),
+    projectId: firebaseProjectId
+  });
+}
 
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
@@ -22,9 +47,15 @@ export default async function handler(request, response) {
       return;
     }
 
-    const decodedToken = await getAuth().verifyIdToken(idToken);
-    const actorUid = decodedToken.uid;
     const db = getFirestore();
+    const decodedToken = await verifyFirebaseIdToken(idToken, firebaseProjectId);
+    const actorUid = decodedToken.user_id || decodedToken.sub || decodedToken.uid;
+
+    if (!actorUid) {
+      response.status(401).json({ error: 'Invalid authorization token.' });
+      return;
+    }
+
     const actorSnap = await db.collection('users').doc(actorUid).get();
     const actorProfile = actorSnap.exists ? actorSnap.data() : {};
 
@@ -82,7 +113,9 @@ export default async function handler(request, response) {
       registrationId
     });
   } catch (error) {
-    response.status(500).json({ error: error.message || 'Payment could not be updated.' });
+    response.status(error.statusCode || 500).json({
+      error: error.message || 'Payment could not be updated.'
+    });
   }
 }
 
@@ -204,4 +237,18 @@ function sanitizePaymentUpdate(payload, registration) {
 
 function cleanText(value) {
   return String(value || '').trim();
+}
+
+function parseServiceAccountJson(serviceAccountJson) {
+  const trimmed = String(serviceAccountJson || '').trim();
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    try {
+      return JSON.parse(Buffer.from(trimmed, 'base64').toString('utf8'));
+    } catch {
+      throw new Error(`Unable to parse FIREBASE_SERVICE_ACCOUNT_JSON: ${error.message}`);
+    }
+  }
 }
