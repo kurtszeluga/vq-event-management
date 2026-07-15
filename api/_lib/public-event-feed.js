@@ -173,6 +173,9 @@ function serializeEvent(event, origin, registrationCounts = {}) {
     supplyListProxyUrl: event.supplyListUrl
       ? buildFileProxyUrl(safeOrigin, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf')
       : '',
+    supplyListDownloadUrl: event.supplyListUrl
+      ? buildFileProxyUrl(safeOrigin, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
+      : '',
     supplyListViewerUrl: event.supplyListUrl ? `${safeOrigin}/events/${event.id}/supply-list` : '',
     detailUrl: `${safeOrigin}/events/${event.id}`,
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
@@ -180,9 +183,9 @@ function serializeEvent(event, origin, registrationCounts = {}) {
   };
 }
 
-function buildFileProxyUrl(origin, fileUrl, fileName) {
+function buildFileProxyUrl(origin, fileUrl, fileName, disposition = 'inline') {
   const params = new URLSearchParams({
-    disposition: 'inline',
+    disposition,
     filename: fileName || 'supply-list.pdf',
     url: fileUrl
   });
