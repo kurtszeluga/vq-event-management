@@ -8,7 +8,7 @@
     },
     {
       "source": "/events/:eventId/supply-list",
-      "destination": "/api/supply-list-viewer?eventId=:eventId"
+      "destination": "/api/godaddy-supply-list-viewer?eventId=:eventId"
     },
     {
       "source": "/(.*)",

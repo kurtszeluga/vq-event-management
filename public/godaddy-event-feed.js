@@ -675,7 +675,7 @@
       eventId: eventId || ''
     });
 
-    return `${origin}/api/supply-list-viewer?${params.toString()}`;
+    return `${origin}/api/godaddy-supply-list-viewer?${params.toString()}`;
   }
 
   function getSourceOrigin(sourceUrl) {

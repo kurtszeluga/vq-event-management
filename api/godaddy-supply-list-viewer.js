@@ -1,203 +1,336 @@
-export default function handler(request, response) {
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeAdminApp } from './_lib/public-event-feed.js';
+
+export default async function handler(request, response) {
   if (request.method !== 'GET') {
     response.setHeader('Allow', 'GET');
     response.status(405).send('Method not allowed.');
     return;
   }
 
-  const title = getQueryValue(request.query.title) || 'Supply List';
-  const filename = getQueryValue(request.query.filename) || 'supply-list.pdf';
-  const fileUrl = getQueryValue(request.query.url) || '';
+  try {
+    const eventId = getQueryValue(request.query.eventId);
 
-  response.setHeader('Content-Type', 'text/html; charset=utf-8');
-  response.setHeader('Cache-Control', 'private, max-age=0, no-cache, no-store, must-revalidate');
-  response.status(200).send(buildViewerHtml({ fileUrl, filename, title }));
+    if (!eventId) {
+      response.status(400).send(buildMessageHtml('Supply list unavailable', 'The event was missing.'));
+      return;
+    }
+
+    initializeAdminApp();
+
+    const db = getFirestore();
+    const eventSnapshot = await db.collection('events').doc(eventId).get();
+
+    if (!eventSnapshot.exists) {
+      response.status(404).send(buildMessageHtml('Supply list unavailable', 'This event could not be found.'));
+      return;
+    }
+
+    const event = { id: eventSnapshot.id, ...eventSnapshot.data() };
+
+    if (!isPublicEvent(event) || !event.supplyListUrl) {
+      response
+        .status(404)
+        .send(buildMessageHtml('Supply list unavailable', 'This document is not currently available.'));
+      return;
+    }
+
+    const origin = getRequestOrigin(request);
+    const fileName = event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`;
+    const title = event.supplyListTitle || event.supplyListFileName || event.title || 'Supply List';
+    const inlineUrl = buildFileProxyUrl(origin, event.supplyListUrl, fileName, 'inline');
+    const attachmentUrl = buildFileProxyUrl(origin, event.supplyListUrl, fileName, 'attachment');
+
+    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+    response.setHeader('Cache-Control', 'private, max-age=0, no-cache, no-store, must-revalidate');
+    response.status(200).send(buildViewerHtml({ attachmentUrl, fileName, inlineUrl, title }));
+  } catch (error) {
+    response
+      .status(500)
+      .send(buildMessageHtml('Supply list unavailable', error.message || 'The document could not be loaded.'));
+  }
 }
 
-function getQueryValue(value) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function buildViewerHtml({ fileUrl, filename, title }) {
-  const safeTitle = escapeHtml(title);
-  const safeFileUrl = escapeAttribute(fileUrl);
-  const safeFilename = escapeAttribute(filename);
+function buildViewerHtml({ attachmentUrl, fileName, inlineUrl, title }) {
+  const pageData = JSON.stringify({ attachmentUrl, fileName, inlineUrl, title }).replace(
+    /</g,
+    '\\u003c'
+  );
 
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${safeTitle}</title>
+    <meta name="robots" content="noindex" />
+    <title>${escapeHtml(title)}</title>
     <style>
-      :root {
-        background: #f4efe8;
-        color: #1d2927;
-        font-family: Inter, Arial, sans-serif;
-      }
-
-      html,
+      * { box-sizing: border-box; }
       body {
-        height: 100%;
+        background: #f7f2eb;
+        color: #2d241f;
+        font-family: Arial, sans-serif;
         margin: 0;
+        padding: 28px clamp(18px, 5vw, 72px);
       }
-
-      body {
+      .toolbar {
+        align-items: start;
         display: flex;
-        flex-direction: column;
-      }
-
-      .viewer-toolbar {
-        align-items: center;
-        background: #ffffff;
-        border-bottom: 1px solid #ded5ca;
-        display: flex;
-        gap: 14px;
+        flex-wrap: wrap;
+        gap: 16px;
         justify-content: space-between;
-        padding: 14px 18px;
+        margin-bottom: 20px;
       }
-
-      .viewer-title {
-        display: grid;
-        gap: 2px;
-        min-width: 0;
-      }
-
-      .viewer-title span {
+      .eyebrow {
         color: #9a4d2f;
-        font-size: 0.78rem;
+        font-size: 0.8rem;
         font-weight: 800;
         letter-spacing: 0.08em;
+        margin: 0 0 6px;
         text-transform: uppercase;
       }
-
       h1 {
-        font-size: 1.2rem;
-        line-height: 1.2;
+        font-size: 1.65rem;
+        line-height: 1.15;
         margin: 0;
       }
-
-      .viewer-actions {
-        display: inline-flex;
+      .actions {
+        align-items: center;
+        display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        justify-content: flex-end;
+        gap: 10px;
       }
-
-      .viewer-button {
+      .button {
         appearance: none;
-        background: #225c56;
-        border: 1px solid #225c56;
-        border-radius: 999px;
-        color: #ffffff;
+        background: #2f5e4e;
+        border: 1px solid #2f5e4e;
+        border-radius: 6px;
+        color: #fff;
         cursor: pointer;
         display: inline-flex;
         font: inherit;
         font-weight: 700;
-        padding: 9px 14px;
+        line-height: 1;
+        padding: 11px 16px;
         text-decoration: none;
       }
-
-      .viewer-button.secondary {
-        background: #ffffff;
-        color: #225c56;
+      .button.secondary {
+        background: #fff;
+        border-color: #cdbfb1;
+        color: #2d241f;
       }
-
-      .viewer-frame {
-        border: 0;
-        flex: 1 1 auto;
-        width: 100%;
-      }
-
-      .viewer-message {
-        background: #ffffff;
+      .message {
+        background: #fff;
         border: 1px solid #ded5ca;
-        border-radius: 10px;
-        margin: 24px auto;
-        max-width: 680px;
-        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 18px;
+        padding: 14px 16px;
       }
-
+      .preview {
+        display: grid;
+        gap: 18px;
+        justify-items: start;
+      }
+      .page {
+        background: #fff;
+        border: 1px solid #ddd2c6;
+        border-radius: 8px;
+        box-shadow: 0 8px 22px rgba(63, 45, 30, 0.12);
+        max-width: 100%;
+        overflow: auto;
+        padding: 12px;
+      }
+      canvas {
+        display: block;
+        height: auto;
+        max-width: 100%;
+      }
       @media print {
-        .viewer-toolbar {
+        body {
+          background: #fff;
+          padding: 0;
+        }
+        .toolbar,
+        .message {
           display: none;
         }
-
-        body {
-          background: #ffffff;
+        .preview {
+          gap: 0;
+        }
+        .page {
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+          break-after: page;
+          overflow: visible;
+          padding: 0;
         }
       }
     </style>
   </head>
   <body>
-    <header class="viewer-toolbar">
-      <div class="viewer-title">
-        <span>Supply List</span>
-        <h1>${safeTitle}</h1>
+    <header class="toolbar">
+      <div>
+        <p class="eyebrow">Supply List</p>
+        <h1>${escapeHtml(title)}</h1>
       </div>
-      <div class="viewer-actions">
-        <a class="viewer-button secondary" id="open-link" href="#" target="_blank" rel="noopener noreferrer">Open PDF</a>
-        <a class="viewer-button secondary" id="save-link" href="#">Save</a>
-        <button class="viewer-button" type="button" id="print-button">Print</button>
-        <button class="viewer-button secondary" type="button" id="close-button">Close</button>
+      <div class="actions">
+        <a class="button secondary" id="save-button" href="${escapeAttribute(
+          attachmentUrl
+        )}" download="${escapeAttribute(fileName)}">Save</a>
+        <button class="button secondary" id="print-button" type="button">Print</button>
+        <a class="button secondary" href="${escapeAttribute(attachmentUrl)}">Direct Download</a>
+        <button class="button" id="close-button" type="button">Close</button>
       </div>
     </header>
-    <iframe class="viewer-frame" id="pdf-frame" title="${safeTitle}"></iframe>
-    <script>
-      (function () {
-        var pdfUrl = ${JSON.stringify(fileUrl)};
-        var filename = ${JSON.stringify(filename)};
-        var frame = document.getElementById('pdf-frame');
-        var openLink = document.getElementById('open-link');
-        var saveLink = document.getElementById('save-link');
-        var printButton = document.getElementById('print-button');
-        var closeButton = document.getElementById('close-button');
+    <div class="message" id="message">Loading supply list preview...</div>
+    <main class="preview" id="preview" aria-label="Supply list preview"></main>
+    <script type="module">
+      import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/build/pdf.mjs';
 
-        if (!pdfUrl) {
-          document.body.innerHTML = '<main class="viewer-message"><h1>Supply list unavailable</h1><p>The document link was missing.</p><button class="viewer-button" type="button" onclick="window.close()">Close</button></main>';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/build/pdf.worker.mjs';
+
+      const pageData = ${pageData};
+      const message = document.getElementById('message');
+      const preview = document.getElementById('preview');
+      const printButton = document.getElementById('print-button');
+      const closeButton = document.getElementById('close-button');
+
+      closeButton.addEventListener('click', () => {
+        if (window.history.length > 1) {
+          window.history.back();
           return;
         }
 
-        var inlineUrl = buildProxyUrl('inline');
-        var saveUrl = buildProxyUrl('attachment');
+        window.close();
+      });
 
-        frame.src = inlineUrl;
-        openLink.href = inlineUrl;
-        saveLink.href = saveUrl;
-        saveLink.setAttribute('download', filename);
+      printButton.addEventListener('click', () => {
+        window.focus();
+        window.print();
+      });
 
-        printButton.addEventListener('click', function () {
-          var frameWindow = frame.contentWindow;
-
-          if (frameWindow) {
-            frameWindow.focus();
-            window.setTimeout(function () {
-              frameWindow.print();
-            }, 150);
-            return;
+      try {
+        const response = await fetch(pageData.inlineUrl, {
+          headers: {
+            Accept: 'application/pdf'
           }
-
-          window.print();
         });
 
-        closeButton.addEventListener('click', function () {
-          window.close();
-        });
-
-        function buildProxyUrl(disposition) {
-          var proxyParams = new URLSearchParams({
-            cv: '20260714-7',
-            disposition: disposition,
-            filename: filename,
-            url: pdfUrl
-          });
-
-          return '/api/file-proxy?' + proxyParams.toString();
+        if (!response.ok) {
+          throw new Error('The supply list could not be loaded.');
         }
-      })();
+
+        const data = await response.arrayBuffer();
+        const pdfDocument = await pdfjsLib.getDocument({ data }).promise;
+
+        preview.replaceChildren();
+
+        for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+          const page = await pdfDocument.getPage(pageNumber);
+          const viewport = page.getViewport({ scale: getPreviewScale() });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          const wrapper = document.createElement('div');
+
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          wrapper.className = 'page';
+          wrapper.appendChild(canvas);
+          preview.appendChild(wrapper);
+
+          await page.render({
+            canvasContext: context,
+            viewport
+          }).promise;
+        }
+
+        message.textContent = 'Supply list ready.';
+      } catch (error) {
+        message.innerHTML = '<strong>Preview unavailable.</strong> Use Save or Direct Download to download the PDF file.';
+      }
+
+      function getPreviewScale() {
+        return window.innerWidth < 720 ? 1 : 1.35;
+      }
     </script>
   </body>
 </html>`;
+}
+
+function buildMessageHtml(title, message) {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body {
+        background: #f7f2eb;
+        color: #2d241f;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 28px;
+      }
+      main {
+        background: #fff;
+        border: 1px solid #ded5ca;
+        border-radius: 8px;
+        margin: 0 auto;
+        max-width: 680px;
+        padding: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(message)}</p>
+    </main>
+  </body>
+</html>`;
+}
+
+function buildFileProxyUrl(origin, fileUrl, fileName, disposition = 'inline') {
+  const params = new URLSearchParams({
+    cv: '20260715-2',
+    disposition,
+    filename: fileName || 'supply-list.pdf',
+    url: fileUrl
+  });
+
+  return `${origin}/api/file-proxy?${params.toString()}`;
+}
+
+function getQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getRequestOrigin(request) {
+  const forwardedProto = request.headers['x-forwarded-proto'] || 'https';
+  const forwardedHost = request.headers['x-forwarded-host'] || request.headers.host || '';
+  return `${forwardedProto}://${forwardedHost}`;
+}
+
+function isPublicEvent(event) {
+  if (event.status !== 'Published') {
+    return false;
+  }
+
+  const now = Date.now();
+  const visibleFrom = event.visibleFrom ? Date.parse(event.visibleFrom) : null;
+  const visibleUntil = event.visibleUntil ? Date.parse(event.visibleUntil) : null;
+
+  if (visibleFrom && visibleFrom > now) {
+    return false;
+  }
+
+  if (visibleUntil && visibleUntil < now) {
+    return false;
+  }
+
+  return true;
 }
 
 function escapeHtml(value) {
