@@ -131,8 +131,9 @@
       ? event.supplyListDownloadUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
       : '';
     const supplyListFileName = event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf';
+    const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
     const supplyListLink = event.supplyListUrl
-      ? `<button class="vq-feed-secondary" type="button" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}" data-supply-list-file-name="${escapeAttribute(supplyListFileName)}">Download ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</button>`
+      ? `<button class="vq-feed-secondary" type="button" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}" data-supply-list-file-name="${escapeAttribute(supplyListFileName)}" data-supply-list-title="${escapeAttribute(supplyListTitle)}">View/Download ${escapeHtml(supplyListTitle)}</button>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -299,51 +300,16 @@
 
   function wireSupplyListDownloadLinks(root) {
     root.querySelectorAll('[data-supply-list-download-url]').forEach((button) => {
-      button.addEventListener('click', async () => {
+      button.addEventListener('click', () => {
         const url = button.dataset.supplyListDownloadUrl || '';
-        const originalText = button.textContent;
         const fileName = button.dataset.supplyListFileName || 'supply-list.pdf';
+        const title = button.dataset.supplyListTitle || 'Supply List PDF';
 
         if (!url) {
           return;
         }
 
-        button.disabled = true;
-        button.textContent = 'Preparing Download';
-
-        try {
-          const response = await fetch(url, {
-            headers: {
-              Accept: 'application/pdf'
-            }
-          });
-
-          if (!response.ok) {
-            throw new Error('Download failed.');
-          }
-
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = objectUrl;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
-          button.textContent = 'Download Started';
-        } catch {
-          const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
-
-          if (!openedWindow) {
-            window.location.href = url;
-          }
-        } finally {
-          window.setTimeout(() => {
-            button.disabled = false;
-            button.textContent = originalText;
-          }, 3000);
-        }
+        openSupplyListPopup(url, title, fileName);
       });
     });
   }
@@ -1020,6 +986,214 @@
 </html>`);
     popup.document.close();
     popup.focus();
+  }
+
+  function openSupplyListPopup(fileUrl, title, fileName) {
+    const popup = window.open('', 'vq-supply-list-viewer', 'popup,width=1000,height=900');
+
+    if (!popup) {
+      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const safeTitle = escapeHtml(title || 'Supply List PDF');
+    const safeFileName = escapeHtml(fileName || 'supply-list.pdf');
+
+    popup.document.open();
+    popup.document.write(buildSupplyListLoadingHtml(safeTitle));
+    popup.document.close();
+    popup.focus();
+
+    fetch(fileUrl, {
+      headers: {
+        Accept: 'application/pdf'
+      }
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Load failed.');
+        }
+
+        return response.blob();
+      })
+      .then((blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+
+        popup.document.open();
+        popup.document.write(buildSupplyListViewerHtml(safeTitle, safeFileName, objectUrl));
+        popup.document.close();
+        popup.focus();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 300000);
+      })
+      .catch(() => {
+        const safeUrl = escapeAttribute(fileUrl);
+
+        popup.document.open();
+        popup.document.write(buildSupplyListErrorHtml(safeTitle, safeUrl));
+        popup.document.close();
+        popup.focus();
+      });
+  }
+
+  function buildSupplyListLoadingHtml(title) {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    ${buildSupplyListViewerStyles()}
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <div class="viewer-topbar">
+        <h1>${title}</h1>
+        <button class="button" type="button" onclick="window.close()">Close</button>
+      </div>
+      <section class="viewer-card">
+        <p class="message">Loading supply list...</p>
+      </section>
+    </main>
+  </body>
+</html>`;
+  }
+
+  function buildSupplyListViewerHtml(title, fileName, objectUrl) {
+    const safeObjectUrl = escapeAttribute(objectUrl);
+
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    ${buildSupplyListViewerStyles()}
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <div class="viewer-topbar">
+        <h1>${title}</h1>
+        <div class="actions">
+          <a class="button primary" href="${safeObjectUrl}" download="${fileName}">Download</a>
+          <button class="button" type="button" onclick="window.close()">Close</button>
+        </div>
+      </div>
+      <section class="viewer-card">
+        <object class="pdf-frame" data="${safeObjectUrl}" type="application/pdf">
+          <p class="message">The PDF preview could not be shown. Use the Download button above.</p>
+        </object>
+      </section>
+    </main>
+  </body>
+</html>`;
+  }
+
+  function buildSupplyListErrorHtml(title, fileUrl) {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    ${buildSupplyListViewerStyles()}
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <div class="viewer-topbar">
+        <h1>${title}</h1>
+        <button class="button" type="button" onclick="window.close()">Close</button>
+      </div>
+      <section class="viewer-card">
+        <p class="message">The supply list could not be loaded.</p>
+        <p><a class="button primary" href="${fileUrl}" target="_blank" rel="noopener noreferrer">Open PDF</a></p>
+      </section>
+    </main>
+  </body>
+</html>`;
+  }
+
+  function buildSupplyListViewerStyles() {
+    return `<style>
+      :root {
+        background: #f4efe8;
+        color: #1d2927;
+        font-family: Inter, Arial, sans-serif;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        padding: 22px;
+      }
+      .viewer-shell {
+        display: grid;
+        gap: 16px;
+        margin: 0 auto;
+        max-width: 960px;
+      }
+      .viewer-topbar {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+      }
+      h1 {
+        font-size: 1.25rem;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .actions {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .button {
+        appearance: none;
+        background: #ffffff;
+        border: 1px solid #225c56;
+        border-radius: 999px;
+        color: #225c56;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-weight: 800;
+        padding: 10px 16px;
+        text-decoration: none;
+      }
+      .button.primary {
+        background: #225c56;
+        color: #ffffff;
+      }
+      .viewer-card {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 10px;
+        min-height: 70vh;
+        padding: 12px;
+      }
+      .pdf-frame {
+        border: 0;
+        display: block;
+        height: 76vh;
+        width: 100%;
+      }
+      .message {
+        font-size: 1rem;
+        font-weight: 800;
+        margin: 10px;
+      }
+      @media (max-width: 640px) {
+        body {
+          padding: 12px;
+        }
+        .viewer-topbar {
+          align-items: flex-start;
+          display: grid;
+        }
+      }
+    </style>`;
   }
 
   function escapeHtml(value) {
