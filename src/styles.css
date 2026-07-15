@@ -222,6 +222,28 @@ a {
   width: 100%;
 }
 
+.viewer-pdf-preview {
+  display: grid;
+  gap: 18px;
+  justify-items: start;
+}
+
+.viewer-pdf-page {
+  background: #ffffff;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
+  max-width: 100%;
+  overflow: auto;
+  padding: 12px;
+}
+
+.viewer-pdf-canvas {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
 .viewer-download-panel {
   background: #fffdfa;
   border: 1px solid #ded5ca;
@@ -2238,5 +2260,27 @@ body.popup-mode .page-content {
     border: 0;
     margin-top: 0;
     padding: 0;
+  }
+
+  .viewer-page {
+    padding: 0;
+  }
+
+  .viewer-pdf-preview {
+    gap: 0;
+  }
+
+  .viewer-pdf-page {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    break-after: page;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .viewer-pdf-canvas {
+    max-height: 100vh;
+    max-width: 100%;
   }
 }
