@@ -49,7 +49,7 @@ export default async function handler(request, response) {
     }
 
     const before = registrationSnap.data();
-    const paymentUpdate = sanitizePaymentUpdate(request.body || {});
+    const paymentUpdate = sanitizePaymentUpdate(request.body || {}, before);
     const now = FieldValue.serverTimestamp();
     const updatePayload = {
       ...paymentUpdate,
@@ -107,18 +107,97 @@ function canUpdateRegistrationPayments(actorProfile) {
     );
 }
 
-function sanitizePaymentUpdate(payload) {
+function sanitizePaymentUpdate(payload, registration) {
   const paymentMethod = PAYMENT_METHODS.includes(payload.paymentMethod)
     ? payload.paymentMethod
     : 'None';
   const paymentStatus = PAYMENT_STATUSES.includes(payload.paymentStatus)
     ? payload.paymentStatus
     : 'Pending';
+  const paymentNote = cleanText(payload.paymentNote);
+  const isOnlinePayment = registration?.paymentStatus === 'Paid'
+    && registration?.paymentMethod === 'Online';
+
+  if (isOnlinePayment) {
+    if (paymentStatus === 'Paid') {
+      return {
+        amountPaid: Number(registration.amountPaid || 0),
+        paymentMethod: 'Online',
+        paymentNote,
+        paymentStatus: 'Paid'
+      };
+    }
+
+    if (paymentStatus !== 'Refunded') {
+      throw new Error('Online Square payments can only be marked refunded.');
+    }
+
+    if (!paymentNote) {
+      throw new Error('Enter refund details: when, who approved it, and why.');
+    }
+
+    return {
+      amountPaid: Number(registration.amountPaid || 0),
+      paymentMethod: 'Online',
+      paymentNote,
+      paymentStatus: 'Refunded'
+    };
+  }
+
+  if (paymentStatus === 'Pending') {
+    return {
+      amountPaid: 0,
+      paymentMethod: 'None',
+      paymentNote,
+      paymentStatus: 'Pending'
+    };
+  }
+
+  if (paymentStatus === 'Waived') {
+    return {
+      amountPaid: 0,
+      paymentMethod: 'Comped',
+      paymentNote,
+      paymentStatus: 'Waived'
+    };
+  }
+
+  if (paymentStatus === 'Refunded') {
+    if (!paymentNote) {
+      throw new Error('Enter refund details: when, who approved it, and why.');
+    }
+
+    return {
+      amountPaid: Number(registration.amountPaid || 0),
+      paymentMethod: registration.paymentMethod || 'None',
+      paymentNote,
+      paymentStatus: 'Refunded'
+    };
+  }
+
+  if (paymentStatus === 'Paid') {
+    if (!['Cash', 'Check'].includes(paymentMethod)) {
+      throw new Error('Manual paid registrations must use Cash or Check.');
+    }
+
+    const amountPaid = Number(payload.amountPaid || 0);
+
+    if (amountPaid <= 0) {
+      throw new Error('Enter the amount received for a cash or check payment.');
+    }
+
+    return {
+      amountPaid,
+      paymentMethod,
+      paymentNote,
+      paymentStatus: 'Paid'
+    };
+  }
 
   return {
     amountPaid: Number(payload.amountPaid || 0),
     paymentMethod,
-    paymentNote: cleanText(payload.paymentNote),
+    paymentNote,
     paymentStatus
   };
 }

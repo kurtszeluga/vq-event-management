@@ -12,8 +12,8 @@ import { subscribeToUsers } from '../../services/userService.js';
 import { formatEventDate } from '../../utils/eventFormat.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Registered', 'Waitlisted', 'Cancelled'];
-const PAYMENT_METHOD_OPTIONS = ['None', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
+const MANUAL_PAYMENT_METHOD_OPTIONS = ['Cash', 'Check'];
 
 function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [error, setError] = useState('');
@@ -269,6 +269,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     ? userMap.byId.get(selectedRegistration.userId)
       || userMap.byEmail.get(normalizeEmail(selectedRegistration.email))
     : null;
+  const paymentEditState = getPaymentEditState(selectedRegistration, selectedPaymentStatus);
+  const paymentMethodOptions = getPaymentMethodOptions(selectedRegistration, selectedPaymentStatus);
+  const paymentStatusOptions = getPaymentStatusOptions(selectedRegistration);
 
   function handleResetFilters() {
     setEventFilter('all');
@@ -286,6 +289,40 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSelectedPaymentMethod(registration.paymentMethod || 'None');
     setSelectedPaymentNote(registration.paymentNote || '');
     setSelectedPaymentStatus(registration.paymentStatus || 'Pending');
+  }
+
+  function handlePaymentStatusChange(nextStatus) {
+    setSelectedPaymentStatus(nextStatus);
+
+    if (nextStatus === 'Pending') {
+      setSelectedPaymentMethod('None');
+      setSelectedPaymentAmount('0');
+      return;
+    }
+
+    if (nextStatus === 'Waived') {
+      setSelectedPaymentMethod('Comped');
+      setSelectedPaymentAmount('0');
+      return;
+    }
+
+    if (nextStatus === 'Refunded') {
+      setSelectedPaymentMethod(selectedRegistration?.paymentMethod || 'None');
+      setSelectedPaymentAmount(String(selectedRegistration?.amountPaid ?? 0));
+      return;
+    }
+
+    if (nextStatus === 'Paid') {
+      if (isOnlinePayment(selectedRegistration)) {
+        setSelectedPaymentMethod('Online');
+      } else if (!MANUAL_PAYMENT_METHOD_OPTIONS.includes(selectedPaymentMethod)) {
+        setSelectedPaymentMethod('Cash');
+      }
+
+      if (!Number(selectedPaymentAmount || 0)) {
+        setSelectedPaymentAmount(String(getAmountDue(selectedRegistration || {})));
+      }
+    }
   }
 
   function handleCloseDetails() {
@@ -307,19 +344,20 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     }
 
     const statusChanged = selectedStatus !== selectedRegistration.status;
-    const amountPaid = Number(selectedPaymentAmount || 0);
-    const nextPayment = {
-      amountPaid,
+    const nextPayment = normalizePaymentEdit(selectedRegistration, {
+      amountPaid: selectedPaymentAmount,
       paymentMethod: selectedPaymentMethod,
       paymentNote: selectedPaymentNote.trim(),
       paymentStatus: selectedPaymentStatus
-    };
-    const paymentChanged = hasPaymentChanged(selectedRegistration, {
-      amountPaid: selectedPaymentAmount,
-      paymentMethod: selectedPaymentMethod,
-      paymentNote: selectedPaymentNote,
-      paymentStatus: selectedPaymentStatus
     });
+
+    if (nextPayment.error) {
+      setError(nextPayment.error);
+      setSuccessMessage('');
+      return;
+    }
+
+    const paymentChanged = hasPaymentChanged(selectedRegistration, nextPayment.payment);
 
     if (!statusChanged && !paymentChanged) {
       return;
@@ -335,7 +373,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       }
 
       if (paymentChanged) {
-        await updateRegistrationPayment(selectedRegistration.id, nextPayment, currentUserProfile);
+        await updateRegistrationPayment(selectedRegistration.id, nextPayment.payment, currentUserProfile);
       }
 
       setSuccessMessage('Registration changes saved.');
@@ -599,10 +637,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 <label>
                   <span>Payment Status</span>
                   <select
+                    disabled={paymentEditState.statusLocked}
                     value={selectedPaymentStatus}
-                    onChange={(event) => setSelectedPaymentStatus(event.target.value)}
+                    onChange={(event) => handlePaymentStatusChange(event.target.value)}
                   >
-                    {PAYMENT_STATUS_FILTERS.filter((status) => status !== 'All').map((status) => (
+                    {paymentStatusOptions.map((status) => (
                       <option key={status} value={status}>
                         {status}
                       </option>
@@ -612,10 +651,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 <label>
                   <span>Payment Method</span>
                   <select
+                    disabled={paymentEditState.methodLocked}
                     value={selectedPaymentMethod}
                     onChange={(event) => setSelectedPaymentMethod(event.target.value)}
                   >
-                    {PAYMENT_METHOD_OPTIONS.map((method) => (
+                    {paymentMethodOptions.map((method) => (
                       <option key={method} value={method}>
                         {method}
                       </option>
@@ -628,6 +668,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     min="0"
                     step="0.01"
                     type="number"
+                    disabled={paymentEditState.amountLocked}
                     value={selectedPaymentAmount}
                     onChange={(event) => setSelectedPaymentAmount(event.target.value)}
                   />
@@ -638,8 +679,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     rows="3"
                     value={selectedPaymentNote}
                     onChange={(event) => setSelectedPaymentNote(event.target.value)}
+                    placeholder={selectedPaymentStatus === 'Refunded' ? 'Enter refund date, who approved it, and why.' : ''}
                   />
                 </label>
+                <p className="form-help registration-payment-help">
+                  {getPaymentHelpText(selectedRegistration, selectedPaymentStatus)}
+                </p>
               </div>
             </div>
             <div className="form-actions">
@@ -732,6 +777,179 @@ function getAmountDue(registration) {
   }
 
   return Number(registration.eventCost || 0) + Number(registration.eventServiceFee || 0);
+}
+
+function isOnlinePayment(registration) {
+  return registration?.paymentStatus === 'Paid' && registration?.paymentMethod === 'Online';
+}
+
+function getPaymentStatusOptions(registration) {
+  if (isOnlinePayment(registration)) {
+    return ['Paid', 'Refunded'];
+  }
+
+  const options = ['Pending', 'Paid', 'Refunded', 'Waived'];
+
+  if (registration?.paymentStatus === 'Failed') {
+    return ['Failed', ...options];
+  }
+
+  return options;
+}
+
+function getPaymentMethodOptions(registration, paymentStatus) {
+  if (isOnlinePayment(registration)) {
+    return ['Online'];
+  }
+
+  if (paymentStatus === 'Paid') {
+    return MANUAL_PAYMENT_METHOD_OPTIONS;
+  }
+
+  if (paymentStatus === 'Waived') {
+    return ['Comped'];
+  }
+
+  if (paymentStatus === 'Refunded') {
+    return [registration?.paymentMethod || 'None'];
+  }
+
+  return ['None'];
+}
+
+function getPaymentEditState(registration, paymentStatus) {
+  const onlinePayment = isOnlinePayment(registration);
+
+  return {
+    amountLocked: onlinePayment || paymentStatus !== 'Paid',
+    methodLocked: onlinePayment || paymentStatus !== 'Paid',
+    statusLocked: false
+  };
+}
+
+function normalizePaymentEdit(registration, paymentEdit) {
+  const paymentStatus = paymentEdit.paymentStatus || 'Pending';
+  const paymentNote = paymentEdit.paymentNote.trim();
+
+  if (isOnlinePayment(registration)) {
+    if (paymentStatus === 'Paid') {
+      return {
+        payment: {
+          amountPaid: Number(registration.amountPaid || 0),
+          paymentMethod: 'Online',
+          paymentNote,
+          paymentStatus: 'Paid'
+        }
+      };
+    }
+
+    if (paymentStatus !== 'Refunded') {
+      return { error: 'Online Square payments can only be marked refunded.' };
+    }
+
+    if (!paymentNote) {
+      return { error: 'Enter refund details: when, who approved it, and why.' };
+    }
+
+    return {
+      payment: {
+        amountPaid: Number(registration.amountPaid || 0),
+        paymentMethod: 'Online',
+        paymentNote,
+        paymentStatus: 'Refunded'
+      }
+    };
+  }
+
+  if (paymentStatus === 'Pending') {
+    return {
+      payment: {
+        amountPaid: 0,
+        paymentMethod: 'None',
+        paymentNote,
+        paymentStatus: 'Pending'
+      }
+    };
+  }
+
+  if (paymentStatus === 'Waived') {
+    return {
+      payment: {
+        amountPaid: 0,
+        paymentMethod: 'Comped',
+        paymentNote,
+        paymentStatus: 'Waived'
+      }
+    };
+  }
+
+  if (paymentStatus === 'Refunded') {
+    if (!paymentNote) {
+      return { error: 'Enter refund details: when, who approved it, and why.' };
+    }
+
+    return {
+      payment: {
+        amountPaid: Number(registration.amountPaid || 0),
+        paymentMethod: registration.paymentMethod || 'None',
+        paymentNote,
+        paymentStatus: 'Refunded'
+      }
+    };
+  }
+
+  if (paymentStatus === 'Paid') {
+    const paymentMethod = MANUAL_PAYMENT_METHOD_OPTIONS.includes(paymentEdit.paymentMethod)
+      ? paymentEdit.paymentMethod
+      : 'Cash';
+    const amountPaid = Number(paymentEdit.amountPaid || 0);
+
+    if (amountPaid <= 0) {
+      return { error: 'Enter the amount received for a cash or check payment.' };
+    }
+
+    return {
+      payment: {
+        amountPaid,
+        paymentMethod,
+        paymentNote,
+        paymentStatus: 'Paid'
+      }
+    };
+  }
+
+  return {
+    payment: {
+      amountPaid: Number(paymentEdit.amountPaid || 0),
+      paymentMethod: paymentEdit.paymentMethod || 'None',
+      paymentNote,
+      paymentStatus
+    }
+  };
+}
+
+function getPaymentHelpText(registration, paymentStatus) {
+  if (isOnlinePayment(registration)) {
+    return 'Online Square payments are locked. Use Refunded only after the refund is handled in Square.';
+  }
+
+  if (paymentStatus === 'Pending') {
+    return 'Method and amount stay locked until payment is marked paid.';
+  }
+
+  if (paymentStatus === 'Paid') {
+    return 'For cash or check payments, choose the method and enter the amount received.';
+  }
+
+  if (paymentStatus === 'Waived') {
+    return 'Waived payments are recorded as Comped with $0.00 paid.';
+  }
+
+  if (paymentStatus === 'Refunded') {
+    return 'Enter refund details: when, who approved it, and why.';
+  }
+
+  return 'Failed payments usually come from an online processor and should be reviewed before changing.';
 }
 
 function hasPaymentChanged(registration, paymentEdit) {

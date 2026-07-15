@@ -1928,6 +1928,11 @@ body.popup-mode .page-content {
   grid-column: 1 / -1;
 }
 
+.registration-payment-help {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .pending-review-panel {
   margin-top: 18px;
 }
