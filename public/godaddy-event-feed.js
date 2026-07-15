@@ -671,11 +671,8 @@
 
   function buildSupplyListViewerUrl(sourceUrl, eventId) {
     const origin = getSourceOrigin(sourceUrl);
-    const params = new URLSearchParams({
-      eventId: eventId || ''
-    });
 
-    return `${origin}/api/godaddy-supply-list-viewer?${params.toString()}`;
+    return `${origin}/events/${encodeURIComponent(eventId || '')}/supply-list`;
   }
 
   function getSourceOrigin(sourceUrl) {

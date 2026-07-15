@@ -7,10 +7,6 @@
       "destination": "/api/$1"
     },
     {
-      "source": "/events/:eventId/supply-list",
-      "destination": "/api/godaddy-supply-list-viewer?eventId=:eventId"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

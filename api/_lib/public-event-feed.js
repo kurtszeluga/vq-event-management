@@ -177,7 +177,7 @@ function serializeEvent(event, origin, registrationCounts = {}) {
       ? buildFileProxyUrl(safeOrigin, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
       : '',
     supplyListViewerUrl: event.supplyListUrl
-      ? `${safeOrigin}/api/godaddy-supply-list-viewer?eventId=${encodeURIComponent(event.id)}`
+      ? `${safeOrigin}/events/${event.id}/supply-list`
       : '',
     detailUrl: `${safeOrigin}/events/${event.id}`,
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
