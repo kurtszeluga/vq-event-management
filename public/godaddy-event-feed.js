@@ -74,7 +74,6 @@
     wireDescriptionToggles(root);
     wireImageViewerLinks(root);
     wireSupplyListLinks(root);
-    wireEventPrintLinks(root);
     wireEventDetailsLinks(root);
   }
 
@@ -140,7 +139,6 @@
     const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
     const availabilityTone = event.registrationIsFull ? 'is-waitlist' : 'is-open';
     const registrationStats = getRegistrationStats(event);
-    const eventPrintUrl = event.printUrl || buildEventPrintUrl(config.sourceUrl, event.id);
 
     return `
       <article class="vq-feed-card" data-event-type="${escapeAttribute(event.eventType)}">
@@ -182,7 +180,6 @@
           </div>
           <div class="vq-feed-actions">
             ${supplyListLink}
-            <a class="vq-feed-secondary" href="${escapeAttribute(eventPrintUrl)}" data-event-print-url="${escapeAttribute(eventPrintUrl)}">Details/Print</a>
             ${event.registrationOpen ? registerLink : ''}
           </div>
         </div>
@@ -301,26 +298,6 @@
     root.querySelectorAll('[data-supply-list-url]').forEach((link) => {
       link.addEventListener('click', (event) => {
         const url = link.dataset.supplyListUrl || link.href || '';
-
-        if (!url) {
-          return;
-        }
-
-        event.preventDefault();
-
-        try {
-          window.top.location.href = url;
-        } catch {
-          window.location.href = url;
-        }
-      });
-    });
-  }
-
-  function wireEventPrintLinks(root) {
-    root.querySelectorAll('[data-event-print-url]').forEach((link) => {
-      link.addEventListener('click', (event) => {
-        const url = link.dataset.eventPrintUrl || link.href || '';
 
         if (!url) {
           return;
@@ -687,12 +664,6 @@
     const origin = getSourceOrigin(sourceUrl);
 
     return `${origin}/events/${encodeURIComponent(eventId || '')}/supply-list`;
-  }
-
-  function buildEventPrintUrl(sourceUrl, eventId) {
-    const origin = getSourceOrigin(sourceUrl);
-
-    return `${origin}/events/${encodeURIComponent(eventId || '')}/print`;
   }
 
   function getSourceOrigin(sourceUrl) {
