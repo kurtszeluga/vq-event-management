@@ -144,7 +144,10 @@ service cloud.firestore {
         && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded'])
         && validStatus(request.resource.data.status, ['Registered', 'Cancelled', 'Waitlisted'])
         && (!('userId' in request.resource.data) || request.resource.data.userId is string)
-        && (!signedIn() || !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid);
+        && (hasPermission('viewRegistrations')
+          || !signedIn()
+          || !('userId' in request.resource.data)
+          || request.resource.data.userId == request.auth.uid);
     }
 
     function validUser() {

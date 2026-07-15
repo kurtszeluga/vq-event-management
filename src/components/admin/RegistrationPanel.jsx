@@ -19,11 +19,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paymentFilter, setPaymentFilter] = useState('All');
-  const [registrationEdits, setRegistrationEdits] = useState({});
   const [registrationStatusFilter, setRegistrationStatusFilter] = useState('All');
   const [registrations, setRegistrations] = useState([]);
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
 
@@ -229,26 +230,57 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     ],
     [events]
   );
+  const selectedRegistration = useMemo(
+    () => registrations.find((registration) => registration.id === selectedRegistrationId) || null,
+    [registrations, selectedRegistrationId]
+  );
+  const selectedRegistrationEvent = selectedRegistration
+    ? eventMap.get(selectedRegistration.eventId)
+    : null;
+  const selectedRegistrationUser = selectedRegistration
+    ? userMap.byId.get(selectedRegistration.userId)
+      || userMap.byEmail.get(normalizeEmail(selectedRegistration.email))
+    : null;
 
-  async function handleSaveStatus(registration) {
-    const nextStatus = registrationEdits[registration.id];
+  function handleResetFilters() {
+    setEventFilter('all');
+    setRegistrationStatusFilter('All');
+    setPaymentFilter('All');
+    setSearchTerm('');
+  }
 
-    if (!nextStatus || nextStatus === registration.status) {
+  function handleOpenDetails(registration) {
+    setError('');
+    setSuccessMessage('');
+    setSelectedRegistrationId(registration.id);
+    setSelectedStatus(registration.status || 'Registered');
+  }
+
+  function handleCloseDetails() {
+    if (savingRegistrationId) {
+      return;
+    }
+
+    setSelectedRegistrationId('');
+    setSelectedStatus('');
+  }
+
+  async function handleSaveStatus() {
+    const nextStatus = selectedStatus;
+
+    if (!selectedRegistration || !nextStatus || nextStatus === selectedRegistration.status) {
       return;
     }
 
     setError('');
     setSuccessMessage('');
-    setSavingRegistrationId(registration.id);
+    setSavingRegistrationId(selectedRegistration.id);
 
     try {
-      await updateRegistrationStatus(registration.id, nextStatus, currentUserProfile);
-      setRegistrationEdits((current) => {
-        const next = { ...current };
-        delete next[registration.id];
-        return next;
-      });
+      await updateRegistrationStatus(selectedRegistration.id, nextStatus, currentUserProfile);
       setSuccessMessage('Registration updated.');
+      setSelectedRegistrationId('');
+      setSelectedStatus('');
     } catch (saveError) {
       setError(saveError.message || 'Registration could not be updated.');
     } finally {
@@ -326,6 +358,15 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
             onChange={(event) => setSearchTerm(event.target.value)}
           />
         </label>
+        <div className="registration-filter-actions">
+          <button
+            className="button-link button-reset secondary-action compact-action"
+            type="button"
+            onClick={handleResetFilters}
+          >
+            Reset Filters
+          </button>
+        </div>
       </div>
       {error ? <p className="form-error">{error}</p> : null}
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
@@ -366,7 +407,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                   <thead>
                     <tr>
                       <th>Registrant</th>
-                      <th>Phone</th>
                       <th>Registered</th>
                       <th>Membership</th>
                       <th>Registration Status</th>
@@ -380,8 +420,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                       const user =
                         userMap.byId.get(registration.userId)
                         || userMap.byEmail.get(normalizeEmail(registration.email));
-                      const nextStatus = registrationEdits[registration.id] || registration.status;
-                      const hasChanged = nextStatus !== registration.status;
 
                       return (
                         <tr key={registration.id}>
@@ -389,27 +427,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                             <strong>{registration.name || 'Registrant'}</strong>
                             <span>{registration.email || 'No email'}</span>
                           </td>
-                          <td data-label="Phone">{registration.phone || 'No phone'}</td>
                           <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
                           <td data-label="Membership">{user?.membershipStatus || 'Unknown'}</td>
-                          <td data-label="Registration Status">
-                            <select
-                              className="registration-status-select"
-                              value={nextStatus}
-                              onChange={(event) =>
-                                setRegistrationEdits((current) => ({
-                                  ...current,
-                                  [registration.id]: event.target.value
-                                }))
-                              }
-                            >
-                              {REGISTRATION_STATUS_FILTERS.filter((status) => status !== 'All').map((status) => (
-                                <option key={status} value={status}>
-                                  {status}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
+                          <td data-label="Registration Status">{registration.status || 'Registered'}</td>
                           <td data-label="Payment">{registration.paymentStatus || 'Pending'}</td>
                           <td data-label="Profile">
                             {registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
@@ -418,11 +438,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                             <div className="card-actions">
                               <button
                                 className="button-link button-reset secondary-action compact-action"
-                                disabled={!hasChanged || savingRegistrationId === registration.id}
                                 type="button"
-                                onClick={() => handleSaveStatus(registration)}
+                                onClick={() => handleOpenDetails(registration)}
                               >
-                                {savingRegistrationId === registration.id ? 'Saving...' : 'Save Status'}
+                                Details/Edit
                               </button>
                             </div>
                           </td>
@@ -436,7 +455,96 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           );
         })}
       </div>
+      {selectedRegistration ? (
+        <div
+          aria-labelledby="registration-details-title"
+          aria-modal="true"
+          className="registration-modal-backdrop"
+          role="dialog"
+        >
+          <div className="registration-modal-card">
+            <div className="form-section-header form-section-header-stacked">
+              <div className="form-section-header-top">
+                <div>
+                  <h2 id="registration-details-title">Registration Details</h2>
+                  <p className="section-helper">
+                    Review the registration and update the status when needed.
+                  </p>
+                </div>
+                <button
+                  className="button-link button-reset secondary-action compact-action"
+                  disabled={Boolean(savingRegistrationId)}
+                  type="button"
+                  onClick={handleCloseDetails}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            <div className="registration-detail-grid">
+              <DetailItem label="Event / Activity" value={getEventDisplayTitle(selectedRegistrationEvent, selectedRegistration.eventId)} />
+              <DetailItem label="Event Type" value={selectedRegistrationEvent?.eventType || 'Event / Activity'} />
+              <DetailItem label="Event Date" value={formatEventDate(selectedRegistrationEvent?.date)} />
+              <DetailItem label="Registrant" value={selectedRegistration.name || 'Registrant'} />
+              <DetailItem label="Email" value={selectedRegistration.email || 'No email'} />
+              <DetailItem label="Phone" value={selectedRegistration.phone || 'No phone'} />
+              <DetailItem label="Registered Date" value={formatDateTime(selectedRegistration.registrationDate)} />
+              <DetailItem label="Membership Status" value={selectedRegistrationUser?.membershipStatus || 'Unknown'} />
+              <DetailItem label="Payment Status" value={selectedRegistration.paymentStatus || 'Pending'} />
+              <DetailItem
+                label="Profile"
+                value={selectedRegistration.userId ? 'Matched Profile' : 'Guest / Email Only'}
+              />
+            </div>
+            {error ? <p className="form-error">{error}</p> : null}
+            <label className="registration-modal-status">
+              <span>Registration Status</span>
+              <select
+                className="registration-status-select"
+                value={selectedStatus}
+                onChange={(event) => setSelectedStatus(event.target.value)}
+              >
+                {REGISTRATION_STATUS_FILTERS.filter((status) => status !== 'All').map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="form-actions">
+              <button
+                className="button-link button-reset"
+                disabled={
+                  savingRegistrationId === selectedRegistration.id
+                  || selectedStatus === selectedRegistration.status
+                }
+                type="button"
+                onClick={handleSaveStatus}
+              >
+                {savingRegistrationId === selectedRegistration.id ? 'Saving...' : 'Save Status'}
+              </button>
+              <button
+                className="button-link button-reset secondary-action"
+                disabled={Boolean(savingRegistrationId)}
+                type="button"
+                onClick={handleCloseDetails}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function DetailItem({ label, value }) {
+  return (
+    <div className="registration-detail-item">
+      <dt>{label}</dt>
+      <dd>{value || 'Not Set'}</dd>
+    </div>
   );
 }
 
