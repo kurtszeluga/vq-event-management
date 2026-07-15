@@ -145,11 +145,16 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           userMap.byId.get(registration.userId)
           || userMap.byEmail.get(normalizeEmail(registration.email));
         const haystack = [
+          registration.eventTitle,
+          registration.eventType,
           registration.name,
+          registration.registrantFirstName,
+          registration.registrantLastName,
           registration.email,
           registration.phone,
           registration.status,
           registration.paymentStatus,
+          registration.membershipStatusAtRegistration,
           event?.title,
           event?.eventType,
           user?.membershipStatus
@@ -202,6 +207,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           counts,
           event,
           eventId,
+          snapshot: eventRegistrations[0] || {},
           registrations: eventRegistrations.sort(compareRegistrationDates)
         };
       })
@@ -378,7 +384,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       ) : null}
       <div className="registration-admin-list">
         {groupedRegistrations.map((group) => {
-          const eventTitle = getEventDisplayTitle(group.event, group.eventId);
+          const eventTitle = getEventDisplayTitle(group.event, group.eventId, group.snapshot);
           const capacitySummary = getCapacitySummary(group.event, group.counts.registered);
 
           return (
@@ -386,12 +392,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
               <div className="registration-admin-card-header">
                 <div>
                   <div className="card-kicker">
-                    <span>{group.event?.eventType || 'Event / Activity'}</span>
+                    <span>{group.event?.eventType || group.snapshot.eventType || 'Event / Activity'}</span>
                     <strong>{group.registrations.length} total registrations</strong>
                   </div>
                   <h3>{eventTitle}</h3>
                   <p>
-                    {formatEventDate(group.event?.date)}
+                    {formatEventDate(group.event?.date || group.snapshot.eventDate)}
                     {group.event?.location ? ` | ${group.event.location}` : ''}
                   </p>
                 </div>
@@ -482,14 +488,25 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
               </div>
             </div>
             <div className="registration-detail-grid">
-              <DetailItem label="Event / Activity" value={getEventDisplayTitle(selectedRegistrationEvent, selectedRegistration.eventId)} />
-              <DetailItem label="Event Type" value={selectedRegistrationEvent?.eventType || 'Event / Activity'} />
-              <DetailItem label="Event Date" value={formatEventDate(selectedRegistrationEvent?.date)} />
+              <DetailItem
+                label="Event / Activity"
+                value={getEventDisplayTitle(
+                  selectedRegistrationEvent,
+                  selectedRegistration.eventId,
+                  selectedRegistration
+                )}
+              />
+              <DetailItem label="Event Type" value={selectedRegistrationEvent?.eventType || selectedRegistration.eventType || 'Event / Activity'} />
+              <DetailItem label="Event Date" value={formatEventDate(selectedRegistrationEvent?.date || selectedRegistration.eventDate)} />
               <DetailItem label="Registrant" value={selectedRegistration.name || 'Registrant'} />
               <DetailItem label="Email" value={selectedRegistration.email || 'No email'} />
               <DetailItem label="Phone" value={selectedRegistration.phone || 'No phone'} />
               <DetailItem label="Registered Date" value={formatDateTime(selectedRegistration.registrationDate)} />
               <DetailItem label="Membership Status" value={selectedRegistrationUser?.membershipStatus || 'Unknown'} />
+              <DetailItem
+                label="Membership When Registered"
+                value={selectedRegistration.membershipStatusAtRegistration || 'Unknown'}
+              />
               <DetailItem label="Payment Status" value={selectedRegistration.paymentStatus || 'Pending'} />
               <DetailItem
                 label="Profile"
@@ -583,8 +600,8 @@ function getEventSortValue(event) {
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
 }
 
-function getEventDisplayTitle(event, eventId) {
-  return event?.title || event?.eventType || eventId;
+function getEventDisplayTitle(event, eventId, registrationSnapshot = {}) {
+  return event?.title || registrationSnapshot.eventTitle || event?.eventType || registrationSnapshot.eventType || eventId;
 }
 
 function getCapacitySummary(event, registeredCount) {

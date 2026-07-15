@@ -25,16 +25,23 @@ export default async function handler(request, response) {
     }
 
     const db = getFirestore();
-    const member = await findMemberByEmail(db, email);
+    const profile = await findUserProfileByEmail(db, email);
 
-    if (!member) {
+    if (!profile) {
       response.status(404).json({
         error: 'We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.'
       });
       return;
     }
 
-    const memberPhone = normalizePhone(member.normalizedPhone || member.phone || '');
+    if (profile.membershipStatus !== 'Active') {
+      response.status(403).json({
+        error: 'Your membership status is not currently active. Please contact an administrator for assistance.'
+      });
+      return;
+    }
+
+    const memberPhone = normalizePhone(profile.phone || '');
 
     if (!memberPhone || memberPhone !== phone) {
       response.status(403).json({
@@ -49,25 +56,14 @@ export default async function handler(request, response) {
   }
 }
 
-async function findMemberByEmail(db, email) {
-  const normalizedSnapshot = await db
-    .collection('members')
-    .where('normalizedEmail', '==', email)
-    .limit(1)
-    .get();
+async function findUserProfileByEmail(db, email) {
+  const snapshot = await db.collection('users').where('email', '==', email).limit(1).get();
 
-  if (!normalizedSnapshot.empty) {
-    const docSnapshot = normalizedSnapshot.docs[0];
-    return { id: docSnapshot.id, ...docSnapshot.data() };
-  }
-
-  const emailSnapshot = await db.collection('members').where('email', '==', email).limit(1).get();
-
-  if (emailSnapshot.empty) {
+  if (snapshot.empty) {
     return null;
   }
 
-  const docSnapshot = emailSnapshot.docs[0];
+  const docSnapshot = snapshot.docs[0];
   return { id: docSnapshot.id, ...docSnapshot.data() };
 }
 

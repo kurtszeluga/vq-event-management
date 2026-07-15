@@ -50,13 +50,11 @@ async function createRegistration(db, payload) {
     const profile = payload.profileUserId
       ? await getProfileById(transaction, db, payload.profileUserId, payload.email)
       : await findUserProfileByEmail(db, payload.email);
-    const member = await findMemberByEmail(db, payload.email);
-    const membershipStatus = getMembershipStatus(profile, member);
+    const membershipStatus = getMembershipStatus(profile);
     const profileStatus = getProfileStatus(profile);
 
     validateRegistrationEligibility(event, {
       membershipStatus,
-      member,
       phone: payload.phone,
       profile,
       profileStatus,
@@ -89,14 +87,28 @@ async function createRegistration(db, payload) {
     const status = hasCapacity ? 'Registered' : 'Waitlisted';
     const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
     const userId = profile?.userId || profile?.id || '';
+    const profileUpdates = payload.profileUpdates || {};
+    const registrantFirstName = profileUpdates.firstName || profile?.firstName || getFirstName(payload.name);
+    const registrantLastName = profileUpdates.lastName || profile?.lastName || getLastName(payload.name);
     const registration = {
       email: payload.email,
       eventId: payload.eventId,
+      eventCost: Number(event.cost || 0),
+      eventDate: event.date || '',
+      eventPaymentRequired: isPaidEvent,
+      eventServiceFee: Number(event.serviceFee || 0),
+      eventTitle: event.title || '',
+      eventType: event.eventType || '',
       name: payload.name,
+      membershipStatusAtRegistration: membershipStatus,
       paymentStatus: isPaidEvent ? 'Pending' : 'Paid',
       phone: payload.phone,
+      profileMatchedAtRegistration: Boolean(profile),
+      profileStatusAtRegistration: profileStatus || '',
       registrationDate: FieldValue.serverTimestamp(),
       registrationId: registrationRef.id,
+      registrantFirstName,
+      registrantLastName,
       status,
       userId
     };
@@ -152,6 +164,9 @@ async function createRegistration(db, payload) {
       profileReactivated: Boolean(profile && payload.reactivateProfile && profileStatus !== 'Active'),
       registrationId: registrationRef.id,
       registeredCount: registeredCount + (status === 'Registered' ? 1 : 0),
+      waitlistedCount: existingRegistrations.filter(
+        (registrationRecord) => registrationRecord.status === 'Waitlisted'
+      ).length + (status === 'Waitlisted' ? 1 : 0),
       status
     };
   });
@@ -185,35 +200,9 @@ async function findUserProfileByEmail(db, email) {
   return { id: docSnapshot.id, ...docSnapshot.data() };
 }
 
-async function findMemberByEmail(db, email) {
-  const byNormalizedEmail = await findMemberByField(db, 'normalizedEmail', email);
-
-  if (byNormalizedEmail) {
-    return { ...byNormalizedEmail, matchedBy: 'email' };
-  }
-
-  const byEmail = await findMemberByField(db, 'email', email);
-  return byEmail ? { ...byEmail, matchedBy: 'email' } : null;
-}
-
-async function findMemberByField(db, field, value) {
-  if (!value) {
-    return null;
-  }
-
-  const snapshot = await db.collection('members').where(field, '==', value).limit(1).get();
-
-  if (snapshot.empty) {
-    return null;
-  }
-
-  const docSnapshot = snapshot.docs[0];
-  return { id: docSnapshot.id, ...docSnapshot.data() };
-}
-
 function validateRegistrationEligibility(
   event,
-  { member, membershipStatus, phone, profile, profileStatus, reactivateProfile }
+  { membershipStatus, phone, profile, profileStatus, reactivateProfile }
 ) {
   if (!isEventVisible(event)) {
     throw httpError(404, 'This event is not currently available.');
@@ -231,11 +220,11 @@ function validateRegistrationEligibility(
     throw httpError(400, 'Please confirm whether you want to reactivate the matched profile.');
   }
 
-  if (!member) {
+  if (!profile) {
     throw httpError(403, 'We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.');
   }
 
-  if (!doesPhoneMatchMember(member, phone)) {
+  if (!doesPhoneMatchProfile(profile, phone)) {
     throw httpError(403, 'The phone number does not match the membership record for this email address.');
   }
 
@@ -244,20 +233,8 @@ function validateRegistrationEligibility(
   }
 }
 
-function getMembershipStatus(profile, member) {
-  if (member?.status) {
-    return member.status;
-  }
-
-  if (profile?.membershipStatus === 'Archived') {
-    return 'Archived';
-  }
-
-  if (profile?.membershipStatus === 'Inactive') {
-    return 'Inactive';
-  }
-
-  return 'Unknown';
+function getMembershipStatus(profile) {
+  return profile?.membershipStatus || 'Unknown';
 }
 
 function getProfileStatus(profile) {
@@ -341,8 +318,8 @@ function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').slice(-10);
 }
 
-function doesPhoneMatchMember(member, phone) {
-  const memberPhone = normalizePhone(member?.normalizedPhone || member?.phone || '');
+function doesPhoneMatchProfile(profile, phone) {
+  const memberPhone = normalizePhone(profile?.phone || '');
   const submittedPhone = normalizePhone(phone);
 
   if (!memberPhone) {
@@ -354,6 +331,15 @@ function doesPhoneMatchMember(member, phone) {
 
 function buildDisplayName(firstName = '', lastName = '') {
   return [firstName, lastName].filter(Boolean).join(' ');
+}
+
+function getFirstName(name) {
+  return String(name || '').trim().split(/\s+/)[0] || '';
+}
+
+function getLastName(name) {
+  const nameParts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 }
 
 function sanitizeBillingAddress(billingAddress = {}) {

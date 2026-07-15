@@ -128,19 +128,44 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
           'registrationId',
           'eventId',
+          'eventCost',
+          'eventDate',
+          'eventPaymentRequired',
+          'eventServiceFee',
+          'eventTitle',
+          'eventType',
           'userId',
           'name',
           'email',
+          'membershipStatusAtRegistration',
           'phone',
+          'profileMatchedAtRegistration',
+          'profileStatusAtRegistration',
           'registrationDate',
+          'registrantFirstName',
+          'registrantLastName',
           'paymentStatus',
           'status'
         ])
         && request.resource.data.eventId is string
+        && (!('eventCost' in request.resource.data) || request.resource.data.eventCost is number)
+        && (!('eventDate' in request.resource.data) || request.resource.data.eventDate is string)
+        && (!('eventPaymentRequired' in request.resource.data) || request.resource.data.eventPaymentRequired is bool)
+        && (!('eventServiceFee' in request.resource.data) || request.resource.data.eventServiceFee is number)
+        && (!('eventTitle' in request.resource.data) || request.resource.data.eventTitle is string)
+        && (!('eventType' in request.resource.data) || request.resource.data.eventType is string)
         && request.resource.data.name is string
         && request.resource.data.email is string
+        && (!('membershipStatusAtRegistration' in request.resource.data)
+          || validStatus(request.resource.data.membershipStatusAtRegistration, ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown']))
         && request.resource.data.phone is string
+        && (!('profileMatchedAtRegistration' in request.resource.data)
+          || request.resource.data.profileMatchedAtRegistration is bool)
+        && (!('profileStatusAtRegistration' in request.resource.data)
+          || validStatus(request.resource.data.profileStatusAtRegistration, ['Active', 'Inactive', 'Archived', 'Unknown', '']))
         && request.resource.data.registrationDate is timestamp
+        && (!('registrantFirstName' in request.resource.data) || request.resource.data.registrantFirstName is string)
+        && (!('registrantLastName' in request.resource.data) || request.resource.data.registrantLastName is string)
         && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded'])
         && validStatus(request.resource.data.status, ['Registered', 'Cancelled', 'Waitlisted'])
         && (!('userId' in request.resource.data) || request.resource.data.userId is string)

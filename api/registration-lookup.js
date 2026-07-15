@@ -21,21 +21,19 @@ export default async function handler(request, response) {
 
     const db = getFirestore();
     const profile = await findUserProfileByEmail(db, email);
-    const member = await findMemberByEmail(db, email);
     const hasExistingRegistration = eventId
       ? await findActiveRegistration(db, eventId, email, profile?.userId || profile?.id || '')
       : false;
-    const membershipStatus = getMembershipStatus(profile, member);
+    const membershipStatus = getMembershipStatus(profile);
     const profileStatus = getProfileStatus(profile);
 
     response.status(200).json({
       hasExistingRegistration,
-      membership: member ? serializeMember(member) : null,
+      membership: profile ? serializeMembership(profile) : null,
       membershipStatus,
       profile: profile ? serializeProfile(profile, profileStatus, membershipStatus) : null,
       status: getLookupStatus({
         hasExistingRegistration,
-        member,
         membershipStatus,
         profile,
         profileStatus
@@ -57,28 +55,6 @@ async function findUserProfileByEmail(db, email) {
   return { id: docSnapshot.id, ...docSnapshot.data() };
 }
 
-async function findMemberByEmail(db, email) {
-  const normalizedSnapshot = await db
-    .collection('members')
-    .where('normalizedEmail', '==', email)
-    .limit(1)
-    .get();
-
-  if (!normalizedSnapshot.empty) {
-    const docSnapshot = normalizedSnapshot.docs[0];
-    return { id: docSnapshot.id, ...docSnapshot.data() };
-  }
-
-  const emailSnapshot = await db.collection('members').where('email', '==', email).limit(1).get();
-
-  if (emailSnapshot.empty) {
-    return null;
-  }
-
-  const docSnapshot = emailSnapshot.docs[0];
-  return { id: docSnapshot.id, ...docSnapshot.data() };
-}
-
 async function findActiveRegistration(db, eventId, email, userId) {
   const snapshot = await db
     .collection('registrations')
@@ -96,7 +72,7 @@ async function findActiveRegistration(db, eventId, email, userId) {
   });
 }
 
-function getLookupStatus({ hasExistingRegistration, member, membershipStatus, profile, profileStatus }) {
+function getLookupStatus({ hasExistingRegistration, membershipStatus, profile, profileStatus }) {
   if (hasExistingRegistration) {
     return 'already-registered';
   }
@@ -113,31 +89,15 @@ function getLookupStatus({ hasExistingRegistration, member, membershipStatus, pr
     return 'profile-membership-blocked';
   }
 
-  if (!profile && !member) {
+  if (!profile) {
     return 'membership-not-found';
-  }
-
-  if (!profile && member && membershipStatus !== 'Active') {
-    return 'membership-blocked';
   }
 
   return 'new-registrant';
 }
 
-function getMembershipStatus(profile, member) {
-  if (member?.status) {
-    return member.status;
-  }
-
-  if (profile?.membershipStatus === 'Archived') {
-    return 'Archived';
-  }
-
-  if (profile?.membershipStatus === 'Inactive') {
-    return 'Inactive';
-  }
-
-  return 'Unknown';
+function getMembershipStatus(profile) {
+  return profile?.membershipStatus || 'Unknown';
 }
 
 function getProfileStatus(profile) {
@@ -170,12 +130,12 @@ function serializeProfile(profile, profileStatus, membershipStatus) {
   };
 }
 
-function serializeMember(member) {
+function serializeMembership(profile) {
   return {
-    matchedBy: 'email',
-    memberId: member.memberId || member.id || '',
-    name: member.name || [member.firstName, member.lastName].filter(Boolean).join(' '),
-    status: member.status || 'Unknown'
+    matchedBy: profile.membershipMatchedBy || 'profile',
+    memberId: profile.membershipMemberId || profile.userId || profile.id || '',
+    name: profile.name || [profile.firstName, profile.lastName].filter(Boolean).join(' '),
+    status: profile.membershipStatus || 'Unknown'
   };
 }
 
