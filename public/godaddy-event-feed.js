@@ -74,6 +74,7 @@
     wireDescriptionToggles(root);
     wireImageViewerLinks(root);
     wireSupplyListLinks(root, config);
+    wireEventDetailsLinks(root);
     wireEventPrintLinks(root);
   }
 
@@ -179,7 +180,7 @@
           <div class="vq-feed-actions">
             ${supplyListLink}
             <button class="vq-feed-secondary" type="button" data-event-print="${eventPrintPayload}">Print ${escapeHtml(event.eventType)}</button>
-            <a class="vq-feed-secondary" href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">View Details</a>
+            <button class="vq-feed-secondary" type="button" data-event-details="${eventPrintPayload}">View Details</button>
             ${event.registrationOpen ? registerLink : ''}
           </div>
         </div>
@@ -312,6 +313,18 @@
       button.addEventListener('click', () => {
         try {
           openEventPrintPopup(JSON.parse(button.dataset.eventPrint || '{}'));
+        } catch {
+          return;
+        }
+      });
+    });
+  }
+
+  function wireEventDetailsLinks(root) {
+    root.querySelectorAll('[data-event-details]').forEach((button) => {
+      button.addEventListener('click', () => {
+        try {
+          openEventDetailsPopup(JSON.parse(button.dataset.eventDetails || '{}'));
         } catch {
           return;
         }
@@ -802,6 +815,221 @@
     });
 
     return `${origin}/api/file-proxy?${params.toString()}`;
+  }
+
+  function openEventDetailsPopup(event) {
+    if (!event?.id) {
+      return;
+    }
+
+    const popup = window.open('', 'vq-event-details', 'popup,width=980,height=820');
+
+    if (!popup) {
+      window.alert('Please allow popups to view event details.');
+      return;
+    }
+
+    const html = buildEventDetailsHtml(event);
+
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
+  }
+
+  function buildEventDetailsHtml(event) {
+    const title = escapeHtml(event.title || 'Event');
+    const eventType = escapeHtml(event.eventType || 'Other');
+    const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
+    const date = escapeHtml(formatEventDate(event.date));
+    const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
+    const location = escapeHtml(event.location || 'To be announced');
+    const presenter = escapeHtml(event.presenter || 'To be announced');
+    const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'Free');
+    const registration = escapeHtml(event.registrationOpen ? 'Registration open' : 'Registration closed');
+    const action = event.registrationOpen
+      ? `<a class="button primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
+      : '';
+    const imageBlock = event.imageUrl
+      ? `<img alt="${title}" class="event-image" src="${escapeAttribute(event.imageUrl)}" />`
+      : '';
+    const stats = getRegistrationStats(event);
+
+    return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>${title}</title>
+      <style>
+        :root {
+          background: #f4efe8;
+          color: #1d2927;
+          font-family: Inter, Arial, sans-serif;
+        }
+        html,
+        body {
+          margin: 0;
+          min-height: 100%;
+        }
+        body {
+          padding: 24px;
+        }
+        .page {
+          background: #fffdfa;
+          border: 1px solid #ded5ca;
+          border-radius: 10px;
+          margin: 0 auto;
+          max-width: 820px;
+          padding: 22px;
+        }
+        .topbar {
+          align-items: flex-start;
+          display: flex;
+          gap: 16px;
+          justify-content: space-between;
+        }
+        .eyebrow {
+          color: #9a4d2f;
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          margin: 0 0 8px;
+          text-transform: uppercase;
+        }
+        h1 {
+          font-size: 28px;
+          line-height: 1.15;
+          margin: 0;
+        }
+        .pill-row,
+        .stats {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 14px;
+        }
+        .pill,
+        .stats span {
+          background: #e9f2ef;
+          border: 1px solid #c6dad5;
+          border-radius: 999px;
+          color: #225c56;
+          display: inline-flex;
+          font-size: 13px;
+          font-weight: 900;
+          gap: 4px;
+          padding: 6px 10px;
+        }
+        .stats .is-waitlist {
+          background: #fff3c4;
+          border-color: #ddc66b;
+          color: #7a5200;
+        }
+        .stats .is-open {
+          background: #e7f6ea;
+          border-color: #8bc79a;
+          color: #1f6a31;
+        }
+        .event-image {
+          border: 1px solid #ded5ca;
+          border-radius: 8px;
+          display: block;
+          height: auto;
+          margin-top: 18px;
+          max-height: 280px;
+          max-width: 100%;
+          object-fit: contain;
+        }
+        .meta {
+          display: grid;
+          gap: 10px;
+          margin-top: 18px;
+        }
+        .meta-row {
+          display: grid;
+          gap: 10px;
+          grid-template-columns: 120px 1fr;
+        }
+        .meta-label {
+          color: #5a6b67;
+          font-weight: 900;
+        }
+        .description {
+          line-height: 1.55;
+          margin: 18px 0 0;
+          white-space: pre-wrap;
+        }
+        .actions {
+          display: inline-flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .button {
+          appearance: none;
+          background: #ffffff;
+          border: 1px solid #225c56;
+          border-radius: 999px;
+          color: #225c56;
+          cursor: pointer;
+          display: inline-flex;
+          font: inherit;
+          font-weight: 800;
+          padding: 9px 14px;
+          text-decoration: none;
+        }
+        .button.primary {
+          background: #225c56;
+          color: #ffffff;
+        }
+        @media (max-width: 640px) {
+          body {
+            padding: 12px;
+          }
+          .topbar,
+          .meta-row {
+            display: grid;
+            grid-template-columns: 1fr;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <main class="page">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Event details</p>
+            <h1>${title}</h1>
+          </div>
+          <div class="actions">
+            ${action}
+            <button class="button" type="button" onclick="window.close()">Close</button>
+          </div>
+        </div>
+        <div class="pill-row">
+          <span class="pill">${eventType}</span>
+          <span class="pill">${registration}</span>
+        </div>
+        <div class="stats">
+          ${stats.map((stat) => `
+            <span class="${stat.tone ? `is-${stat.tone}` : ''}">
+              <strong>${escapeHtml(stat.value)}</strong>
+              ${escapeHtml(stat.label)}
+            </span>
+          `).join('')}
+        </div>
+        ${imageBlock}
+        <div class="meta">
+          <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+          <div class="meta-row"><div class="meta-label">Time</div><div>${time}</div></div>
+          <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
+          <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
+          <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
+        </div>
+        ${description}
+      </main>
+    </body>
+  </html>`;
   }
 
   function openEventPrintPopup(event) {
