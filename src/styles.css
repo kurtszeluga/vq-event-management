@@ -1815,6 +1815,38 @@ body.popup-mode .page-content {
   min-width: 900px;
 }
 
+.registration-detail-row td {
+  background: #fffaf4;
+  padding: 0;
+}
+
+.registration-inline-details {
+  border-top: 1px solid #e6ddd3;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.registration-edit-context {
+  background: #f8f3ed;
+  border: 1px solid #e2d8ce;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.registration-edit-context strong {
+  color: #1d2927;
+  font-size: 1rem;
+}
+
+.registration-edit-context span {
+  color: #5c6966;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
 .registration-modal-backdrop {
   align-items: flex-start;
   background: rgb(29 41 39 / 0.46);

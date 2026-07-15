@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   subscribeToAdminEvents,
   subscribeToPublishedEvents
@@ -25,6 +25,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [registrations, setRegistrations] = useState([]);
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedRegistrationId, setExpandedRegistrationId] = useState('');
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
   const [selectedPaymentAmount, setSelectedPaymentAmount] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('None');
@@ -102,46 +103,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
     return { byEmail, byId };
   }, [users]);
-  const registrationSummary = useMemo(
-    () => registrations.reduce(
-      (counts, registration) => {
-        counts.total += 1;
-        if (registration.status === 'Registered') {
-          counts.registered += 1;
-        } else if (registration.status === 'Waitlisted') {
-          counts.waitlisted += 1;
-        } else if (registration.status === 'Cancelled') {
-          counts.cancelled += 1;
-        }
-
-        if (registration.paymentStatus === 'Paid') {
-          counts.paid += 1;
-        } else if (registration.paymentStatus === 'Refunded') {
-          counts.refunded += 1;
-        } else if (registration.paymentStatus === 'Failed') {
-          counts.failed += 1;
-        } else if (registration.paymentStatus === 'Waived') {
-          counts.waived += 1;
-        } else {
-          counts.pending += 1;
-        }
-
-        return counts;
-      },
-      {
-        cancelled: 0,
-        failed: 0,
-        paid: 0,
-        pending: 0,
-        refunded: 0,
-        registered: 0,
-        total: 0,
-        waived: 0,
-        waitlisted: 0
-      }
-    ),
-    [registrations]
-  );
   const filteredRegistrations = useMemo(
     () =>
       registrations.filter((registration) => {
@@ -280,7 +241,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSearchTerm('');
   }
 
-  function handleOpenDetails(registration) {
+  function handleToggleDetails(registrationId) {
+    setExpandedRegistrationId((currentId) => (currentId === registrationId ? '' : registrationId));
+  }
+
+  function handleOpenEdit(registration) {
     setError('');
     setSuccessMessage('');
     setSelectedRegistrationId(registration.id);
@@ -409,15 +374,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           <span>{filteredRegistrations.length} shown</span>
         </div>
       </div>
-      <div className="configuration-summary" aria-label="Registration totals">
-        <span>Total: {registrationSummary.total}</span>
-        <span>Registered: {registrationSummary.registered}</span>
-        <span>Waitlisted: {registrationSummary.waitlisted}</span>
-        <span>Cancelled: {registrationSummary.cancelled}</span>
-        <span>Pending Payment: {registrationSummary.pending}</span>
-        <span>Paid: {registrationSummary.paid}</span>
-        <span>Waived: {registrationSummary.waived}</span>
-      </div>
       <div className="registration-admin-controls">
         <label>
           <span>Event / Activity</span>
@@ -523,32 +479,83 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                       const user =
                         userMap.byId.get(registration.userId)
                         || userMap.byEmail.get(normalizeEmail(registration.email));
+                      const isExpanded = expandedRegistrationId === registration.id;
 
                       return (
-                        <tr key={registration.id}>
-                          <td data-label="Registrant">
-                            <strong>{registration.name || 'Registrant'}</strong>
-                            <span>{registration.email || 'No email'}</span>
-                          </td>
-                          <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
-                          <td data-label="Membership">{user?.membershipStatus || 'Unknown'}</td>
-                          <td data-label="Registration Status">{registration.status || 'Registered'}</td>
-                          <td data-label="Payment">{formatPaymentSummary(registration)}</td>
-                          <td data-label="Profile">
-                            {registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
-                          </td>
-                          <td data-label="Actions">
-                            <div className="card-actions">
-                              <button
-                                className="button-link button-reset secondary-action compact-action"
-                                type="button"
-                                onClick={() => handleOpenDetails(registration)}
-                              >
-                                Details/Edit
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                        <Fragment key={registration.id}>
+                          <tr>
+                            <td data-label="Registrant">
+                              <strong>{registration.name || 'Registrant'}</strong>
+                              <span>{registration.email || 'No email'}</span>
+                            </td>
+                            <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
+                            <td data-label="Membership">{user?.membershipStatus || 'Unknown'}</td>
+                            <td data-label="Registration Status">{registration.status || 'Registered'}</td>
+                            <td data-label="Payment">{formatPaymentSummary(registration)}</td>
+                            <td data-label="Profile">
+                              {registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
+                            </td>
+                            <td data-label="Actions">
+                              <div className="card-actions">
+                                <button
+                                  className="button-link button-reset secondary-action compact-action"
+                                  type="button"
+                                  onClick={() => handleToggleDetails(registration.id)}
+                                >
+                                  {isExpanded ? 'Hide Details' : 'Details'}
+                                </button>
+                                <button
+                                  className="button-link button-reset secondary-action compact-action"
+                                  type="button"
+                                  onClick={() => handleOpenEdit(registration)}
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded ? (
+                            <tr className="registration-detail-row">
+                              <td colSpan="7">
+                                <div className="registration-inline-details">
+                                  <div className="registration-detail-grid">
+                                    <DetailItem
+                                      label="Event / Activity"
+                                      value={getEventDisplayTitle(group.event, group.eventId, registration)}
+                                    />
+                                    <DetailItem
+                                      label="Event Type"
+                                      value={group.event?.eventType || registration.eventType || 'Event / Activity'}
+                                    />
+                                    <DetailItem
+                                      label="Event Date"
+                                      value={formatEventDate(group.event?.date || registration.eventDate)}
+                                    />
+                                    <DetailItem label="Registrant" value={registration.name || 'Registrant'} />
+                                    <DetailItem label="Email" value={registration.email || 'No email'} />
+                                    <DetailItem label="Phone" value={registration.phone || 'No phone'} />
+                                    <DetailItem label="Registered Date" value={formatDateTime(registration.registrationDate)} />
+                                    <DetailItem label="Current Membership" value={user?.membershipStatus || 'Unknown'} />
+                                    <DetailItem
+                                      label="Membership When Registered"
+                                      value={registration.membershipStatusAtRegistration || 'Unknown'}
+                                    />
+                                    <DetailItem label="Registration Status" value={registration.status || 'Registered'} />
+                                    <DetailItem label="Amount Due" value={formatCurrencyValue(getAmountDue(registration))} />
+                                    <DetailItem label="Amount Paid" value={formatCurrencyValue(registration.amountPaid || 0)} />
+                                    <DetailItem label="Payment Status" value={formatPaymentSummary(registration)} />
+                                    <DetailItem label="Payment Updated" value={formatDateTime(registration.paymentUpdatedDate)} />
+                                    <DetailItem
+                                      label="Profile"
+                                      value={registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
+                                    />
+                                    <DetailItem label="Payment Note" value={registration.paymentNote || 'None'} />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -569,9 +576,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
             <div className="form-section-header form-section-header-stacked">
               <div className="form-section-header-top">
                 <div>
-                  <h2 id="registration-details-title">Registration Details</h2>
+                  <h2 id="registration-details-title">Edit Registration</h2>
                   <p className="section-helper">
-                    Review the registration and update the status when needed.
+                    Update the registration status or payment information.
                   </p>
                 </div>
                 <button
@@ -584,34 +591,17 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 </button>
               </div>
             </div>
-            <div className="registration-detail-grid">
-              <DetailItem
-                label="Event / Activity"
-                value={getEventDisplayTitle(
+            <div className="registration-edit-context">
+              <strong>
+                {selectedRegistration.name || 'Registrant'}
+              </strong>
+              <span>
+                {getEventDisplayTitle(
                   selectedRegistrationEvent,
                   selectedRegistration.eventId,
                   selectedRegistration
                 )}
-              />
-              <DetailItem label="Event Type" value={selectedRegistrationEvent?.eventType || selectedRegistration.eventType || 'Event / Activity'} />
-              <DetailItem label="Event Date" value={formatEventDate(selectedRegistrationEvent?.date || selectedRegistration.eventDate)} />
-              <DetailItem label="Registrant" value={selectedRegistration.name || 'Registrant'} />
-              <DetailItem label="Email" value={selectedRegistration.email || 'No email'} />
-              <DetailItem label="Phone" value={selectedRegistration.phone || 'No phone'} />
-              <DetailItem label="Registered Date" value={formatDateTime(selectedRegistration.registrationDate)} />
-              <DetailItem label="Membership Status" value={selectedRegistrationUser?.membershipStatus || 'Unknown'} />
-              <DetailItem
-                label="Membership When Registered"
-                value={selectedRegistration.membershipStatusAtRegistration || 'Unknown'}
-              />
-              <DetailItem label="Amount Due" value={formatCurrencyValue(getAmountDue(selectedRegistration))} />
-              <DetailItem label="Amount Paid" value={formatCurrencyValue(selectedRegistration.amountPaid || 0)} />
-              <DetailItem label="Payment Status" value={formatPaymentSummary(selectedRegistration)} />
-              <DetailItem label="Payment Updated" value={formatDateTime(selectedRegistration.paymentUpdatedDate)} />
-              <DetailItem
-                label="Profile"
-                value={selectedRegistration.userId ? 'Matched Profile' : 'Guest / Email Only'}
-              />
+              </span>
             </div>
             {error ? <p className="form-error">{error}</p> : null}
             <div className="registration-edit-section">
