@@ -4,8 +4,15 @@ const ALLOWED_HOSTS = new Set([
 ]);
 
 export default async function handler(request, response) {
+  setCorsHeaders(response);
+
+  if (request.method === 'OPTIONS') {
+    response.status(204).end();
+    return;
+  }
+
   if (!['GET', 'HEAD'].includes(request.method)) {
-    response.setHeader('Allow', 'GET, HEAD');
+    response.setHeader('Allow', 'GET, HEAD, OPTIONS');
     response.status(405).json({ error: 'Method not allowed.' });
     return;
   }
@@ -68,6 +75,16 @@ export default async function handler(request, response) {
   } catch (error) {
     response.status(500).json({ error: error.message });
   }
+}
+
+function setCorsHeaders(response) {
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type, Range');
+  response.setHeader(
+    'Access-Control-Expose-Headers',
+    'Accept-Ranges, Content-Disposition, Content-Length, Content-Range, Content-Type'
+  );
 }
 
 function copyHeader(upstream, response, headerName) {

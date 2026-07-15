@@ -130,8 +130,9 @@
     const supplyListDownloadUrl = event.supplyListUrl
       ? event.supplyListDownloadUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
       : '';
+    const supplyListFileName = event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf';
     const supplyListLink = event.supplyListUrl
-      ? `<button class="vq-feed-secondary" type="button" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}">Download ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</button>`
+      ? `<button class="vq-feed-secondary" type="button" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}" data-supply-list-file-name="${escapeAttribute(supplyListFileName)}">Download ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</button>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -298,28 +299,51 @@
 
   function wireSupplyListDownloadLinks(root) {
     root.querySelectorAll('[data-supply-list-download-url]').forEach((button) => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', async () => {
         const url = button.dataset.supplyListDownloadUrl || '';
         const originalText = button.textContent;
+        const fileName = button.dataset.supplyListFileName || 'supply-list.pdf';
 
         if (!url) {
           return;
         }
 
-        const iframe = document.createElement('iframe');
-        iframe.hidden = true;
-        iframe.title = 'Supply list download';
-        iframe.src = url;
-        document.body.appendChild(iframe);
+        button.disabled = true;
+        button.textContent = 'Preparing Download';
 
-        button.textContent = 'Download Started';
-        window.setTimeout(() => {
-          button.textContent = originalText;
-        }, 3000);
+        try {
+          const response = await fetch(url, {
+            headers: {
+              Accept: 'application/pdf'
+            }
+          });
 
-        window.setTimeout(() => {
-          iframe.remove();
-        }, 60000);
+          if (!response.ok) {
+            throw new Error('Download failed.');
+          }
+
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+          button.textContent = 'Download Started';
+        } catch {
+          const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+
+          if (!openedWindow) {
+            window.location.href = url;
+          }
+        } finally {
+          window.setTimeout(() => {
+            button.disabled = false;
+            button.textContent = originalText;
+          }, 3000);
+        }
       });
     });
   }
