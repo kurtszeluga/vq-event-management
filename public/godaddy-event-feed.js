@@ -1004,14 +1004,28 @@
     const safeFileName = escapeHtml(fileName || 'supply-list.pdf');
     const safeViewUrl = escapeAttribute(viewUrl);
     const safeDownloadUrl = escapeAttribute(downloadUrl);
+    const canPreviewPdf = navigator.userAgent.toLowerCase().includes('firefox');
 
     popup.document.open();
-    popup.document.write(buildSupplyListViewerHtml(safeTitle, safeFileName, safeViewUrl, safeDownloadUrl));
+    popup.document.write(buildSupplyListViewerHtml(safeTitle, safeFileName, safeViewUrl, safeDownloadUrl, canPreviewPdf));
     popup.document.close();
     popup.focus();
   }
 
-  function buildSupplyListViewerHtml(title, fileName, viewUrl, downloadUrl) {
+  function buildSupplyListViewerHtml(title, fileName, viewUrl, downloadUrl, canPreviewPdf) {
+    const content = canPreviewPdf
+      ? `
+      <p class="message">Use the Download button above if you want to save a copy.</p>
+      <section class="viewer-card">
+        <iframe class="pdf-frame" src="${viewUrl}" title="${title}"></iframe>
+      </section>`
+      : `
+      <section class="viewer-card download-only">
+        <p class="message">Your browser does not reliably preview this PDF here.</p>
+        <p class="message">Click Download Supply List. If nothing appears, check your browser Downloads folder.</p>
+        <a class="button primary large" href="${downloadUrl}" target="_blank" rel="noopener noreferrer" download="${fileName}">Download Supply List</a>
+      </section>`;
+
     return `<!doctype html>
 <html lang="en">
   <head>
@@ -1025,14 +1039,11 @@
       <div class="viewer-topbar">
         <h1>${title}</h1>
         <div class="actions">
-          <a class="button primary" href="${downloadUrl}" download="${fileName}">Download</a>
+          <a class="button primary" href="${downloadUrl}" target="_blank" rel="noopener noreferrer" download="${fileName}">Download</a>
           <button class="button" type="button" onclick="window.close()">Close</button>
         </div>
       </div>
-      <p class="message">If the preview is blank, use the Download button above.</p>
-      <section class="viewer-card">
-        <iframe class="pdf-frame" src="${viewUrl}" title="${title}"></iframe>
-      </section>
+      ${content}
     </main>
   </body>
 </html>`;
@@ -1092,12 +1103,25 @@
         background: #225c56;
         color: #ffffff;
       }
+      .button.large {
+        font-size: 1.05rem;
+        justify-content: center;
+        margin-top: 8px;
+        padding: 13px 18px;
+      }
       .viewer-card {
         background: #ffffff;
         border: 1px solid #ded5ca;
         border-radius: 10px;
         min-height: 70vh;
         padding: 12px;
+      }
+      .viewer-card.download-only {
+        align-content: center;
+        display: grid;
+        justify-items: start;
+        min-height: 260px;
+        padding: 22px;
       }
       .pdf-frame {
         border: 0;
