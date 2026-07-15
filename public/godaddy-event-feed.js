@@ -128,7 +128,8 @@
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
-    const supplyListViewerUrl = event.supplyListViewerUrl || buildEventPageUrl(config.sourceUrl, event.id, 'supply-list');
+    const supplyListViewerUrl =
+      event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id);
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" target="_blank" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
       : '';
@@ -668,11 +669,13 @@
     return `${origin}/api/file-proxy?${params.toString()}`;
   }
 
-  function buildEventPageUrl(sourceUrl, eventId, childPath = '') {
+  function buildSupplyListViewerUrl(sourceUrl, eventId) {
     const origin = getSourceOrigin(sourceUrl);
-    const suffix = childPath ? `/${childPath}` : '';
+    const params = new URLSearchParams({
+      eventId: eventId || ''
+    });
 
-    return `${origin}/events/${encodeURIComponent(eventId || '')}${suffix}`;
+    return `${origin}/api/supply-list-viewer?${params.toString()}`;
   }
 
   function getSourceOrigin(sourceUrl) {

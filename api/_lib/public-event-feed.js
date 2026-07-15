@@ -176,7 +176,9 @@ function serializeEvent(event, origin, registrationCounts = {}) {
     supplyListDownloadUrl: event.supplyListUrl
       ? buildFileProxyUrl(safeOrigin, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
       : '',
-    supplyListViewerUrl: event.supplyListUrl ? `${safeOrigin}/events/${event.id}/supply-list` : '',
+    supplyListViewerUrl: event.supplyListUrl
+      ? `${safeOrigin}/api/supply-list-viewer?eventId=${encodeURIComponent(event.id)}`
+      : '',
     detailUrl: `${safeOrigin}/events/${event.id}`,
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
