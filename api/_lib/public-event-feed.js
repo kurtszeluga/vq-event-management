@@ -170,11 +170,24 @@ function serializeEvent(event, origin, registrationCounts = {}) {
     supplyListFileName: event.supplyListFileName || '',
     supplyListTitle: event.supplyListTitle || event.supplyListFileName || '',
     supplyListUrl: event.supplyListUrl || '',
+    supplyListProxyUrl: event.supplyListUrl
+      ? buildFileProxyUrl(safeOrigin, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf')
+      : '',
     supplyListViewerUrl: event.supplyListUrl ? `${safeOrigin}/events/${event.id}/supply-list` : '',
     detailUrl: `${safeOrigin}/events/${event.id}`,
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
   };
+}
+
+function buildFileProxyUrl(origin, fileUrl, fileName) {
+  const params = new URLSearchParams({
+    disposition: 'inline',
+    filename: fileName || 'supply-list.pdf',
+    url: fileUrl
+  });
+
+  return `${origin}/api/file-proxy?${params.toString()}`;
 }
 
 function getAvailability(event, registrationCounts = {}) {

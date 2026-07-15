@@ -127,7 +127,7 @@
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     const supplyListProxyUrl = event.supplyListUrl
-      ? buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf')
+      ? event.supplyListProxyUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf')
       : '';
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListProxyUrl)}" target="_blank" rel="noopener noreferrer">Open ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</a>`
