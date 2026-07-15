@@ -130,7 +130,7 @@
     const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
     const supplyListViewerUrl = event.supplyListViewerUrl || buildEventPageUrl(config.sourceUrl, event.id, 'supply-list');
     const supplyListLink = event.supplyListUrl
-      ? `<button class="vq-feed-secondary" type="button" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</button>`
+      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" target="_blank" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -296,19 +296,28 @@
   }
 
   function wireSupplyListLinks(root) {
-    root.querySelectorAll('[data-supply-list-url]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const url = button.dataset.supplyListUrl || '';
+    root.querySelectorAll('[data-supply-list-url]').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        const url = link.dataset.supplyListUrl || link.href || '';
 
         if (!url) {
           return;
         }
 
+        event.preventDefault();
+
         try {
-          window.top.location.href = url;
+          const openedWindow = window.open(url, 'vq-supply-list');
+
+          if (openedWindow) {
+            openedWindow.focus();
+            return;
+          }
         } catch {
-          window.location.href = url;
+          // Fall through to the standard link behavior.
         }
+
+        window.location.href = url;
       });
     });
   }
