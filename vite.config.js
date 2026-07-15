@@ -18,7 +18,7 @@ export default defineConfig({
     react(),
     VitePWA({
       workbox: {
-        navigateFallbackDenylist: [/^\/api\//]
+        navigateFallbackDenylist: [/^\/api\//, /^\/events\/[^/]+\/supply-list\/?$/]
       },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
