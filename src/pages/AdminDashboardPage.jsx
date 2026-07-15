@@ -229,7 +229,7 @@ function AdminDashboardPage() {
             type="button"
             onClick={() => setActiveModule('configuration')}
           >
-            Configuration
+            System Config
           </button>
         ) : null}
       </nav>

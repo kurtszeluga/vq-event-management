@@ -51,6 +51,7 @@ export const EVENT_LOCATIONS = [
 
 export const DEFAULT_EVENT_FORM = {
   additionalNotes: '',
+  allowNonMemberRegistration: false,
   address: '',
   askingPrice: '',
   businessName: '',

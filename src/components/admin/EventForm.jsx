@@ -106,6 +106,18 @@ function EventForm({
     });
   }
 
+  function handleAllowNonMemberRegistration(value) {
+    if (value) {
+      const confirmed = window.confirm('Confirm NON member registration allowed');
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    updateField('allowNonMemberRegistration', value);
+  }
+
   function handleTimePreset(value) {
     setSuccessMessage('');
     const option = eventTimeOptions.find((item) => item.value === value);
@@ -152,6 +164,9 @@ function EventForm({
       startTime: nextTimeOption?.startTime || '',
       endTime: nextTimeOption?.endTime || '',
       capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
+      allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale'
+        ? false
+        : current.allowNonMemberRegistration,
       presenter: isRetreatType ? '' : current.presenter,
       supplyListFileName: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListFileName : '',
       supplyListTitle: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListTitle : '',
@@ -1248,6 +1263,20 @@ function EventForm({
                 </label>
               </div>
             ) : null}
+            <label className="checkbox-label registration-exception-checkbox">
+              <input
+                checked={Boolean(form.allowNonMemberRegistration)}
+                disabled={!eventTypeSelected}
+                type="checkbox"
+                onChange={(event) =>
+                  handleAllowNonMemberRegistration(event.target.checked)
+                }
+              />
+              <span>Allow Non-Members To Register</span>
+            </label>
+            <span className="form-help">
+              Use only for rare events where Guild membership is not required.
+            </span>
           </div>
           ) : null}
         </div>
@@ -1476,6 +1505,7 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
 
   return {
     additionalNotes: form.additionalNotes.trim(),
+    allowNonMemberRegistration: !isListingOnly && Boolean(form.allowNonMemberRegistration),
     address: toTitleCase(form.address.trim()),
     askingPrice: isForSale ? Number(form.askingPrice || 0) : 0,
     businessName: toTitleCase(form.businessName.trim()),

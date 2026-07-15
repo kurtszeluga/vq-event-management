@@ -52,9 +52,9 @@ export async function createRegistration(registrationData) {
   return result;
 }
 
-export async function verifyRegistrationPhone(email, phone) {
+export async function verifyRegistrationPhone(email, phone, eventId = '') {
   const response = await fetch('/api/verify-registration-phone', {
-    body: JSON.stringify({ email, phone }),
+    body: JSON.stringify({ email, eventId, phone }),
     headers: {
       'Content-Type': 'application/json'
     },
@@ -67,6 +67,26 @@ export async function verifyRegistrationPhone(email, phone) {
   }
 
   return result;
+}
+
+export async function loadPublicRegistrationCounts(eventIds = []) {
+  const targetEventIds = eventIds.filter(Boolean);
+
+  if (!targetEventIds.length) {
+    return {};
+  }
+
+  const params = new URLSearchParams({
+    eventIds: targetEventIds.join(',')
+  });
+  const response = await fetch(`/api/public-registration-counts?${params.toString()}`);
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Registration counts could not be loaded.');
+  }
+
+  return result.counts || {};
 }
 
 export async function updateRegistrationStatus(registrationId, status, actorProfile) {

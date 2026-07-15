@@ -69,18 +69,53 @@ export async function loadPublicFeed(category, origin) {
   const events = snapshot.docs
     .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
     .filter(isEventVisible)
-    .filter((event) => matchesCategory(event, config))
-    .map((event) => serializeEvent(event, origin));
+    .filter((event) => matchesCategory(event, config));
+  const registrationCounts = await loadRegistrationCounts(db, events.map((event) => event.id));
+  const serializedEvents = events.map((event) =>
+    serializeEvent(event, origin, registrationCounts[event.id])
+  );
 
   return {
     category: feedCategory,
     categoryLabel: config.label,
     generatedAt: new Date().toISOString(),
     supportsTypeFilters: config.supportsTypeFilters,
-    typeCounts: config.supportsTypeFilters ? buildTypeCounts(events) : {},
-    total: events.length,
-    events
+    typeCounts: config.supportsTypeFilters ? buildTypeCounts(serializedEvents) : {},
+    total: serializedEvents.length,
+    events: serializedEvents
   };
+}
+
+export async function loadRegistrationCounts(db, eventIds = []) {
+  const targetEventIds = new Set(eventIds.filter(Boolean));
+
+  if (!targetEventIds.size) {
+    return {};
+  }
+
+  const counts = Object.fromEntries(
+    [...targetEventIds].map((eventId) => [
+      eventId,
+      { registered: 0, waitlisted: 0 }
+    ])
+  );
+  const snapshot = await db.collection('registrations').get();
+
+  snapshot.docs.forEach((docSnapshot) => {
+    const registration = docSnapshot.data();
+
+    if (!targetEventIds.has(registration.eventId)) {
+      return;
+    }
+
+    if (registration.status === 'Registered') {
+      counts[registration.eventId].registered += 1;
+    } else if (registration.status === 'Waitlisted') {
+      counts[registration.eventId].waitlisted += 1;
+    }
+  });
+
+  return counts;
 }
 
 function matchesCategory(event, config) {
@@ -97,9 +132,11 @@ function matchesCategory(event, config) {
   return true;
 }
 
-function serializeEvent(event, origin) {
+function serializeEvent(event, origin, registrationCounts = {}) {
   const eventType = getEventTypeLabel(event);
   const safeOrigin = origin.replace(/\/$/, '');
+  const availability = getAvailability(event, registrationCounts);
+
   return {
     id: event.id,
     eventType,
@@ -120,7 +157,13 @@ function serializeEvent(event, origin) {
     askingPrice: Number(event.askingPrice || 0),
     isPaid: Boolean(event.isPaid),
     cost: Number(event.cost || 0),
+    capacity: Number(event.capacity || 0),
+    capacityUnlimited: Boolean(event.capacityUnlimited),
     registrationOpen: Boolean(event.registrationOpen),
+    registeredCount: registrationCounts.registered || 0,
+    waitlistedCount: registrationCounts.waitlisted || 0,
+    registrationAvailability: availability.label,
+    registrationIsFull: availability.isFull,
     visibleFrom: event.visibleFrom || '',
     visibleUntil: event.visibleUntil || '',
     imageUrl: Array.isArray(event.imageUrls) ? event.imageUrls.find(Boolean) || '' : '',
@@ -132,6 +175,26 @@ function serializeEvent(event, origin) {
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
   };
+}
+
+function getAvailability(event, registrationCounts = {}) {
+  if (event.capacityUnlimited) {
+    return { isFull: false, label: 'Unlimited' };
+  }
+
+  const capacity = Number(event.capacity || 0);
+
+  if (!capacity) {
+    return { isFull: false, label: 'Seats available' };
+  }
+
+  const registeredCount = Number(registrationCounts.registered || 0);
+
+  if (registeredCount >= capacity) {
+    return { isFull: true, label: 'Full - waitlist available' };
+  }
+
+  return { isFull: false, label: 'Seats available' };
 }
 
 function getEventTypeLabel(event) {

@@ -43,6 +43,7 @@ service cloud.firestore {
     function validEvent() {
       return request.resource.data.keys().hasOnly([
           'eventId',
+          'allowNonMemberRegistration',
           'type',
           'address',
           'askingPrice',
@@ -88,6 +89,8 @@ service cloud.firestore {
           'updatedDate'
         ])
         && request.resource.data.title is string
+        && (!('allowNonMemberRegistration' in request.resource.data)
+          || request.resource.data.allowNonMemberRegistration is bool)
         && (!('address' in request.resource.data) || request.resource.data.address is string)
         && (!('askingPrice' in request.resource.data) || request.resource.data.askingPrice is number)
         && (!('businessName' in request.resource.data) || request.resource.data.businessName is string)

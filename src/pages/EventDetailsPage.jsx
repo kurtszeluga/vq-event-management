@@ -2,18 +2,21 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
+import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
   formatCurrency,
   formatEventDate,
   formatTimeRange,
   isEventVisible
 } from '../utils/eventFormat.js';
+import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 
 function EventDetailsPage() {
   const { eventId } = useParams();
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [registrationCounts, setRegistrationCounts] = useState({});
 
   function openSupplyListPopup() {
     if (!event?.supplyListUrl) {
@@ -52,6 +55,31 @@ function EventDetailsPage() {
     };
   }, [eventId]);
 
+  useEffect(() => {
+    let active = true;
+
+    if (!event?.id) {
+      setRegistrationCounts({});
+      return undefined;
+    }
+
+    loadPublicRegistrationCounts([event.id])
+      .then((counts) => {
+        if (active) {
+          setRegistrationCounts(counts[event.id] || {});
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRegistrationCounts({});
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [event?.id]);
+
   if (loading) {
     return (
       <section>
@@ -78,6 +106,8 @@ function EventDetailsPage() {
       </section>
     );
   }
+
+  const availability = getRegistrationAvailability(event, registrationCounts);
 
   return (
     <section>
@@ -112,6 +142,10 @@ function EventDetailsPage() {
                 {formatCurrency(event.serviceFee)} service fee
               </dd>
             </div>
+            <div>
+              <dt>Availability</dt>
+              <dd>{availability.label}</dd>
+            </div>
           </dl>
           {event.supplyListUrl ? (
             <button
@@ -128,7 +162,7 @@ function EventDetailsPage() {
           <div className="detail-actions">
             {event.registrationOpen ? (
               <Link className="button-link" to={`/register?eventId=${event.id}`}>
-                Register
+                {availability.isFull ? 'Join Waitlist' : 'Register'}
               </Link>
             ) : null}
             <button

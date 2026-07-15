@@ -20,6 +20,8 @@ export default async function handler(request, response) {
     }
 
     const db = getFirestore();
+    const event = eventId ? await findEventById(db, eventId) : null;
+    const allowNonMemberRegistration = Boolean(event?.allowNonMemberRegistration);
     const profile = await findUserProfileByEmail(db, email);
     const hasExistingRegistration = eventId
       ? await findActiveRegistration(db, eventId, email, profile?.userId || profile?.id || '')
@@ -31,8 +33,10 @@ export default async function handler(request, response) {
       hasExistingRegistration,
       membership: profile ? serializeMembership(profile) : null,
       membershipStatus,
+      allowNonMemberRegistration,
       profile: profile ? serializeProfile(profile, profileStatus, membershipStatus) : null,
       status: getLookupStatus({
+        allowNonMemberRegistration,
         hasExistingRegistration,
         membershipStatus,
         profile,
@@ -42,6 +46,11 @@ export default async function handler(request, response) {
   } catch (error) {
     response.status(500).json({ error: error.message || 'Lookup failed.' });
   }
+}
+
+async function findEventById(db, eventId) {
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  return eventSnap.exists ? { id: eventSnap.id, ...eventSnap.data() } : null;
 }
 
 async function findUserProfileByEmail(db, email) {
@@ -72,7 +81,13 @@ async function findActiveRegistration(db, eventId, email, userId) {
   });
 }
 
-function getLookupStatus({ hasExistingRegistration, membershipStatus, profile, profileStatus }) {
+function getLookupStatus({
+  allowNonMemberRegistration,
+  hasExistingRegistration,
+  membershipStatus,
+  profile,
+  profileStatus
+}) {
   if (hasExistingRegistration) {
     return 'already-registered';
   }
@@ -85,8 +100,16 @@ function getLookupStatus({ hasExistingRegistration, membershipStatus, profile, p
     return 'profile-reactivation-available';
   }
 
-  if (profile && membershipStatus !== 'Active') {
+  if (profile && membershipStatus !== 'Active' && !allowNonMemberRegistration) {
     return 'profile-membership-blocked';
+  }
+
+  if (profile && membershipStatus !== 'Active' && allowNonMemberRegistration) {
+    return profileStatus === 'Active' ? 'profile-active' : 'profile-reactivation-available';
+  }
+
+  if (!profile && allowNonMemberRegistration) {
+    return 'non-member-registration-allowed';
   }
 
   if (!profile) {

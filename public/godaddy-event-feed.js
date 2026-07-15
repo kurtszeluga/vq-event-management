@@ -131,8 +131,10 @@
       ? `<button class="vq-feed-secondary" type="button" data-supply-list-url="${escapeAttribute(event.supplyListUrl)}" data-supply-list-title="${escapeAttribute(event.supplyListTitle || 'Supply list')}" data-supply-list-file-name="${escapeAttribute(event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`)}">View and print ${escapeHtml(event.supplyListTitle || 'document')}</button>`
       : '';
     const registerLink = event.registerUrl
-      ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">Register</a>`
+      ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
       : '';
+    const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
+    const availabilityTone = event.registrationIsFull ? 'is-waitlist' : 'is-open';
     const eventPrintPayload = escapeAttribute(JSON.stringify(event));
 
     return `
@@ -142,6 +144,7 @@
             <div class="vq-feed-card-top-left">
               <div class="vq-feed-pill-row">
                 <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+                <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
                 <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
               </div>
               <div class="vq-feed-title-block">
@@ -205,6 +208,22 @@
           : eventType === filterValue;
       card.classList.toggle('is-hidden', !matches);
     });
+  }
+
+  function getRegistrationAvailability(event) {
+    if (event.capacityUnlimited) {
+      return { isFull: false, label: 'Unlimited' };
+    }
+
+    const capacity = Number(event.capacity || 0);
+
+    if (!capacity) {
+      return { isFull: false, label: 'Seats available' };
+    }
+
+    return Number(event.registeredCount || 0) >= capacity
+      ? { isFull: true, label: 'Full - waitlist available' }
+      : { isFull: false, label: 'Seats available' };
   }
 
   function wireDescriptionToggles(root) {
@@ -364,6 +383,11 @@
         background: #fff6d9;
         border: 1px solid #ddc66b;
         color: #876d14;
+      }
+      .vq-feed-status-pill.is-waitlist {
+        background: #fff3c4;
+        border: 1px solid #ddc66b;
+        color: #7a5200;
       }
       .vq-feed-title-block {
         display: grid;

@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { EVENT_TYPES } from '../data/eventOptions.js';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
+import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
   formatCurrency,
   formatEventDate,
   formatTimeRange,
   isEventVisible
 } from '../utils/eventFormat.js';
+import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const ALL_EVENT_TYPES = 'All';
@@ -238,6 +240,7 @@ function EventsPage() {
   const [eventTypeFilter, setEventTypeFilter] = useState(ALL_EVENT_TYPES);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
   const [loading, setLoading] = useState(true);
+  const [registrationCounts, setRegistrationCounts] = useState({});
 
   useEffect(() => {
     const unsubscribe = subscribeToPublishedEvents(
@@ -285,6 +288,32 @@ function EventsPage() {
       setEventTypeFilter(ALL_EVENT_TYPES);
     }
   }, [eventTypeFilter, eventTypeFilters]);
+
+  useEffect(() => {
+    const eventIds = registerableEvents.map((event) => event.id).filter(Boolean);
+    let active = true;
+
+    if (!eventIds.length) {
+      setRegistrationCounts({});
+      return undefined;
+    }
+
+    loadPublicRegistrationCounts(eventIds)
+      .then((counts) => {
+        if (active) {
+          setRegistrationCounts(counts);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRegistrationCounts({});
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [registerableEvents]);
 
   function toggleDescription(eventId) {
     setExpandedDescriptions((current) => ({
@@ -335,14 +364,18 @@ function EventsPage() {
           const descriptionIsLong = description.length > DESCRIPTION_PREVIEW_LENGTH;
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
           const thumbnailUrl = getEventThumbnail(event);
+          const availability = getRegistrationAvailability(event, registrationCounts[event.id]);
 
           return (
             <article className="public-event-card" key={event.id}>
               <div className="card-kicker">
                 <span className="event-type-pill">{getEventTypeLabel(event)}</span>
+                <strong className={`event-availability-pill ${availability.tone}`}>
+                  {availability.label}
+                </strong>
                 {event.registrationOpen ? (
                   <Link className="button-link" to={`/register?eventId=${event.id}`}>
-                    Register
+                    {availability.isFull ? 'Join Waitlist' : 'Register'}
                   </Link>
                 ) : null}
                 <strong>

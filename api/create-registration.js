@@ -220,6 +220,10 @@ function validateRegistrationEligibility(
     throw httpError(400, 'Please confirm whether you want to reactivate the matched profile.');
   }
 
+  if (event.allowNonMemberRegistration && !profile) {
+    return;
+  }
+
   if (!profile) {
     throw httpError(403, 'We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.');
   }
@@ -228,7 +232,7 @@ function validateRegistrationEligibility(
     throw httpError(403, 'The phone number does not match the membership record for this email address.');
   }
 
-  if (membershipStatus !== 'Active') {
+  if (!event.allowNonMemberRegistration && membershipStatus !== 'Active') {
     throw httpError(403, 'Your membership status is not currently active. Please contact an administrator for assistance.');
   }
 }

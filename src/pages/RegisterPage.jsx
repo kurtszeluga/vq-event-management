@@ -119,6 +119,7 @@ function RegisterPage() {
 
   const membershipBlocked = lookupComplete
     && ['already-registered', 'profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
+  const nonMemberRegistrationAllowed = lookup?.status === 'non-member-registration-allowed';
   const matchedProfile = lookup?.profile || null;
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
@@ -135,7 +136,7 @@ function RegisterPage() {
     );
   const canShowRegistrantFields = lookupComplete
     && !membershipBlocked
-    && (accountVerified || phoneVerified);
+    && (accountVerified || phoneVerified || nonMemberRegistrationAllowed);
 
   async function handleEmailLookup() {
     const normalizedEmail = email.trim().toLowerCase();
@@ -171,6 +172,10 @@ function RegisterPage() {
 
       if (result.profile) {
         applyProfileToForm(result.profile);
+        setShowPhoneVerification(false);
+      } else if (result.status === 'non-member-registration-allowed') {
+        resetRegistrantFields();
+        setPhoneVerificationInput('');
         setShowPhoneVerification(false);
       } else {
         resetRegistrantFields();
@@ -296,7 +301,7 @@ function RegisterPage() {
     setPhoneVerificationSubmitting(true);
 
     try {
-      await verifyRegistrationPhone(email, normalizedPhone);
+      await verifyRegistrationPhone(email, normalizedPhone, eventId);
       setAccountVerified(false);
       setPhone(normalizedPhone);
       setPhoneVerified(true);
@@ -714,6 +719,15 @@ function LookupResult({
     return (
       <div className="form-error">
         Your membership status is not currently active. Please contact an administrator for assistance.
+      </div>
+    );
+  }
+
+  if (lookup.status === 'non-member-registration-allowed') {
+    return (
+      <div className="registration-lookup-card">
+        <strong>Non-Member Registration Allowed</strong>
+        <span>This event allows non-members to register. Continue entering your information.</span>
       </div>
     );
   }

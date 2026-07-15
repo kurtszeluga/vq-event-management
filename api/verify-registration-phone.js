@@ -13,6 +13,7 @@ export default async function handler(request, response) {
 
     const email = normalizeEmail(request.body?.email);
     const phone = normalizePhone(request.body?.phone);
+    const eventId = String(request.body?.eventId || '').trim();
 
     if (!email) {
       response.status(400).json({ error: 'Email is required.' });
@@ -25,6 +26,8 @@ export default async function handler(request, response) {
     }
 
     const db = getFirestore();
+    const event = eventId ? await findEventById(db, eventId) : null;
+    const allowNonMemberRegistration = Boolean(event?.allowNonMemberRegistration);
     const profile = await findUserProfileByEmail(db, email);
 
     if (!profile) {
@@ -34,7 +37,7 @@ export default async function handler(request, response) {
       return;
     }
 
-    if (profile.membershipStatus !== 'Active') {
+    if (profile.membershipStatus !== 'Active' && !allowNonMemberRegistration) {
       response.status(403).json({
         error: 'Your membership status is not currently active. Please contact an administrator for assistance.'
       });
@@ -54,6 +57,11 @@ export default async function handler(request, response) {
   } catch (error) {
     response.status(500).json({ error: error.message || 'Phone verification failed.' });
   }
+}
+
+async function findEventById(db, eventId) {
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  return eventSnap.exists ? { id: eventSnap.id, ...eventSnap.data() } : null;
 }
 
 async function findUserProfileByEmail(db, email) {
