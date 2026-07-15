@@ -130,10 +130,13 @@
     const supplyListDownloadUrl = event.supplyListUrl
       ? event.supplyListDownloadUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf', 'attachment')
       : '';
+    const supplyListViewUrl = event.supplyListUrl
+      ? event.supplyListProxyUrl || buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf')
+      : '';
     const supplyListFileName = event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf';
     const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
     const supplyListLink = event.supplyListUrl
-      ? `<button class="vq-feed-secondary" type="button" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}" data-supply-list-file-name="${escapeAttribute(supplyListFileName)}" data-supply-list-title="${escapeAttribute(supplyListTitle)}">View/Download ${escapeHtml(supplyListTitle)}</button>`
+      ? `<button class="vq-feed-secondary" type="button" data-supply-list-view-url="${escapeAttribute(supplyListViewUrl)}" data-supply-list-download-url="${escapeAttribute(supplyListDownloadUrl)}" data-supply-list-file-name="${escapeAttribute(supplyListFileName)}" data-supply-list-title="${escapeAttribute(supplyListTitle)}">View/Download ${escapeHtml(supplyListTitle)}</button>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -301,15 +304,16 @@
   function wireSupplyListDownloadLinks(root) {
     root.querySelectorAll('[data-supply-list-download-url]').forEach((button) => {
       button.addEventListener('click', () => {
-        const url = button.dataset.supplyListDownloadUrl || '';
+        const viewUrl = button.dataset.supplyListViewUrl || '';
+        const downloadUrl = button.dataset.supplyListDownloadUrl || '';
         const fileName = button.dataset.supplyListFileName || 'supply-list.pdf';
         const title = button.dataset.supplyListTitle || 'Supply List PDF';
 
-        if (!url) {
+        if (!viewUrl && !downloadUrl) {
           return;
         }
 
-        openSupplyListPopup(url, title, fileName);
+        openSupplyListPopup(viewUrl || downloadUrl, downloadUrl || viewUrl, title, fileName);
       });
     });
   }
@@ -988,79 +992,26 @@
     popup.focus();
   }
 
-  function openSupplyListPopup(fileUrl, title, fileName) {
+  function openSupplyListPopup(viewUrl, downloadUrl, title, fileName) {
     const popup = window.open('', 'vq-supply-list-viewer', 'popup,width=1000,height=900');
 
     if (!popup) {
-      window.open(fileUrl, '_blank', 'noopener,noreferrer');
+      window.open(viewUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
     const safeTitle = escapeHtml(title || 'Supply List PDF');
     const safeFileName = escapeHtml(fileName || 'supply-list.pdf');
+    const safeViewUrl = escapeAttribute(viewUrl);
+    const safeDownloadUrl = escapeAttribute(downloadUrl);
 
     popup.document.open();
-    popup.document.write(buildSupplyListLoadingHtml(safeTitle));
+    popup.document.write(buildSupplyListViewerHtml(safeTitle, safeFileName, safeViewUrl, safeDownloadUrl));
     popup.document.close();
     popup.focus();
-
-    fetch(fileUrl, {
-      headers: {
-        Accept: 'application/pdf'
-      }
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Load failed.');
-        }
-
-        return response.blob();
-      })
-      .then((blob) => {
-        const objectUrl = URL.createObjectURL(blob);
-
-        popup.document.open();
-        popup.document.write(buildSupplyListViewerHtml(safeTitle, safeFileName, objectUrl));
-        popup.document.close();
-        popup.focus();
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 300000);
-      })
-      .catch(() => {
-        const safeUrl = escapeAttribute(fileUrl);
-
-        popup.document.open();
-        popup.document.write(buildSupplyListErrorHtml(safeTitle, safeUrl));
-        popup.document.close();
-        popup.focus();
-      });
   }
 
-  function buildSupplyListLoadingHtml(title) {
-    return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-    ${buildSupplyListViewerStyles()}
-  </head>
-  <body>
-    <main class="viewer-shell">
-      <div class="viewer-topbar">
-        <h1>${title}</h1>
-        <button class="button" type="button" onclick="window.close()">Close</button>
-      </div>
-      <section class="viewer-card">
-        <p class="message">Loading supply list...</p>
-      </section>
-    </main>
-  </body>
-</html>`;
-  }
-
-  function buildSupplyListViewerHtml(title, fileName, objectUrl) {
-    const safeObjectUrl = escapeAttribute(objectUrl);
-
+  function buildSupplyListViewerHtml(title, fileName, viewUrl, downloadUrl) {
     return `<!doctype html>
 <html lang="en">
   <head>
@@ -1074,38 +1025,13 @@
       <div class="viewer-topbar">
         <h1>${title}</h1>
         <div class="actions">
-          <a class="button primary" href="${safeObjectUrl}" download="${fileName}">Download</a>
+          <a class="button primary" href="${downloadUrl}" download="${fileName}">Download</a>
           <button class="button" type="button" onclick="window.close()">Close</button>
         </div>
       </div>
+      <p class="message">If the preview is blank, use the Download button above.</p>
       <section class="viewer-card">
-        <object class="pdf-frame" data="${safeObjectUrl}" type="application/pdf">
-          <p class="message">The PDF preview could not be shown. Use the Download button above.</p>
-        </object>
-      </section>
-    </main>
-  </body>
-</html>`;
-  }
-
-  function buildSupplyListErrorHtml(title, fileUrl) {
-    return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-    ${buildSupplyListViewerStyles()}
-  </head>
-  <body>
-    <main class="viewer-shell">
-      <div class="viewer-topbar">
-        <h1>${title}</h1>
-        <button class="button" type="button" onclick="window.close()">Close</button>
-      </div>
-      <section class="viewer-card">
-        <p class="message">The supply list could not be loaded.</p>
-        <p><a class="button primary" href="${fileUrl}" target="_blank" rel="noopener noreferrer">Open PDF</a></p>
+        <iframe class="pdf-frame" src="${viewUrl}" title="${title}"></iframe>
       </section>
     </main>
   </body>
