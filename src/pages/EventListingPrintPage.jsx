@@ -70,14 +70,17 @@ function EventListingPrintPage() {
       return;
     }
 
-    navigate(`/events/${eventId}`);
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    navigate('/events');
   }
 
   function handlePrint() {
     window.focus();
-    window.setTimeout(() => {
-      window.print();
-    }, 150);
+    window.print();
   }
 
   if (loading) {
@@ -109,6 +112,8 @@ function EventListingPrintPage() {
       </section>
     );
   }
+
+  const thumbnailUrl = event.imageUrl || (Array.isArray(event.imageUrls) ? event.imageUrls.find(Boolean) || '' : '');
 
   return (
     <section className="viewer-page event-print-page">
@@ -144,6 +149,10 @@ function EventListingPrintPage() {
               <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
             </div>
             <div>
+              <dt>Location</dt>
+              <dd>{event.location || 'To be announced'}</dd>
+            </div>
+            <div>
               <dt>Presenter</dt>
               <dd>{event.presenter || 'To be announced'}</dd>
             </div>
@@ -154,7 +163,11 @@ function EventListingPrintPage() {
           </dl>
         </div>
         <div className="public-event-card-thumbnail">
-          <div className="image-placeholder" aria-label="No image uploaded" />
+          {thumbnailUrl ? (
+            <img alt={`${event.title} thumbnail`} src={thumbnailUrl} />
+          ) : (
+            <div className="image-placeholder" aria-label="No image uploaded" />
+          )}
         </div>
       </article>
     </section>
