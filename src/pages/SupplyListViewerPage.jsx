@@ -153,14 +153,17 @@ function SupplyListViewerPage() {
       return;
     }
 
-    navigate(`/events/${eventId}`);
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    navigate('/events');
   }
 
   function handlePrint() {
     window.focus();
-    window.setTimeout(() => {
-      window.print();
-    }, 150);
+    window.print();
   }
 
   if (loading) {
