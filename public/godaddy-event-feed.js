@@ -126,8 +126,11 @@
     const thumbnail = event.imageUrl
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
+    const supplyListProxyUrl = event.supplyListUrl
+      ? buildFileProxyUrl(config.sourceUrl, event.supplyListUrl, event.supplyListFileName || event.supplyListTitle || 'supply-list.pdf')
+      : '';
     const supplyListLink = event.supplyListUrl
-      ? `<a class="vq-feed-secondary" href="${escapeAttribute(event.supplyListUrl)}" target="_blank" rel="noopener noreferrer">Open ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</a>`
+      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListProxyUrl)}" target="_blank" rel="noopener noreferrer">Open ${escapeHtml(event.supplyListTitle || 'Supply List PDF')}</a>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -625,6 +628,25 @@
     return eventType === 'Lecture'
       || eventType === 'Class (Half Day)'
       || eventType === 'Class (Full Day)';
+  }
+
+  function buildFileProxyUrl(sourceUrl, fileUrl, fileName) {
+    const origin = getSourceOrigin(sourceUrl);
+    const params = new URLSearchParams({
+      disposition: 'inline',
+      filename: fileName || 'supply-list.pdf',
+      url: fileUrl
+    });
+
+    return `${origin}/api/file-proxy?${params.toString()}`;
+  }
+
+  function getSourceOrigin(sourceUrl) {
+    try {
+      return new URL(sourceUrl, window.location.href).origin;
+    } catch {
+      return window.location.origin;
+    }
   }
 
   function openEventDetailsPopup(event) {
