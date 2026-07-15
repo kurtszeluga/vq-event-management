@@ -131,7 +131,7 @@
     const supplyListViewerUrl =
       event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id);
     const supplyListLink = event.supplyListUrl
-      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" target="_blank" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
+      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
       : '';
     const registerLink = event.registerUrl
       ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -308,17 +308,10 @@
         event.preventDefault();
 
         try {
-          const openedWindow = window.open(url, 'vq-supply-list');
-
-          if (openedWindow) {
-            openedWindow.focus();
-            return;
-          }
+          window.top.location.href = url;
         } catch {
-          // Fall through to the standard link behavior.
+          window.location.href = url;
         }
-
-        window.location.href = url;
       });
     });
   }

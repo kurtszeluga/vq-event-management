@@ -162,112 +162,8 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    const canvases = Array.from(previewRef.current?.querySelectorAll('canvas') || []);
-
-    if (!canvases.length) {
-      window.focus();
-      window.print();
-      return;
-    }
-
-    const printWindow = window.open('', 'vq-supply-list-print', 'popup,width=1100,height=900');
-
-    if (!printWindow) {
-      window.focus();
-      window.print();
-      return;
-    }
-
-    const pages = canvases
-      .map((canvas) => {
-        const imageUrl = canvas.toDataURL('image/png');
-        return `<div class="page"><img alt="Supply list page" src="${imageUrl}" /></div>`;
-      })
-      .join('');
-
-    printWindow.document.open();
-    printWindow.document.write(`<!doctype html>
-      <html>
-        <head>
-          <title>${escapeHtml(fileName)}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body {
-              background: #f7f2eb;
-              color: #2d241f;
-              font-family: Arial, sans-serif;
-              margin: 0;
-              padding: 24px;
-            }
-            .toolbar {
-              align-items: center;
-              display: flex;
-              flex-wrap: wrap;
-              gap: 12px;
-              justify-content: flex-end;
-              margin-bottom: 18px;
-            }
-            button {
-              background: #2f5e4e;
-              border: 0;
-              border-radius: 6px;
-              color: #fff;
-              cursor: pointer;
-              font: inherit;
-              font-weight: 700;
-              padding: 10px 16px;
-            }
-            button.secondary {
-              background: #fff;
-              border: 1px solid #cdbfb1;
-              color: #2d241f;
-            }
-            .page {
-              background: #fff;
-              border: 1px solid #ddd2c6;
-              box-shadow: 0 8px 22px rgba(63, 45, 30, 0.12);
-              margin: 0 auto 18px;
-              max-width: 980px;
-              padding: 12px;
-            }
-            img {
-              display: block;
-              height: auto;
-              width: 100%;
-            }
-            @media print {
-              body {
-                background: #fff;
-                padding: 0;
-              }
-              .toolbar {
-                display: none;
-              }
-              .page {
-                border: 0;
-                box-shadow: none;
-                break-after: page;
-                margin: 0;
-                max-width: none;
-                padding: 0;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="toolbar">
-            <button type="button" onclick="window.print()">Print</button>
-            <button class="secondary" type="button" onclick="window.close()">Close</button>
-          </div>
-          ${pages}
-          <script>
-            window.addEventListener('load', function () {
-              window.focus();
-            });
-          </script>
-        </body>
-      </html>`);
-    printWindow.document.close();
+    window.focus();
+    window.print();
   }
 
   if (loading) {
@@ -354,15 +250,6 @@ function buildProxyUrl(event, disposition) {
   });
 
   return `/api/file-proxy?${params.toString()}`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 export default SupplyListViewerPage;
