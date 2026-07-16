@@ -368,7 +368,7 @@ async function identityPlatformRequest(methodPath, body) {
 }
 
 async function sendResendEmail({ html, replyTo, subject, text, to }) {
-  const from = process.env.RESEND_FROM_EMAIL || 'Village Quilters <no-reply@villagequilters.com>';
+  const from = process.env.RESEND_FROM_EMAIL || 'The Village Quilters <no-reply@villagequilters.com>';
   const payload = {
     from,
     html,
