@@ -38,7 +38,6 @@ function RegisterPage() {
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const referrerUrl = getExternalReferrerUrl();
   const returnTarget = returnUrl || referrerUrl;
-  const hasCloseTarget = Boolean(returnTarget || (typeof window !== 'undefined' && window.opener));
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
@@ -48,6 +47,7 @@ function RegisterPage() {
   const [authError, setAuthError] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [closeMessage, setCloseMessage] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [email, setEmail] = useState('');
   const [event, setEvent] = useState(null);
@@ -373,6 +373,13 @@ function RegisterPage() {
     navigate(`/events/${eventId}`);
   }
 
+  function handleCompletionClose() {
+    window.close();
+    window.setTimeout(() => {
+      setCloseMessage('You can close this registration window or tab.');
+    }, 250);
+  }
+
   function handleStartProfileEdit() {
     setNeedsProfileEdits(true);
   }
@@ -482,10 +489,10 @@ function RegisterPage() {
         <div className="registration-layout">
           <EventSummary event={event} />
           <RegistrationCompletion
+            closeMessage={closeMessage}
             confirmation={confirmation}
             event={event}
-            hasReturnTarget={hasCloseTarget}
-            onReturn={handleClose}
+            onReturn={handleCompletionClose}
           />
         </div>
       </section>
@@ -961,7 +968,7 @@ function EventSummary({ event }) {
   );
 }
 
-function RegistrationCompletion({ confirmation, event, hasReturnTarget, onReturn }) {
+function RegistrationCompletion({ closeMessage, confirmation, event, onReturn }) {
   return (
     <div className="form-panel registration-completion-card">
       <div className="form-success">
@@ -1001,9 +1008,10 @@ function RegistrationCompletion({ confirmation, event, hasReturnTarget, onReturn
       </dl>
       <div className="form-actions">
         <button className="button-link button-reset" type="button" onClick={onReturn}>
-          {hasReturnTarget ? 'Close Window' : 'Back To Event'}
+          Close Window
         </button>
       </div>
+      {closeMessage ? <p className="form-help">{closeMessage}</p> : null}
     </div>
   );
 }
