@@ -1974,13 +1974,22 @@ body.popup-mode .page-content {
 }
 
 .registration-event-stats span {
-  background: #e9f2ef;
-  border: 1px solid #cfe3de;
   border-radius: 999px;
-  color: #225c56;
   font-size: 0.82rem;
   font-weight: 900;
   padding: 5px 9px;
+}
+
+.registration-event-stats .has-count {
+  background: #e9f2ef;
+  border: 1px solid #cfe3de;
+  color: #225c56;
+}
+
+.registration-event-stats .no-count {
+  background: transparent;
+  border: 1px solid #ded5ca;
+  color: #687572;
 }
 
 .registration-admin-card-header {
@@ -2040,6 +2049,29 @@ body.popup-mode .page-content {
   font-size: 0.82rem;
   font-weight: 900;
   padding: 5px 9px;
+}
+
+.registration-history-list {
+  border-top: 1px solid #e6ddd3;
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.registration-history-list > strong {
+  color: #1d2927;
+}
+
+.registration-history-item {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(160px, 1fr) minmax(90px, auto) minmax(110px, auto);
+}
+
+.registration-history-item span {
+  color: #3b4b48;
+  font-size: 0.9rem;
 }
 
 .registration-edit-context {

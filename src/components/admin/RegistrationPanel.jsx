@@ -171,11 +171,29 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           },
           { cancelled: 0, registered: 0, waitlisted: 0 }
         );
+        const displayRegistrations = combineRegistrationsByRegistrant(eventRegistrations);
+        const displayCounts = displayRegistrations.reduce(
+          (summary, registration) => {
+            if (registration.status === 'Registered') {
+              summary.registered += 1;
+            } else if (registration.status === 'Waitlisted') {
+              summary.waitlisted += 1;
+            } else if (registration.status === 'Cancelled') {
+              summary.cancelled += 1;
+            }
+
+            return summary;
+          },
+          { cancelled: 0, registered: 0, waitlisted: 0 }
+        );
 
         return {
           counts,
+          displayCounts,
+          displayRegistrationCount: displayRegistrations.length,
           event,
           eventId,
+          rawRegistrationCount: eventRegistrations.length,
           snapshot: eventRegistrations[0] || {},
           registrations: eventRegistrations.sort(compareRegistrationDates)
         };
@@ -539,7 +557,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 <div className="registration-event-card-main">
                   <div className="card-kicker">
                     <span>{group.event?.eventType || group.snapshot.eventType || 'Event / Activity'}</span>
-                    <strong>{group.registrations.length} total registrations</strong>
+                    <strong>
+                      {group.displayRegistrationCount} registrant{group.displayRegistrationCount === 1 ? '' : 's'}
+                      {group.rawRegistrationCount !== group.displayRegistrationCount
+                        ? ` (${group.rawRegistrationCount} records)`
+                        : ''}
+                    </strong>
                   </div>
                   <h3>{eventTitle}</h3>
                   <p>
@@ -548,10 +571,18 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                   </p>
                 </div>
                 <div className="registration-event-stats">
-                  <span>{getCapacitySummary(group.event, group.counts.registered)}</span>
-                  <span>{group.counts.registered} Registered</span>
-                  <span>{group.counts.waitlisted} Waitlisted</span>
-                  <span>{group.counts.cancelled} Cancelled</span>
+                  <span className={getStatPillClass(getCapacitySummaryCount(group.event, group.displayCounts.registered))}>
+                    {getCapacitySummary(group.event, group.displayCounts.registered)}
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.registered)}>
+                    {group.displayCounts.registered} Registered
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.waitlisted)}>
+                    {group.displayCounts.waitlisted} Waitlisted
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.cancelled)}>
+                    {group.displayCounts.cancelled} Cancelled
+                  </span>
                 </div>
               </button>
             );
@@ -566,7 +597,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 <div>
                   <div className="card-kicker">
                     <span>{group.event?.eventType || group.snapshot.eventType || 'Event / Activity'}</span>
-                    <strong>{group.registrations.length} total registrations</strong>
+                    <strong>
+                      {group.displayRegistrationCount} registrant{group.displayRegistrationCount === 1 ? '' : 's'}
+                      {group.rawRegistrationCount !== group.displayRegistrationCount
+                        ? ` (${group.rawRegistrationCount} records)`
+                        : ''}
+                    </strong>
                   </div>
                   <h3>{eventTitle}</h3>
                   <p>
@@ -675,10 +711,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                 <div className="registration-inline-details">
                                   <div className="registration-detail-summary">
                                     <div>
-                                      <span>{getCapacitySummary(group.event, group.counts.registered)}</span>
-                                      <span>{group.counts.registered} Registered</span>
-                                      <span>{group.counts.waitlisted} Waitlisted</span>
-                                      <span>{group.counts.cancelled} Cancelled</span>
+                                      <span>{getCapacitySummary(group.event, group.displayCounts.registered)}</span>
+                                      <span>{group.displayCounts.registered} Active Registrants</span>
+                                      <span>{group.displayCounts.waitlisted} Waitlisted</span>
+                                      <span>{group.displayCounts.cancelled} Cancelled Registrants</span>
+                                      <span>{group.rawRegistrationCount} Total Records</span>
                                     </div>
                                   </div>
                                   <dl className="registration-detail-grid">
@@ -720,6 +757,18 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                     />
                                     <DetailItem label="Payment Note" value={registration.paymentNote || 'None'} />
                                   </dl>
+                                  {registration.combinedRecords?.length > 1 ? (
+                                    <div className="registration-history-list">
+                                      <strong>Registration History</strong>
+                                      {registration.combinedRecords.map((record) => (
+                                        <div className="registration-history-item" key={record.id}>
+                                          <span>{formatDateTime(record.registrationDate)}</span>
+                                          <span>{record.status || 'Registered'}</span>
+                                          <span>{formatPaymentSummary(record)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : null}
                                 </div>
                               </td>
                             </tr>
@@ -1330,6 +1379,22 @@ function getCapacitySummary(event, registeredCount) {
   }
 
   return `${registeredCount}/${capacity} filled (${remaining} open)`;
+}
+
+function getCapacitySummaryCount(event, registeredCount) {
+  if (!event) {
+    return 0;
+  }
+
+  if (event.capacityUnlimited) {
+    return registeredCount;
+  }
+
+  return Number(event.capacity || 0);
+}
+
+function getStatPillClass(count) {
+  return Number(count || 0) > 0 ? 'has-count' : 'no-count';
 }
 
 function normalizeEmail(value) {
