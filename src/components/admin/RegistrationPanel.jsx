@@ -709,29 +709,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                             <tr className="registration-detail-row">
                               <td colSpan="7">
                                 <div className="registration-inline-details">
-                                  <div className="registration-detail-summary">
-                                    <div>
-                                      <span>{getCapacitySummary(group.event, group.displayCounts.registered)}</span>
-                                      <span>{group.displayCounts.registered} Active Registrants</span>
-                                      <span>{group.displayCounts.waitlisted} Waitlisted</span>
-                                      <span>{group.displayCounts.cancelled} Cancelled Registrants</span>
-                                      <span>{group.rawRegistrationCount} Total Records</span>
-                                    </div>
-                                  </div>
+                                  <strong className="registration-detail-name">
+                                    {registration.name || 'Registrant'}
+                                  </strong>
                                   <dl className="registration-detail-grid">
-                                    <DetailItem
-                                      label="Event / Activity"
-                                      value={getEventDisplayTitle(group.event, group.eventId, registration)}
-                                    />
-                                    <DetailItem
-                                      label="Event Type"
-                                      value={group.event?.eventType || registration.eventType || 'Event / Activity'}
-                                    />
-                                    <DetailItem
-                                      label="Event Date"
-                                      value={formatEventDate(group.event?.date || registration.eventDate)}
-                                    />
-                                    <DetailItem label="Registrant" value={registration.name || 'Registrant'} />
                                     <DetailItem label="Email" value={registration.email || 'No email'} />
                                     <DetailItem label="Phone" value={registration.phone || 'No phone'} />
                                     {registration.combinedCount > 1 ? (

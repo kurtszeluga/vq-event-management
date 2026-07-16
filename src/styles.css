@@ -2027,28 +2027,11 @@ body.popup-mode .page-content {
   padding: 12px 16px 16px;
 }
 
-.registration-detail-summary {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.registration-detail-summary div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.registration-detail-summary span {
-  background: #e9f2ef;
-  border: 1px solid #cfe3de;
-  border-radius: 999px;
-  color: #225c56;
-  font-size: 0.82rem;
-  font-weight: 900;
-  padding: 5px 9px;
+.registration-detail-name {
+  color: #1d2927;
+  font-size: 1.25rem;
+  font-weight: 1000;
+  line-height: 1.25;
 }
 
 .registration-history-list {
