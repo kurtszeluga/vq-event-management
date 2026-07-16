@@ -424,7 +424,7 @@ function buildTestEmailHtml(area, instructionText) {
                       <img alt="Village Quilters" src="${escapeHtml(logoUrl)}" width="48" height="48" style="display:block;border-radius:10px;" />
                     </td>
                     <td style="vertical-align:middle;">
-                      <p style="margin:0 0 5px;color:#f3c6a8;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Village Quilters</p>
+                      <p style="margin:0 0 5px;color:#f3c6a8;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">The Village Quilters, Inc.</p>
                       <h1 style="margin:0;color:#fffaf5;font-size:24px;line-height:1.25;">${escapeHtml(area.areaLabel)} Confirmation Email</h1>
                     </td>
                   </tr>
@@ -445,6 +445,11 @@ function buildTestEmailHtml(area, instructionText) {
                     </td>
                   </tr>
                 </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#225c56;color:#fffaf5;">
+                <p style="margin:0;color:#fffaf5;font-size:13px;line-height:1.5;">The Village Quilters, Inc.</p>
               </td>
             </tr>
           </table>
