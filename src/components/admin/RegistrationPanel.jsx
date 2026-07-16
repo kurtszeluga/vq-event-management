@@ -116,54 +116,47 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
     return { byEmail, byId };
   }, [users]);
-  const filteredRegistrations = useMemo(
+  const filteredEvents = useMemo(
     () =>
-      registrations.filter((registration) => {
-        const event = eventMap.get(registration.eventId);
-
+      events.filter((event) => {
         if (
           activityFilter
-          && getActivityFilterValue(event?.eventType || registration.eventType) !== activityFilter
+          && getActivityFilterValue(event.eventType) !== activityFilter
         ) {
           return false;
         }
 
         if (
           quarterFilter
-          && getQuarterFilterValue(event?.date || registration.eventDate) !== quarterFilter
+          && getQuarterFilterValue(event.date) !== quarterFilter
         ) {
           return false;
         }
 
         if (
           yearFilter
-          && getYearFilterValue(event?.date || registration.eventDate) !== yearFilter
+          && getYearFilterValue(event.date) !== yearFilter
         ) {
           return false;
         }
 
         return true;
       }),
-    [
-      eventMap,
-      activityFilter,
-      quarterFilter,
-      registrations,
-      yearFilter
-    ]
+    [activityFilter, events, quarterFilter, yearFilter]
   );
   const groupedRegistrations = useMemo(() => {
     const groups = new Map();
 
-    filteredRegistrations.forEach((registration) => {
+    registrations.forEach((registration) => {
       const existing = groups.get(registration.eventId) || [];
       existing.push(registration);
       groups.set(registration.eventId, existing);
     });
 
-    return [...groups.entries()]
-      .map(([eventId, eventRegistrations]) => {
-        const event = eventMap.get(eventId);
+    return filteredEvents
+      .map((event) => {
+        const eventId = event.id;
+        const eventRegistrations = groups.get(eventId) || [];
         const counts = eventRegistrations.reduce(
           (summary, registration) => {
             if (registration.status === 'Registered') {
@@ -199,14 +192,13 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           getEventDisplayTitle(second.event, second.eventId)
         );
       });
-  }, [eventMap, filteredRegistrations]);
+  }, [filteredEvents, registrations]);
   const activityCounts = useMemo(() => {
     const counts = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, 0]));
     const eventIdsByFilter = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, new Set()]));
 
-    registrations.forEach((registration) => {
-      const event = eventMap.get(registration.eventId);
-      const eventDate = event?.date || registration.eventDate;
+    events.forEach((event) => {
+      const eventDate = event.date;
 
       if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
         return;
@@ -216,10 +208,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         return;
       }
 
-      const filterValue = getActivityFilterValue(event?.eventType || registration.eventType);
+      const filterValue = getActivityFilterValue(event.eventType);
 
       if (filterValue && eventIdsByFilter[filterValue]) {
-        eventIdsByFilter[filterValue].add(registration.eventId);
+        eventIdsByFilter[filterValue].add(event.id);
       }
     });
 
@@ -228,22 +220,20 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     });
 
     return counts;
-  }, [eventMap, quarterFilter, registrations, yearFilter]);
+  }, [events, quarterFilter, yearFilter]);
   const quarterCounts = useMemo(() => {
     const counts = Object.fromEntries(QUARTER_FILTERS.map((filter) => [filter.value, 0]));
     const eventIdsByFilter = Object.fromEntries(QUARTER_FILTERS.map((filter) => [filter.value, new Set()]));
 
-    registrations.forEach((registration) => {
-      const event = eventMap.get(registration.eventId);
-
+    events.forEach((event) => {
       if (
         activityFilter
-        && getActivityFilterValue(event?.eventType || registration.eventType) !== activityFilter
+        && getActivityFilterValue(event.eventType) !== activityFilter
       ) {
         return;
       }
 
-      const eventDate = event?.date || registration.eventDate;
+      const eventDate = event.date;
 
       if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
         return;
@@ -252,8 +242,8 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       const filterValue = getQuarterFilterValue(eventDate);
 
       if (filterValue && eventIdsByFilter[filterValue]) {
-        eventIdsByFilter[filterValue].add(registration.eventId);
-        eventIdsByFilter[''].add(registration.eventId);
+        eventIdsByFilter[filterValue].add(event.id);
+        eventIdsByFilter[''].add(event.id);
       }
     });
 
@@ -262,13 +252,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     });
 
     return counts;
-  }, [activityFilter, eventMap, registrations, yearFilter]);
+  }, [activityFilter, events, yearFilter]);
   const yearOptions = useMemo(() => {
     const years = new Set();
 
-    registrations.forEach((registration) => {
-      const event = eventMap.get(registration.eventId);
-      const year = getYearFilterValue(event?.date || registration.eventDate);
+    events.forEach((event) => {
+      const year = getYearFilterValue(event.date);
 
       if (year) {
         years.add(year);
@@ -276,7 +265,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     });
 
     return [...years].sort((first, second) => Number(second) - Number(first));
-  }, [eventMap, registrations]);
+  }, [events]);
   const selectedRegistration = useMemo(
     () => registrations.find((registration) => registration.id === selectedRegistrationId) || null,
     [registrations, selectedRegistrationId]
@@ -531,8 +520,8 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
       {!groupedRegistrations.length ? (
         <div className="empty-state compact-empty-state">
-          <h2>No matching registrations</h2>
-          <p>Try a different event, status, or search filter.</p>
+          <h2>No matching events</h2>
+          <p>Try a different activity, year, or quarter filter.</p>
         </div>
       ) : null}
       <div className="registration-admin-list">
@@ -594,50 +583,51 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 </button>
               </div>
               <div className="user-table-wrap">
-                <table className="user-table registration-table">
-                  <thead>
-                    <tr>
-                      <SortableHeader
-                        label="Registrant"
-                        sortKey="registrant"
-                        sortConfig={registrationSortConfig}
-                        onSort={handleRegistrationSort}
-                      />
-                      <SortableHeader
-                        label="Registered"
-                        sortKey="registeredDate"
-                        sortConfig={registrationSortConfig}
-                        onSort={handleRegistrationSort}
-                      />
-                      <SortableHeader
-                        label="Membership"
-                        sortKey="membership"
-                        sortConfig={registrationSortConfig}
-                        onSort={handleRegistrationSort}
-                      />
-                      <SortableHeader
-                        label="Registration Status"
-                        sortKey="status"
-                        sortConfig={registrationSortConfig}
-                        onSort={handleRegistrationSort}
-                      />
-                      <SortableHeader
-                        label="Payment"
-                        sortKey="payment"
-                        sortConfig={registrationSortConfig}
-                        onSort={handleRegistrationSort}
-                      />
-                      <SortableHeader
-                        label="Profile"
-                        sortKey="profile"
-                        sortConfig={registrationSortConfig}
-                        onSort={handleRegistrationSort}
-                      />
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedDisplayRegistrations.map((registration) => {
+                {selectedDisplayRegistrations.length ? (
+                  <table className="user-table registration-table">
+                    <thead>
+                      <tr>
+                        <SortableHeader
+                          label="Registrant"
+                          sortKey="registrant"
+                          sortConfig={registrationSortConfig}
+                          onSort={handleRegistrationSort}
+                        />
+                        <SortableHeader
+                          label="Registered"
+                          sortKey="registeredDate"
+                          sortConfig={registrationSortConfig}
+                          onSort={handleRegistrationSort}
+                        />
+                        <SortableHeader
+                          label="Membership"
+                          sortKey="membership"
+                          sortConfig={registrationSortConfig}
+                          onSort={handleRegistrationSort}
+                        />
+                        <SortableHeader
+                          label="Registration Status"
+                          sortKey="status"
+                          sortConfig={registrationSortConfig}
+                          onSort={handleRegistrationSort}
+                        />
+                        <SortableHeader
+                          label="Payment"
+                          sortKey="payment"
+                          sortConfig={registrationSortConfig}
+                          onSort={handleRegistrationSort}
+                        />
+                        <SortableHeader
+                          label="Profile"
+                          sortKey="profile"
+                          sortConfig={registrationSortConfig}
+                          onSort={handleRegistrationSort}
+                        />
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedDisplayRegistrations.map((registration) => {
                       const user =
                         userMap.byId.get(registration.userId)
                         || userMap.byEmail.get(normalizeEmail(registration.email));
@@ -736,9 +726,15 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                           ) : null}
                         </Fragment>
                       );
-                    })}
-                  </tbody>
-                </table>
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="empty-state compact-empty-state">
+                    <h2>No registrations yet</h2>
+                    <p>This event is listed, but no one has registered for it yet.</p>
+                  </div>
+                )}
               </div>
             </article>
           );
