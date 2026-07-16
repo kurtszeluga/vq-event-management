@@ -215,7 +215,14 @@ function getCoordinatorContact(eventType, coordinatorAssignments) {
 }
 
 function getCoordinatorAreaId(eventType) {
-  if (['Class (Half-Day)', 'Class (Full-Day)', 'Lecture', 'Retreat'].includes(eventType)) {
+  if ([
+    'Class (Half Day)',
+    'Class (Full Day)',
+    'Class (Half-Day)',
+    'Class (Full-Day)',
+    'Lecture',
+    'Retreat'
+  ].includes(eventType)) {
     return 'programs';
   }
 

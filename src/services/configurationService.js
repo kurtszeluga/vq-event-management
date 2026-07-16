@@ -24,7 +24,7 @@ export const COORDINATOR_ASSIGNMENT_AREAS = [
   {
     areaId: 'programs',
     areaLabel: 'Programs',
-    coveredTypes: ['Class (Half-Day)', 'Class (Full-Day)', 'Lecture', 'Retreat'],
+    coveredTypes: ['Class (Half Day)', 'Class (Full Day)', 'Lecture', 'Retreat'],
     groupLabel: 'Programs',
     sortOrder: 10
   },

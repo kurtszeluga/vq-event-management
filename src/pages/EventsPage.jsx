@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
-import { EVENT_TYPES } from '../data/eventOptions.js';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
@@ -13,12 +12,25 @@ import {
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
-const ALL_EVENT_TYPES = 'All';
 const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
 const EVENT_TYPE_FILTERS = [
-  'All',
-  ...EVENT_TYPES.filter((type) => !EXCLUDED_EVENT_TYPES.has(type))
+  {
+    label: 'Programs',
+    value: 'Programs',
+    types: ['Class (Half Day)', 'Class (Full Day)', 'Lecture', 'Retreat']
+  },
+  {
+    label: 'Workshops',
+    value: 'Workshops',
+    types: ['Workshop']
+  },
+  {
+    label: 'Challenges',
+    value: 'Challenges',
+    types: ['Challenges']
+  }
 ];
+const DEFAULT_EVENT_TYPE_FILTER = EVENT_TYPE_FILTERS[0].value;
 
 function getEventTypeLabel(event) {
   return event.eventType || 'Other';
@@ -26,6 +38,10 @@ function getEventTypeLabel(event) {
 
 function getEventThumbnail(event) {
   return event.imageUrls?.find(Boolean) || '';
+}
+
+function getEventFilter(type) {
+  return EVENT_TYPE_FILTERS.find((filter) => filter.types.includes(type)) || null;
 }
 
 function getDescriptionPreview(description) {
@@ -238,7 +254,7 @@ function EventsPage() {
   const [coordinatorContacts, setCoordinatorContacts] = useState({});
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
-  const [eventTypeFilter, setEventTypeFilter] = useState(ALL_EVENT_TYPES);
+  const [eventTypeFilter, setEventTypeFilter] = useState(DEFAULT_EVENT_TYPE_FILTER);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
   const [loading, setLoading] = useState(true);
   const [registrationCounts, setRegistrationCounts] = useState({});
@@ -304,15 +320,21 @@ function EventsPage() {
 
   const visibleEvents = useMemo(() => events.filter(isEventVisible), [events]);
   const registerableEvents = useMemo(
-    () => visibleEvents.filter((event) => !EXCLUDED_EVENT_TYPES.has(getEventTypeLabel(event))),
+    () =>
+      visibleEvents.filter((event) => {
+        const type = getEventTypeLabel(event);
+        return !EXCLUDED_EVENT_TYPES.has(type) && Boolean(getEventFilter(type));
+      }),
     [visibleEvents]
   );
   const eventTypeCounts = useMemo(
     () =>
       registerableEvents.reduce((counts, event) => {
-        const type = getEventTypeLabel(event);
-        return type in counts ? { ...counts, [type]: counts[type] + 1 } : counts;
-      }, Object.fromEntries(EVENT_TYPE_FILTERS.slice(1).map((type) => [type, 0]))),
+        const filter = getEventFilter(getEventTypeLabel(event));
+        return filter
+          ? { ...counts, [filter.value]: counts[filter.value] + 1 }
+          : counts;
+      }, Object.fromEntries(EVENT_TYPE_FILTERS.map((filter) => [filter.value, 0]))),
     [registerableEvents]
   );
   const eventTypeFilters = useMemo(
@@ -321,15 +343,15 @@ function EventsPage() {
   );
   const filteredEvents = useMemo(
     () =>
-      eventTypeFilter === ALL_EVENT_TYPES
-        ? registerableEvents
-        : registerableEvents.filter((event) => getEventTypeLabel(event) === eventTypeFilter),
+      registerableEvents.filter((event) =>
+        getEventFilter(getEventTypeLabel(event))?.value === eventTypeFilter
+      ),
     [eventTypeFilter, registerableEvents]
   );
 
   useEffect(() => {
-    if (eventTypeFilter !== ALL_EVENT_TYPES && !eventTypeFilters.includes(eventTypeFilter)) {
-      setEventTypeFilter(ALL_EVENT_TYPES);
+    if (!eventTypeFilters.some((filter) => filter.value === eventTypeFilter)) {
+      setEventTypeFilter(DEFAULT_EVENT_TYPE_FILTER);
     }
   }, [eventTypeFilter, eventTypeFilters]);
 
@@ -388,16 +410,14 @@ function EventsPage() {
       ) : null}
       {!loading && registerableEvents.length ? (
         <div className="status-filter-group event-type-filter" aria-label="Event type filters">
-          {eventTypeFilters.map((type) => (
+          {eventTypeFilters.map((filter) => (
             <button
-              className={`status-filter-button${eventTypeFilter === type ? ' active' : ''}`}
-              key={type}
-              onClick={() => setEventTypeFilter(type)}
+              className={`status-filter-button${eventTypeFilter === filter.value ? ' active' : ''}`}
+              key={filter.value}
+              onClick={() => setEventTypeFilter(filter.value)}
               type="button"
             >
-              {type === ALL_EVENT_TYPES
-                ? `All (${visibleEvents.length})`
-                : `${type} (${eventTypeCounts[type] || 0})`}
+              {filter.label} ({eventTypeCounts[filter.value] || 0})
             </button>
           ))}
         </div>

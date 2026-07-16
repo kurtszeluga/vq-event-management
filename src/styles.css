@@ -1153,10 +1153,6 @@ body.popup-mode .page-content {
   grid-column: 1 / -1;
 }
 
-.public-event-register-action {
-  margin-left: auto;
-}
-
 .event-coordinator-contact {
   color: #5c6966;
   font-size: 0.94rem;
@@ -2202,10 +2198,6 @@ body.popup-mode .page-content {
     grid-column: 1;
     grid-row: auto;
     max-width: 260px;
-  }
-
-  .public-event-register-action {
-    margin-left: 0;
   }
 
   .public-listing-card {
