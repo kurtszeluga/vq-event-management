@@ -13,6 +13,7 @@ import {
 import { db } from '../lib/firebase.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
+const emailInstructionsRef = () => doc(db, 'appSettings', 'emailInstructions');
 const membersCollection = () => collection(db, 'members');
 const usersCollection = () => collection(db, 'users');
 const eventLocationsCollection = () => collection(db, 'eventLocationDefaults');
@@ -74,6 +75,36 @@ export const DEFAULT_MEMBERSHIP_SETTINGS = {
   termsVersion: ''
 };
 
+export const EMAIL_INSTRUCTION_AREAS = [
+  {
+    areaId: 'programs',
+    areaLabel: 'Programs',
+    helperText: 'Used for Class Half Day, Class Full Day, Lecture, and Retreat registration confirmations.'
+  },
+  {
+    areaId: 'workshops',
+    areaLabel: 'Workshops',
+    helperText: 'Used for Workshop registration confirmations.'
+  },
+  {
+    areaId: 'challenges',
+    areaLabel: 'Challenges',
+    helperText: 'Used for Challenge registration confirmations.'
+  },
+  {
+    areaId: 'membership',
+    areaLabel: 'Membership',
+    helperText: 'Used for membership signup and membership status emails.'
+  }
+];
+
+export const DEFAULT_EMAIL_INSTRUCTIONS = {
+  challenges: '',
+  membership: '',
+  programs: '',
+  workshops: ''
+};
+
 export function subscribeToMembershipSettings(onNext, onError) {
   return onSnapshot(
     membershipSettingsRef(),
@@ -82,6 +113,19 @@ export function subscribeToMembershipSettings(onNext, onError) {
         ...DEFAULT_MEMBERSHIP_SETTINGS,
         ...snapshot.data()
       } : DEFAULT_MEMBERSHIP_SETTINGS);
+    },
+    onError
+  );
+}
+
+export function subscribeToEmailInstructions(onNext, onError) {
+  return onSnapshot(
+    emailInstructionsRef(),
+    (snapshot) => {
+      onNext(snapshot.exists() ? {
+        ...DEFAULT_EMAIL_INSTRUCTIONS,
+        ...snapshot.data()
+      } : DEFAULT_EMAIL_INSTRUCTIONS);
     },
     onError
   );
@@ -160,6 +204,27 @@ export async function saveMembershipSettings(settings, actorProfile) {
     after: payload,
     entityId: 'membership',
     summary: 'Updated membership check settings'
+  });
+
+  return batch.commit();
+}
+
+export async function saveEmailInstructions(instructions, actorProfile) {
+  const batch = writeBatch(db);
+  const payload = {
+    challenges: cleanText(instructions.challenges),
+    membership: cleanText(instructions.membership),
+    programs: cleanText(instructions.programs),
+    workshops: cleanText(instructions.workshops),
+    updatedDate: serverTimestamp()
+  };
+
+  batch.set(emailInstructionsRef(), payload, { merge: true });
+  addConfigurationAuditLog(batch, {
+    actorProfile,
+    after: payload,
+    entityId: 'emailInstructions',
+    summary: 'Updated email confirmation instructions'
   });
 
   return batch.commit();

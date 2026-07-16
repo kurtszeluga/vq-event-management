@@ -1,18 +1,22 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   COORDINATOR_ASSIGNMENT_AREAS,
+  DEFAULT_EMAIL_INSTRUCTIONS,
   DEFAULT_MEMBERSHIP_SETTINGS,
+  EMAIL_INSTRUCTION_AREAS,
   archiveMembershipProfile,
   deleteEventLocationDefault,
   deleteEventTimeDefault,
   importMembersFromCsvRows,
   reactivateMembershipProfile,
+  saveEmailInstructions,
   saveEventLocationDefault,
   saveEventTimeDefault,
   saveCoordinatorAssignment,
   saveMembershipProfile,
   saveMembershipSettings,
   subscribeToCoordinatorAssignments,
+  subscribeToEmailInstructions,
   subscribeToEventLocationDefaults,
   subscribeToEventTimeDefaults,
   subscribeToMembershipProfiles,
@@ -64,6 +68,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [error, setError] = useState('');
   const [coordinatorForms, setCoordinatorForms] = useState({});
   const [coordinatorMessages, setCoordinatorMessages] = useState({});
+  const [emailInstructions, setEmailInstructions] = useState(DEFAULT_EMAIL_INSTRUCTIONS);
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
@@ -172,7 +177,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   }
 
   useEffect(() => {
-    let pendingLoads = 5;
+    let pendingLoads = 6;
     const markLoaded = () => {
       pendingLoads -= 1;
       if (pendingLoads <= 0) {
@@ -186,6 +191,10 @@ function ConfigurationPanel({ currentUserProfile }) {
     const unsubscribers = [
       subscribeToMembershipSettings((nextSettings) => {
         setSettings(nextSettings);
+        markLoaded();
+      }, handleError),
+      subscribeToEmailInstructions((nextInstructions) => {
+        setEmailInstructions(nextInstructions);
         markLoaded();
       }, handleError),
       subscribeToMembershipProfiles((snapshot) => {
@@ -220,6 +229,14 @@ function ConfigurationPanel({ currentUserProfile }) {
     await runSave('settings', async () => {
       await saveMembershipSettings(settings, currentUserProfile);
       setSuccessMessage('Membership check settings saved.');
+    });
+  }
+
+  async function handleSaveEmailInstructions(event) {
+    event.preventDefault();
+    await runSave('emailInstructions', async () => {
+      await saveEmailInstructions(emailInstructions, currentUserProfile);
+      setSuccessMessage('Email instructions saved.');
     });
   }
 
@@ -451,6 +468,47 @@ function ConfigurationPanel({ currentUserProfile }) {
             type="submit"
           >
             {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
+          </button>
+        </form>
+      </article>
+    );
+  }
+
+  function renderEmailInstructionsCard() {
+    return (
+      <article className="configuration-mini-card">
+        <div className="configuration-card-header">
+          <h3>Email Instructions</h3>
+          <p>
+            Add area-specific comments or instructions for confirmation emails. These notes
+            will appear after the event or membership summary.
+          </p>
+        </div>
+        <form className="configuration-card-body" onSubmit={handleSaveEmailInstructions}>
+          <div className="configuration-form-grid">
+            {EMAIL_INSTRUCTION_AREAS.map((area) => (
+              <label className="configuration-span" key={area.areaId}>
+                <span>{area.areaLabel} Email Comments/Instructions</span>
+                <textarea
+                  placeholder={`Enter ${area.areaLabel.toLowerCase()} confirmation email notes.`}
+                  value={emailInstructions[area.areaId] || ''}
+                  onChange={(event) =>
+                    setEmailInstructions((current) => ({
+                      ...current,
+                      [area.areaId]: event.target.value
+                    }))
+                  }
+                />
+                <span className="form-help">{area.helperText}</span>
+              </label>
+            ))}
+          </div>
+          <button
+            className="button-link button-reset configuration-submit-button"
+            disabled={savingSection === 'emailInstructions'}
+            type="submit"
+          >
+            {savingSection === 'emailInstructions' ? 'Saving...' : 'Save Email Instructions'}
           </button>
         </form>
       </article>
@@ -978,6 +1036,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           <div className="configuration-card-actions configuration-shell-actions">
             {[
               ['membership', 'Membership Check'],
+              ['emailInstructions', 'Email Instructions'],
               ['members', 'Membership Profiles'],
               ['coordinators', 'Coordinator Assignments'],
               ['locations', 'Default Locations'],
@@ -996,6 +1055,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         </div>
 
         {configurationView === 'membership' ? renderMembershipCard() : null}
+        {configurationView === 'emailInstructions' ? renderEmailInstructionsCard() : null}
         {configurationView === 'members' ? renderMemberListCard() : null}
         {configurationView === 'coordinators' ? renderCoordinatorCard() : null}
         {configurationView === 'locations' ? renderLocationCard() : null}

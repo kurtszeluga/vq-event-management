@@ -458,6 +458,21 @@ service cloud.firestore {
         && request.resource.data.updatedDate is timestamp;
     }
 
+    function validEmailInstructions() {
+      return request.resource.data.keys().hasOnly([
+          'challenges',
+          'membership',
+          'programs',
+          'updatedDate',
+          'workshops'
+        ])
+        && request.resource.data.challenges is string
+        && request.resource.data.membership is string
+        && request.resource.data.programs is string
+        && request.resource.data.workshops is string
+        && request.resource.data.updatedDate is timestamp;
+    }
+
     function validMember() {
       return request.resource.data.keys().hasOnly([
           'email',
@@ -620,8 +635,12 @@ service cloud.firestore {
     match /appSettings/{settingId} {
       allow read: if settingId == 'membership' || isAdmin();
       allow create, update: if isSuperUser()
-        && settingId == 'membership'
-        && validMembershipSettings();
+        && (
+          settingId == 'membership'
+            && validMembershipSettings()
+          || settingId == 'emailInstructions'
+            && validEmailInstructions()
+        );
       allow delete: if isSuperUser();
     }
 
