@@ -11,7 +11,8 @@ This project follows `PROJECT_SPEC.md` as the source of truth.
 - Progressive Web App
 - Firebase Authentication, Firestore, and Storage
 - Vercel deployment
-- Future Square-hosted Checkout payments
+- Future Square-hosted Checkout payment
+
 
 ## Local Setup
 
