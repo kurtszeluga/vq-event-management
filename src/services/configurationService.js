@@ -17,7 +17,53 @@ const membersCollection = () => collection(db, 'members');
 const usersCollection = () => collection(db, 'users');
 const eventLocationsCollection = () => collection(db, 'eventLocationDefaults');
 const eventTimeOptionsCollection = () => collection(db, 'eventTimeDefaults');
+const coordinatorAssignmentsCollection = () => collection(db, 'coordinatorAssignments');
 const auditLogsCollection = () => collection(db, 'auditLogs');
+
+export const COORDINATOR_ASSIGNMENT_AREAS = [
+  {
+    areaId: 'programs',
+    areaLabel: 'Programs',
+    coveredTypes: ['Class (Half-Day)', 'Class (Full-Day)', 'Lecture', 'Retreat'],
+    groupLabel: 'Programs',
+    sortOrder: 10
+  },
+  {
+    areaId: 'workshops',
+    areaLabel: 'Workshops',
+    coveredTypes: ['Workshop'],
+    groupLabel: 'Other Areas',
+    sortOrder: 20
+  },
+  {
+    areaId: 'challenges',
+    areaLabel: 'Challenges',
+    coveredTypes: ['Challenge'],
+    groupLabel: 'Other Areas',
+    sortOrder: 30
+  },
+  {
+    areaId: 'business-listings',
+    areaLabel: 'Business Listings',
+    coveredTypes: ['Business Listing'],
+    groupLabel: 'Other Areas',
+    sortOrder: 40
+  },
+  {
+    areaId: 'for-sale',
+    areaLabel: 'For Sale',
+    coveredTypes: ['For Sale'],
+    groupLabel: 'Other Areas',
+    sortOrder: 50
+  },
+  {
+    areaId: 'membership',
+    areaLabel: 'Membership',
+    coveredTypes: ['Membership'],
+    groupLabel: 'Other Areas',
+    sortOrder: 60
+  }
+];
 
 export const DEFAULT_MEMBERSHIP_SETTINGS = {
   allowAdminSkipMembershipCheck: false,
@@ -67,6 +113,11 @@ export function subscribeToEventLocationDefaults(onNext, onError) {
 export function subscribeToEventTimeDefaults(onNext, onError) {
   const timesQuery = query(eventTimeOptionsCollection(), orderBy('sortOrder', 'asc'));
   return onSnapshot(timesQuery, onNext, onError);
+}
+
+export function subscribeToCoordinatorAssignments(onNext, onError) {
+  const coordinatorQuery = query(coordinatorAssignmentsCollection(), orderBy('sortOrder', 'asc'));
+  return onSnapshot(coordinatorQuery, onNext, onError);
 }
 
 export function subscribeToActiveEventLocationDefaults(onNext, onError) {
@@ -442,6 +493,42 @@ export async function saveEventTimeDefault(timeOption, actorProfile) {
     after: payload,
     entityId: timeRef.id,
     summary: `Saved event time "${payload.label}"`
+  });
+
+  return batch.commit();
+}
+
+export async function saveCoordinatorAssignment(assignment, profile, actorProfile) {
+  const area = COORDINATOR_ASSIGNMENT_AREAS.find((item) => item.areaId === assignment.areaId);
+
+  if (!area) {
+    throw new Error('Choose a valid coordinator area.');
+  }
+
+  const batch = writeBatch(db);
+  const assignmentRef = doc(db, 'coordinatorAssignments', area.areaId);
+  const payload = {
+    areaLabel: area.areaLabel,
+    assignedUserEmail: cleanText(profile?.email),
+    assignedUserId: cleanText(profile?.userId || profile?.id),
+    assignedUserName: cleanText(profile?.name || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ')),
+    assignedUserPhone: cleanText(profile?.phone),
+    contactEmailOverride: cleanText(assignment.contactEmailOverride),
+    contactNameOverride: cleanText(assignment.contactNameOverride),
+    contactPhoneOverride: cleanText(assignment.contactPhoneOverride),
+    coordinatorAreaId: area.areaId,
+    groupLabel: area.groupLabel,
+    isActive: assignment.isActive !== false,
+    sortOrder: area.sortOrder,
+    updatedDate: serverTimestamp()
+  };
+
+  batch.set(assignmentRef, payload, { merge: true });
+  addConfigurationAuditLog(batch, {
+    actorProfile,
+    after: payload,
+    entityId: assignmentRef.id,
+    summary: `Saved coordinator assignment "${area.areaLabel}"`
   });
 
   return batch.commit();

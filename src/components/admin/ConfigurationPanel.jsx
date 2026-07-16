@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
+  COORDINATOR_ASSIGNMENT_AREAS,
   DEFAULT_MEMBERSHIP_SETTINGS,
   archiveMembershipProfile,
   deleteEventLocationDefault,
@@ -8,8 +9,10 @@ import {
   reactivateMembershipProfile,
   saveEventLocationDefault,
   saveEventTimeDefault,
+  saveCoordinatorAssignment,
   saveMembershipProfile,
   saveMembershipSettings,
+  subscribeToCoordinatorAssignments,
   subscribeToEventLocationDefaults,
   subscribeToEventTimeDefaults,
   subscribeToMembershipProfiles,
@@ -47,11 +50,20 @@ const EMPTY_TIME_FORM = {
   value: ''
 };
 
+const EMPTY_COORDINATOR_FORM = {
+  assignedUserId: '',
+  contactEmailOverride: '',
+  contactNameOverride: '',
+  contactPhoneOverride: '',
+  isActive: true
+};
+
 const MEMBER_FILTERS = ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
 
 function ConfigurationPanel({ currentUserProfile }) {
   const csvInputRef = useRef(null);
   const [error, setError] = useState('');
+  const [coordinatorForms, setCoordinatorForms] = useState({});
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
@@ -160,7 +172,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   }
 
   useEffect(() => {
-    let pendingLoads = 4;
+    let pendingLoads = 5;
     const markLoaded = () => {
       pendingLoads -= 1;
       if (pendingLoads <= 0) {
@@ -188,6 +200,14 @@ function ConfigurationPanel({ currentUserProfile }) {
       }, handleError),
       subscribeToEventTimeDefaults((snapshot) => {
         setEventTimes(snapshot.docs.map((timeDoc) => ({ id: timeDoc.id, ...timeDoc.data() })));
+        markLoaded();
+      }, handleError),
+      subscribeToCoordinatorAssignments((snapshot) => {
+        const assignments = snapshot.docs.map((assignmentDoc) => ({
+          id: assignmentDoc.id,
+          ...assignmentDoc.data()
+        }));
+        setCoordinatorForms((current) => getCoordinatorForms(assignments, current));
         markLoaded();
       }, handleError)
     ];
@@ -303,6 +323,28 @@ function ConfigurationPanel({ currentUserProfile }) {
       setTimeForm(EMPTY_TIME_FORM);
       setTimeFormOpen(false);
       setSuccessMessage('Default time saved.');
+    });
+  }
+
+  async function handleSaveCoordinator(area) {
+    const form = getCoordinatorForm(coordinatorForms, area.areaId);
+    const profile = getProfileByCoordinatorId(members, form.assignedUserId);
+
+    if (!profile) {
+      setError(`Choose a profile for ${area.areaLabel}.`);
+      return;
+    }
+
+    await runSave(`coordinator-${area.areaId}`, async () => {
+      await saveCoordinatorAssignment(
+        {
+          ...form,
+          areaId: area.areaId
+        },
+        profile,
+        currentUserProfile
+      );
+      setSuccessMessage(`${area.areaLabel} coordinator saved.`);
     });
   }
 
@@ -771,6 +813,149 @@ function ConfigurationPanel({ currentUserProfile }) {
     );
   }
 
+  function renderCoordinatorCard() {
+    const profileOptions = members
+      .filter((member) => member.status !== 'Archived')
+      .sort((first, second) =>
+        (first.name || first.email || '').localeCompare(second.name || second.email || '')
+      );
+
+    function updateCoordinatorForm(areaId, changes) {
+      setCoordinatorForms((current) => ({
+        ...current,
+        [areaId]: {
+          ...getCoordinatorForm(current, areaId),
+          ...changes
+        }
+      }));
+    }
+
+    return (
+      <article className="configuration-mini-card">
+        <div className="configuration-card-header">
+          <h3>Coordinator Assignments</h3>
+          <p>
+            Assign the profile responsible for each area. Override contact details only when
+            a corporate or shared Guild contact should be shown instead of the profile contact.
+          </p>
+        </div>
+        <div className="coordinator-area-list">
+          {COORDINATOR_ASSIGNMENT_AREAS.map((area) => {
+            const form = getCoordinatorForm(coordinatorForms, area.areaId);
+            const savingKey = `coordinator-${area.areaId}`;
+            const selectedProfile = getProfileByCoordinatorId(members, form.assignedUserId);
+            const effectiveContact = getEffectiveCoordinatorContact(form, selectedProfile);
+
+            return (
+              <section className="coordinator-area-card" key={area.areaId}>
+                <div className="coordinator-area-heading">
+                  <div>
+                    <h4>{area.areaLabel}</h4>
+                    <p>{area.coveredTypes.join(', ')}</p>
+                  </div>
+                  <label className="checkbox-label coordinator-active-toggle">
+                    <input
+                      checked={form.isActive !== false}
+                      type="checkbox"
+                      onChange={(event) =>
+                        updateCoordinatorForm(area.areaId, {
+                          isActive: event.target.checked
+                        })
+                      }
+                    />
+                    <span>Active</span>
+                  </label>
+                </div>
+                <div className="configuration-form-grid coordinator-form-grid">
+                  <label className="configuration-span">
+                    <span>Assigned Profile</span>
+                    <select
+                      value={form.assignedUserId}
+                      onChange={(event) =>
+                        updateCoordinatorForm(area.areaId, {
+                          assignedUserId: event.target.value
+                        })
+                      }
+                    >
+                      <option value="">Choose Profile</option>
+                      {profileOptions.map((profile) => {
+                        const profileId = profile.userId || profile.id;
+                        return (
+                          <option key={profile.id} value={profileId}>
+                            {profile.name || profile.email || profileId}
+                            {profile.role ? ` - ${profile.role}` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Display Name Override</span>
+                    <input
+                      placeholder={selectedProfile?.name || 'Use profile name'}
+                      value={form.contactNameOverride}
+                      onBlur={(event) =>
+                        updateCoordinatorForm(area.areaId, {
+                          contactNameOverride: toTitleCase(event.target.value)
+                        })
+                      }
+                      onChange={(event) =>
+                        updateCoordinatorForm(area.areaId, {
+                          contactNameOverride: event.target.value
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Email Override</span>
+                    <input
+                      placeholder={selectedProfile?.email || 'Use profile email'}
+                      type="email"
+                      value={form.contactEmailOverride}
+                      onChange={(event) =>
+                        updateCoordinatorForm(area.areaId, {
+                          contactEmailOverride: event.target.value
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Phone Override</span>
+                    <input
+                      placeholder={selectedProfile?.phone || 'Use profile phone'}
+                      type="tel"
+                      value={form.contactPhoneOverride}
+                      onChange={(event) =>
+                        updateCoordinatorForm(area.areaId, {
+                          contactPhoneOverride: formatPhoneNumber(event.target.value)
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+                <div className="configuration-summary coordinator-preview">
+                  <span>Contact: {effectiveContact.name || 'Not assigned'}</span>
+                  <span>Email: {effectiveContact.email || 'Not listed'}</span>
+                  <span>Phone: {effectiveContact.phone || 'Not listed'}</span>
+                </div>
+                <div className="configuration-actions">
+                  <button
+                    className="button-link button-reset configuration-submit-button"
+                    disabled={savingSection === savingKey}
+                    type="button"
+                    onClick={() => handleSaveCoordinator(area)}
+                  >
+                    {savingSection === savingKey ? 'Saving...' : `Save ${area.areaLabel}`}
+                  </button>
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </article>
+    );
+  }
+
   return (
     <section className="admin-form configuration-panel">
       {loading ? <p>Loading configuration...</p> : null}
@@ -787,6 +972,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             {[
               ['membership', 'Membership Check'],
               ['members', 'Membership Profiles'],
+              ['coordinators', 'Coordinator Assignments'],
               ['locations', 'Default Locations'],
               ['times', 'Default Start/End Times']
             ].map(([value, label]) => (
@@ -804,6 +990,7 @@ function ConfigurationPanel({ currentUserProfile }) {
 
         {configurationView === 'membership' ? renderMembershipCard() : null}
         {configurationView === 'members' ? renderMemberListCard() : null}
+        {configurationView === 'coordinators' ? renderCoordinatorCard() : null}
         {configurationView === 'locations' ? renderLocationCard() : null}
         {configurationView === 'times' ? renderTimeCard() : null}
       </section>
@@ -875,6 +1062,47 @@ function ConfigurationTable({ columns, emptyText, rows }) {
       </table>
     </div>
   );
+}
+
+function getCoordinatorForms(assignments, currentForms = {}) {
+  return COORDINATOR_ASSIGNMENT_AREAS.reduce((forms, area) => {
+    const assignment = assignments.find((item) =>
+      item.coordinatorAreaId === area.areaId || item.id === area.areaId
+    );
+    forms[area.areaId] = {
+      ...EMPTY_COORDINATOR_FORM,
+      ...currentForms[area.areaId],
+      ...(assignment ? {
+        assignedUserId: assignment.assignedUserId || '',
+        contactEmailOverride: assignment.contactEmailOverride || '',
+        contactNameOverride: assignment.contactNameOverride || '',
+        contactPhoneOverride: assignment.contactPhoneOverride || '',
+        isActive: assignment.isActive !== false
+      } : {})
+    };
+    return forms;
+  }, {});
+}
+
+function getCoordinatorForm(forms, areaId) {
+  return {
+    ...EMPTY_COORDINATOR_FORM,
+    ...(forms[areaId] || {})
+  };
+}
+
+function getProfileByCoordinatorId(profiles, userId) {
+  return profiles.find((profile) =>
+    userId && (profile.userId === userId || profile.id === userId)
+  ) || null;
+}
+
+function getEffectiveCoordinatorContact(form, profile) {
+  return {
+    email: form.contactEmailOverride || profile?.email || '',
+    name: form.contactNameOverride || profile?.name || [profile?.firstName, profile?.lastName].filter(Boolean).join(' '),
+    phone: form.contactPhoneOverride || profile?.phone || ''
+  };
 }
 
 function getMemberCounts(members) {

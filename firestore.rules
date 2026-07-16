@@ -523,6 +523,44 @@ service cloud.firestore {
         && request.resource.data.value is string;
     }
 
+    function validCoordinatorAssignment() {
+      return request.resource.data.keys().hasOnly([
+          'areaLabel',
+          'assignedUserEmail',
+          'assignedUserId',
+          'assignedUserName',
+          'assignedUserPhone',
+          'contactEmailOverride',
+          'contactNameOverride',
+          'contactPhoneOverride',
+          'coordinatorAreaId',
+          'groupLabel',
+          'isActive',
+          'sortOrder',
+          'updatedDate'
+        ])
+        && validStatus(request.resource.data.coordinatorAreaId, [
+          'programs',
+          'workshops',
+          'challenges',
+          'business-listings',
+          'for-sale',
+          'membership'
+        ])
+        && request.resource.data.areaLabel is string
+        && request.resource.data.assignedUserEmail is string
+        && request.resource.data.assignedUserId is string
+        && request.resource.data.assignedUserName is string
+        && request.resource.data.assignedUserPhone is string
+        && request.resource.data.contactEmailOverride is string
+        && request.resource.data.contactNameOverride is string
+        && request.resource.data.contactPhoneOverride is string
+        && request.resource.data.groupLabel is string
+        && request.resource.data.isActive is bool
+        && request.resource.data.sortOrder is number
+        && request.resource.data.updatedDate is timestamp;
+    }
+
     match /events/{eventId} {
       allow read: if resource.data.status == 'Published' || hasPermission('manageEvents');
       allow create, update: if hasPermission('manageEvents') && validEvent();
@@ -598,6 +636,14 @@ service cloud.firestore {
     match /eventTimeDefaults/{eventTimeId} {
       allow read: if isAdmin();
       allow create, update: if isSuperUser() && validEventTimeDefault();
+      allow delete: if isSuperUser();
+    }
+
+    match /coordinatorAssignments/{coordinatorAreaId} {
+      allow read: if isAdmin();
+      allow create, update: if isSuperUser()
+        && coordinatorAreaId == request.resource.data.coordinatorAreaId
+        && validCoordinatorAssignment();
       allow delete: if isSuperUser();
     }
   }

@@ -1620,6 +1620,54 @@ body.popup-mode .page-content {
   gap: 12px;
 }
 
+.coordinator-area-list {
+  display: grid;
+  gap: 18px;
+}
+
+.coordinator-area-card {
+  border: 1px solid #d9cdc4;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.coordinator-area-heading {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.coordinator-area-heading h4,
+.coordinator-area-heading p {
+  margin: 0;
+}
+
+.coordinator-area-heading h4 {
+  color: #1d2927;
+  font-size: 1.05rem;
+}
+
+.coordinator-area-heading p {
+  color: #5c6966;
+  font-size: 0.92rem;
+  margin-top: 4px;
+}
+
+.coordinator-active-toggle {
+  flex: 0 0 auto;
+}
+
+.coordinator-form-grid {
+  gap: 12px;
+}
+
+.coordinator-preview {
+  gap: 8px;
+}
+
 .configuration-review-list {
   border: 1px solid #ead4c8;
   border-radius: 8px;
