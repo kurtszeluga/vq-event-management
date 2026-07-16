@@ -199,7 +199,7 @@
 
     return `
       <div class="vq-feed-coordinator">
-        <strong>Coordinator:</strong>
+        <strong>For Questions Contact:</strong>
         ${name ? `<span>${escapeHtml(name)}</span>` : ''}
         ${email ? `<a href="mailto:${escapeAttribute(email)}">${escapeHtml(email)}</a>` : ''}
       </div>
