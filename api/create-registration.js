@@ -436,12 +436,14 @@ async function sendRegistrationConfirmationEmail(db, { event, registration }) {
 
   const area = getEmailInstructionArea(event.eventType);
   const instructionText = cleanText(emailSettings[area.areaId]);
-  const replyTo = await getCoordinatorReplyTo(db, area.areaId);
+  const coordinatorContact = await getCoordinatorContact(db, area.areaId);
+  const replyTo = coordinatorContact.email;
   const subjectStatus = registration.status === 'Waitlisted' ? 'Waitlist Confirmation' : 'Registration Confirmation';
 
   await sendResendEmail({
     html: buildRegistrationConfirmationHtml({
       area,
+      coordinatorContact,
       event,
       instructionText,
       registration
@@ -450,6 +452,7 @@ async function sendRegistrationConfirmationEmail(db, { event, registration }) {
     subject: `Village Quilters ${subjectStatus}: ${event.title || event.eventType || 'Event'}`,
     text: buildRegistrationConfirmationText({
       area,
+      coordinatorContact,
       event,
       instructionText,
       registration
@@ -509,12 +512,14 @@ async function sendMembershipConfirmationEmail(db, { kind = 'signup', profile })
 
   const area = { areaId: 'membership', areaLabel: 'Membership' };
   const instructionText = cleanText(emailSettings.membership);
-  const replyTo = await getCoordinatorReplyTo(db, area.areaId);
+  const coordinatorContact = await getCoordinatorContact(db, area.areaId);
+  const replyTo = coordinatorContact.email;
   const isReactivation = kind === 'reactivation';
 
   await sendResendEmail({
     html: buildMembershipConfirmationHtml({
       area,
+      coordinatorContact,
       instructionText,
       isReactivation,
       profile
@@ -525,6 +530,7 @@ async function sendMembershipConfirmationEmail(db, { kind = 'signup', profile })
       : 'Village Quilters Membership Request Confirmation',
     text: buildMembershipConfirmationText({
       area,
+      coordinatorContact,
       instructionText,
       isReactivation,
       profile
@@ -568,11 +574,12 @@ async function sendResendEmail({ html, replyTo, subject, text, to }) {
   return result;
 }
 
-function buildRegistrationConfirmationHtml({ area, event, instructionText, registration }) {
+function buildRegistrationConfirmationHtml({ area, coordinatorContact, event, instructionText, registration }) {
   const logoUrl = `${getAppOrigin()}/assets/village-quilters-logo.png`;
   const eventTitle = event.title || event.eventType || 'Event';
   const supplyListUrl = event.supplyListUrl || '';
   const instructions = instructionText || 'No additional instructions have been provided for this area.';
+  const contactHtml = buildCoordinatorContactHtml(coordinatorContact);
 
   return `<!doctype html>
 <html>
@@ -611,6 +618,7 @@ function buildRegistrationConfirmationHtml({ area, event, instructionText, regis
                   ${buildDetailRowHtml('Payment Status', registration.paymentStatus || 'Pending')}
                   ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount Due', formatCurrency(registration.amountDue)) : ''}
                 </section>
+                ${contactHtml}
                 ${supplyListUrl ? `
                   <p style="margin:0 0 18px;">
                     <a href="${escapeHtml(supplyListUrl)}" style="display:inline-block;background:#225c56;color:#fffaf5;text-decoration:none;font-weight:700;padding:10px 14px;border-radius:6px;">View Supply List</a>
@@ -639,7 +647,9 @@ function buildDetailRowHtml(label, value) {
   return `<p style="margin:0 0 8px;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">${escapeHtml(label)}:</strong> ${escapeHtml(value || '')}</p>`;
 }
 
-function buildRegistrationConfirmationText({ area, event, instructionText, registration }) {
+function buildRegistrationConfirmationText({ area, coordinatorContact, event, instructionText, registration }) {
+  const coordinatorLines = buildCoordinatorContactText(coordinatorContact);
+
   return [
     `The Village Quilters, Inc. ${registration.status} Confirmation`,
     '',
@@ -656,6 +666,7 @@ function buildRegistrationConfirmationText({ area, event, instructionText, regis
     `Presenter: ${event.presenter || 'To be announced'}`,
     `Payment Status: ${registration.paymentStatus || 'Pending'}`,
     registration.eventPaymentRequired ? `Amount Due: ${formatCurrency(registration.amountDue)}` : '',
+    ...coordinatorLines,
     event.supplyListUrl ? `Supply List: ${event.supplyListUrl}` : '',
     '',
     `${area.areaLabel} Instructions:`,
@@ -663,13 +674,14 @@ function buildRegistrationConfirmationText({ area, event, instructionText, regis
   ].filter((line) => line !== '').join('\n');
 }
 
-function buildMembershipConfirmationHtml({ area, instructionText, isReactivation, profile }) {
+function buildMembershipConfirmationHtml({ area, coordinatorContact, instructionText, isReactivation, profile }) {
   const logoUrl = `${getAppOrigin()}/assets/village-quilters-logo.png`;
   const instructions = instructionText || 'No additional membership instructions have been provided.';
   const headline = isReactivation ? 'Membership Reactivated' : 'Membership Request Received';
   const intro = isReactivation
     ? 'Your membership profile has been reactivated.'
     : 'Your online membership request has been received and is pending review.';
+  const contactHtml = buildCoordinatorContactHtml(coordinatorContact);
 
   return `<!doctype html>
 <html>
@@ -704,6 +716,7 @@ function buildMembershipConfirmationHtml({ area, instructionText, isReactivation
                   ${buildDetailRowHtml('Phone', profile.phone || '')}
                   ${buildDetailRowHtml('Membership Status', profile.membershipStatus || 'Pending')}
                 </section>
+                ${contactHtml}
                 <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#ffffff;">
                   <h2 style="margin:0 0 8px;color:#225c56;font-size:17px;line-height:1.3;">${escapeHtml(area.areaLabel)} Instructions</h2>
                   <p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.55;">${escapeHtml(instructions)}</p>
@@ -723,7 +736,9 @@ function buildMembershipConfirmationHtml({ area, instructionText, isReactivation
 </html>`;
 }
 
-function buildMembershipConfirmationText({ area, instructionText, isReactivation, profile }) {
+function buildMembershipConfirmationText({ area, coordinatorContact, instructionText, isReactivation, profile }) {
+  const coordinatorLines = buildCoordinatorContactText(coordinatorContact);
+
   return [
     isReactivation
       ? 'The Village Quilters, Inc. Membership Reactivated'
@@ -739,26 +754,62 @@ function buildMembershipConfirmationText({ area, instructionText, isReactivation
     `Email: ${profile.email || ''}`,
     `Phone: ${profile.phone || ''}`,
     `Membership Status: ${profile.membershipStatus || 'Pending'}`,
+    ...coordinatorLines,
     '',
     `${area.areaLabel} Instructions:`,
     instructionText || 'No additional membership instructions have been provided.'
   ].join('\n');
 }
 
-async function getCoordinatorReplyTo(db, areaId) {
+async function getCoordinatorContact(db, areaId) {
   const snapshot = await db.collection('coordinatorAssignments').doc(areaId).get();
 
   if (!snapshot.exists) {
-    return '';
+    return { email: '', name: '' };
   }
 
   const assignment = snapshot.data();
 
   if (assignment.isActive === false) {
+    return { email: '', name: '' };
+  }
+
+  return {
+    email: cleanText(assignment.contactEmailOverride || assignment.assignedUserEmail),
+    name: cleanText(assignment.assignedUserName)
+  };
+}
+
+function buildCoordinatorContactHtml(contact = {}) {
+  const name = cleanText(contact.name);
+  const email = cleanText(contact.email);
+
+  if (!name && !email) {
     return '';
   }
 
-  return cleanText(assignment.contactEmailOverride || assignment.assignedUserEmail);
+  return `
+                <section style="margin:0 0 18px;padding:16px;border:1px solid #d6e3df;background:#f2f8f6;">
+                  <h2 style="margin:0 0 8px;color:#225c56;font-size:17px;line-height:1.3;">For questions contact:</h2>
+                  ${name ? `<p style="margin:0 0 6px;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">Name:</strong> ${escapeHtml(name)}</p>` : ''}
+                  ${email ? `<p style="margin:0;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">Email:</strong> <a href="mailto:${escapeHtml(email)}" style="color:#225c56;font-weight:700;">${escapeHtml(email)}</a></p>` : ''}
+                </section>`;
+}
+
+function buildCoordinatorContactText(contact = {}) {
+  const name = cleanText(contact.name);
+  const email = cleanText(contact.email);
+
+  if (!name && !email) {
+    return [];
+  }
+
+  return [
+    '',
+    'For questions contact:',
+    name ? `Name: ${name}` : '',
+    email ? `Email: ${email}` : ''
+  ].filter(Boolean);
 }
 
 function getEmailInstructionArea(eventType) {

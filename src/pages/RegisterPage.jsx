@@ -36,6 +36,9 @@ function RegisterPage() {
   const navigate = useNavigate();
   const eventId = searchParams.get('eventId') || '';
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
+  const referrerUrl = getExternalReferrerUrl();
+  const returnTarget = returnUrl || referrerUrl;
+  const hasCloseTarget = Boolean(returnTarget || (typeof window !== 'undefined' && window.opener));
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
@@ -353,13 +356,17 @@ function RegisterPage() {
   }
 
   function handleClose() {
-    if (returnUrl) {
-      window.location.assign(returnUrl);
-      return;
-    }
-
-    if (window.opener) {
+    if (returnTarget || window.opener) {
       window.close();
+
+      window.setTimeout(() => {
+        if (returnTarget) {
+          window.location.assign(returnTarget);
+          return;
+        }
+
+        navigate(`/events/${eventId}`);
+      }, 250);
       return;
     }
 
@@ -477,7 +484,7 @@ function RegisterPage() {
           <RegistrationCompletion
             confirmation={confirmation}
             event={event}
-            hasReturnUrl={Boolean(returnUrl)}
+            hasReturnTarget={hasCloseTarget}
             onReturn={handleClose}
           />
         </div>
@@ -800,6 +807,24 @@ function getSafeReturnUrl(value) {
   }
 }
 
+function getExternalReferrerUrl() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') {
+    return '';
+  }
+
+  const referrer = getSafeReturnUrl(document.referrer || '');
+
+  if (!referrer) {
+    return '';
+  }
+
+  try {
+    return new URL(referrer).origin === window.location.origin ? '' : referrer;
+  } catch {
+    return '';
+  }
+}
+
 function LookupResult({
   billingAddress,
   lookup,
@@ -936,7 +961,7 @@ function EventSummary({ event }) {
   );
 }
 
-function RegistrationCompletion({ confirmation, event, hasReturnUrl, onReturn }) {
+function RegistrationCompletion({ confirmation, event, hasReturnTarget, onReturn }) {
   return (
     <div className="form-panel registration-completion-card">
       <div className="form-success">
@@ -976,7 +1001,7 @@ function RegistrationCompletion({ confirmation, event, hasReturnUrl, onReturn })
       </dl>
       <div className="form-actions">
         <button className="button-link button-reset" type="button" onClick={onReturn}>
-          {hasReturnUrl ? 'Return To Listings' : 'Back To Event'}
+          {hasReturnTarget ? 'Close Window' : 'Back To Event'}
         </button>
       </div>
     </div>
