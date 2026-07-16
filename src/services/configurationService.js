@@ -513,6 +513,7 @@ export async function saveCoordinatorAssignment(assignment, profile, actorProfil
     assignedUserId: cleanText(profile?.userId || profile?.id),
     assignedUserName: cleanText(profile?.name || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ')),
     assignedUserPhone: cleanText(profile?.phone),
+    contactNameOverride: deleteField(),
     contactEmailOverride: cleanText(assignment.contactEmailOverride),
     contactPhoneOverride: cleanText(assignment.contactPhoneOverride),
     coordinatorAreaId: area.areaId,
@@ -521,11 +522,16 @@ export async function saveCoordinatorAssignment(assignment, profile, actorProfil
     sortOrder: area.sortOrder,
     updatedDate: serverTimestamp()
   };
+  const auditPayload = {
+    ...payload,
+    contactNameOverride: undefined
+  };
+  delete auditPayload.contactNameOverride;
 
   batch.set(assignmentRef, payload, { merge: true });
   addConfigurationAuditLog(batch, {
     actorProfile,
-    after: payload,
+    after: auditPayload,
     entityId: assignmentRef.id,
     summary: `Saved coordinator assignment "${area.areaLabel}"`
   });
