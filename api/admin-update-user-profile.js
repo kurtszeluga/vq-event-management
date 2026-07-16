@@ -289,6 +289,7 @@ async function handleSendEmailInstructionsTest(request, response, actorProfile) 
 
   const recipientEmail = cleanText(request.body?.recipientEmail).toLowerCase();
   const instructions = normalizeEmailInstructions(request.body?.instructions || {});
+  const area = getEmailInstructionArea(request.body?.areaId);
 
   if (!isEmail(recipientEmail)) {
     response.status(400).json({ error: 'Enter a valid test email address.' });
@@ -303,10 +304,10 @@ async function handleSendEmailInstructionsTest(request, response, actorProfile) 
   }
 
   const result = await sendResendEmail({
-    html: buildTestEmailHtml(instructions),
+    html: buildTestEmailHtml(area, instructions[area.areaId]),
     replyTo: actorProfile.email || undefined,
-    subject: 'Village Quilters Test Confirmation Email',
-    text: buildTestEmailText(instructions),
+    subject: `Village Quilters ${area.areaLabel} Test Confirmation Email`,
+    text: buildTestEmailText(area, instructions[area.areaId]),
     to: recipientEmail
   });
 
@@ -404,28 +405,46 @@ function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function buildTestEmailHtml(instructions) {
+function buildTestEmailHtml(area, instructionText) {
+  const logoUrl = `${getAppOrigin()}/assets/village-quilters-logo.png`;
+  const instructions = cleanText(instructionText) || 'No instructions entered yet.';
+
   return `<!doctype html>
 <html>
-  <body style="margin:0;background:#f6f1eb;color:#1d2927;font-family:Arial,Helvetica,sans-serif;">
-    <table role="presentation" style="width:100%;border-collapse:collapse;background:#f6f1eb;padding:24px 0;">
+  <body style="margin:0;background:#f3eee8;color:#1d2927;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" style="width:100%;border-collapse:collapse;background:#f3eee8;padding:28px 0;">
       <tr>
         <td align="center">
-          <table role="presentation" style="width:100%;max-width:680px;border-collapse:collapse;background:#fffdfa;border:1px solid #ded5ca;">
+          <table role="presentation" style="width:100%;max-width:680px;border-collapse:collapse;background:#fffdfa;border:1px solid #ded5ca;border-radius:8px;overflow:hidden;">
             <tr>
-              <td style="padding:24px 28px;border-bottom:4px solid #225c56;">
-                <p style="margin:0 0 6px;color:#8f351d;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Village Quilters</p>
-                <h1 style="margin:0;color:#1d2927;font-size:24px;line-height:1.25;">Test Confirmation Email</h1>
+              <td style="padding:24px 28px;background:#225c56;color:#fffaf5;">
+                <table role="presentation" style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="width:58px;vertical-align:middle;">
+                      <img alt="Village Quilters" src="${escapeHtml(logoUrl)}" width="48" height="48" style="display:block;border-radius:10px;" />
+                    </td>
+                    <td style="vertical-align:middle;">
+                      <p style="margin:0 0 5px;color:#f3c6a8;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Village Quilters</p>
+                      <h1 style="margin:0;color:#fffaf5;font-size:24px;line-height:1.25;">${escapeHtml(area.areaLabel)} Confirmation Email</h1>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
             <tr>
               <td style="padding:24px 28px;">
-                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">This is a test message showing how area-specific confirmation instructions will appear.</p>
-                ${buildInstructionSectionHtml('Programs', instructions.programs)}
-                ${buildInstructionSectionHtml('Workshops', instructions.workshops)}
-                ${buildInstructionSectionHtml('Challenges', instructions.challenges)}
-                ${buildInstructionSectionHtml('Membership', instructions.membership)}
-                <p style="margin:22px 0 0;color:#5c6966;font-size:13px;line-height:1.5;">Future registration confirmations will include the event details, supply list link when available, and the appropriate area instructions.</p>
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">This is a test message showing how the ${escapeHtml(area.areaLabel)} confirmation instructions will appear.</p>
+                <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
+                  <h2 style="margin:0 0 8px;color:#225c56;font-size:17px;line-height:1.3;">${escapeHtml(area.areaLabel)} Instructions</h2>
+                  <p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.55;">${escapeHtml(instructions)}</p>
+                </section>
+                <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px;background:#f7f1e8;border:1px solid #e4d5c3;">
+                  <tr>
+                    <td style="padding:14px 16px;">
+                      <p style="margin:0;color:#5c6966;font-size:13px;line-height:1.5;">Future confirmation emails will include the registration or membership details, coordinator reply-to address, supply list link when available, and the selected area instructions.</p>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
@@ -436,28 +455,14 @@ function buildTestEmailHtml(instructions) {
 </html>`;
 }
 
-function buildInstructionSectionHtml(label, value) {
-  const content = cleanText(value) || 'No instructions entered yet.';
-
-  return `<section style="margin:0 0 16px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
-    <h2 style="margin:0 0 8px;color:#225c56;font-size:17px;line-height:1.3;">${escapeHtml(label)}</h2>
-    <p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.55;">${escapeHtml(content)}</p>
-  </section>`;
-}
-
-function buildTestEmailText(instructions) {
+function buildTestEmailText(area, instructionText) {
   return [
-    'Village Quilters Test Confirmation Email',
+    `Village Quilters ${area.areaLabel} Test Confirmation Email`,
     '',
-    'This is a test message showing how area-specific confirmation instructions will appear.',
+    `This is a test message showing how the ${area.areaLabel} confirmation instructions will appear.`,
     '',
-    `Programs:\n${instructions.programs || 'No instructions entered yet.'}`,
-    '',
-    `Workshops:\n${instructions.workshops || 'No instructions entered yet.'}`,
-    '',
-    `Challenges:\n${instructions.challenges || 'No instructions entered yet.'}`,
-    '',
-    `Membership:\n${instructions.membership || 'No instructions entered yet.'}`
+    `${area.areaLabel} Instructions:`,
+    cleanText(instructionText) || 'No instructions entered yet.'
   ].join('\n');
 }
 
@@ -468,6 +473,24 @@ function normalizeEmailInstructions(instructions) {
     programs: cleanText(instructions.programs),
     workshops: cleanText(instructions.workshops)
   };
+}
+
+function getEmailInstructionArea(areaId) {
+  const areas = [
+    { areaId: 'programs', areaLabel: 'Programs' },
+    { areaId: 'workshops', areaLabel: 'Workshops' },
+    { areaId: 'challenges', areaLabel: 'Challenges' },
+    { areaId: 'membership', areaLabel: 'Membership' }
+  ];
+
+  return areas.find((area) => area.areaId === areaId) || areas[0];
+}
+
+function getAppOrigin() {
+  return process.env.APP_ORIGIN
+    || process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    || process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`
+    || 'https://vq-event-management.vercel.app';
 }
 
 function escapeHtml(value) {

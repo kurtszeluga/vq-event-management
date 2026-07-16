@@ -230,7 +230,7 @@ export async function saveEmailInstructions(instructions, actorProfile) {
   return batch.commit();
 }
 
-export async function sendEmailInstructionsTest({ instructions, recipientEmail }) {
+export async function sendEmailInstructionsTest({ areaId, instructions, recipientEmail }) {
   const idToken = await auth?.currentUser?.getIdToken();
 
   if (!idToken) {
@@ -245,6 +245,7 @@ export async function sendEmailInstructionsTest({ instructions, recipientEmail }
     },
     body: JSON.stringify({
       action: 'sendEmailInstructionsTest',
+      areaId,
       instructions,
       recipientEmail
     })

@@ -70,6 +70,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [coordinatorForms, setCoordinatorForms] = useState({});
   const [coordinatorMessages, setCoordinatorMessages] = useState({});
   const [emailInstructions, setEmailInstructions] = useState(DEFAULT_EMAIL_INSTRUCTIONS);
+  const [emailTestArea, setEmailTestArea] = useState(EMAIL_INSTRUCTION_AREAS[0].areaId);
   const [emailTestRecipient, setEmailTestRecipient] = useState(currentUserProfile?.email || '');
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
@@ -250,6 +251,7 @@ function ConfigurationPanel({ currentUserProfile }) {
 
     await runSave('emailInstructionsTest', async () => {
       await sendEmailInstructionsTest({
+        areaId: emailTestArea,
         instructions: emailInstructions,
         recipientEmail: emailTestRecipient
       });
@@ -528,6 +530,19 @@ function ConfigurationPanel({ currentUserProfile }) {
             {savingSection === 'emailInstructions' ? 'Saving...' : 'Save Email Instructions'}
           </button>
           <div className="configuration-form-grid">
+            <label>
+              <span>Test Email Area</span>
+              <select
+                value={emailTestArea}
+                onChange={(event) => setEmailTestArea(event.target.value)}
+              >
+                {EMAIL_INSTRUCTION_AREAS.map((area) => (
+                  <option key={area.areaId} value={area.areaId}>
+                    {area.areaLabel}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>
               <span>Test Email Address</span>
               <input
