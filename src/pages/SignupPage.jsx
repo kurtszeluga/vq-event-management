@@ -10,6 +10,7 @@ import {
   DEFAULT_MEMBERSHIP_SETTINGS,
   subscribeToMembershipSettings
 } from '../services/configurationService.js';
+import { sendMembershipConfirmation } from '../services/registrationService.js';
 import {
   buildDisplayName,
   buildBillingAddress,
@@ -109,6 +110,10 @@ function SignupPage() {
         termsVersion: displayedTermsVersion,
         updatedDate: serverTimestamp(),
         userId: user.uid
+      });
+
+      await sendMembershipConfirmation('signup').catch((emailError) => {
+        console.warn('Membership confirmation email failed', emailError);
       });
 
       navigate('/', { replace: true });

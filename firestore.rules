@@ -463,12 +463,14 @@ service cloud.firestore {
           'challenges',
           'membership',
           'programs',
+          'sendRegistrationConfirmations',
           'updatedDate',
           'workshops'
         ])
         && request.resource.data.challenges is string
         && request.resource.data.membership is string
         && request.resource.data.programs is string
+        && request.resource.data.sendRegistrationConfirmations is bool
         && request.resource.data.workshops is string
         && request.resource.data.updatedDate is timestamp;
     }

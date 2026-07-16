@@ -504,6 +504,22 @@ function ConfigurationPanel({ currentUserProfile }) {
           </p>
         </div>
         <form className="configuration-card-body" onSubmit={handleSaveEmailInstructions}>
+          <label className="checkbox-label">
+            <input
+              checked={Boolean(emailInstructions.sendRegistrationConfirmations)}
+              type="checkbox"
+              onChange={(event) =>
+                setEmailInstructions((current) => ({
+                  ...current,
+                  sendRegistrationConfirmations: event.target.checked
+                }))
+              }
+            />
+            <span>Send Confirmation Emails</span>
+          </label>
+          <p className="form-help">
+            Turn this off while testing registrations or membership signup to prevent confirmation emails from being sent.
+          </p>
           <div className="configuration-form-grid">
             {EMAIL_INSTRUCTION_AREAS.map((area) => (
               <label className="configuration-span" key={area.areaId}>

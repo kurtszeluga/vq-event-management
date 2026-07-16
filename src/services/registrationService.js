@@ -53,6 +53,33 @@ export async function createRegistration(registrationData) {
   return result;
 }
 
+export async function sendMembershipConfirmation(kind = 'signup') {
+  const idToken = await auth?.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('Sign in again before sending the membership confirmation.');
+  }
+
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({
+      action: 'sendMembershipConfirmation',
+      kind
+    }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Membership confirmation email could not be sent.');
+  }
+
+  return result;
+}
+
 export async function verifyRegistrationPhone(email, phone, eventId = '') {
   const response = await fetch('/api/verify-registration-phone', {
     body: JSON.stringify({ email, eventId, phone }),
