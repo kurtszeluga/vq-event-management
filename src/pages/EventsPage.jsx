@@ -478,7 +478,7 @@ function EventsPage() {
                 </dl>
                 {coordinatorContact ? (
                   <p className="event-coordinator-contact">
-                    <strong>Coordinator:</strong> {coordinatorContact.name || 'To be announced'}
+                    <strong>For Questions Contact:</strong> {coordinatorContact.name || 'To be announced'}
                     {coordinatorContact.email ? (
                       <>
                         {' '}
