@@ -134,11 +134,12 @@
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
       : '';
     const registerLink = event.registerUrl
-      ? `<a class="vq-feed-primary" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
+      ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
       : '';
     const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
     const availabilityTone = event.registrationIsFull ? 'is-waitlist' : 'is-open';
     const registrationStats = getRegistrationStats(event);
+    const coordinatorContact = buildCoordinatorContactMarkup(event);
 
     return `
       <article class="vq-feed-card" data-event-type="${escapeAttribute(event.eventType)}">
@@ -178,12 +179,30 @@
               </span>
             `).join('')}
           </div>
+          ${coordinatorContact}
           <div class="vq-feed-actions">
             ${supplyListLink}
             ${event.registrationOpen ? registerLink : ''}
           </div>
         </div>
       </article>
+    `;
+  }
+
+  function buildCoordinatorContactMarkup(event) {
+    const name = event.coordinatorName || '';
+    const email = event.coordinatorEmail || '';
+
+    if (!name && !email) {
+      return '';
+    }
+
+    return `
+      <div class="vq-feed-coordinator">
+        <strong>Coordinator:</strong>
+        ${name ? `<span>${escapeHtml(name)}</span>` : ''}
+        ${email ? `<a href="mailto:${escapeAttribute(email)}">${escapeHtml(email)}</a>` : ''}
+      </div>
     `;
   }
 
@@ -574,6 +593,22 @@
         border-color: #ddc66b;
         color: #7a5200;
       }
+      .vq-feed-coordinator {
+        align-items: center;
+        color: #5a6b67;
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 0.92rem;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .vq-feed-coordinator strong {
+        color: #1d2927;
+      }
+      .vq-feed-coordinator a {
+        color: #225c56;
+        font-weight: 800;
+      }
       .vq-feed-actions {
         display: flex;
         flex-wrap: wrap;
@@ -581,9 +616,15 @@
         margin-top: 14px;
         justify-content: flex-start;
       }
+      .vq-feed-register-action {
+        margin-left: auto;
+      }
       @media (max-width: 720px) {
         .vq-feed-card-top {
           flex-direction: column;
+        }
+        .vq-feed-register-action {
+          margin-left: 0;
         }
         .vq-feed-thumb-image,
         .vq-feed-thumb-placeholder {

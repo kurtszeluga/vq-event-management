@@ -38,7 +38,7 @@ export const COORDINATOR_ASSIGNMENT_AREAS = [
   {
     areaId: 'challenges',
     areaLabel: 'Challenges',
-    coveredTypes: ['Challenge'],
+    coveredTypes: ['Challenges'],
     groupLabel: 'Other Areas',
     sortOrder: 30
   },

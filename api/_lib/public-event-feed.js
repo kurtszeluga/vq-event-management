@@ -71,8 +71,9 @@ export async function loadPublicFeed(category, origin) {
     .filter(isEventVisible)
     .filter((event) => matchesCategory(event, config));
   const registrationCounts = await loadRegistrationCounts(db, events.map((event) => event.id));
+  const coordinatorAssignments = await loadCoordinatorAssignments(db);
   const serializedEvents = events.map((event) =>
-    serializeEvent(event, origin, registrationCounts[event.id])
+    serializeEvent(event, origin, registrationCounts[event.id], coordinatorAssignments)
   );
 
   return {
@@ -118,6 +119,14 @@ export async function loadRegistrationCounts(db, eventIds = []) {
   return counts;
 }
 
+async function loadCoordinatorAssignments(db) {
+  const snapshot = await db.collection('coordinatorAssignments').get();
+
+  return snapshot.docs
+    .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
+    .filter((assignment) => assignment.isActive !== false);
+}
+
 function matchesCategory(event, config) {
   const eventType = getEventTypeLabel(event);
 
@@ -132,10 +141,11 @@ function matchesCategory(event, config) {
   return true;
 }
 
-function serializeEvent(event, origin, registrationCounts = {}) {
+function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssignments = []) {
   const eventType = getEventTypeLabel(event);
   const safeOrigin = origin.replace(/\/$/, '');
   const availability = getAvailability(event, registrationCounts);
+  const coordinatorContact = getCoordinatorContact(eventType, coordinatorAssignments);
 
   return {
     id: event.id,
@@ -152,6 +162,8 @@ function serializeEvent(event, origin, registrationCounts = {}) {
     contactName: event.contactName || '',
     contactEmail: event.contactEmail || '',
     contactPhone: event.contactPhone || '',
+    coordinatorEmail: coordinatorContact.email,
+    coordinatorName: coordinatorContact.name,
     location: event.location || '',
     address: event.address || '',
     askingPrice: Number(event.askingPrice || 0),
@@ -183,6 +195,47 @@ function serializeEvent(event, origin, registrationCounts = {}) {
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
   };
+}
+
+function getCoordinatorContact(eventType, coordinatorAssignments) {
+  const areaId = getCoordinatorAreaId(eventType);
+  const assignment = coordinatorAssignments.find((item) => item.coordinatorAreaId === areaId);
+
+  if (!assignment) {
+    return {
+      email: '',
+      name: ''
+    };
+  }
+
+  return {
+    email: assignment.contactEmailOverride || assignment.assignedUserEmail || '',
+    name: assignment.assignedUserName || ''
+  };
+}
+
+function getCoordinatorAreaId(eventType) {
+  if (['Class (Half-Day)', 'Class (Full-Day)', 'Lecture', 'Retreat'].includes(eventType)) {
+    return 'programs';
+  }
+
+  if (eventType === 'Workshop') {
+    return 'workshops';
+  }
+
+  if (eventType === 'Challenges') {
+    return 'challenges';
+  }
+
+  if (eventType === 'Business Listing') {
+    return 'business-listings';
+  }
+
+  if (eventType === 'For Sale') {
+    return 'for-sale';
+  }
+
+  return '';
 }
 
 function buildFileProxyUrl(origin, fileUrl, fileName, disposition = 'inline') {

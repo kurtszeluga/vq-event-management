@@ -235,6 +235,7 @@ function escapeHtml(value) {
 }
 
 function EventsPage() {
+  const [coordinatorContacts, setCoordinatorContacts] = useState({});
   const [events, setEvents] = useState([]);
   const [error, setError] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState(ALL_EVENT_TYPES);
@@ -256,6 +257,49 @@ function EventsPage() {
     );
 
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    Promise.all(
+      ['events', 'challenges'].map((category) =>
+        fetch(`/api/public-events?category=${category}`)
+          .then((response) => (response.ok ? response.json() : { events: [] }))
+      )
+    )
+      .then((payloads) => {
+        if (!active) {
+          return;
+        }
+
+        const contacts = payloads
+          .flatMap((payload) => payload.events || [])
+          .reduce((nextContacts, event) => {
+            if (event.id && (event.coordinatorName || event.coordinatorEmail)) {
+              return {
+                ...nextContacts,
+                [event.id]: {
+                  email: event.coordinatorEmail || '',
+                  name: event.coordinatorName || ''
+                }
+              };
+            }
+
+            return nextContacts;
+          }, {});
+
+        setCoordinatorContacts(contacts);
+      })
+      .catch(() => {
+        if (active) {
+          setCoordinatorContacts({});
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const visibleEvents = useMemo(() => events.filter(isEventVisible), [events]);
@@ -365,6 +409,7 @@ function EventsPage() {
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
           const thumbnailUrl = getEventThumbnail(event);
           const availability = getRegistrationAvailability(event, registrationCounts[event.id]);
+          const coordinatorContact = coordinatorContacts[event.id];
 
           return (
             <article className="public-event-card" key={event.id}>
@@ -373,11 +418,6 @@ function EventsPage() {
                 <strong className={`event-availability-pill ${availability.tone}`}>
                   {availability.label}
                 </strong>
-                {event.registrationOpen ? (
-                  <Link className="button-link" to={`/register?eventId=${event.id}`}>
-                    {availability.isFull ? 'Join Waitlist' : 'Register'}
-                  </Link>
-                ) : null}
                 <strong>
                   {event.registrationOpen ? 'Registration open' : 'Registration closed'}
                 </strong>
@@ -416,6 +456,17 @@ function EventsPage() {
                     <dd>{event.isPaid ? formatCurrency(event.cost) : 'Free'}</dd>
                   </div>
                 </dl>
+                {coordinatorContact ? (
+                  <p className="event-coordinator-contact">
+                    <strong>Coordinator:</strong> {coordinatorContact.name || 'To be announced'}
+                    {coordinatorContact.email ? (
+                      <>
+                        {' '}
+                        <a href={`mailto:${coordinatorContact.email}`}>{coordinatorContact.email}</a>
+                      </>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
               <div className="public-event-card-thumbnail">
                 {thumbnailUrl ? (
@@ -442,6 +493,14 @@ function EventsPage() {
                 >
                   Print the {getEventTypeLabel(event)}
                 </button>
+                {event.registrationOpen ? (
+                  <Link
+                    className="button-link public-event-register-action"
+                    to={`/register?eventId=${event.id}`}
+                  >
+                    {availability.isFull ? 'Join Waitlist' : 'Register'}
+                  </Link>
+                ) : null}
               </div>
             </article>
           );
