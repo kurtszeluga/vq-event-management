@@ -61,6 +61,10 @@ async function createRegistration(db, payload) {
       reactivateProfile: payload.reactivateProfile
     });
 
+    if (profile && payload.reactivateProfile && profileStatus !== 'Active') {
+      validateReactivationTerms(payload);
+    }
+
     const existingSnapshot = await transaction.get(
       db.collection('registrations').where('eventId', '==', payload.eventId)
     );
@@ -126,6 +130,9 @@ async function createRegistration(db, payload) {
         archivedBy: FieldValue.delete(),
         archivedDate: FieldValue.delete(),
         status: 'Active',
+        termsAccepted: true,
+        termsAcceptedDate: FieldValue.serverTimestamp(),
+        termsVersion: payload.termsVersion || 'Reactivation Agreement',
         updatedDate: FieldValue.serverTimestamp()
       });
     }
@@ -289,8 +296,20 @@ function sanitizeRegistrationPayload(payload) {
     phone: String(payload.phone || '').trim(),
     profileUserId: String(payload.profileUserId || '').trim(),
     profileUpdates: sanitizeProfileUpdates(payload.profileUpdates || {}),
-    reactivateProfile: Boolean(payload.reactivateProfile)
+    reactivateProfile: Boolean(payload.reactivateProfile),
+    reactivationTermsAccepted: Boolean(payload.reactivationTermsAccepted),
+    termsVersion: String(payload.termsVersion || '').trim()
   };
+}
+
+function validateReactivationTerms(payload) {
+  if (!payload.reactivationTermsAccepted) {
+    throw httpError(400, 'You must read and agree to the terms and conditions before reactivating your profile.');
+  }
+
+  if (!payload.termsVersion) {
+    throw httpError(400, 'Terms version is required before reactivating your profile.');
+  }
 }
 
 function sanitizeProfileUpdates(profileUpdates) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -7,11 +7,17 @@ import { US_STATES } from '../data/usStates.js';
 import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import {
+  DEFAULT_MEMBERSHIP_SETTINGS,
+  subscribeToMembershipSettings
+} from '../services/configurationService.js';
+import {
   buildDisplayName,
   buildBillingAddress,
   formatPhoneNumber,
   toTitleCase
 } from '../utils/profileFormat.js';
+
+const MEMBERSHIP_TERMS_VERSION = '2026-07-16';
 
 function SignupPage() {
   const [searchParams] = useSearchParams();
@@ -27,7 +33,19 @@ function SignupPage() {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [membershipSettings, setMembershipSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const navigate = useNavigate();
+  const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
+
+  useEffect(() => {
+    const unsubscribe = subscribeToMembershipSettings(
+      setMembershipSettings,
+      () => setMembershipSettings(DEFAULT_MEMBERSHIP_SETTINGS)
+    );
+
+    return unsubscribe;
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -40,6 +58,11 @@ function SignupPage() {
 
     if (password.length < 8) {
       setFormError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (!termsAccepted) {
+      setFormError('You must read and agree to the terms and conditions before submitting your membership request.');
       return;
     }
 
@@ -81,6 +104,9 @@ function SignupPage() {
         profileTags: [],
         role: 'General User',
         status: 'Active',
+        termsAccepted: true,
+        termsAcceptedDate: serverTimestamp(),
+        termsVersion: displayedTermsVersion,
         updatedDate: serverTimestamp(),
         userId: user.uid
       });
@@ -222,10 +248,38 @@ function SignupPage() {
           />
           <span className="form-help">Use at least 8 characters.</span>
         </label>
+        <div className="terms-panel">
+          <h3>Terms And Conditions</h3>
+          <p className="form-help">
+            Terms version: {displayedTermsVersion}
+          </p>
+          {membershipSettings.termsText ? (
+            <div className="terms-text">{membershipSettings.termsText}</div>
+          ) : (
+            <p className="form-help">
+              Please review the Guild membership terms and conditions provided by the Guild before submitting this request.
+            </p>
+          )}
+        </div>
+        <label className="checkbox-label">
+          <input
+            checked={termsAccepted}
+            disabled={!firebaseConfigured || submitting}
+            required
+            type="checkbox"
+            onChange={(event) => setTermsAccepted(event.target.checked)}
+          />
+          <span className="checkbox-label-copy">
+            <span>I have read and agree to the Guild terms and conditions.</span>
+            <span className="form-help">
+              Required before submitting a membership request.
+            </span>
+          </span>
+        </label>
         {formError ? <p className="form-error">{formError}</p> : null}
         <button
           className="button-link button-reset"
-          disabled={!firebaseConfigured || submitting}
+          disabled={!firebaseConfigured || submitting || !termsAccepted}
           type="submit"
         >
           {submitting ? 'Submitting Membership Request...' : 'Become A Member'}

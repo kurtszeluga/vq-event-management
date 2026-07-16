@@ -23,7 +23,9 @@ export const DEFAULT_MEMBERSHIP_SETTINGS = {
   allowAdminSkipMembershipCheck: false,
   matchByEmail: true,
   matchByPhone: false,
-  requireMembershipCheck: false
+  requireMembershipCheck: false,
+  termsText: '',
+  termsVersion: ''
 };
 
 export function subscribeToMembershipSettings(onNext, onError) {
@@ -96,6 +98,8 @@ export async function saveMembershipSettings(settings, actorProfile) {
     matchByEmail: true,
     matchByPhone: false,
     requireMembershipCheck: Boolean(settings.requireMembershipCheck),
+    termsText: cleanText(settings.termsText),
+    termsVersion: cleanText(settings.termsVersion),
     updatedDate: serverTimestamp()
   };
 
@@ -148,6 +152,7 @@ export async function saveMembershipProfile(profile, actorProfile) {
 
 export async function importMembersFromCsvRows(rows, actorProfile, options = {}) {
   const isAnnualRefresh = options.mode === 'annualRefresh';
+  const termsVersion = await getCurrentMembershipTermsVersion();
   const importedProfiles = rows.map((row) => {
     const profileId = makeProfileDocumentId(row) || doc(usersCollection()).id;
     return buildProfileImportPayload(
@@ -207,7 +212,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
       importedProfileIds.add(existingByEmail.id);
       return [{
         ref: doc(db, 'users', existingByEmail.id),
-        value: buildImportedExistingProfile(existingByEmail, profile, 'email')
+        value: buildImportedExistingProfile(existingByEmail, profile, 'email', termsVersion)
       }];
     }
 
@@ -230,7 +235,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     importedProfileIds.add(profile.profileId);
     return [{
       ref: doc(db, 'users', profile.profileId),
-      value: buildImportedNewProfile(profile)
+      value: buildImportedNewProfile(profile, termsVersion)
     }];
   });
   const profilesToInactivate = isAnnualRefresh
@@ -513,10 +518,11 @@ function buildProfileImportPayload(profile, profileId) {
   };
 }
 
-function buildImportedExistingProfile(existingProfile, importedProfile, matchedBy) {
+function buildImportedExistingProfile(existingProfile, importedProfile, matchedBy, termsVersion) {
   const firstName = importedProfile.firstName || existingProfile.firstName || getFirstNameFallback(existingProfile.name);
   const lastName = importedProfile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name);
   const name = importedProfile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' ');
+  const termsAcceptance = buildOfflineTermsAcceptance(existingProfile, termsVersion);
 
   return {
     billingAddress: existingProfile.billingAddress || getEmptyBillingAddress(),
@@ -534,12 +540,13 @@ function buildImportedExistingProfile(existingProfile, importedProfile, matchedB
     profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
     role: existingProfile.role || 'General User',
     status: existingProfile.role === 'Super User' ? 'Active' : existingProfile.status || 'Active',
+    ...termsAcceptance,
     updatedDate: serverTimestamp(),
     userId: existingProfile.userId || existingProfile.id
   };
 }
 
-function buildImportedNewProfile(importedProfile) {
+function buildImportedNewProfile(importedProfile, termsVersion) {
   return {
     billingAddress: getEmptyBillingAddress(),
     createdDate: serverTimestamp(),
@@ -556,9 +563,35 @@ function buildImportedNewProfile(importedProfile) {
     profileTags: [],
     role: 'General User',
     status: 'Active',
+    termsAccepted: true,
+    termsAcceptedDate: serverTimestamp(),
+    termsVersion,
     updatedDate: serverTimestamp(),
     userId: importedProfile.profileId
   };
+}
+
+function buildOfflineTermsAcceptance(existingProfile, termsVersion) {
+  if (existingProfile.termsAccepted) {
+    return {
+      termsAccepted: true,
+      termsAcceptedDate: existingProfile.termsAcceptedDate || serverTimestamp(),
+      termsVersion: existingProfile.termsVersion || termsVersion
+    };
+  }
+
+  return {
+    termsAccepted: true,
+    termsAcceptedDate: serverTimestamp(),
+    termsVersion
+  };
+}
+
+async function getCurrentMembershipTermsVersion() {
+  const snapshot = await getDoc(membershipSettingsRef());
+  const settings = snapshot.exists() ? snapshot.data() : {};
+
+  return cleanText(settings.termsVersion) || 'Offline Membership Agreement';
 }
 
 function buildManualMembershipProfile(profile, existingProfile, profileId) {
@@ -582,6 +615,7 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
     profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
     role: existingProfile.role || 'General User',
     status: existingProfile.status || 'Active',
+    ...preserveTermsAcceptance(existingProfile),
     updatedDate: serverTimestamp(),
     userId: existingProfile.userId || profileId
   };
@@ -608,6 +642,7 @@ function buildMembershipStatusProfile(profile, membershipStatus) {
     profileTags: Array.isArray(profile.profileTags) ? profile.profileTags : [],
     role: profile.role || 'General User',
     status: profile.status || 'Active',
+    ...preserveTermsAcceptance(profile),
     updatedDate: serverTimestamp(),
     userId: profile.userId || profile.id
   };
@@ -634,8 +669,21 @@ function buildInactivatedMembershipProfile(profile) {
     profileTags: Array.isArray(profile.profileTags) ? profile.profileTags : [],
     role: profile.role || 'General User',
     status: profile.status || 'Active',
+    ...preserveTermsAcceptance(profile),
     updatedDate: serverTimestamp(),
     userId: profile.userId || profile.id
+  };
+}
+
+function preserveTermsAcceptance(profile) {
+  if (!profile.termsAccepted) {
+    return {};
+  }
+
+  return {
+    termsAccepted: true,
+    termsAcceptedDate: profile.termsAcceptedDate || serverTimestamp(),
+    termsVersion: profile.termsVersion || 'Offline Membership Agreement'
   };
 }
 

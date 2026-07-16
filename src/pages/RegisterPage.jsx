@@ -9,6 +9,10 @@ import {
   lookupRegistrationEmail,
   verifyRegistrationPhone
 } from '../services/registrationService.js';
+import {
+  DEFAULT_MEMBERSHIP_SETTINGS,
+  subscribeToMembershipSettings
+} from '../services/configurationService.js';
 import { auth } from '../lib/firebase.js';
 import {
   formatCurrency,
@@ -24,6 +28,8 @@ import {
   getProfileLastName,
   toTitleCase
 } from '../utils/profileFormat.js';
+
+const MEMBERSHIP_TERMS_VERSION = '2026-07-16';
 
 function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -50,6 +56,7 @@ function RegisterPage() {
   const [lookup, setLookup] = useState(null);
   const [lookupComplete, setLookupComplete] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [membershipSettings, setMembershipSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [phone, setPhone] = useState('');
   const [phoneVerificationError, setPhoneVerificationError] = useState('');
@@ -58,8 +65,11 @@ function RegisterPage() {
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [profileConfirmed, setProfileConfirmed] = useState(false);
   const [reactivateProfile, setReactivateProfile] = useState(false);
+  const [reactivationTermsAccepted, setReactivationTermsAccepted] = useState(false);
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
 
   useEffect(() => {
     if (!eventId) {
@@ -96,6 +106,15 @@ function RegisterPage() {
       active = false;
     };
   }, [eventId]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToMembershipSettings(
+      setMembershipSettings,
+      () => setMembershipSettings(DEFAULT_MEMBERSHIP_SETTINGS)
+    );
+
+    return unsubscribe;
+  }, []);
 
   const registrationUnavailable = useMemo(() => {
     if (!event) {
@@ -137,6 +156,12 @@ function RegisterPage() {
   const canShowRegistrantFields = lookupComplete
     && !membershipBlocked
     && (accountVerified || phoneVerified || nonMemberRegistrationAllowed);
+  const requiresReactivationTerms = Boolean(
+    reactivateProfile
+      && matchedProfile
+      && matchedProfile.status !== 'Active'
+      && !confirmation
+  );
 
   async function handleEmailLookup() {
     const normalizedEmail = email.trim().toLowerCase();
@@ -154,6 +179,7 @@ function RegisterPage() {
     setPhoneVerified(false);
     setProfileConfirmed(false);
     setReactivateProfile(false);
+    setReactivationTermsAccepted(false);
     setShowPhoneVerification(false);
 
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
@@ -218,6 +244,11 @@ function RegisterPage() {
       return;
     }
 
+    if (requiresReactivationTerms && !reactivationTermsAccepted) {
+      setFormError('You must read and agree to the terms and conditions before reactivating your profile.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -244,7 +275,9 @@ function RegisterPage() {
         phone,
         profileUserId: matchedProfile?.userId || '',
         profileUpdates,
-        reactivateProfile
+        reactivateProfile,
+        reactivationTermsAccepted,
+        termsVersion: displayedTermsVersion
       });
       setConfirmation(result);
     } catch (error) {
@@ -275,6 +308,7 @@ function RegisterPage() {
       setShowPhoneVerification(false);
       setProfileConfirmed(matchedProfile.status === 'Active');
       setReactivateProfile(matchedProfile.status !== 'Active');
+      setReactivationTermsAccepted(false);
     } catch {
       setAccountVerified(false);
       setAuthPassword('');
@@ -308,6 +342,7 @@ function RegisterPage() {
       setPhoneVerificationError('');
       setProfileConfirmed(Boolean(matchedProfile) && matchedProfile.status === 'Active');
       setReactivateProfile(Boolean(matchedProfile) && matchedProfile.status !== 'Active');
+      setReactivationTermsAccepted(false);
     } catch (error) {
       setPhoneVerified(false);
       setPhoneVerificationError(error.message);
@@ -459,6 +494,7 @@ function RegisterPage() {
                 setPhoneVerified(false);
                 setShowPhoneVerification(false);
                 setNeedsProfileEdits(false);
+                setReactivationTermsAccepted(false);
                 resetRegistrantFields();
               }}
               type="email"
@@ -666,10 +702,45 @@ function RegisterPage() {
                   </button>
                 </div>
               ) : null}
+              {requiresReactivationTerms ? (
+                <>
+                  <div className="terms-panel">
+                    <h3>Terms And Conditions</h3>
+                    <p className="form-help">
+                      Terms version: {displayedTermsVersion}
+                    </p>
+                    {membershipSettings.termsText ? (
+                      <div className="terms-text">{membershipSettings.termsText}</div>
+                    ) : (
+                      <p className="form-help">
+                        Please review the Guild membership terms and conditions provided by the Guild before reactivating your profile.
+                      </p>
+                    )}
+                  </div>
+                  <label className="checkbox-label">
+                    <input
+                      checked={reactivationTermsAccepted}
+                      disabled={submitting || Boolean(confirmation)}
+                      required
+                      type="checkbox"
+                      onChange={(inputEvent) => setReactivationTermsAccepted(inputEvent.target.checked)}
+                    />
+                    <span className="checkbox-label-copy">
+                      <span>I have read and agree to the Guild terms and conditions.</span>
+                      <span className="form-help">
+                        Required before reactivating this profile.
+                      </span>
+                    </span>
+                  </label>
+                </>
+              ) : null}
               {!needsProfileEdits ? (
                 <button
                   className="button-link button-reset"
-                  disabled={submitting || Boolean(confirmation) || Boolean(registrationUnavailable)}
+                  disabled={submitting
+                    || Boolean(confirmation)
+                    || Boolean(registrationUnavailable)
+                    || (requiresReactivationTerms && !reactivationTermsAccepted)}
                   type="submit"
                 >
                   {submitting ? 'Submitting...' : 'Submit Registration'}

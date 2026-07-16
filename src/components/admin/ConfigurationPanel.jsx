@@ -357,6 +357,35 @@ function ConfigurationPanel({ currentUserProfile }) {
             />
             <span>Allow Admins To Skip Membership Check</span>
           </label>
+          <label>
+            <span>Membership Terms Version</span>
+            <input
+              placeholder="Example: 2026 Membership Terms"
+              value={settings.termsVersion || ''}
+              onChange={(event) =>
+                setSettings((current) => ({
+                  ...current,
+                  termsVersion: event.target.value
+                }))
+              }
+            />
+          </label>
+          <label>
+            <span>Membership Terms And Conditions Text</span>
+            <textarea
+              placeholder="Enter the terms and conditions new members must agree to."
+              value={settings.termsText || ''}
+              onChange={(event) =>
+                setSettings((current) => ({
+                  ...current,
+                  termsText: event.target.value
+                }))
+              }
+            />
+            <span className="form-help">
+              This text appears on the Become A Member form above the agreement checkbox.
+            </span>
+          </label>
           <button
             className="button-link button-reset configuration-submit-button"
             disabled={savingSection === 'settings'}

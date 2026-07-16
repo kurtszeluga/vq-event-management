@@ -212,6 +212,9 @@ service cloud.firestore {
           'profileTags',
           'role',
           'status',
+          'termsAccepted',
+          'termsAcceptedDate',
+          'termsVersion',
           'createdDate',
           'updatedDate'
         ])
@@ -280,6 +283,12 @@ service cloud.firestore {
         && request.resource.data.permissions.manageMembershipStatus is bool
         && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
         && validStatus(request.resource.data.status, ['Active', 'Inactive', 'Archived'])
+        && (!('termsAccepted' in request.resource.data)
+          || request.resource.data.termsAccepted is bool)
+        && (!('termsAcceptedDate' in request.resource.data)
+          || request.resource.data.termsAcceptedDate is timestamp)
+        && (!('termsVersion' in request.resource.data)
+          || request.resource.data.termsVersion is string)
         && request.resource.data.createdDate is timestamp;
     }
 
@@ -288,7 +297,10 @@ service cloud.firestore {
         && request.auth.uid == userId
         && request.resource.data.userId == userId
         && request.resource.data.role == 'General User'
-        && request.resource.data.status == 'Active';
+        && request.resource.data.status == 'Active'
+        && request.resource.data.termsAccepted == true
+        && request.resource.data.termsAcceptedDate is timestamp
+        && request.resource.data.termsVersion is string;
     }
 
     function hasNoAdminPermissions() {
@@ -425,12 +437,18 @@ service cloud.firestore {
           'matchByEmail',
           'matchByPhone',
           'requireMembershipCheck',
+          'termsText',
+          'termsVersion',
           'updatedDate'
         ])
         && request.resource.data.allowAdminSkipMembershipCheck is bool
         && request.resource.data.matchByEmail is bool
         && request.resource.data.matchByPhone is bool
         && request.resource.data.requireMembershipCheck is bool
+        && (!('termsText' in request.resource.data)
+          || request.resource.data.termsText is string)
+        && (!('termsVersion' in request.resource.data)
+          || request.resource.data.termsVersion is string)
         && request.resource.data.updatedDate is timestamp;
     }
 
@@ -558,7 +576,7 @@ service cloud.firestore {
     }
 
     match /appSettings/{settingId} {
-      allow read: if isAdmin();
+      allow read: if settingId == 'membership' || isAdmin();
       allow create, update: if isSuperUser()
         && settingId == 'membership'
         && validMembershipSettings();

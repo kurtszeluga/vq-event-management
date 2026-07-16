@@ -81,6 +81,7 @@ export default async function handler(request, response) {
     const existingProfile = await userRef.get();
     const before = existingProfile.exists ? existingProfile.data() : {};
     const now = FieldValue.serverTimestamp();
+    const termsAcceptance = await buildAdminTermsAcceptance(db, before, now);
     const profile = {
       billingAddress: payload.billingAddress,
       createdDate: existingProfile.exists ? before.createdDate : now,
@@ -100,6 +101,7 @@ export default async function handler(request, response) {
       profileTags: payload.profileTags,
       role: payload.role,
       status: payload.status,
+      ...termsAcceptance,
       updatedDate: now,
       userId: userRecord.uid
     };
@@ -221,6 +223,29 @@ function normalizeProfileTags(profileTags = []) {
   return Array.isArray(profileTags)
     ? profileTags.filter((tag) => allowedTags.includes(tag))
     : [];
+}
+
+async function buildAdminTermsAcceptance(db, existingProfile, now) {
+  if (existingProfile.termsAccepted) {
+    return {
+      termsAccepted: true,
+      termsAcceptedDate: existingProfile.termsAcceptedDate || now,
+      termsVersion: existingProfile.termsVersion || await getCurrentMembershipTermsVersion(db)
+    };
+  }
+
+  return {
+    termsAccepted: true,
+    termsAcceptedDate: now,
+    termsVersion: await getCurrentMembershipTermsVersion(db)
+  };
+}
+
+async function getCurrentMembershipTermsVersion(db) {
+  const snapshot = await db.collection('appSettings').doc('membership').get();
+  const settings = snapshot.exists ? snapshot.data() : {};
+
+  return cleanText(settings.termsVersion) || 'Admin Manual Agreement';
 }
 
 async function assertActorCanCreateOrUpdateProfile(db, actorProfile, email) {
