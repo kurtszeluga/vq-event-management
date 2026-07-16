@@ -53,7 +53,6 @@ const EMPTY_TIME_FORM = {
 const EMPTY_COORDINATOR_FORM = {
   assignedUserId: '',
   contactEmailOverride: '',
-  contactNameOverride: '',
   contactPhoneOverride: '',
   isActive: true
 };
@@ -64,6 +63,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const csvInputRef = useRef(null);
   const [error, setError] = useState('');
   const [coordinatorForms, setCoordinatorForms] = useState({});
+  const [coordinatorMessages, setCoordinatorMessages] = useState({});
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
@@ -330,12 +330,18 @@ function ConfigurationPanel({ currentUserProfile }) {
     const form = getCoordinatorForm(coordinatorForms, area.areaId);
     const profile = getProfileByCoordinatorId(members, form.assignedUserId);
 
+    setError('');
+    setSuccessMessage('');
+    setCoordinatorMessage(area.areaId, '');
+
     if (!profile) {
-      setError(`Choose a profile for ${area.areaLabel}.`);
+      setCoordinatorMessage(area.areaId, `Choose a profile for ${area.areaLabel}.`, 'error');
       return;
     }
 
-    await runSave(`coordinator-${area.areaId}`, async () => {
+    setSavingSection(`coordinator-${area.areaId}`);
+
+    try {
       await saveCoordinatorAssignment(
         {
           ...form,
@@ -344,8 +350,19 @@ function ConfigurationPanel({ currentUserProfile }) {
         profile,
         currentUserProfile
       );
-      setSuccessMessage(`${area.areaLabel} coordinator saved.`);
-    });
+      setCoordinatorMessage(area.areaId, `${area.areaLabel} coordinator saved.`, 'success');
+    } catch (saveError) {
+      setCoordinatorMessage(area.areaId, saveError.message, 'error');
+    } finally {
+      setSavingSection('');
+    }
+  }
+
+  function setCoordinatorMessage(areaId, text, type = 'error') {
+    setCoordinatorMessages((current) => ({
+      ...current,
+      [areaId]: text ? { text, type } : null
+    }));
   }
 
   async function runSave(section, callback) {
@@ -821,6 +838,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       );
 
     function updateCoordinatorForm(areaId, changes) {
+      setCoordinatorMessage(areaId, '');
       setCoordinatorForms((current) => ({
         ...current,
         [areaId]: {
@@ -845,6 +863,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             const savingKey = `coordinator-${area.areaId}`;
             const selectedProfile = getProfileByCoordinatorId(members, form.assignedUserId);
             const effectiveContact = getEffectiveCoordinatorContact(form, selectedProfile);
+            const coordinatorMessage = coordinatorMessages[area.areaId];
 
             return (
               <section className="coordinator-area-card" key={area.areaId}>
@@ -890,23 +909,6 @@ function ConfigurationPanel({ currentUserProfile }) {
                     </select>
                   </label>
                   <label>
-                    <span>Display Name Override</span>
-                    <input
-                      placeholder={selectedProfile?.name || 'Use profile name'}
-                      value={form.contactNameOverride}
-                      onBlur={(event) =>
-                        updateCoordinatorForm(area.areaId, {
-                          contactNameOverride: toTitleCase(event.target.value)
-                        })
-                      }
-                      onChange={(event) =>
-                        updateCoordinatorForm(area.areaId, {
-                          contactNameOverride: event.target.value
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
                     <span>Email Override</span>
                     <input
                       placeholder={selectedProfile?.email || 'Use profile email'}
@@ -938,6 +940,11 @@ function ConfigurationPanel({ currentUserProfile }) {
                   <span>Email: {effectiveContact.email || 'Not listed'}</span>
                   <span>Phone: {effectiveContact.phone || 'Not listed'}</span>
                 </div>
+                {coordinatorMessage?.text ? (
+                  <p className={coordinatorMessage.type === 'success' ? 'form-success' : 'form-error'}>
+                    {coordinatorMessage.text}
+                  </p>
+                ) : null}
                 <div className="configuration-actions">
                   <button
                     className="button-link button-reset configuration-submit-button"
@@ -1075,7 +1082,6 @@ function getCoordinatorForms(assignments, currentForms = {}) {
       ...(assignment ? {
         assignedUserId: assignment.assignedUserId || '',
         contactEmailOverride: assignment.contactEmailOverride || '',
-        contactNameOverride: assignment.contactNameOverride || '',
         contactPhoneOverride: assignment.contactPhoneOverride || '',
         isActive: assignment.isActive !== false
       } : {})
@@ -1100,7 +1106,7 @@ function getProfileByCoordinatorId(profiles, userId) {
 function getEffectiveCoordinatorContact(form, profile) {
   return {
     email: form.contactEmailOverride || profile?.email || '',
-    name: form.contactNameOverride || profile?.name || [profile?.firstName, profile?.lastName].filter(Boolean).join(' '),
+    name: profile?.name || [profile?.firstName, profile?.lastName].filter(Boolean).join(' '),
     phone: form.contactPhoneOverride || profile?.phone || ''
   };
 }

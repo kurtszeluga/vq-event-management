@@ -514,7 +514,6 @@ export async function saveCoordinatorAssignment(assignment, profile, actorProfil
     assignedUserName: cleanText(profile?.name || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ')),
     assignedUserPhone: cleanText(profile?.phone),
     contactEmailOverride: cleanText(assignment.contactEmailOverride),
-    contactNameOverride: cleanText(assignment.contactNameOverride),
     contactPhoneOverride: cleanText(assignment.contactPhoneOverride),
     coordinatorAreaId: area.areaId,
     groupLabel: area.groupLabel,

@@ -537,7 +537,6 @@ service cloud.firestore {
           'assignedUserName',
           'assignedUserPhone',
           'contactEmailOverride',
-          'contactNameOverride',
           'contactPhoneOverride',
           'coordinatorAreaId',
           'groupLabel',
@@ -559,7 +558,6 @@ service cloud.firestore {
         && request.resource.data.assignedUserName is string
         && request.resource.data.assignedUserPhone is string
         && request.resource.data.contactEmailOverride is string
-        && request.resource.data.contactNameOverride is string
         && request.resource.data.contactPhoneOverride is string
         && request.resource.data.groupLabel is string
         && request.resource.data.isActive is bool
