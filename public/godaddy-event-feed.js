@@ -133,8 +133,9 @@
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
       : '';
-    const registerLink = event.registerUrl
-      ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(event.registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
+    const registerUrl = event.registerUrl ? buildRegistrationUrl(event.registerUrl) : '';
+    const registerLink = registerUrl
+      ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
       : '';
     const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
     const availabilityTone = event.registrationIsFull ? 'is-waitlist' : 'is-open';
@@ -204,6 +205,16 @@
         ${email ? `<a href="mailto:${escapeAttribute(email)}">${escapeHtml(email)}</a>` : ''}
       </div>
     `;
+  }
+
+  function buildRegistrationUrl(registerUrl) {
+    try {
+      const url = new URL(registerUrl, window.location.href);
+      url.searchParams.set('returnUrl', window.location.href);
+      return url.toString();
+    } catch {
+      return registerUrl;
+    }
   }
 
   function wireFilters(root) {

@@ -35,6 +35,7 @@ function RegisterPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const eventId = searchParams.get('eventId') || '';
+  const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
@@ -352,6 +353,11 @@ function RegisterPage() {
   }
 
   function handleClose() {
+    if (returnUrl) {
+      window.location.assign(returnUrl);
+      return;
+    }
+
     if (window.opener) {
       window.close();
       return;
@@ -458,6 +464,27 @@ function RegisterPage() {
     );
   }
 
+  if (confirmation) {
+    return (
+      <section>
+        <PageHeader
+          eyebrow="Registration"
+          title="Registration Complete"
+          description="Your registration has been received."
+        />
+        <div className="registration-layout">
+          <EventSummary event={event} />
+          <RegistrationCompletion
+            confirmation={confirmation}
+            event={event}
+            hasReturnUrl={Boolean(returnUrl)}
+            onReturn={handleClose}
+          />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section>
       <PageHeader
@@ -472,9 +499,6 @@ function RegisterPage() {
             <p className="form-error">{registrationUnavailable}</p>
           ) : null}
           {formError ? <p className="form-error">{formError}</p> : null}
-          {confirmation ? (
-            <RegistrationConfirmation confirmation={confirmation} event={event} />
-          ) : null}
           <label>
             <span>Email *</span>
             <input
@@ -735,16 +759,22 @@ function RegisterPage() {
                 </>
               ) : null}
               {!needsProfileEdits ? (
-                <button
-                  className="button-link button-reset"
-                  disabled={submitting
-                    || Boolean(confirmation)
-                    || Boolean(registrationUnavailable)
-                    || (requiresReactivationTerms && !reactivationTermsAccepted)}
-                  type="submit"
-                >
-                  {submitting ? 'Submitting...' : 'Submit Registration'}
-                </button>
+                <div className="registration-submit-block">
+                  {submitting ? (
+                    <p className="form-success">
+                      Submitting registration and preparing confirmation...
+                    </p>
+                  ) : null}
+                  <button
+                    className="button-link button-reset"
+                    disabled={submitting
+                      || Boolean(registrationUnavailable)
+                      || (requiresReactivationTerms && !reactivationTermsAccepted)}
+                    type="submit"
+                  >
+                    {submitting ? 'Submitting...' : 'Submit Registration'}
+                  </button>
+                </div>
               ) : null}
             </>
           ) : null}
@@ -755,6 +785,19 @@ function RegisterPage() {
       </div>
     </section>
   );
+}
+
+function getSafeReturnUrl(value) {
+  if (!value) {
+    return '';
+  }
+
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch {
+    return '';
+  }
 }
 
 function LookupResult({
@@ -893,20 +936,49 @@ function EventSummary({ event }) {
   );
 }
 
-function RegistrationConfirmation({ confirmation, event }) {
+function RegistrationCompletion({ confirmation, event, hasReturnUrl, onReturn }) {
   return (
-    <div className="form-success">
-      <strong>
-        {confirmation.status === 'Waitlisted'
-          ? 'You have been added to the waitlist.'
-          : 'Registration confirmed.'}
-      </strong>
-      <span>
-        {confirmation.profileReactivated ? ' Your profile was reactivated.' : ''}
-        {confirmation.paymentRequired
-          ? ' Payment is pending and will be handled when the payment module is enabled.'
-          : ` You are registered for ${event.title}.`}
-      </span>
+    <div className="form-panel registration-completion-card">
+      <div className="form-success">
+        <strong>
+          {confirmation.status === 'Waitlisted'
+            ? 'You have been added to the waitlist.'
+            : 'Registration confirmed.'}
+        </strong>
+        <span>
+          {confirmation.profileReactivated ? ' Your profile was reactivated.' : ''}
+          {confirmation.paymentRequired
+            ? ' Payment is pending and will be handled when the payment module is enabled.'
+            : ` You are registered for ${event.title}.`}
+        </span>
+      </div>
+      <dl>
+        <div>
+          <dt>Event</dt>
+          <dd>{event.title}</dd>
+        </div>
+        <div>
+          <dt>Date</dt>
+          <dd>{formatEventDate(event.date)}</dd>
+        </div>
+        <div>
+          <dt>Time</dt>
+          <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+        </div>
+        <div>
+          <dt>Registration Status</dt>
+          <dd>{confirmation.status}</dd>
+        </div>
+        <div>
+          <dt>Payment Status</dt>
+          <dd>{confirmation.paymentStatus}</dd>
+        </div>
+      </dl>
+      <div className="form-actions">
+        <button className="button-link button-reset" type="button" onClick={onReturn}>
+          {hasReturnUrl ? 'Return To Listings' : 'Back To Event'}
+        </button>
+      </div>
     </div>
   );
 }

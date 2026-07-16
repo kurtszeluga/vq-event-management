@@ -1310,6 +1310,37 @@ body.popup-mode .page-content {
   margin-top: 0;
 }
 
+.registration-submit-block {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.registration-completion-card {
+  margin-top: 0;
+}
+
+.registration-completion-card dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.registration-completion-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.registration-completion-card dt {
+  color: #5a6b67;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.registration-completion-card dd {
+  margin: 0;
+}
+
 .registration-lookup-card {
   background: #f7f4ef;
   border: 1px solid #ded5ca;
