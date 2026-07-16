@@ -1864,13 +1864,6 @@ body.popup-mode .page-content {
   margin-bottom: 22px;
 }
 
-.registration-admin-controls {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(3, minmax(0, 220px)) minmax(280px, 1fr) auto;
-  margin-top: 18px;
-}
-
 .registration-activity-filters {
   display: flex;
   flex-wrap: wrap;
@@ -1908,19 +1901,6 @@ body.popup-mode .page-content {
   padding: 7px 10px;
 }
 
-.registration-admin-controls label {
-  display: grid;
-  gap: 8px;
-}
-
-.registration-admin-controls label span {
-  color: #3b4b48;
-  font-size: 0.92rem;
-  font-weight: 900;
-}
-
-.registration-admin-controls input,
-.registration-admin-controls select,
 .registration-status-select {
   border: 1px solid #c9bbb0;
   border-radius: 8px;
@@ -1929,14 +1909,6 @@ body.popup-mode .page-content {
   height: 44px;
   padding: 8px 12px;
   width: 100%;
-}
-
-.registration-search-label {
-  min-width: 0;
-}
-
-.registration-filter-actions {
-  align-self: end;
 }
 
 .registration-admin-list {
@@ -2355,15 +2327,10 @@ body.popup-mode .page-content {
     grid-template-columns: 1fr;
   }
 
-  .registration-admin-controls,
   .registration-admin-card-header,
   .registration-detail-grid,
   .registration-payment-grid {
     grid-template-columns: 1fr;
-  }
-
-  .registration-filter-actions {
-    align-self: start;
   }
 
   .registration-modal-backdrop {

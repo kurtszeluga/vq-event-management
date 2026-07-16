@@ -15,24 +15,27 @@ const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded', 'Failed', 
 const MANUAL_PAYMENT_METHOD_OPTIONS = ['Cash', 'Check'];
 const ACTIVITY_FILTERS = ['Programs', 'Workshops', 'Retreat', 'Challenges'];
 const QUARTER_FILTERS = [
+  { label: 'All Quarters', value: '' },
   { label: 'Q1 (Jan-March)', value: 'Q1' },
   { label: 'Q2 (April-June)', value: 'Q2' },
   { label: 'Q3 (July-Sept)', value: 'Q3' },
   { label: 'Q4 (Oct-Dec)', value: 'Q4' }
 ];
+const DEFAULT_YEAR_FILTER = String(new Date().getFullYear());
+const DEFAULT_QUARTER_FILTER = getQuarterFilterValue(new Date());
 
 function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [activityFilter, setActivityFilter] = useState('');
   const [error, setError] = useState('');
-  const [eventFilter, setEventFilter] = useState('all');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [paymentFilter, setPaymentFilter] = useState('All');
-  const [quarterFilter, setQuarterFilter] = useState('');
-  const [registrationStatusFilter, setRegistrationStatusFilter] = useState('All');
+  const [quarterFilter, setQuarterFilter] = useState(DEFAULT_QUARTER_FILTER);
   const [registrations, setRegistrations] = useState([]);
+  const [registrationSortConfig, setRegistrationSortConfig] = useState({
+    direction: 'asc',
+    key: 'registrant'
+  });
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [expandedRegistrationId, setExpandedRegistrationId] = useState('');
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
@@ -43,7 +46,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
-  const [yearFilter, setYearFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState(DEFAULT_YEAR_FILTER);
 
   useEffect(() => {
     let pendingLoads = 3;
@@ -139,58 +142,13 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           return false;
         }
 
-        if (eventFilter !== 'all' && registration.eventId !== eventFilter) {
-          return false;
-        }
-
-        if (
-          registrationStatusFilter !== 'All'
-          && registration.status !== registrationStatusFilter
-        ) {
-          return false;
-        }
-
-        if (paymentFilter !== 'All' && registration.paymentStatus !== paymentFilter) {
-          return false;
-        }
-
-        const user =
-          userMap.byId.get(registration.userId)
-          || userMap.byEmail.get(normalizeEmail(registration.email));
-        const haystack = [
-          registration.eventTitle,
-          registration.eventType,
-          registration.name,
-          registration.registrantFirstName,
-          registration.registrantLastName,
-          registration.email,
-          registration.phone,
-          registration.status,
-          registration.paymentStatus,
-          registration.paymentMethod,
-          registration.paymentNote,
-          registration.membershipStatusAtRegistration,
-          event?.title,
-          event?.eventType,
-          user?.membershipStatus
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-
-        return !searchTerm.trim() || haystack.includes(searchTerm.trim().toLowerCase());
+        return true;
       }),
     [
-      eventFilter,
       eventMap,
       activityFilter,
-      paymentFilter,
       quarterFilter,
-      registrationStatusFilter,
       registrations,
-      searchTerm,
-      userMap.byEmail,
-      userMap.byId,
       yearFilter
     ]
   );
@@ -242,34 +200,38 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         );
       });
   }, [eventMap, filteredRegistrations]);
-  const eventOptions = useMemo(
-    () => [
-      { label: 'All Events / Activities', value: 'all' },
-      ...events
-        .map((event) => ({
-          label: `${event.title || event.eventType || event.id} (${formatEventDate(event.date)})`,
-          value: event.id
-        }))
-        .sort((first, second) => first.label.localeCompare(second.label))
-    ],
-    [events]
-  );
   const activityCounts = useMemo(() => {
     const counts = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, 0]));
+    const eventIdsByFilter = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, new Set()]));
 
     registrations.forEach((registration) => {
       const event = eventMap.get(registration.eventId);
+      const eventDate = event?.date || registration.eventDate;
+
+      if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
+        return;
+      }
+
+      if (quarterFilter && getQuarterFilterValue(eventDate) !== quarterFilter) {
+        return;
+      }
+
       const filterValue = getActivityFilterValue(event?.eventType || registration.eventType);
 
-      if (filterValue && filterValue in counts) {
-        counts[filterValue] += 1;
+      if (filterValue && eventIdsByFilter[filterValue]) {
+        eventIdsByFilter[filterValue].add(registration.eventId);
       }
     });
 
+    Object.entries(eventIdsByFilter).forEach(([filter, eventIds]) => {
+      counts[filter] = eventIds.size;
+    });
+
     return counts;
-  }, [eventMap, registrations]);
+  }, [eventMap, quarterFilter, registrations, yearFilter]);
   const quarterCounts = useMemo(() => {
     const counts = Object.fromEntries(QUARTER_FILTERS.map((filter) => [filter.value, 0]));
+    const eventIdsByFilter = Object.fromEntries(QUARTER_FILTERS.map((filter) => [filter.value, new Set()]));
 
     registrations.forEach((registration) => {
       const event = eventMap.get(registration.eventId);
@@ -289,9 +251,14 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
       const filterValue = getQuarterFilterValue(eventDate);
 
-      if (filterValue && filterValue in counts) {
-        counts[filterValue] += 1;
+      if (filterValue && eventIdsByFilter[filterValue]) {
+        eventIdsByFilter[filterValue].add(registration.eventId);
+        eventIdsByFilter[''].add(registration.eventId);
       }
+    });
+
+    Object.entries(eventIdsByFilter).forEach(([filter, eventIds]) => {
+      counts[filter] = eventIds.size;
     });
 
     return counts;
@@ -318,6 +285,14 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     () => groupedRegistrations.find((group) => group.eventId === selectedEventId) || null,
     [groupedRegistrations, selectedEventId]
   );
+  const selectedDisplayRegistrations = useMemo(
+    () => sortRegistrationsForDisplay(
+      combineRegistrationsByRegistrant(selectedEventGroup?.registrations || []),
+      registrationSortConfig,
+      userMap
+    ),
+    [registrationSortConfig, selectedEventGroup, userMap]
+  );
   const selectedRegistrationEvent = selectedRegistration
     ? eventMap.get(selectedRegistration.eventId)
     : null;
@@ -331,33 +306,26 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
   function handleResetFilters() {
     setActivityFilter('');
-    setEventFilter('all');
-    setRegistrationStatusFilter('All');
-    setPaymentFilter('All');
-    setQuarterFilter('');
-    setSearchTerm('');
+    setQuarterFilter(DEFAULT_QUARTER_FILTER);
     setSelectedEventId('');
     setExpandedRegistrationId('');
-    setYearFilter('');
+    setYearFilter(DEFAULT_YEAR_FILTER);
   }
 
   function handleActivityFilter(nextFilter) {
     setActivityFilter((currentFilter) => (currentFilter === nextFilter ? '' : nextFilter));
-    setEventFilter('all');
     setSelectedEventId('');
     setExpandedRegistrationId('');
   }
 
   function handleQuarterFilter(nextFilter) {
     setQuarterFilter((currentFilter) => (currentFilter === nextFilter ? '' : nextFilter));
-    setEventFilter('all');
     setSelectedEventId('');
     setExpandedRegistrationId('');
   }
 
   function handleYearFilter(nextYear) {
     setYearFilter(nextYear);
-    setEventFilter('all');
     setSelectedEventId('');
     setExpandedRegistrationId('');
   }
@@ -370,6 +338,13 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   function handleBackToEvents() {
     setSelectedEventId('');
     setExpandedRegistrationId('');
+  }
+
+  function handleRegistrationSort(sortKey) {
+    setRegistrationSortConfig((currentConfig) => ({
+      direction: currentConfig.key === sortKey && currentConfig.direction === 'asc' ? 'desc' : 'asc',
+      key: sortKey
+    }));
   }
 
   function handleToggleDetails(registrationId) {
@@ -503,7 +478,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       <div className="form-section-header form-section-header-stacked">
         <div className="form-section-header-top">
           <h2>Registrations</h2>
-          <span>{filteredRegistrations.length} shown</span>
+          <span>
+            {selectedEventGroup
+              ? `${selectedDisplayRegistrations.length} registrants shown`
+              : `${groupedRegistrations.length} events shown`}
+          </span>
         </div>
       </div>
       <div className="registration-activity-filters" aria-label="Registration activity filters">
@@ -540,66 +519,13 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
             {filter.label} ({quarterCounts[filter.value] || 0})
           </button>
         ))}
-      </div>
-      <div className="registration-admin-controls">
-        <label>
-          <span>Event / Activity</span>
-          <select
-            value={eventFilter}
-            onChange={(event) => {
-              setEventFilter(event.target.value);
-              setSelectedEventId('');
-              setExpandedRegistrationId('');
-            }}
-          >
-            {eventOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Registration Status</span>
-          <select
-            value={registrationStatusFilter}
-            onChange={(event) => setRegistrationStatusFilter(event.target.value)}
-          >
-            {REGISTRATION_STATUS_FILTERS.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Payment Status</span>
-          <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
-            {PAYMENT_STATUS_FILTERS.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="registration-search-label">
-          <span>Search Registrations</span>
-          <input
-            type="search"
-            placeholder="Search event, registrant, email, phone, or membership"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
-        </label>
-        <div className="registration-filter-actions">
-          <button
-            className="button-link button-reset secondary-action compact-action"
-            type="button"
-            onClick={handleResetFilters}
-          >
-            Reset Filters
-          </button>
-        </div>
+        <button
+          className="button-link button-reset secondary-action compact-action registration-reset-button"
+          type="button"
+          onClick={handleResetFilters}
+        >
+          Reset Filters
+        </button>
       </div>
       {error ? <p className="form-error">{error}</p> : null}
       {successMessage ? <p className="form-success">{successMessage}</p> : null}
@@ -671,17 +597,47 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 <table className="user-table registration-table">
                   <thead>
                     <tr>
-                      <th>Registrant</th>
-                      <th>Registered</th>
-                      <th>Membership</th>
-                      <th>Registration Status</th>
-                      <th>Payment</th>
-                      <th>Profile</th>
+                      <SortableHeader
+                        label="Registrant"
+                        sortKey="registrant"
+                        sortConfig={registrationSortConfig}
+                        onSort={handleRegistrationSort}
+                      />
+                      <SortableHeader
+                        label="Registered"
+                        sortKey="registeredDate"
+                        sortConfig={registrationSortConfig}
+                        onSort={handleRegistrationSort}
+                      />
+                      <SortableHeader
+                        label="Membership"
+                        sortKey="membership"
+                        sortConfig={registrationSortConfig}
+                        onSort={handleRegistrationSort}
+                      />
+                      <SortableHeader
+                        label="Registration Status"
+                        sortKey="status"
+                        sortConfig={registrationSortConfig}
+                        onSort={handleRegistrationSort}
+                      />
+                      <SortableHeader
+                        label="Payment"
+                        sortKey="payment"
+                        sortConfig={registrationSortConfig}
+                        onSort={handleRegistrationSort}
+                      />
+                      <SortableHeader
+                        label="Profile"
+                        sortKey="profile"
+                        sortConfig={registrationSortConfig}
+                        onSort={handleRegistrationSort}
+                      />
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {group.registrations.map((registration) => {
+                    {selectedDisplayRegistrations.map((registration) => {
                       const user =
                         userMap.byId.get(registration.userId)
                         || userMap.byEmail.get(normalizeEmail(registration.email));
@@ -693,6 +649,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                             <td data-label="Registrant">
                               <strong>{registration.name || 'Registrant'}</strong>
                               <span>{registration.email || 'No email'}</span>
+                              {registration.combinedCount > 1 ? (
+                                <span>{registration.combinedCount} registration records combined</span>
+                              ) : null}
                             </td>
                             <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
                             <td data-label="Membership">{user?.membershipStatus || 'Unknown'}</td>
@@ -748,6 +707,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                     <DetailItem label="Registrant" value={registration.name || 'Registrant'} />
                                     <DetailItem label="Email" value={registration.email || 'No email'} />
                                     <DetailItem label="Phone" value={registration.phone || 'No phone'} />
+                                    {registration.combinedCount > 1 ? (
+                                      <DetailItem
+                                        label="Combined Records"
+                                        value={`${registration.combinedCount} registration records for this profile/email`}
+                                      />
+                                    ) : null}
                                     <DetailItem label="Registered Date" value={formatDateTime(registration.registrationDate)} />
                                     <DetailItem label="Current Membership" value={user?.membershipStatus || 'Unknown'} />
                                     <DetailItem
@@ -932,6 +897,120 @@ function DetailItem({ label, value }) {
       <dd>{value || 'Not Set'}</dd>
     </div>
   );
+}
+
+function SortableHeader({ label, sortKey, sortConfig, onSort }) {
+  const isActive = sortConfig.key === sortKey;
+
+  return (
+    <th>
+      <button
+        className={`table-sort-button${isActive ? ' active' : ''}`}
+        type="button"
+        onClick={() => onSort(sortKey)}
+      >
+        {label}
+        <span>{isActive ? (sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A') : 'Sort'}</span>
+      </button>
+    </th>
+  );
+}
+
+function combineRegistrationsByRegistrant(registrations = []) {
+  const groups = new Map();
+
+  registrations.forEach((registration) => {
+    const key = getRegistrantIdentityKey(registration);
+    const existing = groups.get(key) || [];
+    existing.push(registration);
+    groups.set(key, existing);
+  });
+
+  return [...groups.values()].map((records) => {
+    const preferred = [...records].sort(compareRegistrationPriority)[0] || records[0];
+
+    return {
+      ...preferred,
+      combinedCount: records.length,
+      combinedRecords: records
+    };
+  });
+}
+
+function getRegistrantIdentityKey(registration) {
+  return registration.userId
+    ? `user:${registration.userId}`
+    : `email:${normalizeEmail(registration.email || registration.name || registration.id)}`;
+}
+
+function compareRegistrationPriority(first, second) {
+  const firstRank = getRegistrationStatusRank(first.status);
+  const secondRank = getRegistrationStatusRank(second.status);
+
+  if (firstRank !== secondRank) {
+    return firstRank - secondRank;
+  }
+
+  return getTimestampValue(second.registrationDate) - getTimestampValue(first.registrationDate);
+}
+
+function getRegistrationStatusRank(status) {
+  if (status === 'Registered') {
+    return 1;
+  }
+
+  if (status === 'Waitlisted') {
+    return 2;
+  }
+
+  if (status === 'Cancelled') {
+    return 3;
+  }
+
+  return 4;
+}
+
+function sortRegistrationsForDisplay(registrations, sortConfig, userMap) {
+  return [...registrations].sort((first, second) => {
+    const firstValue = getRegistrationSortValue(first, sortConfig.key, userMap);
+    const secondValue = getRegistrationSortValue(second, sortConfig.key, userMap);
+    const comparison = typeof firstValue === 'number' || typeof secondValue === 'number'
+      ? Number(firstValue || 0) - Number(secondValue || 0)
+      : String(firstValue || '').localeCompare(String(secondValue || ''), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+      });
+
+    return sortConfig.direction === 'asc' ? comparison : -comparison;
+  });
+}
+
+function getRegistrationSortValue(registration, sortKey, userMap) {
+  const user =
+    userMap.byId.get(registration.userId)
+    || userMap.byEmail.get(normalizeEmail(registration.email));
+
+  if (sortKey === 'registeredDate') {
+    return getTimestampValue(registration.registrationDate);
+  }
+
+  if (sortKey === 'membership') {
+    return user?.membershipStatus || registration.membershipStatusAtRegistration || 'Unknown';
+  }
+
+  if (sortKey === 'status') {
+    return registration.status || 'Registered';
+  }
+
+  if (sortKey === 'payment') {
+    return formatPaymentSummary(registration);
+  }
+
+  if (sortKey === 'profile') {
+    return registration.userId ? 'Matched Profile' : 'Guest / Email Only';
+  }
+
+  return registration.name || registration.email || '';
 }
 
 function compareRegistrationDates(first, second) {
