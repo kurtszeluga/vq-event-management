@@ -290,6 +290,7 @@ async function handleSendEmailInstructionsTest(request, response, actorProfile) 
   const recipientEmail = cleanText(request.body?.recipientEmail).toLowerCase();
   const instructions = normalizeEmailInstructions(request.body?.instructions || {});
   const area = getEmailInstructionArea(request.body?.areaId);
+  const replyTo = await getCoordinatorReplyTo(getFirestore(), area.areaId);
 
   if (!isEmail(recipientEmail)) {
     response.status(400).json({ error: 'Enter a valid test email address.' });
@@ -305,7 +306,7 @@ async function handleSendEmailInstructionsTest(request, response, actorProfile) 
 
   const result = await sendResendEmail({
     html: buildTestEmailHtml(area, instructions[area.areaId]),
-    replyTo: actorProfile.email || undefined,
+    replyTo: replyTo || actorProfile.email || undefined,
     subject: `Village Quilters ${area.areaLabel} Test Confirmation Email`,
     text: buildTestEmailText(area, instructions[area.areaId]),
     to: recipientEmail
@@ -489,6 +490,22 @@ function getEmailInstructionArea(areaId) {
   ];
 
   return areas.find((area) => area.areaId === areaId) || areas[0];
+}
+
+async function getCoordinatorReplyTo(db, areaId) {
+  const snapshot = await db.collection('coordinatorAssignments').doc(areaId).get();
+
+  if (!snapshot.exists) {
+    return '';
+  }
+
+  const assignment = snapshot.data();
+
+  if (assignment.isActive === false) {
+    return '';
+  }
+
+  return cleanText(assignment.contactEmailOverride || assignment.assignedUserEmail);
 }
 
 function getAppOrigin() {
