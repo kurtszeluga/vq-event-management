@@ -60,6 +60,11 @@ export default async function handler(request, response) {
     const actorSnap = await db.collection('users').doc(actorUid).get();
     const actorProfile = actorSnap.exists ? actorSnap.data() : {};
 
+    if (request.body?.action === 'sendEmailInstructionsTest') {
+      await handleSendEmailInstructionsTest(request, response, actorProfile);
+      return;
+    }
+
     if (!canUpdateUsers(actorProfile)) {
       response.status(403).json({ error: 'This account cannot update user profiles.' });
       return;
@@ -276,6 +281,41 @@ function canUpdateUsers(actorProfile) {
     || actorProfile.role === 'Admin' && actorProfile.permissions?.addUsers === true;
 }
 
+async function handleSendEmailInstructionsTest(request, response, actorProfile) {
+  if (actorProfile.role !== 'Super User' || actorProfile.status !== 'Active') {
+    response.status(403).json({ error: 'Only an active Super User can send test emails.' });
+    return;
+  }
+
+  const recipientEmail = cleanText(request.body?.recipientEmail).toLowerCase();
+  const instructions = normalizeEmailInstructions(request.body?.instructions || {});
+
+  if (!isEmail(recipientEmail)) {
+    response.status(400).json({ error: 'Enter a valid test email address.' });
+    return;
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    response.status(501).json({
+      error: 'RESEND_API_KEY is not configured yet. Add the Resend API key before sending test emails.'
+    });
+    return;
+  }
+
+  const result = await sendResendEmail({
+    html: buildTestEmailHtml(instructions),
+    replyTo: actorProfile.email || undefined,
+    subject: 'Village Quilters Test Confirmation Email',
+    text: buildTestEmailText(instructions),
+    to: recipientEmail
+  });
+
+  response.status(200).json({
+    emailId: result.id || '',
+    ok: true
+  });
+}
+
 function canUpdateTarget(actorProfile, targetProfile) {
   return actorProfile.role === 'Super User' || targetProfile.role === 'General User';
 }
@@ -325,8 +365,122 @@ async function identityPlatformRequest(methodPath, body) {
   return data;
 }
 
+async function sendResendEmail({ html, replyTo, subject, text, to }) {
+  const from = process.env.RESEND_FROM_EMAIL || 'Village Quilters <no-reply@villagequilters.com>';
+  const payload = {
+    from,
+    html,
+    subject,
+    text,
+    to: [to]
+  };
+
+  if (replyTo) {
+    payload.reply_to = replyTo;
+  }
+
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  const textResponse = await resendResponse.text();
+  const result = textResponse ? safeJsonParse(textResponse) : {};
+
+  if (!resendResponse.ok) {
+    const message = result.message || result.error || 'Resend could not send the test email.';
+    const error = new Error(message);
+    error.statusCode = resendResponse.status;
+    throw error;
+  }
+
+  return result;
+}
+
 function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function buildTestEmailHtml(instructions) {
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f6f1eb;color:#1d2927;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" style="width:100%;border-collapse:collapse;background:#f6f1eb;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" style="width:100%;max-width:680px;border-collapse:collapse;background:#fffdfa;border:1px solid #ded5ca;">
+            <tr>
+              <td style="padding:24px 28px;border-bottom:4px solid #225c56;">
+                <p style="margin:0 0 6px;color:#8f351d;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Village Quilters</p>
+                <h1 style="margin:0;color:#1d2927;font-size:24px;line-height:1.25;">Test Confirmation Email</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 28px;">
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">This is a test message showing how area-specific confirmation instructions will appear.</p>
+                ${buildInstructionSectionHtml('Programs', instructions.programs)}
+                ${buildInstructionSectionHtml('Workshops', instructions.workshops)}
+                ${buildInstructionSectionHtml('Challenges', instructions.challenges)}
+                ${buildInstructionSectionHtml('Membership', instructions.membership)}
+                <p style="margin:22px 0 0;color:#5c6966;font-size:13px;line-height:1.5;">Future registration confirmations will include the event details, supply list link when available, and the appropriate area instructions.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function buildInstructionSectionHtml(label, value) {
+  const content = cleanText(value) || 'No instructions entered yet.';
+
+  return `<section style="margin:0 0 16px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
+    <h2 style="margin:0 0 8px;color:#225c56;font-size:17px;line-height:1.3;">${escapeHtml(label)}</h2>
+    <p style="margin:0;white-space:pre-wrap;font-size:15px;line-height:1.55;">${escapeHtml(content)}</p>
+  </section>`;
+}
+
+function buildTestEmailText(instructions) {
+  return [
+    'Village Quilters Test Confirmation Email',
+    '',
+    'This is a test message showing how area-specific confirmation instructions will appear.',
+    '',
+    `Programs:\n${instructions.programs || 'No instructions entered yet.'}`,
+    '',
+    `Workshops:\n${instructions.workshops || 'No instructions entered yet.'}`,
+    '',
+    `Challenges:\n${instructions.challenges || 'No instructions entered yet.'}`,
+    '',
+    `Membership:\n${instructions.membership || 'No instructions entered yet.'}`
+  ].join('\n');
+}
+
+function normalizeEmailInstructions(instructions) {
+  return {
+    challenges: cleanText(instructions.challenges),
+    membership: cleanText(instructions.membership),
+    programs: cleanText(instructions.programs),
+    workshops: cleanText(instructions.workshops)
+  };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function buildDisplayName(firstName, lastName) {

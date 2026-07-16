@@ -13,6 +13,7 @@ import {
   saveEventLocationDefault,
   saveEventTimeDefault,
   saveCoordinatorAssignment,
+  sendEmailInstructionsTest,
   saveMembershipProfile,
   saveMembershipSettings,
   subscribeToCoordinatorAssignments,
@@ -69,6 +70,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [coordinatorForms, setCoordinatorForms] = useState({});
   const [coordinatorMessages, setCoordinatorMessages] = useState({});
   const [emailInstructions, setEmailInstructions] = useState(DEFAULT_EMAIL_INSTRUCTIONS);
+  const [emailTestRecipient, setEmailTestRecipient] = useState(currentUserProfile?.email || '');
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
@@ -237,6 +239,21 @@ function ConfigurationPanel({ currentUserProfile }) {
     await runSave('emailInstructions', async () => {
       await saveEmailInstructions(emailInstructions, currentUserProfile);
       setSuccessMessage('Email instructions saved.');
+    });
+  }
+
+  async function handleSendEmailInstructionsTest() {
+    if (!emailTestRecipient.trim()) {
+      setError('Enter an email address for the test message.');
+      return;
+    }
+
+    await runSave('emailInstructionsTest', async () => {
+      await sendEmailInstructionsTest({
+        instructions: emailInstructions,
+        recipientEmail: emailTestRecipient
+      });
+      setSuccessMessage(`Test email sent to ${emailTestRecipient.trim()}.`);
     });
   }
 
@@ -509,6 +526,24 @@ function ConfigurationPanel({ currentUserProfile }) {
             type="submit"
           >
             {savingSection === 'emailInstructions' ? 'Saving...' : 'Save Email Instructions'}
+          </button>
+          <div className="configuration-form-grid">
+            <label>
+              <span>Test Email Address</span>
+              <input
+                type="email"
+                value={emailTestRecipient}
+                onChange={(event) => setEmailTestRecipient(event.target.value)}
+              />
+            </label>
+          </div>
+          <button
+            className="button-link button-reset secondary-action configuration-submit-button"
+            disabled={savingSection === 'emailInstructionsTest'}
+            type="button"
+            onClick={handleSendEmailInstructionsTest}
+          >
+            {savingSection === 'emailInstructionsTest' ? 'Sending...' : 'Send Test Email'}
           </button>
         </form>
       </article>

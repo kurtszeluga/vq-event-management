@@ -10,7 +10,7 @@ import {
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
-import { db } from '../lib/firebase.js';
+import { auth, db } from '../lib/firebase.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const emailInstructionsRef = () => doc(db, 'appSettings', 'emailInstructions');
@@ -228,6 +228,34 @@ export async function saveEmailInstructions(instructions, actorProfile) {
   });
 
   return batch.commit();
+}
+
+export async function sendEmailInstructionsTest({ instructions, recipientEmail }) {
+  const idToken = await auth?.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('Sign in again before sending a test email.');
+  }
+
+  const response = await fetch('/api/admin-update-user-profile', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      action: 'sendEmailInstructionsTest',
+      instructions,
+      recipientEmail
+    })
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Unable to send the test email.');
+  }
+
+  return result;
 }
 
 export async function saveMember(member, actorProfile) {
