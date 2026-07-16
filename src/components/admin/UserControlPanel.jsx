@@ -108,6 +108,8 @@ function UserControlPanel({
       email: '',
       firstName: '',
       lastName: '',
+      membershipReviewNote: '',
+      membershipStatus: 'Unknown',
       permissions: DEFAULT_USER_PERMISSIONS,
       phone: '',
       profileTags: [],
@@ -151,18 +153,26 @@ function UserControlPanel({
   function updateFormField(name, value) {
     setFormError('');
     setSuccessMessage('');
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => applyMembershipAuthorityGuard({ ...current, [name]: value }));
   }
 
   function updateRole(role) {
     setFormError('');
     setSuccessMessage('');
-    setForm((current) => ({
-      ...current,
-      permissions: role === 'Admin' ? normalizePermissions(current.permissions) : DEFAULT_USER_PERMISSIONS,
-      role,
-      status: role === 'Super User' ? 'Active' : current.status
-    }));
+    setForm((current) => {
+      const requestedRole = role === 'Admin' && !canProfileHoldAdminAuthority(current)
+        ? 'General User'
+        : role;
+
+      return applyMembershipAuthorityGuard({
+        ...current,
+        permissions: requestedRole === 'Admin'
+          ? normalizePermissions(current.permissions)
+          : DEFAULT_USER_PERMISSIONS,
+        role: requestedRole,
+        status: requestedRole === 'Super User' ? 'Active' : current.status
+      });
+    });
   }
 
   function updatePermission(permissionKey, value) {
@@ -227,11 +237,28 @@ function UserControlPanel({
       const formattedFirstName = toTitleCase(form.firstName);
       const formattedLastName = toTitleCase(form.lastName);
       const displayName = buildDisplayName(formattedFirstName, formattedLastName);
+      const membershipStatusForSave =
+        user.role === 'Super User'
+          ? user.membershipStatus || 'Unknown'
+          : canEditMembershipStatus
+            ? form.membershipStatus || 'Unknown'
+            : user.membershipStatus || 'Unknown';
+      const statusForSave = form.role === 'Super User' ? 'Active' : form.status;
+      const roleForSave = getAllowedFormRole({
+        canManageAdminUsers,
+        membershipStatus: membershipStatusForSave,
+        requestedRole: form.role,
+        status: statusForSave
+      });
+      const permissionsForSave =
+        canManageAdminUsers && roleForSave === 'Admin'
+          ? normalizedPermissions
+          : DEFAULT_USER_PERMISSIONS;
 
       if (
         canManageAdminUsers &&
-        form.role === 'Admin' &&
-        !hasSelectedAdminPermission(normalizedPermissions)
+        roleForSave === 'Admin' &&
+        !hasSelectedAdminPermission(permissionsForSave)
       ) {
         throw new Error('Select at least one admin permission before saving an Admin profile.');
       }
@@ -242,24 +269,19 @@ function UserControlPanel({
         firstName: formattedFirstName,
         lastName: formattedLastName,
         name: displayName,
-        permissions:
-          canManageAdminUsers && form.role === 'Admin'
-            ? normalizedPermissions
-            : DEFAULT_USER_PERMISSIONS,
+        permissions: permissionsForSave,
         phone: formatPhoneNumber(form.phone),
         profileTags: canManageAdminUsers
           ? normalizeProfileTags(form.profileTags)
           : normalizeProfileTags(user.profileTags),
         membershipStatus:
-          canEditMembershipStatus && user.id !== 'new' && user.role !== 'Super User'
-            ? form.membershipStatus || 'Unknown'
-            : user.membershipStatus || 'Unknown',
+          user.role === 'Super User' ? user.membershipStatus || 'Unknown' : membershipStatusForSave,
         membershipReviewNote:
-          canEditMembershipStatus && user.id !== 'new' && user.role !== 'Super User'
+          canEditMembershipStatus && user.role !== 'Super User'
             ? form.membershipReviewNote || ''
             : user.membershipReviewNote || '',
-        role: form.role,
-        status: form.role === 'Super User' ? 'Active' : form.status,
+        role: roleForSave,
+        status: statusForSave,
         userId: form.userId
       };
 
@@ -564,6 +586,29 @@ function UserControlPanel({
                     />
                   </label>
                 </div>
+                {canEditMembershipStatus ? (
+                  <div className="password-panel">
+                    <span className="field-label">Membership</span>
+                    <label>
+                      <span>Membership Status</span>
+                      <select
+                        value={form.membershipStatus}
+                        onChange={(event) =>
+                          updateFormField('membershipStatus', event.target.value)
+                        }
+                      >
+                        {MEMBERSHIP_STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <span className="form-help">
+                      Admin roles and permissions require Active membership and Active profile status.
+                    </span>
+                  </div>
+                ) : null}
                 {canManageAdminUsers ? (
                   <label>
                     <span>Role</span>
@@ -572,11 +617,20 @@ function UserControlPanel({
                       onChange={(event) => updateRole(event.target.value)}
                     >
                       {USER_ROLES.map((role) => (
-                        <option key={role} value={role}>
+                        <option
+                          disabled={role === 'Admin' && !canProfileHoldAdminAuthority(form)}
+                          key={role}
+                          value={role}
+                        >
                           {role}
                         </option>
                       ))}
                     </select>
+                    {!canProfileHoldAdminAuthority(form) ? (
+                      <span className="form-help">
+                        Set membership and profile status to Active before assigning Admin.
+                      </span>
+                    ) : null}
                   </label>
                 ) : null}
                 <label>
@@ -594,6 +648,7 @@ function UserControlPanel({
                 </label>
                 {canManageAdminUsers ? (
                   <PermissionPanel
+                    canEditAdminPermissions={canProfileHoldAdminAuthority(form)}
                     permissions={form.permissions}
                     role={form.role}
                     onChange={updatePermission}
@@ -766,11 +821,20 @@ function UserControlPanel({
                           onChange={(event) => updateRole(event.target.value)}
                         >
                           {USER_ROLES.map((role) => (
-                            <option key={role} value={role}>
+                            <option
+                              disabled={role === 'Admin' && !canProfileHoldAdminAuthority(form)}
+                              key={role}
+                              value={role}
+                            >
                               {role}
                             </option>
                           ))}
                         </select>
+                        {!canProfileHoldAdminAuthority(form) ? (
+                          <span className="form-help">
+                            Set membership and profile status to Active before assigning Admin.
+                          </span>
+                        ) : null}
                       </label>
                     ) : null}
                     <label>
@@ -831,6 +895,7 @@ function UserControlPanel({
                     </div>
                     {canManageAdminUsers ? (
                       <PermissionPanel
+                        canEditAdminPermissions={canProfileHoldAdminAuthority(form)}
                         permissions={form.permissions}
                         role={form.role}
                         onChange={updatePermission}
@@ -911,6 +976,40 @@ function getPermissionSummary(permissions) {
 
 function hasSelectedAdminPermission(permissions) {
   return USER_PERMISSION_OPTIONS.some((permission) => permissions[permission.key]);
+}
+
+function canProfileHoldAdminAuthority(profile) {
+  return profile.role === 'Super User'
+    || profile.status === 'Active' && profile.membershipStatus === 'Active';
+}
+
+function applyMembershipAuthorityGuard(profile) {
+  if (canProfileHoldAdminAuthority(profile)) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    permissions: DEFAULT_USER_PERMISSIONS,
+    role: 'General User'
+  };
+}
+
+function getAllowedFormRole({ canManageAdminUsers, membershipStatus, requestedRole, status }) {
+  if (canManageAdminUsers && requestedRole === 'Super User') {
+    return 'Super User';
+  }
+
+  if (
+    canManageAdminUsers
+    && requestedRole === 'Admin'
+    && membershipStatus === 'Active'
+    && status === 'Active'
+  ) {
+    return 'Admin';
+  }
+
+  return 'General User';
 }
 
 function getDisplayMembershipStatus(user) {
@@ -1242,15 +1341,20 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
   );
 }
 
-function PermissionPanel({ permissions, role, onChange }) {
+function PermissionPanel({ canEditAdminPermissions = true, permissions, role, onChange }) {
   return (
     <div className="permission-panel">
       <span className="field-label">Admin Permissions</span>
+      {!canEditAdminPermissions ? (
+        <span className="form-help">
+          Admin permissions require Active membership and Active profile status.
+        </span>
+      ) : null}
       {USER_PERMISSION_OPTIONS.map((permission) => (
         <label className="checkbox-label" key={permission.key}>
           <input
             checked={Boolean(permissions[permission.key])}
-            disabled={role !== 'Admin'}
+            disabled={role !== 'Admin' || !canEditAdminPermissions}
             type="checkbox"
             onChange={(event) => onChange(permission.key, event.target.checked)}
           />

@@ -187,7 +187,6 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
   const requestedRole = ['Super User', 'Admin', 'General User'].includes(payload.role)
     ? payload.role
     : before.role || 'General User';
-  const role = isSuperUser ? requestedRole : 'General User';
   const canManageMembershipStatus =
     isSuperUser || actorProfile.permissions?.manageMembershipStatus === true;
   const requestedMembershipStatus = ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown'].includes(
@@ -196,6 +195,20 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
     ? payload.membershipStatus
     : before.membershipStatus || 'Unknown';
   const requestedMembershipReviewNote = cleanText(payload.membershipReviewNote);
+  const status = requestedRole === 'Super User'
+    ? 'Active'
+    : payload.status === 'Inactive'
+      ? 'Inactive'
+      : 'Active';
+  const membershipStatus = canManageMembershipStatus
+    ? requestedMembershipStatus
+    : before.membershipStatus || 'Unknown';
+  const role = getAllowedRoleForMembership({
+    isSuperUser,
+    membershipStatus,
+    requestedRole,
+    status
+  });
 
   return {
     billingAddress: {
@@ -211,9 +224,7 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
     membershipReviewNote: canManageMembershipStatus
       ? requestedMembershipReviewNote
       : before.membershipReviewNote || '',
-    membershipStatus: canManageMembershipStatus
-      ? requestedMembershipStatus
-      : before.membershipStatus || 'Unknown',
+    membershipStatus,
     name: buildDisplayName(payload.firstName, payload.lastName),
     permissions: payload.permissions || {},
     phone: cleanText(payload.phone),
@@ -221,13 +232,21 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
       ? normalizeProfileTags(payload.profileTags)
       : normalizeProfileTags(before.profileTags),
     role,
-    status: role === 'Super User'
-      ? 'Active'
-      : payload.status === 'Inactive'
-        ? 'Inactive'
-        : 'Active',
+    status,
     userId: before.userId || profileId
   };
+}
+
+function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedRole, status }) {
+  if (isSuperUser && requestedRole === 'Super User') {
+    return 'Super User';
+  }
+
+  if (isSuperUser && requestedRole === 'Admin' && membershipStatus === 'Active' && status === 'Active') {
+    return 'Admin';
+  }
+
+  return 'General User';
 }
 
 function getPermissionsForRole(role, permissions = {}) {

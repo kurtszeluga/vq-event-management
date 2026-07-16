@@ -610,6 +610,8 @@ function buildImportedExistingProfile(existingProfile, importedProfile, matchedB
   const lastName = importedProfile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name);
   const name = importedProfile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' ');
   const termsAcceptance = buildOfflineTermsAcceptance(existingProfile, termsVersion);
+  const membershipStatus = importedProfile.status;
+  const role = getMembershipAllowedRole(existingProfile, membershipStatus);
 
   return {
     billingAddress: existingProfile.billingAddress || getEmptyBillingAddress(),
@@ -619,13 +621,13 @@ function buildImportedExistingProfile(existingProfile, importedProfile, matchedB
     lastName,
     membershipMatchedBy: matchedBy,
     membershipMemberId: '',
-    membershipStatus: importedProfile.status,
+    membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
-    permissions: normalizeUserPermissions(existingProfile.permissions),
+    permissions: getMembershipAllowedPermissions(existingProfile, membershipStatus),
     phone: importedProfile.phone || existingProfile.phone || '',
     profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
-    role: existingProfile.role || 'General User',
+    role,
     status: existingProfile.role === 'Super User' ? 'Active' : existingProfile.status || 'Active',
     ...termsAcceptance,
     updatedDate: serverTimestamp(),
@@ -685,6 +687,8 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
   const firstName = cleanText(profile.firstName || existingProfile.firstName || getFirstNameFallback(existingProfile.name));
   const lastName = cleanText(profile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name));
   const name = cleanText(profile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' '));
+  const membershipStatus = getValidProfileMembershipStatus(profile.status || profile.membershipStatus);
+  const role = getMembershipAllowedRole(existingProfile, membershipStatus);
 
   return {
     billingAddress: existingProfile.billingAddress || getEmptyBillingAddress(),
@@ -694,13 +698,13 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
     lastName,
     membershipMatchedBy: 'manual',
     membershipMemberId: existingProfile.membershipMemberId || '',
-    membershipStatus: getValidProfileMembershipStatus(profile.status || profile.membershipStatus),
+    membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
-    permissions: normalizeUserPermissions(existingProfile.permissions),
+    permissions: getMembershipAllowedPermissions(existingProfile, membershipStatus),
     phone: cleanText(profile.phone || existingProfile.phone),
     profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
-    role: existingProfile.role || 'General User',
+    role,
     status: existingProfile.status || 'Active',
     ...preserveTermsAcceptance(existingProfile),
     updatedDate: serverTimestamp(),
@@ -712,6 +716,7 @@ function buildMembershipStatusProfile(profile, membershipStatus) {
   const firstName = profile.firstName || getFirstNameFallback(profile.name);
   const lastName = profile.lastName || getLastNameFallback(profile.name);
   const name = profile.name || [firstName, lastName].filter(Boolean).join(' ');
+  const role = getMembershipAllowedRole(profile, membershipStatus);
 
   return {
     billingAddress: profile.billingAddress || getEmptyBillingAddress(),
@@ -724,10 +729,10 @@ function buildMembershipStatusProfile(profile, membershipStatus) {
     membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
-    permissions: normalizeUserPermissions(profile.permissions),
+    permissions: getMembershipAllowedPermissions(profile, membershipStatus),
     phone: profile.phone || '',
     profileTags: Array.isArray(profile.profileTags) ? profile.profileTags : [],
-    role: profile.role || 'General User',
+    role,
     status: profile.status || 'Active',
     ...preserveTermsAcceptance(profile),
     updatedDate: serverTimestamp(),
@@ -739,6 +744,8 @@ function buildInactivatedMembershipProfile(profile) {
   const firstName = profile.firstName || getFirstNameFallback(profile.name);
   const lastName = profile.lastName || getLastNameFallback(profile.name);
   const name = profile.name || [firstName, lastName].filter(Boolean).join(' ');
+  const membershipStatus = 'Inactive';
+  const role = getMembershipAllowedRole(profile, membershipStatus);
 
   return {
     billingAddress: profile.billingAddress || getEmptyBillingAddress(),
@@ -748,13 +755,13 @@ function buildInactivatedMembershipProfile(profile) {
     lastName,
     membershipMatchedBy: profile.membershipMatchedBy || '',
     membershipMemberId: profile.membershipMemberId || '',
-    membershipStatus: 'Inactive',
+    membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
-    permissions: normalizeUserPermissions(profile.permissions),
+    permissions: getMembershipAllowedPermissions(profile, membershipStatus),
     phone: profile.phone || '',
     profileTags: Array.isArray(profile.profileTags) ? profile.profileTags : [],
-    role: profile.role || 'General User',
+    role,
     status: profile.status || 'Active',
     ...preserveTermsAcceptance(profile),
     updatedDate: serverTimestamp(),
@@ -776,7 +783,7 @@ function preserveTermsAcceptance(profile) {
 
 function getProfilesMissingFromImport(users, importedProfileIds) {
   return users.filter((profile) =>
-    profile.role === 'General User'
+    profile.role !== 'Super User'
       && profile.status !== 'Archived'
       && profile.membershipStatus !== 'Archived'
       && !importedProfileIds.has(profile.id)
@@ -805,6 +812,24 @@ function normalizeUserPermissions(permissions = {}) {
     managePayments: Boolean(permissions.managePayments),
     viewRegistrations: Boolean(permissions.viewRegistrations)
   };
+}
+
+function getMembershipAllowedRole(profile, membershipStatus) {
+  if (profile.role === 'Super User') {
+    return 'Super User';
+  }
+
+  if (membershipStatus === 'Active' && (profile.status || 'Active') === 'Active') {
+    return profile.role || 'General User';
+  }
+
+  return 'General User';
+}
+
+function getMembershipAllowedPermissions(profile, membershipStatus) {
+  return getMembershipAllowedRole(profile, membershipStatus) === 'Admin'
+    ? normalizeUserPermissions(profile.permissions)
+    : normalizeUserPermissions();
 }
 
 async function getMembersMissingFromImport(importedMemberIds) {

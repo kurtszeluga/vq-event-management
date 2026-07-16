@@ -289,6 +289,12 @@ service cloud.firestore {
           || request.resource.data.termsAcceptedDate is timestamp)
         && (!('termsVersion' in request.resource.data)
           || request.resource.data.termsVersion is string)
+        && (request.resource.data.role == 'Super User'
+          || request.resource.data.role == 'Admin'
+            && request.resource.data.status == 'Active'
+            && request.resource.data.membershipStatus == 'Active'
+          || request.resource.data.role == 'General User'
+            && hasNoAdminPermissions())
         && request.resource.data.createdDate is timestamp;
     }
 

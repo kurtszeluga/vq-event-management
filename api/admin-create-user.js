@@ -82,6 +82,13 @@ export default async function handler(request, response) {
     const before = existingProfile.exists ? existingProfile.data() : {};
     const now = FieldValue.serverTimestamp();
     const termsAcceptance = await buildAdminTermsAcceptance(db, before, now);
+    const membershipStatus = payload.membershipStatus || before.membershipStatus || 'Unknown';
+    const role = getAllowedRoleForMembership({
+      isSuperUser: actorProfile.role === 'Super User',
+      membershipStatus,
+      requestedRole: payload.role,
+      status: payload.status
+    });
     const profile = {
       billingAddress: payload.billingAddress,
       createdDate: existingProfile.exists ? before.createdDate : now,
@@ -93,13 +100,16 @@ export default async function handler(request, response) {
       membershipReviewNote: existingProfile.exists ? before.membershipReviewNote || '' : '',
       membershipReviewedBy: existingProfile.exists ? before.membershipReviewedBy || '' : '',
       membershipReviewedDate: existingProfile.exists ? before.membershipReviewedDate || undefined : undefined,
-      membershipStatus: existingProfile.exists ? before.membershipStatus || 'Unknown' : 'Unknown',
-      membershipUpdatedDate: existingProfile.exists ? before.membershipUpdatedDate || now : now,
+      membershipStatus,
+      membershipUpdatedDate:
+        membershipStatus !== before.membershipStatus
+          ? now
+          : before.membershipUpdatedDate || now,
       name: payload.name,
-      permissions: getPermissionsForRole(payload.role, payload.permissions),
+      permissions: getPermissionsForRole(role, payload.permissions),
       phone: payload.phone,
       profileTags: payload.profileTags,
-      role: payload.role,
+      role,
       status: payload.status,
       ...termsAcceptance,
       updatedDate: now,
@@ -132,8 +142,8 @@ export default async function handler(request, response) {
       user: {
         email: payload.email,
         name: payload.name,
-        role: payload.role,
-        status: payload.status,
+        role: profile.role,
+        status: profile.status,
         userId: userRecord.uid
       }
     });
@@ -171,9 +181,16 @@ async function createOrUpdateAuthUser(payload, temporaryPassword) {
 
 function sanitizePayload(payload, actorProfile) {
   const isSuperUser = actorProfile.role === 'Super User';
+  const canManageMembershipStatus =
+    isSuperUser || actorProfile.permissions?.manageMembershipStatus === true;
   const requestedRole = ['Super User', 'Admin', 'General User'].includes(payload.role)
     ? payload.role
     : 'General User';
+  const membershipStatus = canManageMembershipStatus
+    && ['Pending', 'Active', 'Inactive', 'Archived', 'Unknown'].includes(payload.membershipStatus)
+      ? payload.membershipStatus
+      : '';
+  const status = payload.status === 'Inactive' ? 'Inactive' : 'Active';
 
   return {
     billingAddress: {
@@ -190,13 +207,26 @@ function sanitizePayload(payload, actorProfile) {
     permissions: payload.permissions || {},
     phone: cleanText(payload.phone),
     profileTags: normalizeProfileTags(payload.profileTags),
+    membershipStatus,
     role: isSuperUser ? requestedRole : 'General User',
-    status: payload.status === 'Inactive' ? 'Inactive' : 'Active',
+    status,
     temporaryPassword:
       typeof payload.temporaryPassword === 'string' && payload.temporaryPassword.length >= 8
         ? payload.temporaryPassword
         : ''
   };
+}
+
+function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedRole, status }) {
+  if (isSuperUser && requestedRole === 'Super User') {
+    return 'Super User';
+  }
+
+  if (isSuperUser && requestedRole === 'Admin' && membershipStatus === 'Active' && status === 'Active') {
+    return 'Admin';
+  }
+
+  return 'General User';
 }
 
 function getPermissionsForRole(role, permissions = {}) {
