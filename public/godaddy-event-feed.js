@@ -616,15 +616,9 @@
         margin-top: 14px;
         justify-content: flex-start;
       }
-      .vq-feed-register-action {
-        margin-left: auto;
-      }
       @media (max-width: 720px) {
         .vq-feed-card-top {
           flex-direction: column;
-        }
-        .vq-feed-register-action {
-          margin-left: 0;
         }
         .vq-feed-thumb-image,
         .vq-feed-thumb-placeholder {
