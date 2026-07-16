@@ -1871,6 +1871,43 @@ body.popup-mode .page-content {
   margin-top: 18px;
 }
 
+.registration-activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.registration-quarter-filters {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.registration-year-filter {
+  display: grid;
+  gap: 6px;
+  margin-right: 4px;
+  min-width: 140px;
+}
+
+.registration-year-filter span {
+  color: #3b4b48;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.registration-year-filter select {
+  border: 1px solid #c9bbb0;
+  border-radius: 8px;
+  color: #1d2927;
+  font: inherit;
+  height: 40px;
+  padding: 7px 10px;
+}
+
 .registration-admin-controls label {
   display: grid;
   gap: 8px;
@@ -1917,11 +1954,68 @@ body.popup-mode .page-content {
   padding: 16px;
 }
 
+.registration-event-card {
+  appearance: none;
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  color: #1d2927;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.registration-event-card:hover,
+.registration-event-card:focus {
+  border-color: #225c56;
+  outline: 3px solid #cfe3de;
+}
+
+.registration-event-card-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.registration-event-card-main h3,
+.registration-event-card-main p {
+  margin: 0;
+}
+
+.registration-event-card-main p {
+  color: #5c6966;
+  font-size: 0.92rem;
+}
+
+.registration-event-stats {
+  align-content: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: 360px;
+}
+
+.registration-event-stats span {
+  background: #e9f2ef;
+  border: 1px solid #cfe3de;
+  border-radius: 999px;
+  color: #225c56;
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
 .registration-admin-card-header {
   align-items: start;
   display: grid;
   gap: 14px;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr auto;
 }
 
 .registration-admin-card-header h3,
@@ -2215,6 +2309,7 @@ body.popup-mode .page-content {
   .user-admin-card,
   .public-event-card,
   .event-detail-layout,
+  .registration-event-card,
   .registration-layout,
   .registration-profile-edit-grid,
   .capacity-row,
@@ -2233,6 +2328,11 @@ body.popup-mode .page-content {
 
   .public-listing-card {
     grid-template-columns: 1fr;
+  }
+
+  .registration-event-stats {
+    justify-content: flex-start;
+    max-width: none;
   }
 
   .public-event-card dl {

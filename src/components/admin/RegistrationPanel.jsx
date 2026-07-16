@@ -13,18 +13,28 @@ import { formatEventDate } from '../../utils/eventFormat.js';
 const REGISTRATION_STATUS_FILTERS = ['All', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
 const MANUAL_PAYMENT_METHOD_OPTIONS = ['Cash', 'Check'];
+const ACTIVITY_FILTERS = ['Programs', 'Workshops', 'Retreat', 'Challenges'];
+const QUARTER_FILTERS = [
+  { label: 'Q1 (Jan-March)', value: 'Q1' },
+  { label: 'Q2 (April-June)', value: 'Q2' },
+  { label: 'Q3 (July-Sept)', value: 'Q3' },
+  { label: 'Q4 (Oct-Dec)', value: 'Q4' }
+];
 
 function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
+  const [activityFilter, setActivityFilter] = useState('');
   const [error, setError] = useState('');
   const [eventFilter, setEventFilter] = useState('all');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [paymentFilter, setPaymentFilter] = useState('All');
+  const [quarterFilter, setQuarterFilter] = useState('');
   const [registrationStatusFilter, setRegistrationStatusFilter] = useState('All');
   const [registrations, setRegistrations] = useState([]);
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedRegistrationId, setExpandedRegistrationId] = useState('');
+  const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
   const [selectedPaymentAmount, setSelectedPaymentAmount] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('None');
@@ -33,6 +43,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
+  const [yearFilter, setYearFilter] = useState('');
 
   useEffect(() => {
     let pendingLoads = 3;
@@ -105,6 +116,29 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const filteredRegistrations = useMemo(
     () =>
       registrations.filter((registration) => {
+        const event = eventMap.get(registration.eventId);
+
+        if (
+          activityFilter
+          && getActivityFilterValue(event?.eventType || registration.eventType) !== activityFilter
+        ) {
+          return false;
+        }
+
+        if (
+          quarterFilter
+          && getQuarterFilterValue(event?.date || registration.eventDate) !== quarterFilter
+        ) {
+          return false;
+        }
+
+        if (
+          yearFilter
+          && getYearFilterValue(event?.date || registration.eventDate) !== yearFilter
+        ) {
+          return false;
+        }
+
         if (eventFilter !== 'all' && registration.eventId !== eventFilter) {
           return false;
         }
@@ -120,7 +154,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           return false;
         }
 
-        const event = eventMap.get(registration.eventId);
         const user =
           userMap.byId.get(registration.userId)
           || userMap.byEmail.get(normalizeEmail(registration.email));
@@ -150,12 +183,15 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     [
       eventFilter,
       eventMap,
+      activityFilter,
       paymentFilter,
+      quarterFilter,
       registrationStatusFilter,
       registrations,
       searchTerm,
       userMap.byEmail,
-      userMap.byId
+      userMap.byId,
+      yearFilter
     ]
   );
   const groupedRegistrations = useMemo(() => {
@@ -198,7 +234,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         const secondDate = getEventSortValue(second.event);
 
         if (firstDate !== secondDate) {
-          return firstDate - secondDate;
+          return secondDate - firstDate;
         }
 
         return getEventDisplayTitle(first.event, first.eventId).localeCompare(
@@ -218,9 +254,69 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     ],
     [events]
   );
+  const activityCounts = useMemo(() => {
+    const counts = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, 0]));
+
+    registrations.forEach((registration) => {
+      const event = eventMap.get(registration.eventId);
+      const filterValue = getActivityFilterValue(event?.eventType || registration.eventType);
+
+      if (filterValue && filterValue in counts) {
+        counts[filterValue] += 1;
+      }
+    });
+
+    return counts;
+  }, [eventMap, registrations]);
+  const quarterCounts = useMemo(() => {
+    const counts = Object.fromEntries(QUARTER_FILTERS.map((filter) => [filter.value, 0]));
+
+    registrations.forEach((registration) => {
+      const event = eventMap.get(registration.eventId);
+
+      if (
+        activityFilter
+        && getActivityFilterValue(event?.eventType || registration.eventType) !== activityFilter
+      ) {
+        return;
+      }
+
+      const eventDate = event?.date || registration.eventDate;
+
+      if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
+        return;
+      }
+
+      const filterValue = getQuarterFilterValue(eventDate);
+
+      if (filterValue && filterValue in counts) {
+        counts[filterValue] += 1;
+      }
+    });
+
+    return counts;
+  }, [activityFilter, eventMap, registrations, yearFilter]);
+  const yearOptions = useMemo(() => {
+    const years = new Set();
+
+    registrations.forEach((registration) => {
+      const event = eventMap.get(registration.eventId);
+      const year = getYearFilterValue(event?.date || registration.eventDate);
+
+      if (year) {
+        years.add(year);
+      }
+    });
+
+    return [...years].sort((first, second) => Number(second) - Number(first));
+  }, [eventMap, registrations]);
   const selectedRegistration = useMemo(
     () => registrations.find((registration) => registration.id === selectedRegistrationId) || null,
     [registrations, selectedRegistrationId]
+  );
+  const selectedEventGroup = useMemo(
+    () => groupedRegistrations.find((group) => group.eventId === selectedEventId) || null,
+    [groupedRegistrations, selectedEventId]
   );
   const selectedRegistrationEvent = selectedRegistration
     ? eventMap.get(selectedRegistration.eventId)
@@ -234,10 +330,46 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const paymentStatusOptions = getPaymentStatusOptions(selectedRegistration);
 
   function handleResetFilters() {
+    setActivityFilter('');
     setEventFilter('all');
     setRegistrationStatusFilter('All');
     setPaymentFilter('All');
+    setQuarterFilter('');
     setSearchTerm('');
+    setSelectedEventId('');
+    setExpandedRegistrationId('');
+    setYearFilter('');
+  }
+
+  function handleActivityFilter(nextFilter) {
+    setActivityFilter((currentFilter) => (currentFilter === nextFilter ? '' : nextFilter));
+    setEventFilter('all');
+    setSelectedEventId('');
+    setExpandedRegistrationId('');
+  }
+
+  function handleQuarterFilter(nextFilter) {
+    setQuarterFilter((currentFilter) => (currentFilter === nextFilter ? '' : nextFilter));
+    setEventFilter('all');
+    setSelectedEventId('');
+    setExpandedRegistrationId('');
+  }
+
+  function handleYearFilter(nextYear) {
+    setYearFilter(nextYear);
+    setEventFilter('all');
+    setSelectedEventId('');
+    setExpandedRegistrationId('');
+  }
+
+  function handleSelectEvent(eventId) {
+    setSelectedEventId(eventId);
+    setExpandedRegistrationId('');
+  }
+
+  function handleBackToEvents() {
+    setSelectedEventId('');
+    setExpandedRegistrationId('');
   }
 
   function handleToggleDetails(registrationId) {
@@ -374,10 +506,52 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           <span>{filteredRegistrations.length} shown</span>
         </div>
       </div>
+      <div className="registration-activity-filters" aria-label="Registration activity filters">
+        {ACTIVITY_FILTERS.map((filter) => (
+          <button
+            className={`status-filter-button${activityFilter === filter ? ' active' : ''}`}
+            key={filter}
+            type="button"
+            onClick={() => handleActivityFilter(filter)}
+          >
+            {filter} ({activityCounts[filter] || 0})
+          </button>
+        ))}
+      </div>
+      <div className="registration-quarter-filters" aria-label="Registration quarter filters">
+        <label className="registration-year-filter">
+          <span>Year</span>
+          <select value={yearFilter} onChange={(event) => handleYearFilter(event.target.value)}>
+            <option value="">All Years</option>
+            {yearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </label>
+        {QUARTER_FILTERS.map((filter) => (
+          <button
+            className={`status-filter-button${quarterFilter === filter.value ? ' active' : ''}`}
+            key={filter.value}
+            type="button"
+            onClick={() => handleQuarterFilter(filter.value)}
+          >
+            {filter.label} ({quarterCounts[filter.value] || 0})
+          </button>
+        ))}
+      </div>
       <div className="registration-admin-controls">
         <label>
           <span>Event / Activity</span>
-          <select value={eventFilter} onChange={(event) => setEventFilter(event.target.value)}>
+          <select
+            value={eventFilter}
+            onChange={(event) => {
+              setEventFilter(event.target.value);
+              setSelectedEventId('');
+              setExpandedRegistrationId('');
+            }}
+          >
             {eventOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -436,7 +610,39 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         </div>
       ) : null}
       <div className="registration-admin-list">
-        {groupedRegistrations.map((group) => {
+        {groupedRegistrations.length && !selectedEventGroup ? (
+          groupedRegistrations.map((group) => {
+            const eventTitle = getEventDisplayTitle(group.event, group.eventId, group.snapshot);
+
+            return (
+              <button
+                className="registration-event-card"
+                key={group.eventId}
+                type="button"
+                onClick={() => handleSelectEvent(group.eventId)}
+              >
+                <div className="registration-event-card-main">
+                  <div className="card-kicker">
+                    <span>{group.event?.eventType || group.snapshot.eventType || 'Event / Activity'}</span>
+                    <strong>{group.registrations.length} total registrations</strong>
+                  </div>
+                  <h3>{eventTitle}</h3>
+                  <p>
+                    {formatEventDate(group.event?.date || group.snapshot.eventDate)}
+                    {group.event?.location ? ` | ${group.event.location}` : ''}
+                  </p>
+                </div>
+                <div className="registration-event-stats">
+                  <span>{getCapacitySummary(group.event, group.counts.registered)}</span>
+                  <span>{group.counts.registered} Registered</span>
+                  <span>{group.counts.waitlisted} Waitlisted</span>
+                  <span>{group.counts.cancelled} Cancelled</span>
+                </div>
+              </button>
+            );
+          })
+        ) : null}
+        {selectedEventGroup ? [selectedEventGroup].map((group) => {
           const eventTitle = getEventDisplayTitle(group.event, group.eventId, group.snapshot);
 
           return (
@@ -453,6 +659,13 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     {group.event?.location ? ` | ${group.event.location}` : ''}
                   </p>
                 </div>
+                <button
+                  className="button-link button-reset secondary-action compact-action"
+                  type="button"
+                  onClick={handleBackToEvents}
+                >
+                  Back To Events
+                </button>
               </div>
               <div className="user-table-wrap">
                 <table className="user-table registration-table">
@@ -564,7 +777,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
               </div>
             </article>
           );
-        })}
+        }) : null}
       </div>
       {selectedRegistration ? (
         <div
@@ -941,6 +1154,58 @@ function getPaymentHelpText(registration, paymentStatus) {
   }
 
   return 'Failed payments usually come from an online processor and should be reviewed before changing.';
+}
+
+function getActivityFilterValue(eventType = '') {
+  if (['Class (Half Day)', 'Class (Full Day)', 'Class (Half-Day)', 'Class (Full-Day)', 'Lecture'].includes(eventType)) {
+    return 'Programs';
+  }
+
+  if (eventType === 'Workshop') {
+    return 'Workshops';
+  }
+
+  if (eventType === 'Retreat') {
+    return 'Retreat';
+  }
+
+  if (eventType === 'Challenges' || eventType === 'Challenge') {
+    return 'Challenges';
+  }
+
+  return '';
+}
+
+function getQuarterFilterValue(dateValue) {
+  if (!dateValue) {
+    return '';
+  }
+
+  const date = typeof dateValue.toDate === 'function'
+    ? dateValue.toDate()
+    : new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return `Q${Math.floor(date.getMonth() / 3) + 1}`;
+}
+
+function getYearFilterValue(dateValue) {
+  if (!dateValue) {
+    return '';
+  }
+
+  const date = typeof dateValue.toDate === 'function'
+    ? dateValue.toDate()
+    : new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return String(date.getFullYear());
 }
 
 function hasPaymentChanged(registration, paymentEdit) {
