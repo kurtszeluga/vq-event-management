@@ -4,6 +4,7 @@ import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 const PAYMENT_METHODS = ['None', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
+const REGISTRATION_STATUSES = ['Registered', 'Cancelled', 'Waitlisted'];
 
 let firebaseProjectId = '';
 
@@ -81,35 +82,39 @@ export default async function handler(request, response) {
 
     const before = registrationSnap.data();
     const paymentUpdate = sanitizePaymentUpdate(request.body || {}, before);
+    const statusUpdate = sanitizeRegistrationStatus(request.body?.status, before);
     const now = FieldValue.serverTimestamp();
     const updatePayload = {
       ...paymentUpdate,
+      ...statusUpdate,
       paymentUpdatedDate: now
     };
     const batch = db.batch();
 
     batch.update(registrationRef, updatePayload);
     batch.set(db.collection('auditLogs').doc(), {
-      action: paymentUpdate.paymentStatus === 'Refunded' ? 'Refund' : 'Pay',
+      action: getAuditAction(paymentUpdate, statusUpdate),
       actorEmail: actorProfile.email || '',
       actorName: actorProfile.name || actorProfile.email || 'Unknown Admin',
       actorRole: actorProfile.role || '',
       actorUserId: actorProfile.userId || actorUid,
       after: {
         ...paymentUpdate,
+        ...statusUpdate,
         paymentUpdatedDate: null
       },
       before,
       createdDate: now,
       entityId: registrationId,
       entityType: 'Registration',
-      summary: `Updated payment for "${before.name || before.email || registrationId}" to ${paymentUpdate.paymentStatus}`
+      summary: buildAuditSummary(before, registrationId, paymentUpdate, statusUpdate)
     });
 
     await batch.commit();
 
     response.status(200).json({
       payment: paymentUpdate,
+      status: statusUpdate.status || before.status || '',
       registrationId
     });
   } catch (error) {
@@ -117,6 +122,59 @@ export default async function handler(request, response) {
       error: error.message || 'Payment could not be updated.'
     });
   }
+}
+
+function sanitizeRegistrationStatus(status, registration) {
+  const nextStatus = cleanText(status);
+
+  if (!nextStatus) {
+    return {};
+  }
+
+  if (!REGISTRATION_STATUSES.includes(nextStatus)) {
+    throw new Error('Choose a valid registration status.');
+  }
+
+  if (nextStatus === (registration.status || 'Registered')) {
+    return {};
+  }
+
+  return { status: nextStatus };
+}
+
+function buildAuditSummary(before, registrationId, paymentUpdate, statusUpdate) {
+  const name = before.name || before.email || registrationId;
+  const changes = [];
+
+  if (statusUpdate.status) {
+    changes.push(`status to ${statusUpdate.status}`);
+  }
+
+  if (paymentUpdate.paymentStatus !== (before.paymentStatus || 'Pending')) {
+    changes.push(`payment to ${paymentUpdate.paymentStatus}`);
+  }
+
+  if (!changes.length) {
+    changes.push(`payment details to ${paymentUpdate.paymentStatus}`);
+  }
+
+  return `Updated registration "${name}" ${changes.join(' and ')}`;
+}
+
+function getAuditAction(paymentUpdate, statusUpdate) {
+  if (statusUpdate.status === 'Cancelled') {
+    return 'Cancel';
+  }
+
+  if (paymentUpdate.paymentStatus === 'Refunded') {
+    return 'Refund';
+  }
+
+  if (paymentUpdate.paymentStatus === 'Paid' || paymentUpdate.paymentStatus === 'Waived') {
+    return 'Pay';
+  }
+
+  return 'Update';
 }
 
 function getBearerToken(request) {

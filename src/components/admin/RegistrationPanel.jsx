@@ -5,8 +5,7 @@ import {
 } from '../../services/eventService.js';
 import {
   subscribeToRegistrations,
-  updateRegistrationPayment,
-  updateRegistrationStatus
+  updateRegistrationPayment
 } from '../../services/registrationService.js';
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatEventDate } from '../../utils/eventFormat.js';
@@ -333,13 +332,14 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSavingRegistrationId(selectedRegistration.id);
 
     try {
-      if (statusChanged) {
-        await updateRegistrationStatus(selectedRegistration.id, selectedStatus, currentUserProfile);
-      }
-
-      if (paymentChanged) {
-        await updateRegistrationPayment(selectedRegistration.id, nextPayment.payment, currentUserProfile);
-      }
+      await updateRegistrationPayment(
+        selectedRegistration.id,
+        {
+          ...nextPayment.payment,
+          status: selectedStatus
+        },
+        currentUserProfile
+      );
 
       setSuccessMessage('Registration changes saved.');
       setSelectedRegistrationId('');
