@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { US_STATES } from '../data/usStates.js';
 import { getEvent } from '../services/eventService.js';
@@ -33,7 +33,6 @@ const MEMBERSHIP_TERMS_VERSION = '2026-07-16';
 
 function RegisterPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const eventId = searchParams.get('eventId') || '';
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const referrerUrl = getExternalReferrerUrl();
@@ -356,21 +355,16 @@ function RegisterPage() {
   }
 
   function handleClose() {
-    if (returnTarget || window.opener) {
-      window.close();
+    window.close();
 
-      window.setTimeout(() => {
-        if (returnTarget) {
-          window.location.assign(returnTarget);
-          return;
-        }
+    window.setTimeout(() => {
+      if (returnTarget) {
+        window.location.assign(returnTarget);
+        return;
+      }
 
-        navigate(`/events/${eventId}`);
-      }, 250);
-      return;
-    }
-
-    navigate(`/events/${eventId}`);
+      setCloseMessage('You can close this registration window or tab.');
+    }, 250);
   }
 
   function handleCompletionClose() {
