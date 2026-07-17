@@ -13,6 +13,7 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
+import MyRegistrationsPage from './pages/MyRegistrationsPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import RequireAdmin from './components/RequireAdmin.jsx';
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
     errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'my-registrations', element: <MyRegistrationsPage /> },
       { path: 'events', element: <EventsPage /> },
       { path: 'business-listings', element: <BusinessListingsPage /> },
       { path: 'for-sale', element: <ForSalePage /> },

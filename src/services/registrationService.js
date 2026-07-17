@@ -6,6 +6,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  where,
   writeBatch
 } from 'firebase/firestore';
 import { auth } from '../lib/firebase.js';
@@ -17,6 +18,19 @@ const auditLogsCollection = () => collection(db, 'auditLogs');
 
 export function subscribeToRegistrations(onNext, onError) {
   const registrationsQuery = query(registrationsCollection(), orderBy('registrationDate', 'desc'));
+  return onSnapshot(registrationsQuery, onNext, onError);
+}
+
+export function subscribeToUserRegistrations(userId, onNext, onError) {
+  if (!userId) {
+    return () => {};
+  }
+
+  const registrationsQuery = query(
+    registrationsCollection(),
+    where('userId', '==', userId)
+  );
+
   return onSnapshot(registrationsQuery, onNext, onError);
 }
 

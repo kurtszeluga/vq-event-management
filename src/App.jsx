@@ -70,6 +70,12 @@ function App() {
           >
             Home
           </NavLink>
+          <NavLink
+            to="/my-registrations"
+            className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+          >
+            My Registrations
+          </NavLink>
           {!currentUser ? (
             <NavLink
               to="/login"
