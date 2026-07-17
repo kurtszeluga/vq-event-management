@@ -64,7 +64,7 @@ async function createRegistration(db, payload) {
   const paymentRef = db.collection('payments').doc();
   const auditRef = db.collection('auditLogs').doc();
 
-  return db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
     const eventSnap = await transaction.get(eventRef);
 
     if (!eventSnap.exists) {
@@ -123,6 +123,12 @@ async function createRegistration(db, payload) {
     const eventServiceFee = Number(event.serviceFee || 0);
     const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
     const paymentStatus = getInitialPaymentStatus({ isPaidEvent, status });
+    const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
+
+    if (requiresSquarePayment && !payload.squarePaymentToken) {
+      throw httpError(400, 'Enter card payment details before submitting registration.');
+    }
+
     const userId = profile?.userId || profile?.id || '';
     const profileUpdates = payload.profileUpdates || {};
     const registrantFirstName = profileUpdates.firstName || profile?.firstName || getFirstName(payload.name);
@@ -234,6 +240,15 @@ async function createRegistration(db, payload) {
       paymentRequired: isPaidEvent,
       paymentStatus: registration.paymentStatus,
       paymentPreference: registration.paymentPreference,
+      squarePayment: requiresSquarePayment ? {
+        amountDue,
+        email: payload.email,
+        eventTitle: event.title || event.eventType || payload.eventId,
+        name: payload.name,
+        paymentId: paymentRef.id,
+        registrationId: registrationRef.id,
+        sourceId: payload.squarePaymentToken
+      } : null,
       profileReactivated: Boolean(profile && payload.reactivateProfile && profileStatus !== 'Active'),
       registrationId: registrationRef.id,
       registeredCount: registeredCount + (status === 'Registered' ? 1 : 0),
@@ -257,6 +272,33 @@ async function createRegistration(db, payload) {
       }
     };
   });
+
+  if (!result.squarePayment) {
+    return result;
+  }
+
+  try {
+    const squarePayment = await createSquarePayment(result.squarePayment);
+    await finalizeSquareRegistrationPayment(db, result, squarePayment);
+
+    result.status = 'Registered';
+    result.paymentStatus = 'Paid';
+    result.paymentPreference = 'online';
+    result.registeredCount += 1;
+    result.confirmationContext.registration.status = 'Registered';
+    result.confirmationContext.registration.paymentStatus = 'Paid';
+    result.confirmationContext.registration.paymentMethod = 'Online';
+    result.confirmationContext.registration.paymentPreference = 'online';
+    result.confirmationContext.registration.amountPaid = result.squarePayment.amountDue;
+    delete result.squarePayment;
+
+    return result;
+  } catch (paymentError) {
+    await markSquareRegistrationPaymentFailed(db, result, paymentError).catch((updateError) => {
+      console.error('Failed to mark Square payment failure', updateError);
+    });
+    throw paymentError;
+  }
 }
 
 async function getProfileById(transaction, db, profileUserId, email) {
@@ -371,8 +413,148 @@ function sanitizeRegistrationPayload(payload) {
     profileUpdates: sanitizeProfileUpdates(payload.profileUpdates || {}),
     reactivateProfile: Boolean(payload.reactivateProfile),
     reactivationTermsAccepted: Boolean(payload.reactivationTermsAccepted),
+    squarePaymentToken: String(payload.squarePaymentToken || '').trim(),
     termsVersion: String(payload.termsVersion || '').trim()
   };
+}
+
+async function createSquarePayment(paymentRequest) {
+  const accessToken = process.env.SQUARE_ACCESS_TOKEN || '';
+  const locationId = process.env.SQUARE_LOCATION_ID || '';
+  const environment = process.env.SQUARE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+
+  if (!accessToken || !locationId) {
+    throw httpError(500, 'Online card payment is not configured yet.');
+  }
+
+  const endpoint = environment === 'production'
+    ? 'https://connect.squareup.com/v2/payments'
+    : 'https://connect.squareupsandbox.com/v2/payments';
+  const response = await fetch(endpoint, {
+    body: JSON.stringify({
+      amount_money: {
+        amount: Math.round(Number(paymentRequest.amountDue || 0) * 100),
+        currency: 'USD'
+      },
+      idempotency_key: paymentRequest.registrationId,
+      location_id: locationId,
+      note: `Village Quilters registration: ${paymentRequest.eventTitle}`,
+      source_id: paymentRequest.sourceId
+    }),
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'Square-Version': '2026-05-20'
+    },
+    method: 'POST'
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw httpError(response.status, getSquarePaymentError(result));
+  }
+
+  return result.payment || {};
+}
+
+async function finalizeSquareRegistrationPayment(db, result, squarePayment) {
+  const payment = result.squarePayment;
+  const registrationRef = db.collection('registrations').doc(payment.registrationId);
+  const paymentRef = db.collection('payments').doc(payment.paymentId);
+  const auditRef = db.collection('auditLogs').doc();
+  const squareTransactionId = squarePayment.id || '';
+
+  const updatePayload = {
+    amountPaid: payment.amountDue,
+    paymentMethod: 'Online',
+    paymentNote: 'Paid online through Square.',
+    paymentPreference: 'online',
+    paymentStatus: 'Paid',
+    paymentUpdatedDate: FieldValue.serverTimestamp(),
+    status: 'Registered'
+  };
+
+  await db.runTransaction(async (transaction) => {
+    const registrationSnap = await transaction.get(registrationRef);
+    const before = registrationSnap.exists ? registrationSnap.data() : {};
+
+    transaction.update(registrationRef, updatePayload);
+    transaction.update(paymentRef, {
+      amount: payment.amountDue,
+      method: 'Online',
+      note: 'Paid online through Square.',
+      processor: 'Square',
+      registrationStatus: 'Registered',
+      squareTransactionId,
+      status: 'Paid',
+      updatedRegistrationSnapshot: {
+        amountPaid: payment.amountDue,
+        paymentMethod: 'Online',
+        paymentPreference: 'online',
+        paymentStatus: 'Paid',
+        status: 'Registered'
+      }
+    });
+    transaction.set(auditRef, {
+      action: 'Pay',
+      actorEmail: payment.email,
+      actorName: payment.name,
+      actorRole: 'Registrant',
+      actorUserId: '',
+      after: {
+        ...updatePayload,
+        paymentUpdatedDate: null,
+        squareTransactionId
+      },
+      before,
+      createdDate: FieldValue.serverTimestamp(),
+      entityId: payment.registrationId,
+      entityType: 'Registration',
+      summary: `${payment.name} paid online for "${payment.eventTitle}"`
+    });
+  });
+}
+
+async function markSquareRegistrationPaymentFailed(db, result, paymentError) {
+  const payment = result.squarePayment;
+
+  if (!payment?.registrationId || !payment?.paymentId) {
+    return;
+  }
+
+  await db.runTransaction(async (transaction) => {
+    transaction.update(db.collection('registrations').doc(payment.registrationId), {
+      paymentMethod: 'Online',
+      paymentNote: paymentError.message || 'Square payment failed.',
+      paymentStatus: 'Failed',
+      paymentUpdatedDate: FieldValue.serverTimestamp(),
+      status: 'Cancelled'
+    });
+    transaction.update(db.collection('payments').doc(payment.paymentId), {
+      method: 'Online',
+      note: paymentError.message || 'Square payment failed.',
+      processor: 'Square',
+      registrationStatus: 'Cancelled',
+      status: 'Failed',
+      updatedRegistrationSnapshot: {
+        amountPaid: 0,
+        paymentMethod: 'Online',
+        paymentPreference: 'online',
+        paymentStatus: 'Failed',
+        status: 'Cancelled'
+      }
+    });
+  });
+}
+
+function getSquarePaymentError(result) {
+  const errors = result?.errors || [];
+  const message = errors
+    .map((error) => error.detail || error.message)
+    .filter(Boolean)
+    .join(' ');
+
+  return message || 'Square card payment could not be completed.';
 }
 
 function getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck }) {

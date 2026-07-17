@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Link, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
@@ -6,6 +6,7 @@ import { US_STATES } from '../data/usStates.js';
 import { getEvent } from '../services/eventService.js';
 import {
   createRegistration,
+  loadSquarePaymentConfig,
   lookupRegistrationEmail,
   verifyRegistrationPhone
 } from '../services/registrationService.js';
@@ -30,6 +31,7 @@ import {
 } from '../utils/profileFormat.js';
 
 const MEMBERSHIP_TERMS_VERSION = '2026-07-16';
+const squareScriptPromises = new Map();
 
 function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -71,6 +73,9 @@ function RegisterPage() {
   const [reactivateProfile, setReactivateProfile] = useState(false);
   const [reactivationTermsAccepted, setReactivationTermsAccepted] = useState(false);
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
+  const [squareCard, setSquareCard] = useState(null);
+  const [squareConfig, setSquareConfig] = useState(null);
+  const [squareError, setSquareError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
@@ -124,6 +129,38 @@ function RegisterPage() {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    if (!isPaidEvent) {
+      setSquareCard(null);
+      setSquareConfig(null);
+      setSquareError('');
+      return;
+    }
+
+    let active = true;
+
+    loadSquarePaymentConfig()
+      .then((config) => {
+        if (!active) {
+          return;
+        }
+
+        setSquareConfig(config);
+        setSquareError(config.enabled ? '' : 'Online card payment is not configured yet.');
+      })
+      .catch((error) => {
+        if (active) {
+          setSquareCard(null);
+          setSquareConfig(null);
+          setSquareError(error.message);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isPaidEvent]);
+
   const registrationUnavailable = useMemo(() => {
     if (!event) {
       return '';
@@ -151,6 +188,7 @@ function RegisterPage() {
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const isPaidEvent = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
+  const requiresSquarePayment = isPaidEvent && paymentPreference !== 'cash-check-later';
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
   const needsAccountPassword = lookupComplete
     && Boolean(matchedProfile)
@@ -262,6 +300,9 @@ function RegisterPage() {
     setSubmitting(true);
 
     try {
+      const squarePaymentToken = requiresSquarePayment
+        ? await tokenizeSquarePayment()
+        : '';
       const profileUpdates = {
         firstName: toTitleCase(firstName),
         lastName: toTitleCase(lastName),
@@ -288,6 +329,7 @@ function RegisterPage() {
         profileUpdates,
         reactivateProfile,
         reactivationTermsAccepted,
+        squarePaymentToken,
         termsVersion: displayedTermsVersion
       });
       setConfirmation(result);
@@ -296,6 +338,37 @@ function RegisterPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function tokenizeSquarePayment() {
+    if (!squareCard) {
+      throw new Error(squareError || 'Card payment is not ready yet.');
+    }
+
+    const tokenResult = await squareCard.tokenize({
+      amount: getEventPaymentTotal(event).toFixed(2),
+      billingContact: {
+        addressLines: [billingStreet].filter(Boolean),
+        city: billingCity,
+        countryCode: 'US',
+        email,
+        familyName: lastName,
+        givenName: firstName,
+        phone,
+        postalCode: billingPostalCode,
+        state: billingState
+      },
+      currencyCode: 'USD',
+      customerInitiated: true,
+      intent: 'CHARGE',
+      sellerKeyedIn: false
+    });
+
+    if (tokenResult.status !== 'OK') {
+      throw new Error(getSquareTokenizeError(tokenResult));
+    }
+
+    return tokenResult.token;
   }
 
   async function handlePasswordSignIn() {
@@ -794,6 +867,16 @@ function RegisterPage() {
                       </span>
                     </label>
                   ) : null}
+                  {isPaidEvent ? (
+                    <RegistrationPaymentPanel
+                      amountDue={getEventPaymentTotal(event)}
+                      config={squareConfig}
+                      disabled={submitting || Boolean(confirmation)}
+                      error={squareError}
+                      onCardReady={setSquareCard}
+                      onlinePaymentRequired={requiresSquarePayment}
+                    />
+                  ) : null}
                   {submitting ? (
                     <p className="form-success">
                       Submitting registration and preparing confirmation...
@@ -803,6 +886,7 @@ function RegisterPage() {
                     className="button-link button-reset"
                     disabled={submitting
                       || Boolean(registrationUnavailable)
+                      || (requiresSquarePayment && (!squareCard || Boolean(squareError)))
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
                   >
@@ -953,7 +1037,12 @@ function LookupResult({
 }
 
 function EventSummary({ event }) {
-  const cost = event.isPaid ? formatCurrency(event.cost) : 'No Charge';
+  const cost = event.isPaid
+    ? `${formatCurrency(getEventPaymentTotal(event))} total`
+    : 'No Charge';
+  const paymentBreakdown = event.isPaid
+    ? `${formatCurrency(event.cost || 0)} + ${formatCurrency(event.serviceFee || 0)} service fee`
+    : '';
 
   return (
     <aside className="registration-summary">
@@ -977,7 +1066,10 @@ function EventSummary({ event }) {
         </div>
         <div>
           <dt>Cost</dt>
-          <dd>{cost}</dd>
+          <dd>
+            {cost}
+            {paymentBreakdown ? <span className="form-help">{paymentBreakdown}</span> : null}
+          </dd>
         </div>
         <div>
           <dt>Capacity</dt>
@@ -1040,6 +1132,97 @@ function RegistrationCompletion({ closeMessage, confirmation, event, onReturn })
   );
 }
 
+function RegistrationPaymentPanel({
+  amountDue,
+  config,
+  disabled,
+  error,
+  onCardReady,
+  onlinePaymentRequired
+}) {
+  const cardContainerId = useRef(`square-card-${Math.random().toString(36).slice(2)}`);
+  const [localError, setLocalError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!onlinePaymentRequired || !config?.enabled) {
+      onCardReady(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    let cardInstance = null;
+
+    async function initializeSquareCard() {
+      setLoading(true);
+      setLocalError('');
+
+      try {
+        await loadSquareScript(config.scriptUrl);
+
+        if (!window.Square) {
+          throw new Error('Square payment form could not be loaded.');
+        }
+
+        const payments = window.Square.payments(config.applicationId, config.locationId);
+        cardInstance = await payments.card();
+        await cardInstance.attach(`#${cardContainerId.current}`);
+
+        if (!cancelled) {
+          onCardReady(cardInstance);
+        }
+      } catch (squareLoadError) {
+        if (!cancelled) {
+          onCardReady(null);
+          setLocalError(squareLoadError.message || 'Square payment form could not be loaded.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    initializeSquareCard();
+
+    return () => {
+      cancelled = true;
+      onCardReady(null);
+
+      if (cardInstance && typeof cardInstance.destroy === 'function') {
+        cardInstance.destroy();
+      }
+    };
+  }, [config, onCardReady, onlinePaymentRequired]);
+
+  return (
+    <div className="registration-payment-panel">
+      <strong>Payment</strong>
+      <span className="form-help">
+        Amount due by card: {formatCurrency(amountDue)}
+      </span>
+      <p className="form-help">
+        Your card information is entered directly into Square&apos;s secure payment form.
+        The Village Quilters Network does not store your card number or security code.
+      </p>
+      {!onlinePaymentRequired ? (
+        <p className="form-help">Cash/check later is selected, so online card payment is not needed now.</p>
+      ) : null}
+      {onlinePaymentRequired ? (
+        <>
+          <div
+            aria-label="Secure Square card payment form"
+            className={`square-card-container${disabled ? ' is-disabled' : ''}`}
+            id={cardContainerId.current}
+          />
+          {loading ? <p className="form-help">Loading secure payment form...</p> : null}
+          {error || localError ? <p className="form-error">{error || localError}</p> : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function formatAddress(address = {}) {
   return [
     address.street,
@@ -1047,6 +1230,42 @@ function formatAddress(address = {}) {
     [address.state, address.postalCode].filter(Boolean).join(' '),
     address.country
   ].filter(Boolean).join(', ') || 'Not listed';
+}
+
+function loadSquareScript(scriptUrl) {
+  if (!scriptUrl) {
+    return Promise.reject(new Error('Square payment script is not configured.'));
+  }
+
+  if (window.Square) {
+    return Promise.resolve();
+  }
+
+  if (!squareScriptPromises.has(scriptUrl)) {
+    squareScriptPromises.set(scriptUrl, new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = scriptUrl;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Square payment script could not be loaded.'));
+      document.head.appendChild(script);
+    }));
+  }
+
+  return squareScriptPromises.get(scriptUrl);
+}
+
+function getEventPaymentTotal(event) {
+  return Number(event?.cost || 0) + Number(event?.serviceFee || 0);
+}
+
+function getSquareTokenizeError(tokenResult) {
+  const errors = tokenResult?.errors || [];
+  const message = errors
+    .map((squareError) => squareError.message)
+    .filter(Boolean)
+    .join(' ');
+
+  return message || 'Card payment could not be verified. Please check the card details and try again.';
 }
 
 function validateForm({ email, firstName, lastName, phone }) {

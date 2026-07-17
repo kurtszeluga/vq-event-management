@@ -59,6 +59,17 @@ export async function createRegistration(registrationData) {
   return result;
 }
 
+export async function loadSquarePaymentConfig() {
+  const response = await fetch('/api/square-config');
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Payment setup could not be loaded.');
+  }
+
+  return result;
+}
+
 export async function sendMembershipConfirmation(kind = 'signup') {
   const idToken = await auth?.currentUser?.getIdToken();
 
