@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import ConfigurationPanel from '../components/admin/ConfigurationPanel.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
@@ -158,28 +158,6 @@ function AdminDashboardPage() {
         title="Admin Dashboard"
         description="Create classes, workshops, retreats, lectures, challenges, business listings, and sale listings."
       />
-      <nav className="admin-module-nav admin-public-nav" aria-label="Public site links">
-        <Link className="button-link secondary-action" to="/events">
-          View Events / Activities
-        </Link>
-        <Link className="button-link secondary-action" to="/business-listings">
-          View Business Listings
-        </Link>
-        <Link className="button-link secondary-action" to="/for-sale">
-          View For Sale
-        </Link>
-        {canReviewMemberships ? (
-          <button
-            className={`button-link button-reset ${
-              pendingMembershipCount ? 'pending-review-button' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={openPendingMembershipReview}
-          >
-            Pending Membership Reviews ({pendingMembershipCount})
-          </button>
-        ) : null}
-      </nav>
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
         {canViewRegistrations ? (
           <button
