@@ -4,6 +4,7 @@ import {
   subscribeToPublishedEvents
 } from '../../services/eventService.js';
 import {
+  subscribeToPayments,
   subscribeToRegistrations,
   updateRegistrationPayment
 } from '../../services/registrationService.js';
@@ -30,6 +31,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quarterFilter, setQuarterFilter] = useState(DEFAULT_QUARTER_FILTER);
+  const [payments, setPayments] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [registrationSortConfig, setRegistrationSortConfig] = useState({
     direction: 'asc',
@@ -49,7 +51,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [yearFilter, setYearFilter] = useState(DEFAULT_YEAR_FILTER);
 
   useEffect(() => {
-    let pendingLoads = 3;
+    let pendingLoads = 4;
     const markLoaded = () => {
       pendingLoads -= 1;
 
@@ -80,6 +82,16 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       },
       handleError
     );
+    const unsubscribePayments = subscribeToPayments(
+      (snapshot) => {
+        setPayments(snapshot.docs.map((paymentDoc) => ({
+          id: paymentDoc.id,
+          ...paymentDoc.data()
+        })));
+        markLoaded();
+      },
+      handleError
+    );
     const unsubscribeUsers = subscribeToUsers(
       (snapshot) => {
         setUsers(snapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() })));
@@ -91,6 +103,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
     return () => {
       unsubscribeEvents();
+      unsubscribePayments();
       unsubscribeRegistrations();
       unsubscribeUsers();
     };
@@ -303,6 +316,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const selectedRegistrationEvent = selectedRegistration
     ? eventMap.get(selectedRegistration.eventId)
     : null;
+  const selectedPaymentHistory = useMemo(
+    () => getPaymentHistoryForRegistration(selectedRegistration, payments),
+    [payments, selectedRegistration]
+  );
   const selectedRegistrationUser = selectedRegistration
     ? userMap.byId.get(selectedRegistration.userId)
       || userMap.byEmail.get(normalizeEmail(selectedRegistration.email))
@@ -750,6 +767,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                                       ))}
                                     </div>
                                   ) : null}
+                                  <PaymentHistoryList
+                                    payments={getPaymentHistoryForRegistration(registration, payments)}
+                                  />
                                 </div>
                               </td>
                             </tr>
@@ -882,6 +902,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 </p>
               </div>
             </div>
+            <div className="registration-edit-section">
+              <h3>Payment History</h3>
+              <PaymentHistoryList payments={selectedPaymentHistory} />
+            </div>
             <div className="form-actions">
               <button
                 className="button-link button-reset"
@@ -921,6 +945,39 @@ function DetailItem({ label, value }) {
     <div className="registration-detail-item">
       <dt>{label}</dt>
       <dd>{value || 'Not Set'}</dd>
+    </div>
+  );
+}
+
+function PaymentHistoryList({ payments }) {
+  if (!payments.length) {
+    return (
+      <div className="payment-history-list">
+        <strong>Payment History</strong>
+        <p className="form-help">No payment history has been recorded yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="payment-history-list">
+      <strong>Payment History</strong>
+      {payments.map((payment) => (
+        <div className="payment-history-item" key={payment.id || payment.paymentId}>
+          <div>
+            <strong>
+              {payment.status || 'Pending'}
+              {payment.method ? ` (${payment.method})` : ''}
+            </strong>
+            <span>{formatDateTime(payment.createdDate)}</span>
+          </div>
+          <div>
+            <span>{formatCurrencyValue(payment.amount || 0)}</span>
+            <span>{payment.createdByName || payment.createdByEmail || 'Recorded by system'}</span>
+          </div>
+          {payment.note ? <p>{payment.note}</p> : null}
+        </div>
+      ))}
     </div>
   );
 }
@@ -1340,6 +1397,37 @@ function getEventSortValue(event) {
 
 function getEventDisplayTitle(event, eventId, registrationSnapshot = {}) {
   return event?.title || registrationSnapshot.eventTitle || event?.eventType || registrationSnapshot.eventType || eventId;
+}
+
+function getPaymentHistoryForRegistration(registration, payments) {
+  if (!registration) {
+    return [];
+  }
+
+  const registrationIds = new Set([
+    registration.id,
+    registration.registrationId,
+    ...(registration.combinedRecords || []).flatMap((record) => [record.id, record.registrationId])
+  ].filter(Boolean));
+
+  return payments
+    .filter((payment) =>
+      registrationIds.has(payment.registrationId)
+      || registrationIds.has(payment.entityId)
+    )
+    .sort((first, second) => getDateSortValue(second.createdDate) - getDateSortValue(first.createdDate));
+}
+
+function getDateSortValue(dateValue) {
+  if (!dateValue) {
+    return 0;
+  }
+
+  const date = typeof dateValue.toDate === 'function'
+    ? dateValue.toDate()
+    : new Date(dateValue);
+
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
 function getCapacitySummary(event, registeredCount) {

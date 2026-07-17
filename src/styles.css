@@ -2068,6 +2068,44 @@ body.popup-mode .page-content {
   font-size: 0.9rem;
 }
 
+.payment-history-list {
+  border-top: 1px solid #e6ddd3;
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.payment-history-list > strong {
+  color: #1d2927;
+}
+
+.payment-history-item {
+  background: #fffdfa;
+  border: 1px solid #e4dacf;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.payment-history-item div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  justify-content: space-between;
+}
+
+.payment-history-item span,
+.payment-history-item p {
+  color: #3b4b48;
+  font-size: 0.9rem;
+}
+
+.payment-history-item p {
+  margin: 0;
+}
+
 .registration-edit-context {
   background: #f8f3ed;
   border: 1px solid #e2d8ce;

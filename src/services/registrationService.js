@@ -12,11 +12,17 @@ import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
 
 const registrationsCollection = () => collection(db, 'registrations');
+const paymentsCollection = () => collection(db, 'payments');
 const auditLogsCollection = () => collection(db, 'auditLogs');
 
 export function subscribeToRegistrations(onNext, onError) {
   const registrationsQuery = query(registrationsCollection(), orderBy('registrationDate', 'desc'));
   return onSnapshot(registrationsQuery, onNext, onError);
+}
+
+export function subscribeToPayments(onNext, onError) {
+  const paymentsQuery = query(paymentsCollection(), orderBy('createdDate', 'desc'));
+  return onSnapshot(paymentsQuery, onNext, onError);
 }
 
 export async function lookupRegistrationEmail(email, eventId = '') {
