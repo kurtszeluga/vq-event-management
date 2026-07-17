@@ -233,10 +233,22 @@
     try {
       const origin = getSourceOrigin(sourceUrl);
       const url = new URL(`/register?eventId=${encodeURIComponent(event.id || '')}`, origin);
-      url.searchParams.set('returnUrl', window.location.href);
+      const returnUrl = getSafeReturnUrl(window.location.href);
+      if (returnUrl) {
+        url.searchParams.set('returnUrl', returnUrl);
+      }
       return url.toString();
     } catch {
       return event.registerUrl || '';
+    }
+  }
+
+  function getSafeReturnUrl(value) {
+    try {
+      const url = new URL(value);
+      return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+    } catch {
+      return '';
     }
   }
 

@@ -140,6 +140,16 @@ function RegisterPage() {
     runEmailLookup(userProfile.email, { alreadyVerified: true });
   }, [currentUser, eventId, lookupComplete, lookupLoading, userProfile]);
 
+  const membershipBlocked = lookupComplete
+    && ['already-registered', 'profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
+  const nonMemberRegistrationAllowed = lookup?.status === 'non-member-registration-allowed';
+  const matchedProfile = lookup?.profile || null;
+  const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
+  const isPaidEvent = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
+  const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
+  const requiresSquarePayment = isPaidEvent && paymentPreference !== 'cash-check-later';
+  const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
+
   useEffect(() => {
     if (!isPaidEvent) {
       setSquareCard(null);
@@ -192,15 +202,6 @@ function RegisterPage() {
     return '';
   }, [event]);
 
-  const membershipBlocked = lookupComplete
-    && ['already-registered', 'profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
-  const nonMemberRegistrationAllowed = lookup?.status === 'non-member-registration-allowed';
-  const matchedProfile = lookup?.profile || null;
-  const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
-  const isPaidEvent = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
-  const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
-  const requiresSquarePayment = isPaidEvent && paymentPreference !== 'cash-check-later';
-  const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
   const needsAccountPassword = lookupComplete
     && Boolean(matchedProfile)
     && !membershipBlocked
