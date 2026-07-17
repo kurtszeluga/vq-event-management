@@ -70,16 +70,7 @@ function App() {
           >
             Home
           </NavLink>
-          {currentUser ? (
-            <NavLink
-              to="/profile"
-              className={({ isActive }) =>
-                isActive ? 'nav-link active' : 'nav-link'
-              }
-            >
-              My Profile
-            </NavLink>
-          ) : (
+          {!currentUser ? (
             <NavLink
               to="/login"
               className={({ isActive }) =>
@@ -88,7 +79,7 @@ function App() {
             >
               Login
             </NavLink>
-          )}
+          ) : null}
           {showAdminSignupLink ? (
             <NavLink
               to="/events"
@@ -100,9 +91,19 @@ function App() {
             </NavLink>
           ) : null}
           {currentUser ? (
-            <button className="nav-button" type="button" onClick={logOut}>
-              Sign out
-            </button>
+            <>
+              <NavLink
+                to="/profile"
+                className={({ isActive }) =>
+                  isActive ? 'nav-link active' : 'nav-link'
+                }
+              >
+                My Profile
+              </NavLink>
+              <button className="nav-button" type="button" onClick={logOut}>
+                Sign out
+              </button>
+            </>
           ) : null}
         </nav>
       </header>
