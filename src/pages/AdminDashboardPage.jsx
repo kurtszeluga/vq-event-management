@@ -7,9 +7,7 @@ import EventList from '../components/admin/EventList.jsx';
 import RegistrationPanel from '../components/admin/RegistrationPanel.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
-import BusinessListingsPage from './BusinessListingsPage.jsx';
 import EventsPage from './EventsPage.jsx';
-import ForSalePage from './ForSalePage.jsx';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
 import { subscribeToUsers } from '../services/userService.js';
 
@@ -171,24 +169,6 @@ function AdminDashboardPage() {
         >
           View Events / Activities
         </button>
-        <button
-          className={`button-link button-reset ${
-            activeModule === 'public-business-listings' ? '' : 'secondary-action'
-          }`}
-          type="button"
-          onClick={() => setActiveModule('public-business-listings')}
-        >
-          View Business Listings
-        </button>
-        <button
-          className={`button-link button-reset ${
-            activeModule === 'public-for-sale' ? '' : 'secondary-action'
-          }`}
-          type="button"
-          onClick={() => setActiveModule('public-for-sale')}
-        >
-          View For Sale
-        </button>
         {canReviewMemberships ? (
           <button
             className={`button-link button-reset ${
@@ -302,8 +282,6 @@ function AdminDashboardPage() {
           </div>
         ) : null}
         {activeModule === 'public-events' ? <EventsPage /> : null}
-        {activeModule === 'public-business-listings' ? <BusinessListingsPage /> : null}
-        {activeModule === 'public-for-sale' ? <ForSalePage /> : null}
         {canManageEvents && activeModule === 'event-details' ? (
           <div id="event-details-card">
             <EventForm
