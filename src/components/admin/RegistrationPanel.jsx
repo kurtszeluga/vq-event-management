@@ -160,7 +160,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const groupedRegistrations = useMemo(() => {
     const groups = new Map();
 
-    registrations.forEach((registration) => {
+    registrations.filter(Boolean).forEach((registration) => {
+      if (!registration.eventId) {
+        return;
+      }
+
       const existing = groups.get(registration.eventId) || [];
       existing.push(registration);
       groups.set(registration.eventId, existing);
@@ -1027,7 +1031,7 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
 function combineRegistrationsByRegistrant(registrations = []) {
   const groups = new Map();
 
-  registrations.forEach((registration) => {
+  registrations.filter(Boolean).forEach((registration) => {
     const key = getRegistrantIdentityKey(registration);
     const existing = groups.get(key) || [];
     existing.push(registration);
@@ -1046,14 +1050,18 @@ function combineRegistrationsByRegistrant(registrations = []) {
 }
 
 function getRegistrantIdentityKey(registration) {
+  if (!registration) {
+    return 'registration:unknown';
+  }
+
   return registration.userId
     ? `user:${registration.userId}`
     : `email:${normalizeEmail(registration.email || registration.name || registration.id)}`;
 }
 
 function compareRegistrationPriority(first, second) {
-  const firstRank = getRegistrationStatusRank(first.status);
-  const secondRank = getRegistrationStatusRank(second.status);
+  const firstRank = getRegistrationStatusRank(first?.status);
+  const secondRank = getRegistrationStatusRank(second?.status);
 
   if (firstRank !== secondRank) {
     return firstRank - secondRank;
@@ -1098,6 +1106,10 @@ function sortRegistrationsForDisplay(registrations, sortConfig, userMap) {
 }
 
 function getRegistrationSortValue(registration, sortKey, userMap) {
+  if (!registration) {
+    return '';
+  }
+
   const user =
     userMap.byId.get(registration.userId)
     || userMap.byEmail.get(normalizeEmail(registration.email));
@@ -1126,7 +1138,7 @@ function getRegistrationSortValue(registration, sortKey, userMap) {
 }
 
 function compareRegistrationDates(first, second) {
-  return getTimestampValue(second.registrationDate) - getTimestampValue(first.registrationDate);
+  return getTimestampValue(second?.registrationDate) - getTimestampValue(first?.registrationDate);
 }
 
 function getTimestampValue(value) {
@@ -1160,6 +1172,10 @@ function formatCurrencyValue(value) {
 }
 
 function formatPaymentSummary(registration) {
+  if (!registration) {
+    return 'Pending';
+  }
+
   const status = registration.paymentStatus || 'Pending';
   const method = normalizePaymentMethod(registration.paymentMethod);
 
@@ -1167,6 +1183,10 @@ function formatPaymentSummary(registration) {
 }
 
 function getAmountDue(registration) {
+  if (!registration) {
+    return 0;
+  }
+
   if (registration.amountDue !== undefined) {
     return registration.amountDue;
   }
