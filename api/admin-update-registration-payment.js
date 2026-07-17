@@ -2,7 +2,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
-const PAYMENT_METHODS = ['None', 'Online', 'Cash', 'Check', 'Comped'];
+const PAYMENT_METHODS = ['', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
 const REGISTRATION_STATUSES = ['Registered', 'Cancelled', 'Waitlisted'];
 
@@ -90,8 +90,18 @@ export default async function handler(request, response) {
       paymentUpdatedDate: now
     };
     const batch = db.batch();
+    const paymentRef = db.collection('payments').doc();
 
     batch.update(registrationRef, updatePayload);
+    batch.set(paymentRef, buildPaymentRecord({
+      actorProfile,
+      actorUid,
+      before,
+      paymentId: paymentRef.id,
+      paymentUpdate,
+      registrationId,
+      statusUpdate
+    }));
     batch.set(db.collection('auditLogs').doc(), {
       action: getAuditAction(paymentUpdate, statusUpdate),
       actorEmail: actorProfile.email || '',
@@ -201,7 +211,7 @@ function canUpdateRegistrationPayments(actorProfile) {
 function sanitizePaymentUpdate(payload, registration) {
   const paymentMethod = PAYMENT_METHODS.includes(payload.paymentMethod)
     ? payload.paymentMethod
-    : 'None';
+    : '';
   const paymentStatus = PAYMENT_STATUSES.includes(payload.paymentStatus)
     ? payload.paymentStatus
     : 'Pending';
@@ -238,7 +248,7 @@ function sanitizePaymentUpdate(payload, registration) {
   if (paymentStatus === 'Pending') {
     return {
       amountPaid: 0,
-      paymentMethod: 'None',
+      paymentMethod: '',
       paymentNote,
       paymentStatus: 'Pending'
     };
@@ -260,7 +270,7 @@ function sanitizePaymentUpdate(payload, registration) {
 
     return {
       amountPaid: Number(registration.amountPaid || 0),
-      paymentMethod: registration.paymentMethod || 'None',
+      paymentMethod: registration.paymentMethod === 'None' ? '' : registration.paymentMethod || '',
       paymentNote,
       paymentStatus: 'Refunded'
     };
@@ -290,6 +300,42 @@ function sanitizePaymentUpdate(payload, registration) {
     paymentMethod,
     paymentNote,
     paymentStatus
+  };
+}
+
+function buildPaymentRecord({
+  actorProfile,
+  actorUid,
+  before,
+  paymentId,
+  paymentUpdate,
+  registrationId,
+  statusUpdate
+}) {
+  return {
+    amount: Number(paymentUpdate.amountPaid || 0),
+    amountDue: Number(before.amountDue || 0),
+    createdBy: actorProfile.userId || actorUid,
+    createdByEmail: actorProfile.email || '',
+    createdByName: actorProfile.name || actorProfile.email || 'Unknown Admin',
+    createdDate: FieldValue.serverTimestamp(),
+    entityId: registrationId,
+    entityType: 'Registration',
+    eventId: before.eventId || '',
+    method: paymentUpdate.paymentMethod || '',
+    note: paymentUpdate.paymentNote || '',
+    paymentId,
+    processor: paymentUpdate.paymentMethod === 'Online' ? 'Square' : 'Manual',
+    registrationId,
+    registrationStatus: statusUpdate.status || before.status || '',
+    squareTransactionId: before.squareTransactionId || '',
+    status: paymentUpdate.paymentStatus || 'Pending',
+    updatedRegistrationSnapshot: {
+      amountPaid: Number(paymentUpdate.amountPaid || 0),
+      paymentMethod: paymentUpdate.paymentMethod || '',
+      paymentStatus: paymentUpdate.paymentStatus || 'Pending',
+      status: statusUpdate.status || before.status || ''
+    }
   };
 }
 

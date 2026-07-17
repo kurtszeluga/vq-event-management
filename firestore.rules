@@ -177,7 +177,7 @@ service cloud.firestore {
         && (!('registrantFirstName' in request.resource.data) || request.resource.data.registrantFirstName is string)
         && (!('registrantLastName' in request.resource.data) || request.resource.data.registrantLastName is string)
         && (!('paymentMethod' in request.resource.data)
-          || validStatus(request.resource.data.paymentMethod, ['None', 'Online', 'Cash', 'Check', 'Comped']))
+          || validStatus(request.resource.data.paymentMethod, ['', 'None', 'Online', 'Cash', 'Check', 'Comped']))
         && (!('paymentNote' in request.resource.data) || request.resource.data.paymentNote is string)
         && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived'])
         && (!('paymentUpdatedDate' in request.resource.data)
@@ -383,20 +383,41 @@ service cloud.firestore {
 
     function validPayment() {
       return request.resource.data.keys().hasOnly([
-          'paymentId',
-          'registrationId',
-          'eventId',
           'amount',
+          'amountDue',
+          'createdBy',
+          'createdByEmail',
+          'createdByName',
+          'createdDate',
+          'entityId',
+          'entityType',
+          'eventId',
+          'method',
+          'note',
+          'paymentId',
+          'processor',
+          'registrationId',
           'squareTransactionId',
-          'paymentStatus',
-          'paymentDate'
+          'status',
+          'updatedRegistrationSnapshot'
         ])
-        && request.resource.data.registrationId is string
-        && request.resource.data.eventId is string
+        && request.resource.data.paymentId is string
         && request.resource.data.amount is number
+        && request.resource.data.amountDue is number
+        && request.resource.data.createdBy is string
+        && request.resource.data.createdByEmail is string
+        && request.resource.data.createdByName is string
+        && request.resource.data.createdDate is timestamp
+        && validStatus(request.resource.data.entityType, ['Registration', 'Membership'])
+        && request.resource.data.entityId is string
+        && (!('eventId' in request.resource.data) || request.resource.data.eventId is string)
+        && validStatus(request.resource.data.method, ['', 'Online', 'Cash', 'Check', 'Comped'])
+        && request.resource.data.note is string
+        && validStatus(request.resource.data.processor, ['Manual', 'Square'])
+        && (!('registrationId' in request.resource.data) || request.resource.data.registrationId is string)
         && request.resource.data.squareTransactionId is string
-        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Failed', 'Refunded'])
-        && request.resource.data.paymentDate is timestamp;
+        && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Failed', 'Refunded', 'Waived'])
+        && request.resource.data.updatedRegistrationSnapshot is map;
     }
 
     function validAuditLog() {
@@ -623,9 +644,10 @@ service cloud.firestore {
     }
 
     match /payments/{paymentId} {
-      allow read: if hasPermission('managePayments');
-      allow create, update: if hasPermission('managePayments') && validPayment();
-      allow delete: if hasPermission('managePayments');
+      allow read: if hasPermission('managePayments') || hasPermission('viewRegistrations');
+      allow create, update: if (hasPermission('managePayments') || hasPermission('viewRegistrations'))
+        && validPayment();
+      allow delete: if isSuperUser();
     }
 
     match /auditLogs/{auditLogId} {

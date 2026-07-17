@@ -57,13 +57,29 @@
   },
   "payments": {
     "example-payment-001": {
-      "paymentId": "example-payment-001",
-      "registrationId": "example-registration-001",
-      "eventId": "example-class-001",
       "amount": 0,
+      "amountDue": 0,
+      "createdBy": "seed",
+      "createdByEmail": "admin@example.com",
+      "createdByName": "Example Admin",
+      "createdDate": "__SERVER_TIMESTAMP__",
+      "entityId": "example-registration-001",
+      "entityType": "Registration",
+      "eventId": "example-class-001",
+      "method": "",
+      "note": "",
+      "paymentId": "example-payment-001",
+      "processor": "Manual",
+      "registrationId": "example-registration-001",
+      "registrationStatus": "Registered",
       "squareTransactionId": "",
-      "paymentStatus": "Pending",
-      "paymentDate": "__SERVER_TIMESTAMP__"
+      "status": "Pending",
+      "updatedRegistrationSnapshot": {
+        "amountPaid": 0,
+        "paymentMethod": "",
+        "paymentStatus": "Pending",
+        "status": "Registered"
+      }
     }
   }
 }

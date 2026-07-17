@@ -61,6 +61,7 @@ export default async function handler(request, response) {
 async function createRegistration(db, payload) {
   const eventRef = db.collection('events').doc(payload.eventId);
   const registrationRef = db.collection('registrations').doc();
+  const paymentRef = db.collection('payments').doc();
   const auditRef = db.collection('auditLogs').doc();
 
   return db.runTransaction(async (transaction) => {
@@ -134,7 +135,7 @@ async function createRegistration(db, payload) {
       eventType: event.eventType || '',
       name: payload.name,
       membershipStatusAtRegistration: membershipStatus,
-      paymentMethod: 'None',
+      paymentMethod: '',
       paymentNote: '',
       paymentStatus: isPaidEvent ? 'Pending' : 'Paid',
       paymentUpdatedDate: FieldValue.serverTimestamp(),
@@ -178,6 +179,31 @@ async function createRegistration(db, payload) {
     }
 
     transaction.set(registrationRef, registration);
+    transaction.set(paymentRef, {
+      amount: registration.amountPaid,
+      amountDue,
+      createdBy: userId,
+      createdByEmail: payload.email,
+      createdByName: payload.name,
+      createdDate: FieldValue.serverTimestamp(),
+      entityId: registrationRef.id,
+      entityType: 'Registration',
+      eventId: payload.eventId,
+      method: registration.paymentMethod,
+      note: '',
+      paymentId: paymentRef.id,
+      processor: 'Manual',
+      registrationId: registrationRef.id,
+      registrationStatus: status,
+      squareTransactionId: '',
+      status: registration.paymentStatus,
+      updatedRegistrationSnapshot: {
+        amountPaid: registration.amountPaid,
+        paymentMethod: registration.paymentMethod,
+        paymentStatus: registration.paymentStatus,
+        status
+      }
+    });
     transaction.set(auditRef, {
       action: 'Register',
       actorEmail: payload.email,
