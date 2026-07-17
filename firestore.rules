@@ -202,6 +202,11 @@ service cloud.firestore {
           'email',
           'membershipMatchedBy',
           'membershipMemberId',
+          'membershipPaymentAmount',
+          'membershipPaymentMethod',
+          'membershipPaymentNote',
+          'membershipPaymentStatus',
+          'membershipPaymentUpdatedDate',
           'membershipReviewNote',
           'membershipReviewedBy',
           'membershipReviewedDate',
@@ -247,6 +252,16 @@ service cloud.firestore {
           || validStatus(request.resource.data.membershipMatchedBy, ['email', 'phone', 'csv', 'manual', 'account', '']))
         && (!('membershipMemberId' in request.resource.data)
           || request.resource.data.membershipMemberId is string)
+        && (!('membershipPaymentAmount' in request.resource.data)
+          || request.resource.data.membershipPaymentAmount is number)
+        && (!('membershipPaymentMethod' in request.resource.data)
+          || validStatus(request.resource.data.membershipPaymentMethod, ['', 'Cash', 'Check', 'Comped']))
+        && (!('membershipPaymentNote' in request.resource.data)
+          || request.resource.data.membershipPaymentNote is string)
+        && (!('membershipPaymentStatus' in request.resource.data)
+          || validStatus(request.resource.data.membershipPaymentStatus, ['Pending', 'Paid', 'Refunded', 'Waived']))
+        && (!('membershipPaymentUpdatedDate' in request.resource.data)
+          || request.resource.data.membershipPaymentUpdatedDate is timestamp)
         && (!('membershipReviewNote' in request.resource.data)
           || request.resource.data.membershipReviewNote is string)
         && (!('membershipReviewedBy' in request.resource.data)
@@ -339,6 +354,26 @@ service cloud.firestore {
           || 'membershipMemberId' in resource.data
             && 'membershipMemberId' in request.resource.data
             && request.resource.data.membershipMemberId == resource.data.membershipMemberId)
+        && (!('membershipPaymentAmount' in resource.data) && !('membershipPaymentAmount' in request.resource.data)
+          || 'membershipPaymentAmount' in resource.data
+            && 'membershipPaymentAmount' in request.resource.data
+            && request.resource.data.membershipPaymentAmount == resource.data.membershipPaymentAmount)
+        && (!('membershipPaymentMethod' in resource.data) && !('membershipPaymentMethod' in request.resource.data)
+          || 'membershipPaymentMethod' in resource.data
+            && 'membershipPaymentMethod' in request.resource.data
+            && request.resource.data.membershipPaymentMethod == resource.data.membershipPaymentMethod)
+        && (!('membershipPaymentNote' in resource.data) && !('membershipPaymentNote' in request.resource.data)
+          || 'membershipPaymentNote' in resource.data
+            && 'membershipPaymentNote' in request.resource.data
+            && request.resource.data.membershipPaymentNote == resource.data.membershipPaymentNote)
+        && (!('membershipPaymentStatus' in resource.data) && !('membershipPaymentStatus' in request.resource.data)
+          || 'membershipPaymentStatus' in resource.data
+            && 'membershipPaymentStatus' in request.resource.data
+            && request.resource.data.membershipPaymentStatus == resource.data.membershipPaymentStatus)
+        && (!('membershipPaymentUpdatedDate' in resource.data) && !('membershipPaymentUpdatedDate' in request.resource.data)
+          || 'membershipPaymentUpdatedDate' in resource.data
+            && 'membershipPaymentUpdatedDate' in request.resource.data
+            && request.resource.data.membershipPaymentUpdatedDate == resource.data.membershipPaymentUpdatedDate)
         && (!('membershipReviewNote' in resource.data) && !('membershipReviewNote' in request.resource.data)
           || 'membershipReviewNote' in resource.data
             && 'membershipReviewNote' in request.resource.data

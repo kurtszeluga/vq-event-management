@@ -747,6 +747,21 @@ function buildImportedExistingProfile(existingProfile, importedProfile, matchedB
     lastName,
     membershipMatchedBy: matchedBy,
     membershipMemberId: '',
+    membershipPaymentAmount: membershipStatus === 'Active'
+      ? 0
+      : existingProfile.membershipPaymentAmount || 0,
+    membershipPaymentMethod: membershipStatus === 'Active'
+      ? ''
+      : existingProfile.membershipPaymentMethod || '',
+    membershipPaymentNote: membershipStatus === 'Active'
+      ? 'Membership marked paid from CSV import. Amount and method were not included in the CSV.'
+      : existingProfile.membershipPaymentNote || '',
+    membershipPaymentStatus: membershipStatus === 'Active'
+      ? 'Paid'
+      : existingProfile.membershipPaymentStatus || 'Pending',
+    membershipPaymentUpdatedDate: membershipStatus === 'Active'
+      ? serverTimestamp()
+      : existingProfile.membershipPaymentUpdatedDate || serverTimestamp(),
     membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
@@ -770,6 +785,13 @@ function buildImportedNewProfile(importedProfile, termsVersion) {
     lastName: importedProfile.lastName,
     membershipMatchedBy: 'csv',
     membershipMemberId: '',
+    membershipPaymentAmount: importedProfile.status === 'Active' ? 0 : 0,
+    membershipPaymentMethod: '',
+    membershipPaymentNote: importedProfile.status === 'Active'
+      ? 'Membership marked paid from CSV import. Amount and method were not included in the CSV.'
+      : '',
+    membershipPaymentStatus: importedProfile.status === 'Active' ? 'Paid' : 'Pending',
+    membershipPaymentUpdatedDate: serverTimestamp(),
     membershipStatus: importedProfile.status,
     membershipUpdatedDate: serverTimestamp(),
     name: importedProfile.name,
@@ -878,6 +900,11 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
     lastName,
     membershipMatchedBy: 'manual',
     membershipMemberId: existingProfile.membershipMemberId || '',
+    membershipPaymentAmount: existingProfile.membershipPaymentAmount || 0,
+    membershipPaymentMethod: existingProfile.membershipPaymentMethod || '',
+    membershipPaymentNote: existingProfile.membershipPaymentNote || '',
+    membershipPaymentStatus: existingProfile.membershipPaymentStatus || 'Pending',
+    membershipPaymentUpdatedDate: existingProfile.membershipPaymentUpdatedDate || serverTimestamp(),
     membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
@@ -906,6 +933,13 @@ function buildMembershipStatusProfile(profile, membershipStatus) {
     lastName,
     membershipMatchedBy: profile.membershipMatchedBy || 'manual',
     membershipMemberId: profile.membershipMemberId || '',
+    membershipPaymentAmount: profile.membershipPaymentAmount || 0,
+    membershipPaymentMethod: profile.membershipPaymentMethod || '',
+    membershipPaymentNote: profile.membershipPaymentNote || '',
+    membershipPaymentStatus: membershipStatus === 'Active'
+      ? profile.membershipPaymentStatus || 'Paid'
+      : profile.membershipPaymentStatus || 'Pending',
+    membershipPaymentUpdatedDate: profile.membershipPaymentUpdatedDate || serverTimestamp(),
     membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
@@ -935,6 +969,11 @@ function buildInactivatedMembershipProfile(profile) {
     lastName,
     membershipMatchedBy: profile.membershipMatchedBy || '',
     membershipMemberId: profile.membershipMemberId || '',
+    membershipPaymentAmount: profile.membershipPaymentAmount || 0,
+    membershipPaymentMethod: profile.membershipPaymentMethod || '',
+    membershipPaymentNote: profile.membershipPaymentNote || '',
+    membershipPaymentStatus: profile.membershipPaymentStatus || 'Pending',
+    membershipPaymentUpdatedDate: profile.membershipPaymentUpdatedDate || serverTimestamp(),
     membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,

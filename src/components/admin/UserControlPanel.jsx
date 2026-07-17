@@ -126,10 +126,10 @@ function UserControlPanel({
       firstName: '',
       lastName: '',
       membershipReviewNote: '',
-      membershipPaymentAmount: '',
-      membershipPaymentMethod: '',
-      membershipPaymentNote: '',
-      membershipPaymentStatus: 'Pending',
+      membershipPaymentAmount: user.membershipPaymentAmount ?? '',
+      membershipPaymentMethod: user.membershipPaymentMethod || '',
+      membershipPaymentNote: user.membershipPaymentNote || '',
+      membershipPaymentStatus: user.membershipPaymentStatus || 'Pending',
       membershipStatus: 'Unknown',
       permissions: DEFAULT_USER_PERMISSIONS,
       phone: '',
@@ -1532,6 +1532,22 @@ function UserTable({
                         <span>
                           <strong>Membership Status</strong>
                           {displayMembership}
+                        </span>
+                        <span>
+                          <strong>Membership Payment</strong>
+                          {user.membershipPaymentStatus || 'Pending'}
+                        </span>
+                        <span>
+                          <strong>Payment Amount</strong>
+                          {formatCurrencyValue(user.membershipPaymentAmount || 0)}
+                        </span>
+                        <span>
+                          <strong>Payment Method</strong>
+                          {user.membershipPaymentMethod || 'Not Recorded'}
+                        </span>
+                        <span>
+                          <strong>Payment Updated</strong>
+                          {formatDateTime(user.membershipPaymentUpdatedDate)}
                         </span>
                         <span>
                           <strong>Membership Review Note</strong>

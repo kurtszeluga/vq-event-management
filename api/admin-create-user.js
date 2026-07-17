@@ -105,6 +105,21 @@ export default async function handler(request, response) {
       lastName: payload.lastName,
       membershipMatchedBy: existingProfile.exists ? before.membershipMatchedBy || '' : '',
       membershipMemberId: existingProfile.exists ? before.membershipMemberId || '' : '',
+      membershipPaymentAmount: membershipPayment
+        ? Number(membershipPayment.amount || 0)
+        : before.membershipPaymentAmount || 0,
+      membershipPaymentMethod: membershipPayment
+        ? membershipPayment.method || ''
+        : before.membershipPaymentMethod || '',
+      membershipPaymentNote: membershipPayment
+        ? membershipPayment.note || ''
+        : before.membershipPaymentNote || '',
+      membershipPaymentStatus: membershipPayment
+        ? membershipPayment.status || 'Pending'
+        : before.membershipPaymentStatus || 'Pending',
+      membershipPaymentUpdatedDate: membershipPayment
+        ? now
+        : before.membershipPaymentUpdatedDate || now,
       membershipReviewNote: existingProfile.exists ? before.membershipReviewNote || '' : '',
       membershipReviewedBy: existingProfile.exists ? before.membershipReviewedBy || '' : '',
       membershipReviewedDate: existingProfile.exists ? before.membershipReviewedDate || undefined : undefined,
