@@ -7,7 +7,6 @@ import EventList from '../components/admin/EventList.jsx';
 import RegistrationPanel from '../components/admin/RegistrationPanel.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
-import EventsPage from './EventsPage.jsx';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
 import { subscribeToUsers } from '../services/userService.js';
 
@@ -160,15 +159,6 @@ function AdminDashboardPage() {
         description="Manage programs, workshops, challenges, business listings, and items for sale."
       />
       <nav className="admin-module-nav admin-public-nav" aria-label="Public site links">
-        <button
-          className={`button-link button-reset ${
-            activeModule === 'public-events' ? '' : 'secondary-action'
-          }`}
-          type="button"
-          onClick={() => setActiveModule('public-events')}
-        >
-          View Events / Activities
-        </button>
         {canReviewMemberships ? (
           <button
             className={`button-link button-reset ${
@@ -281,7 +271,6 @@ function AdminDashboardPage() {
             <p>Use the buttons above to open the part of the dashboard you need.</p>
           </div>
         ) : null}
-        {activeModule === 'public-events' ? <EventsPage /> : null}
         {canManageEvents && activeModule === 'event-details' ? (
           <div id="event-details-card">
             <EventForm

@@ -4,11 +4,18 @@ import { useAuth } from './context/useAuth.js';
 
 function App() {
   const location = useLocation();
-  const { currentUser, isAdmin, logOut } = useAuth();
+  const { currentUser, hasPermission, isAdmin, isSuperUser, logOut } = useAuth();
   const normalizedPath = location.pathname.replace(/\/+$/, '');
   const isPopupMode =
     normalizedPath.endsWith('/supply-list') || normalizedPath.endsWith('/print');
   const pullState = usePullToRefresh(isPopupMode);
+  const showAdminSignupLink =
+    currentUser
+    && (isSuperUser
+      || hasPermission('addUsers')
+      || hasPermission('manageEvents')
+      || hasPermission('manageMembershipStatus')
+      || hasPermission('viewRegistrations'));
 
   useEffect(() => {
     document.body.classList.toggle('popup-mode', isPopupMode);
@@ -82,6 +89,16 @@ function App() {
               Login
             </NavLink>
           )}
+          {showAdminSignupLink ? (
+            <NavLink
+              to="/events"
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              Programs/Activities Signup
+            </NavLink>
+          ) : null}
           {currentUser ? (
             <button className="nav-button" type="button" onClick={logOut}>
               Sign out
