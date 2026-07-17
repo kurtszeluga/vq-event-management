@@ -1,21 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './context/useAuth.js';
-import { subscribeToUsers } from './services/userService.js';
 
 function App() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { currentUser, hasPermission, isAdmin, isSuperUser, logOut } = useAuth();
+  const { currentUser, isAdmin, logOut } = useAuth();
   const normalizedPath = location.pathname.replace(/\/+$/, '');
   const isPopupMode =
     normalizedPath.endsWith('/supply-list') || normalizedPath.endsWith('/print');
   const pullState = usePullToRefresh(isPopupMode);
-  const canAddUsers = hasPermission('addUsers');
-  const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
-  const hasAdminDashboardAccess =
-    isSuperUser || canAddUsers || hasPermission('manageEvents') || hasPermission('manageMembershipStatus');
-  const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
 
   useEffect(() => {
     document.body.classList.toggle('popup-mode', isPopupMode);
@@ -24,38 +17,6 @@ function App() {
       document.body.classList.remove('popup-mode');
     };
   }, [isPopupMode]);
-
-  useEffect(() => {
-    if (!currentUser || !canReviewMemberships) {
-      setPendingMembershipCount(0);
-      return undefined;
-    }
-
-    const unsubscribe = subscribeToUsers(
-      (snapshot) => {
-        const pendingCount = snapshot.docs
-          .map((userDoc) => userDoc.data())
-          .filter((user) => user.role !== 'Super User' && user.membershipStatus === 'Pending').length;
-        setPendingMembershipCount(pendingCount);
-      },
-      () => {
-        setPendingMembershipCount(0);
-      },
-      { includeAdminProfiles: false }
-    );
-
-    return unsubscribe;
-  }, [canReviewMemberships, currentUser]);
-
-  function openPendingMembershipReview() {
-    navigate('/admin', {
-      state: {
-        module: 'user-controls',
-        userControlsMembershipFilter: 'Pending',
-        userControlsQuickFilter: 'pending-review'
-      }
-    });
-  }
 
   if (isPopupMode) {
     return (
@@ -133,39 +94,6 @@ function App() {
           <span>{currentUser.email}</span>
           <strong>{isAdmin ? 'Admin' : 'Signed in'}</strong>
         </div>
-      ) : null}
-      {currentUser && hasAdminDashboardAccess ? (
-        <nav className="admin-module-nav admin-public-nav shell-shortcut-nav" aria-label="Dashboard shortcuts">
-          <NavLink
-            className={({ isActive }) => `button-link ${isActive ? '' : 'secondary-action'}`}
-            to="/events"
-          >
-            View Events / Activities
-          </NavLink>
-          <NavLink
-            className={({ isActive }) => `button-link ${isActive ? '' : 'secondary-action'}`}
-            to="/business-listings"
-          >
-            View Business Listings
-          </NavLink>
-          <NavLink
-            className={({ isActive }) => `button-link ${isActive ? '' : 'secondary-action'}`}
-            to="/for-sale"
-          >
-            View For Sale
-          </NavLink>
-          {canReviewMemberships ? (
-            <button
-              className={`button-link button-reset ${
-                pendingMembershipCount ? 'pending-review-button' : 'secondary-action'
-              }`}
-              type="button"
-              onClick={openPendingMembershipReview}
-            >
-              Pending Membership Reviews ({pendingMembershipCount})
-            </button>
-          ) : null}
-        </nav>
       ) : null}
       <main className="page-content">
         <Outlet />

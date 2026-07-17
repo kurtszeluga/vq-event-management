@@ -465,10 +465,6 @@ body.popup-mode .page-content {
   margin-top: 16px;
 }
 
-.shell-shortcut-nav {
-  padding: 0 clamp(18px, 4vw, 56px);
-}
-
 .admin-form,
 .admin-list-panel,
 .detail-panel,
