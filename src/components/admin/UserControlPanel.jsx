@@ -28,6 +28,7 @@ import {
 } from '../../utils/profileFormat.js';
 
 const MEMBERSHIP_FILTERS = ['All', 'Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
+const MEMBERSHIP_PAYMENT_FILTERS = ['All', 'Pending', 'Paid', 'Waived', 'Refunded'];
 const MEMBERSHIP_PAYMENT_STATUSES = ['Pending', 'Paid', 'Waived', 'Refunded'];
 const MEMBERSHIP_PAYMENT_METHODS = ['Cash', 'Check', 'Comped'];
 const QUICK_FILTERS = [
@@ -51,6 +52,7 @@ function UserControlPanel({
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [lastEditedUserId, setLastEditedUserId] = useState('');
   const [membershipFilter, setMembershipFilter] = useState(initialMembershipFilter);
+  const [membershipPaymentFilter, setMembershipPaymentFilter] = useState('All');
   const [payments, setPayments] = useState([]);
   const [quickFilter, setQuickFilter] = useState(initialQuickFilter);
   const [savingUserId, setSavingUserId] = useState('');
@@ -60,7 +62,7 @@ function UserControlPanel({
   const [users, setUsers] = useState([]);
   const canEditMembershipStatus =
     canManageAdminUsers || Boolean(currentUserProfile?.permissions?.manageMembershipStatus);
-  const pendingReviewCount = getFilteredUsers(users, 'pending-review', 'All').length;
+  const pendingReviewCount = getFilteredUsers(users, 'pending-review', 'All', 'All', payments).length;
 
   useEffect(() => {
     setMembershipFilter(initialMembershipFilter);
@@ -107,7 +109,13 @@ function UserControlPanel({
     return unsubscribe;
   }, []);
 
-  const filteredUsers = getFilteredUsers(users, quickFilter, membershipFilter);
+  const filteredUsers = getFilteredUsers(
+    users,
+    quickFilter,
+    membershipFilter,
+    membershipPaymentFilter,
+    payments
+  );
   const searchedUsers = searchUsers(filteredUsers, searchTerm);
 
   const startAddUser = useCallback(() => {
@@ -440,7 +448,7 @@ function UserControlPanel({
 
     return (
       <div className="membership-payment-panel">
-        <span className="field-label">Membership Payment</span>
+        <span className="field-label">Current Membership Payment</span>
         <label>
           <span>Payment Status</span>
           <select
@@ -500,7 +508,7 @@ function UserControlPanel({
           />
         </label>
         <span className="form-help">
-          Payment history is saved when this profile is saved.
+          Current payment status is saved on the profile. A history entry is also added when this profile is saved.
         </span>
       </div>
     );
@@ -590,7 +598,7 @@ function UserControlPanel({
             type="button"
             onClick={() => setQuickFilter(filter.key)}
           >
-            {`${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter).length})`}
+            {`${filter.label} (${getFilteredUsers(users, filter.key, membershipFilter, membershipPaymentFilter, payments).length})`}
           </button>
         ))}
       </div>
@@ -609,8 +617,23 @@ function UserControlPanel({
             onClick={() => setMembershipFilter(status)}
           >
             {status === 'All'
-              ? `All Membership (${getFilteredUsers(users, 'all', status).length})`
-              : `${status} (${getFilteredUsers(users, 'all', status).length})`}
+              ? `All Membership (${getFilteredUsers(users, 'all', status, membershipPaymentFilter, payments).length})`
+              : `${status} (${getFilteredUsers(users, 'all', status, membershipPaymentFilter, payments).length})`}
+          </button>
+        ))}
+      </div>
+      <div className="status-filter-group separated-filter-row" aria-label="Membership payment filter">
+        {MEMBERSHIP_PAYMENT_FILTERS.map((status) => (
+          <button
+            className={`status-filter-button${membershipPaymentFilter === status ? ' active' : ''}${status === 'Refunded' && membershipPaymentFilter === status ? ' archive-active' : ''}${status === 'Pending' && membershipPaymentFilter === status ? ' pending-active' : ''}`}
+            disabled={quickFilter !== 'all'}
+            key={status}
+            type="button"
+            onClick={() => setMembershipPaymentFilter(status)}
+          >
+            {status === 'All'
+              ? `All Payments (${getFilteredUsers(users, 'all', membershipFilter, status, payments).length})`
+              : `${status} (${getFilteredUsers(users, 'all', membershipFilter, status, payments).length})`}
           </button>
         ))}
       </div>
@@ -1218,7 +1241,13 @@ function getUserSortValue(user, key) {
   return user.name || user.email || '';
 }
 
-function getFilteredUsers(users, quickFilter, membershipFilter) {
+function getFilteredUsers(
+  users,
+  quickFilter,
+  membershipFilter,
+  membershipPaymentFilter = 'All',
+  payments = []
+) {
   return users.filter((user) => {
     if (quickFilter === 'pending-review') {
       return !isArchivedProfile(user)
@@ -1235,10 +1264,13 @@ function getFilteredUsers(users, quickFilter, membershipFilter) {
     }
 
     const membershipStatus = getDisplayMembershipStatus(user);
+    const membershipPaymentStatus = getCurrentMembershipPayment(user, payments).status || 'Pending';
 
     return !isArchivedProfile(user)
       && (membershipFilter === 'All'
-        || (user.role !== 'Super User' && membershipStatus === membershipFilter));
+        || (user.role !== 'Super User' && membershipStatus === membershipFilter))
+      && (membershipPaymentFilter === 'All'
+        || (user.role !== 'Super User' && membershipPaymentStatus === membershipPaymentFilter));
   });
 }
 
@@ -1261,6 +1293,8 @@ function getUserSearchText(user) {
     user.phone,
     user.role,
     getDisplayMembershipStatus(user),
+    user.membershipPaymentStatus,
+    user.membershipPaymentMethod,
     getDisplayProfileStatus(user),
     user.membershipMatchedBy,
     user.membershipMemberId,
@@ -1565,7 +1599,7 @@ function UserTable({
                           {displayMembership}
                         </span>
                         <span>
-                          <strong>Membership Payment</strong>
+                          <strong>Current Membership Payment</strong>
                           {currentMembershipPayment.status || 'Pending'}
                         </span>
                         <span>
