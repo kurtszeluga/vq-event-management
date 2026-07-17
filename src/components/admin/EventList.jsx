@@ -138,7 +138,7 @@ function EventList({
     return (
       <div className="empty-state">
         <h2>No events yet</h2>
-        <p>Create the first class, workshop, lecture, retreat, or listing.</p>
+        <p>Use the Create button above to add the first record for this card.</p>
       </div>
     );
   }
@@ -176,7 +176,7 @@ function EventList({
       {!filteredEvents.length ? (
         <div className="empty-state compact-empty-state">
           <h2>No matching events</h2>
-          <p>Try a different event type filter.</p>
+          <p>Try Active or Archived, or choose a different type filter.</p>
         </div>
       ) : null}
       {filteredEvents.map((event) => (

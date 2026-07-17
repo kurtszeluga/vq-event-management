@@ -1150,7 +1150,12 @@ function UserTable({
   onSort
 }) {
   if (!users.length) {
-    return <p className="empty-inline">No user profiles match the selected filters.</p>;
+    return (
+      <div className="empty-state compact-empty-state">
+        <h2>No matching profiles</h2>
+        <p>Clear the search box or choose a different profile or membership filter.</p>
+      </div>
+    );
   }
 
   return (

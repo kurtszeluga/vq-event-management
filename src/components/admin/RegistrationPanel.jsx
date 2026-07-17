@@ -539,7 +539,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       {!groupedRegistrations.length ? (
         <div className="empty-state compact-empty-state">
           <h2>No matching events</h2>
-          <p>Try a different activity, year, or quarter filter.</p>
+          <p>Try All Quarters, select another year, or use Reset Filters.</p>
         </div>
       ) : null}
       <div className="registration-admin-list">
@@ -762,7 +762,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 ) : (
                   <div className="empty-state compact-empty-state">
                     <h2>No registrations yet</h2>
-                    <p>This event is listed, but no one has registered for it yet.</p>
+                    <p>This event is listed, but no one has registered yet. Use Back To Events to choose another event.</p>
                   </div>
                 )}
               </div>

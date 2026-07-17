@@ -158,8 +158,9 @@ function AdminDashboardPage() {
         title="Admin Dashboard"
         description="Manage programs, workshops, challenges, business listings, and items for sale."
       />
-      <nav className="admin-module-nav admin-public-nav" aria-label="Public site links">
-        {canReviewMemberships ? (
+      {canReviewMemberships ? (
+        <nav className="admin-module-nav admin-public-nav" aria-label="Needs attention">
+          <span className="admin-row-label">Needs Attention:</span>
           <button
             className={`button-link button-reset ${
               pendingMembershipCount ? 'pending-review-button' : 'secondary-action'
@@ -169,8 +170,8 @@ function AdminDashboardPage() {
           >
             Pending Membership Reviews ({pendingMembershipCount})
           </button>
-        ) : null}
-      </nav>
+        </nav>
+      ) : null}
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
         <span className="admin-row-label">Manage/Edit:</span>
         {canViewRegistrations ? (
@@ -243,7 +244,7 @@ function AdminDashboardPage() {
             type="button"
             onClick={() => setActiveModule('configuration')}
           >
-            System Config
+            Setup / System Config
           </button>
         ) : null}
       </nav>
@@ -268,8 +269,8 @@ function AdminDashboardPage() {
       <div className="admin-workspace">
         {!activeModule && (canManageEvents || isSuperUser || canAddUsers) ? (
           <div className="empty-state">
-            <h2>Select A Module</h2>
-            <p>Use the buttons above to open the part of the dashboard you need.</p>
+            <h2>Choose what you want to manage</h2>
+            <p>Use the Manage/Edit row above to open registrations, events, listings, user profiles, or setup tools.</p>
           </div>
         ) : null}
         {canManageEvents && activeModule === 'event-details' ? (
