@@ -20,6 +20,7 @@ const eventLocationsCollection = () => collection(db, 'eventLocationDefaults');
 const eventTimeOptionsCollection = () => collection(db, 'eventTimeDefaults');
 const coordinatorAssignmentsCollection = () => collection(db, 'coordinatorAssignments');
 const auditLogsCollection = () => collection(db, 'auditLogs');
+const paymentsCollection = () => collection(db, 'payments');
 
 export const COORDINATOR_ASSIGNMENT_AREAS = [
   {
@@ -341,6 +342,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     }
   });
 
+  const membershipPaymentWrites = [];
   const profileWrites = importedProfiles.flatMap((profile) => {
     const existingAnyProfileByEmail = profile.email ? allProfilesByEmail.get(profile.email) : null;
 
@@ -357,9 +359,20 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
 
     if (existingByEmail) {
       importedProfileIds.add(existingByEmail.id);
+      const value = buildImportedExistingProfile(existingByEmail, profile, 'email', termsVersion);
+
+      if (shouldRecordCsvMembershipPayment(existingByEmail, profile.status, isAnnualRefresh)) {
+        membershipPaymentWrites.push(buildCsvMembershipPaymentWrite({
+          actorProfile,
+          importMode: isAnnualRefresh ? 'Annual Refresh' : 'Add/Update Only',
+          profile: value,
+          targetProfileId: existingByEmail.id
+        }));
+      }
+
       return [{
         ref: doc(db, 'users', existingByEmail.id),
-        value: buildImportedExistingProfile(existingByEmail, profile, 'email', termsVersion)
+        value
       }];
     }
 
@@ -380,9 +393,20 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     }
 
     importedProfileIds.add(profile.profileId);
+    const value = buildImportedNewProfile(profile, termsVersion);
+
+    if (profile.status === 'Active') {
+      membershipPaymentWrites.push(buildCsvMembershipPaymentWrite({
+        actorProfile,
+        importMode: isAnnualRefresh ? 'Annual Refresh' : 'Add/Update Only',
+        profile: value,
+        targetProfileId: profile.profileId
+      }));
+    }
+
     return [{
       ref: doc(db, 'users', profile.profileId),
-      value: buildImportedNewProfile(profile, termsVersion)
+      value
     }];
   });
   const profilesToInactivate = isAnnualRefresh
@@ -391,6 +415,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
   const chunkSize = 400;
   const writes = [
     ...profileWrites,
+    ...membershipPaymentWrites,
     ...profilesToInactivate.map((profile) => ({
       merge: false,
       ref: doc(db, 'users', profile.id),
@@ -758,6 +783,60 @@ function buildImportedNewProfile(importedProfile, termsVersion) {
     termsVersion,
     updatedDate: serverTimestamp(),
     userId: importedProfile.profileId
+  };
+}
+
+function shouldRecordCsvMembershipPayment(existingProfile, importedMembershipStatus, isAnnualRefresh) {
+  return importedMembershipStatus === 'Active'
+    && (isAnnualRefresh || existingProfile.membershipStatus !== 'Active');
+}
+
+function buildCsvMembershipPaymentWrite({ actorProfile, importMode, profile, targetProfileId }) {
+  const ref = doc(paymentsCollection());
+
+  return {
+    ref,
+    value: buildCsvMembershipPaymentRecord({
+      actorProfile,
+      importMode,
+      paymentId: ref.id,
+      profile,
+      targetProfileId
+    })
+  };
+}
+
+function buildCsvMembershipPaymentRecord({
+  actorProfile,
+  importMode,
+  paymentId,
+  profile,
+  targetProfileId
+}) {
+  return {
+    amount: 0,
+    amountDue: 0,
+    createdBy: actorProfile?.userId || actorProfile?.id || '',
+    createdByEmail: actorProfile?.email || '',
+    createdByName: actorProfile?.name || actorProfile?.email || 'Unknown Admin',
+    createdDate: serverTimestamp(),
+    entityId: targetProfileId,
+    entityType: 'Membership',
+    eventId: '',
+    method: '',
+    note: `Membership marked paid from CSV import (${importMode}). Amount and method were not included in the CSV.`,
+    paymentId,
+    processor: 'Manual',
+    registrationId: '',
+    registrationStatus: '',
+    squareTransactionId: '',
+    status: 'Paid',
+    updatedMembershipSnapshot: {
+      membershipStatus: profile.membershipStatus || 'Active',
+      profileStatus: profile.status || 'Active',
+      userId: profile.userId || targetProfileId
+    },
+    updatedRegistrationSnapshot: {}
   };
 }
 

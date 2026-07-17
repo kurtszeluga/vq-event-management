@@ -17,6 +17,7 @@ import {
   updateUserPasswordByAdmin,
   updateUserProfile
 } from '../../services/userService.js';
+import { subscribeToPayments } from '../../services/registrationService.js';
 import {
   buildDisplayName,
   buildBillingAddress,
@@ -27,6 +28,8 @@ import {
 } from '../../utils/profileFormat.js';
 
 const MEMBERSHIP_FILTERS = ['All', 'Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
+const MEMBERSHIP_PAYMENT_STATUSES = ['Pending', 'Paid', 'Waived', 'Refunded'];
+const MEMBERSHIP_PAYMENT_METHODS = ['Cash', 'Check', 'Comped'];
 const QUICK_FILTERS = [
   { key: 'all', label: 'All Profiles' },
   { key: 'pending-review', label: 'Pending Review' },
@@ -47,6 +50,7 @@ function UserControlPanel({
   const [formError, setFormError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [membershipFilter, setMembershipFilter] = useState(initialMembershipFilter);
+  const [payments, setPayments] = useState([]);
   const [quickFilter, setQuickFilter] = useState(initialQuickFilter);
   const [savingUserId, setSavingUserId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,6 +93,19 @@ function UserControlPanel({
     return unsubscribe;
   }, [canManageAdminUsers]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToPayments(
+      (snapshot) => {
+        setPayments(snapshot.docs.map((paymentDoc) => ({ id: paymentDoc.id, ...paymentDoc.data() })));
+      },
+      () => {
+        setPayments([]);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
   const filteredUsers = getFilteredUsers(users, quickFilter, membershipFilter);
   const searchedUsers = searchUsers(filteredUsers, searchTerm);
 
@@ -109,6 +126,10 @@ function UserControlPanel({
       firstName: '',
       lastName: '',
       membershipReviewNote: '',
+      membershipPaymentAmount: '',
+      membershipPaymentMethod: '',
+      membershipPaymentNote: '',
+      membershipPaymentStatus: 'Pending',
       membershipStatus: 'Unknown',
       permissions: DEFAULT_USER_PERMISSIONS,
       phone: '',
@@ -139,6 +160,10 @@ function UserControlPanel({
       firstName: getProfileFirstName(user),
       lastName: getProfileLastName(user),
       membershipReviewNote: user.membershipReviewNote || '',
+      membershipPaymentAmount: '',
+      membershipPaymentMethod: '',
+      membershipPaymentNote: '',
+      membershipPaymentStatus: 'Pending',
       membershipStatus: user.membershipStatus || 'Unknown',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
@@ -172,6 +197,43 @@ function UserControlPanel({
         role: requestedRole,
         status: requestedRole === 'Super User' ? 'Active' : current.status
       });
+    });
+  }
+
+  function updateMembershipPaymentStatus(paymentStatus) {
+    setFormError('');
+    setSuccessMessage('');
+    setForm((current) => {
+      if (paymentStatus === 'Pending') {
+        return {
+          ...current,
+          membershipPaymentAmount: '0',
+          membershipPaymentMethod: '',
+          membershipPaymentStatus: paymentStatus
+        };
+      }
+
+      if (paymentStatus === 'Waived') {
+        return {
+          ...current,
+          membershipPaymentAmount: '0',
+          membershipPaymentMethod: 'Comped',
+          membershipPaymentStatus: paymentStatus
+        };
+      }
+
+      if (paymentStatus === 'Paid' && !['Cash', 'Check'].includes(current.membershipPaymentMethod)) {
+        return {
+          ...current,
+          membershipPaymentMethod: 'Cash',
+          membershipPaymentStatus: paymentStatus
+        };
+      }
+
+      return {
+        ...current,
+        membershipPaymentStatus: paymentStatus
+      };
     });
   }
 
@@ -263,6 +325,11 @@ function UserControlPanel({
         throw new Error('Select at least one admin permission before saving an Admin profile.');
       }
 
+      const membershipPayment =
+        canEditMembershipStatus && user.role !== 'Super User'
+          ? normalizeMembershipPayment(form)
+          : undefined;
+
       const payload = {
         billingAddress: buildBillingAddress(form.billingAddress),
         email: form.email.trim(),
@@ -280,6 +347,7 @@ function UserControlPanel({
           canEditMembershipStatus && user.role !== 'Super User'
             ? form.membershipReviewNote || ''
             : user.membershipReviewNote || '',
+        membershipPayment,
         role: roleForSave,
         status: statusForSave,
         userId: form.userId
@@ -353,6 +421,79 @@ function UserControlPanel({
     } finally {
       setSavingUserId('');
     }
+  }
+
+  function renderMembershipPaymentFields() {
+    if (!form) {
+      return null;
+    }
+
+    return (
+      <div className="membership-payment-panel">
+        <span className="field-label">Membership Payment</span>
+        <label>
+          <span>Payment Status</span>
+          <select
+            value={form.membershipPaymentStatus}
+            onChange={(event) =>
+              updateMembershipPaymentStatus(event.target.value)
+            }
+          >
+            {MEMBERSHIP_PAYMENT_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Payment Method</span>
+          <select
+            disabled={!['Paid', 'Waived', 'Refunded'].includes(form.membershipPaymentStatus)}
+            value={form.membershipPaymentMethod}
+            onChange={(event) =>
+              updateFormField('membershipPaymentMethod', event.target.value)
+            }
+          >
+            <option value="">Not recorded until paid</option>
+            {MEMBERSHIP_PAYMENT_METHODS.map((method) => (
+              <option key={method} value={method}>
+                {method}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Amount Paid</span>
+          <input
+            disabled={form.membershipPaymentStatus !== 'Paid'}
+            min="0"
+            step="0.01"
+            type="number"
+            value={form.membershipPaymentAmount}
+            onChange={(event) =>
+              updateFormField('membershipPaymentAmount', event.target.value)
+            }
+          />
+        </label>
+        <label>
+          <span>Payment Note</span>
+          <textarea
+            placeholder={form.membershipPaymentStatus === 'Refunded'
+              ? 'Enter refund date, who approved it, and why.'
+              : 'Optional payment note'}
+            rows="3"
+            value={form.membershipPaymentNote}
+            onChange={(event) =>
+              updateFormField('membershipPaymentNote', event.target.value)
+            }
+          />
+        </label>
+        <span className="form-help">
+          Payment history is saved when this profile is saved.
+        </span>
+      </div>
+    );
   }
 
   if (loadingUsers) {
@@ -607,6 +748,7 @@ function UserControlPanel({
                     <span className="form-help">
                       Admin roles and permissions require Active membership and Active profile status.
                     </span>
+                    {renderMembershipPaymentFields()}
                   </div>
                 ) : null}
                 {canManageAdminUsers ? (
@@ -690,6 +832,7 @@ function UserControlPanel({
             detailsUserId={detailsUserId}
             sortConfig={sortConfig}
             users={sortedFilteredUsers}
+            payments={payments}
             onDetails={(userId) =>
               setDetailsUserId((currentUserId) => (currentUserId === userId ? '' : userId))
             }
@@ -881,6 +1024,7 @@ function UserControlPanel({
                               }
                             />
                           </label>
+                          {renderMembershipPaymentFields()}
                           <span className="form-help">
                             Last reviewed by {user.membershipReviewedBy || 'not recorded'} on{' '}
                             {formatDateTime(user.membershipReviewedDate)}
@@ -1138,10 +1282,128 @@ function formatDateTime(value) {
   return Number.isNaN(date.getTime()) ? 'Not Set' : date.toLocaleString();
 }
 
+function normalizeMembershipPayment(form) {
+  const paymentStatus = MEMBERSHIP_PAYMENT_STATUSES.includes(form.membershipPaymentStatus)
+    ? form.membershipPaymentStatus
+    : 'Pending';
+  const paymentNote = String(form.membershipPaymentNote || '').trim();
+
+  if (paymentStatus === 'Pending') {
+    return {
+      amount: 0,
+      method: '',
+      note: paymentNote,
+      status: 'Pending'
+    };
+  }
+
+  if (paymentStatus === 'Waived') {
+    return {
+      amount: 0,
+      method: 'Comped',
+      note: paymentNote,
+      status: 'Waived'
+    };
+  }
+
+  if (paymentStatus === 'Refunded') {
+    if (!paymentNote) {
+      throw new Error('Enter refund details: when, who approved it, and why.');
+    }
+
+    return {
+      amount: Number(form.membershipPaymentAmount || 0),
+      method: form.membershipPaymentMethod || '',
+      note: paymentNote,
+      status: 'Refunded'
+    };
+  }
+
+  const method = ['Cash', 'Check'].includes(form.membershipPaymentMethod)
+    ? form.membershipPaymentMethod
+    : 'Cash';
+  const amount = Number(form.membershipPaymentAmount || 0);
+
+  if (amount <= 0) {
+    throw new Error('Enter the amount received for a membership cash or check payment.');
+  }
+
+  return {
+    amount,
+    method,
+    note: paymentNote,
+    status: 'Paid'
+  };
+}
+
+function MembershipPaymentHistory({ payments }) {
+  if (!payments.length) {
+    return (
+      <div className="payment-history-list membership-payment-history">
+        <strong>Membership Payment History</strong>
+        <p className="form-help">No membership payment history has been recorded yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="payment-history-list membership-payment-history">
+      <strong>Membership Payment History</strong>
+      {payments.map((payment) => (
+        <div className="payment-history-item" key={payment.id || payment.paymentId}>
+          <div>
+            <strong>
+              {payment.status || 'Pending'}
+              {payment.method ? ` (${payment.method})` : ''}
+            </strong>
+            <span>{formatDateTime(payment.createdDate)}</span>
+          </div>
+          <div>
+            <span>{formatCurrencyValue(payment.amount || 0)}</span>
+            <span>{payment.createdByName || payment.createdByEmail || 'Recorded by system'}</span>
+          </div>
+          {payment.note ? <p>{payment.note}</p> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function getMembershipPaymentHistory(user, payments = []) {
+  const ids = new Set([user.id, user.userId].filter(Boolean));
+
+  return payments
+    .filter((payment) =>
+      payment.entityType === 'Membership'
+      && (ids.has(payment.entityId) || ids.has(payment.updatedMembershipSnapshot?.userId))
+    )
+    .sort((first, second) => getDateSortValue(second.createdDate) - getDateSortValue(first.createdDate));
+}
+
+function getDateSortValue(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function formatCurrencyValue(value) {
+  const amount = Number(value || 0);
+
+  return amount.toLocaleString(undefined, {
+    currency: 'USD',
+    style: 'currency'
+  });
+}
+
 function UserTable({
   canManageAdminUsers,
   currentUserProfile,
   detailsUserId,
+  payments,
   sortConfig,
   users,
   onDetails,
@@ -1183,6 +1445,7 @@ function UserTable({
             const displayStatus = getDisplayProfileStatus(user);
             const userId = user.userId || user.id;
             const detailsOpen = detailsUserId === user.id;
+            const membershipPaymentHistory = getMembershipPaymentHistory(user, payments);
 
             return (
               <Fragment key={user.id}>
@@ -1317,6 +1580,7 @@ function UserTable({
                           {formatDateTime(user.membershipUpdatedDate)}
                         </span>
                       </div>
+                      <MembershipPaymentHistory payments={membershipPaymentHistory} />
                     </td>
                   </tr>
                 ) : null}

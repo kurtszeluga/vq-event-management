@@ -2106,6 +2106,10 @@ body.popup-mode .page-content {
   margin: 0;
 }
 
+.membership-payment-history {
+  margin-top: 14px;
+}
+
 .registration-edit-context {
   background: #f8f3ed;
   border: 1px solid #e2d8ce;

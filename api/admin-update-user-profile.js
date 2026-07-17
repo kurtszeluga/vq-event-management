@@ -93,6 +93,7 @@ export default async function handler(request, response) {
     }
 
     const payload = sanitizePayload(request.body || {}, actorProfile, before, targetProfileId);
+    const membershipPayment = sanitizeMembershipPayment(request.body?.membershipPayment);
 
     if (!payload.firstName || !payload.lastName || !payload.email) {
       response.status(400).json({ error: 'First name, last name, and email are required.' });
@@ -153,6 +154,18 @@ export default async function handler(request, response) {
     const batch = db.batch();
 
     batch.set(userRef, profile);
+    if (membershipPayment) {
+      const paymentRef = db.collection('payments').doc();
+
+      batch.set(paymentRef, buildMembershipPaymentRecord({
+        actorProfile,
+        actorUid,
+        membershipPayment,
+        paymentId: paymentRef.id,
+        profile,
+        targetProfileId
+      }));
+    }
     batch.set(db.collection('auditLogs').doc(), {
       action: 'Update',
       actorEmail: actorProfile.email || '',
@@ -269,6 +282,101 @@ function getPermissionsForRole(role, permissions = {}) {
     managePayments: false,
     manageMembershipStatus: false,
     viewRegistrations: false
+  };
+}
+
+function sanitizeMembershipPayment(payment = null) {
+  if (!payment || typeof payment !== 'object') {
+    return null;
+  }
+
+  const status = ['Pending', 'Paid', 'Refunded', 'Waived'].includes(payment.status)
+    ? payment.status
+    : 'Pending';
+  const note = cleanText(payment.note);
+
+  if (status === 'Pending') {
+    if (!note && !Number(payment.amount || 0) && !cleanText(payment.method)) {
+      return null;
+    }
+
+    return {
+      amount: 0,
+      method: '',
+      note,
+      status
+    };
+  }
+
+  if (status === 'Waived') {
+    return {
+      amount: 0,
+      method: 'Comped',
+      note,
+      status
+    };
+  }
+
+  if (status === 'Refunded') {
+    if (!note) {
+      throw new Error('Enter refund details: when, who approved it, and why.');
+    }
+
+    return {
+      amount: Number(payment.amount || 0),
+      method: cleanText(payment.method),
+      note,
+      status
+    };
+  }
+
+  const method = ['Cash', 'Check'].includes(payment.method) ? payment.method : 'Cash';
+  const amount = Number(payment.amount || 0);
+
+  if (amount <= 0) {
+    throw new Error('Enter the amount received for a membership cash or check payment.');
+  }
+
+  return {
+    amount,
+    method,
+    note,
+    status: 'Paid'
+  };
+}
+
+function buildMembershipPaymentRecord({
+  actorProfile,
+  actorUid,
+  membershipPayment,
+  paymentId,
+  profile,
+  targetProfileId
+}) {
+  return {
+    amount: Number(membershipPayment.amount || 0),
+    amountDue: 0,
+    createdBy: actorProfile.userId || actorUid,
+    createdByEmail: actorProfile.email || '',
+    createdByName: actorProfile.name || actorProfile.email || 'Unknown Admin',
+    createdDate: FieldValue.serverTimestamp(),
+    entityId: targetProfileId,
+    entityType: 'Membership',
+    eventId: '',
+    method: membershipPayment.method || '',
+    note: membershipPayment.note || '',
+    paymentId,
+    processor: 'Manual',
+    registrationId: '',
+    registrationStatus: '',
+    squareTransactionId: '',
+    status: membershipPayment.status || 'Pending',
+    updatedRegistrationSnapshot: {},
+    updatedMembershipSnapshot: {
+      membershipStatus: profile.membershipStatus || 'Unknown',
+      profileStatus: profile.status || 'Active',
+      userId: profile.userId || targetProfileId
+    }
   };
 }
 

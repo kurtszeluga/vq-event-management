@@ -397,8 +397,10 @@ service cloud.firestore {
           'paymentId',
           'processor',
           'registrationId',
+          'registrationStatus',
           'squareTransactionId',
           'status',
+          'updatedMembershipSnapshot',
           'updatedRegistrationSnapshot'
         ])
         && request.resource.data.paymentId is string
@@ -415,8 +417,11 @@ service cloud.firestore {
         && request.resource.data.note is string
         && validStatus(request.resource.data.processor, ['Manual', 'Square'])
         && (!('registrationId' in request.resource.data) || request.resource.data.registrationId is string)
+        && (!('registrationStatus' in request.resource.data) || request.resource.data.registrationStatus is string)
         && request.resource.data.squareTransactionId is string
         && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Failed', 'Refunded', 'Waived'])
+        && (!('updatedMembershipSnapshot' in request.resource.data)
+          || request.resource.data.updatedMembershipSnapshot is map)
         && request.resource.data.updatedRegistrationSnapshot is map;
     }
 
@@ -644,8 +649,12 @@ service cloud.firestore {
     }
 
     match /payments/{paymentId} {
-      allow read: if hasPermission('managePayments') || hasPermission('viewRegistrations');
-      allow create, update: if (hasPermission('managePayments') || hasPermission('viewRegistrations'))
+      allow read: if hasPermission('managePayments')
+        || hasPermission('viewRegistrations')
+        || hasPermission('manageMembershipStatus');
+      allow create, update: if (hasPermission('managePayments')
+          || hasPermission('viewRegistrations')
+          || hasPermission('manageMembershipStatus'))
         && validPayment();
       allow delete: if isSuperUser();
     }
