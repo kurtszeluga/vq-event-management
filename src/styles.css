@@ -457,6 +457,14 @@ body.popup-mode .page-content {
   margin-top: 18px;
 }
 
+.admin-public-nav {
+  margin-top: 8px;
+}
+
+.admin-public-nav + .admin-module-nav {
+  margin-top: 16px;
+}
+
 .admin-form,
 .admin-list-panel,
 .detail-panel,
