@@ -1029,6 +1029,21 @@ body.popup-mode .page-content {
   justify-content: flex-start;
 }
 
+.user-table tbody tr.recently-edited-row {
+  background: #fff3d7;
+  box-shadow: inset 4px 0 0 #c8442f;
+}
+
+.user-table tbody tr.recently-edited-row td:first-child strong::after {
+  color: #b53a29;
+  content: " Recently edited";
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-left: 8px;
+  text-transform: uppercase;
+}
+
 .event-admin-card-main {
   display: grid;
   gap: 8px;

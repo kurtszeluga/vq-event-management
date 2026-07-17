@@ -49,6 +49,7 @@ function UserControlPanel({
   const [form, setForm] = useState(null);
   const [formError, setFormError] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [lastEditedUserId, setLastEditedUserId] = useState('');
   const [membershipFilter, setMembershipFilter] = useState(initialMembershipFilter);
   const [payments, setPayments] = useState([]);
   const [quickFilter, setQuickFilter] = useState(initialQuickFilter);
@@ -126,10 +127,10 @@ function UserControlPanel({
       firstName: '',
       lastName: '',
       membershipReviewNote: '',
-      membershipPaymentAmount: user.membershipPaymentAmount ?? '',
-      membershipPaymentMethod: user.membershipPaymentMethod || '',
-      membershipPaymentNote: user.membershipPaymentNote || '',
-      membershipPaymentStatus: user.membershipPaymentStatus || 'Pending',
+      membershipPaymentAmount: '',
+      membershipPaymentMethod: '',
+      membershipPaymentNote: '',
+      membershipPaymentStatus: 'Pending',
       membershipStatus: 'Unknown',
       permissions: DEFAULT_USER_PERMISSIONS,
       phone: '',
@@ -143,6 +144,7 @@ function UserControlPanel({
 
   function startEdit(user) {
     const billingAddress = user.billingAddress || {};
+    const currentMembershipPayment = getCurrentMembershipPayment(user, payments);
 
     setEditingUserId(user.id);
     setError('');
@@ -160,10 +162,10 @@ function UserControlPanel({
       firstName: getProfileFirstName(user),
       lastName: getProfileLastName(user),
       membershipReviewNote: user.membershipReviewNote || '',
-      membershipPaymentAmount: '',
-      membershipPaymentMethod: '',
-      membershipPaymentNote: '',
-      membershipPaymentStatus: 'Pending',
+      membershipPaymentAmount: currentMembershipPayment.amount ?? '',
+      membershipPaymentMethod: currentMembershipPayment.method || '',
+      membershipPaymentNote: currentMembershipPayment.note || '',
+      membershipPaymentStatus: currentMembershipPayment.status || 'Pending',
       membershipStatus: user.membershipStatus || 'Unknown',
       permissions: normalizePermissions(user.permissions),
       phone: formatPhoneNumber(user.phone || ''),
@@ -364,12 +366,14 @@ function UserControlPanel({
           ...payload,
           temporaryPassword: form.temporaryPassword
         });
+        setLastEditedUserId(result.user?.userId || form.userId || '');
         setSuccessMessage(`User added. Temporary password: ${result.temporaryPassword}`);
       } else {
         await updateUserProfile(user.id, payload, currentUserProfile);
         if (canManageAdminUsers && form.temporaryPassword) {
           await updateUserPasswordByAdmin(user.userId || user.id, form.temporaryPassword);
         }
+        setLastEditedUserId(user.id);
         setSuccessMessage('User profile saved.');
       }
 
@@ -836,6 +840,7 @@ function UserControlPanel({
             canManageAdminUsers={canManageAdminUsers}
             currentUserProfile={currentUserProfile}
             detailsUserId={detailsUserId}
+            lastEditedUserId={lastEditedUserId}
             sortConfig={sortConfig}
             users={sortedFilteredUsers}
             payments={payments}
@@ -1386,6 +1391,28 @@ function getMembershipPaymentHistory(user, payments = []) {
     .sort((first, second) => getDateSortValue(second.createdDate) - getDateSortValue(first.createdDate));
 }
 
+function getCurrentMembershipPayment(user, payments = []) {
+  const [latestPayment] = getMembershipPaymentHistory(user, payments);
+
+  if (latestPayment) {
+    return {
+      amount: latestPayment.amount ?? '',
+      method: latestPayment.method || '',
+      note: latestPayment.note || '',
+      status: latestPayment.status || 'Pending',
+      updatedDate: latestPayment.createdDate
+    };
+  }
+
+  return {
+    amount: user.membershipPaymentAmount ?? '',
+    method: user.membershipPaymentMethod || '',
+    note: user.membershipPaymentNote || '',
+    status: user.membershipPaymentStatus || 'Pending',
+    updatedDate: user.membershipPaymentUpdatedDate
+  };
+}
+
 function getDateSortValue(value) {
   if (!value) {
     return 0;
@@ -1409,6 +1436,7 @@ function UserTable({
   canManageAdminUsers,
   currentUserProfile,
   detailsUserId,
+  lastEditedUserId,
   payments,
   sortConfig,
   users,
@@ -1452,10 +1480,13 @@ function UserTable({
             const userId = user.userId || user.id;
             const detailsOpen = detailsUserId === user.id;
             const membershipPaymentHistory = getMembershipPaymentHistory(user, payments);
+            const currentMembershipPayment = getCurrentMembershipPayment(user, payments);
+            const wasLastEdited = lastEditedUserId
+              && (user.id === lastEditedUserId || user.userId === lastEditedUserId);
 
             return (
               <Fragment key={user.id}>
-                <tr>
+                <tr className={wasLastEdited ? 'recently-edited-row' : ''}>
                   <td data-label="Name">
                     <strong>{user.name || 'Unnamed User'}</strong>
                   </td>
@@ -1535,19 +1566,19 @@ function UserTable({
                         </span>
                         <span>
                           <strong>Membership Payment</strong>
-                          {user.membershipPaymentStatus || 'Pending'}
+                          {currentMembershipPayment.status || 'Pending'}
                         </span>
                         <span>
                           <strong>Payment Amount</strong>
-                          {formatCurrencyValue(user.membershipPaymentAmount || 0)}
+                          {formatCurrencyValue(currentMembershipPayment.amount || 0)}
                         </span>
                         <span>
                           <strong>Payment Method</strong>
-                          {user.membershipPaymentMethod || 'Not Recorded'}
+                          {currentMembershipPayment.method || 'Not Recorded'}
                         </span>
                         <span>
                           <strong>Payment Updated</strong>
-                          {formatDateTime(user.membershipPaymentUpdatedDate)}
+                          {formatDateTime(currentMembershipPayment.updatedDate)}
                         </span>
                         <span>
                           <strong>Membership Review Note</strong>
