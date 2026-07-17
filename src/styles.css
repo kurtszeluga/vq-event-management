@@ -76,16 +76,11 @@ a {
   text-decoration: none;
 }
 
-.brand-mark {
-  align-items: center;
-  background: #225c56;
-  border-radius: 8px;
-  color: #fff;
-  display: inline-flex;
-  font-weight: 800;
-  height: 44px;
-  justify-content: center;
-  width: 44px;
+.brand-logo {
+  display: block;
+  height: 48px;
+  object-fit: contain;
+  width: 48px;
 }
 
 .brand strong,

@@ -23,10 +23,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'VQ Event Management',
-        short_name: 'VQ Events',
+        name: 'The Village Quilters Network',
+        short_name: 'VQ Network',
         description:
-          'Event registration and payment management for Village Quilters programs and classes.',
+          'Managing events, activities and members for The Village Quilters.',
         theme_color: '#225c56',
         background_color: '#f7f3ef',
         display: 'standalone',

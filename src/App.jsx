@@ -45,10 +45,14 @@ function App() {
       </div>
       <header className="site-header">
         <a className="brand" href="/">
-          <span className="brand-mark">VQ</span>
+          <img
+            alt="The Village Quilters"
+            className="brand-logo"
+            src="/assets/village-quilters-logo.png"
+          />
           <span>
-            <strong>VQ Event Management</strong>
-            <small>Village Quilters programs and classes</small>
+            <strong>The Village Quilters Network</strong>
+            <small>Managing events, activities and members</small>
           </span>
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
