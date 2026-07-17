@@ -190,14 +190,14 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
       if (
         quarterFilter
-        && getQuarterFilterValue(eventDate) !== quarterFilter
+        && !matchesQuarterFilter(eventDate, quarterFilter, eventType)
       ) {
         return;
       }
 
       if (
         yearFilter
-        && getYearFilterValue(eventDate) !== yearFilter
+        && !matchesYearFilter(eventDate, yearFilter, eventType)
       ) {
         return;
       }
@@ -295,17 +295,18 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       }
 
       const event = eventMap.get(registration.eventId);
+      const eventType = event?.eventType || registration.eventType || '';
       const eventDate = event?.date || registration.eventDate;
 
-      if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
+      if (yearFilter && !matchesYearFilter(eventDate, yearFilter, eventType)) {
         return;
       }
 
-      if (quarterFilter && getQuarterFilterValue(eventDate) !== quarterFilter) {
+      if (quarterFilter && !matchesQuarterFilter(eventDate, quarterFilter, eventType)) {
         return;
       }
 
-      const filterValue = getActivityFilterValue(event?.eventType || registration.eventType || '');
+      const filterValue = getActivityFilterValue(eventType);
 
       if (filterValue && eventIdsByFilter[filterValue]) {
         eventIdsByFilter[filterValue].add(registration.eventId);
@@ -358,9 +359,10 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         return;
       }
 
+      const eventType = event?.eventType || registration.eventType || '';
       const eventDate = event?.date || registration.eventDate;
 
-      if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
+      if (yearFilter && !matchesYearFilter(eventDate, yearFilter, eventType)) {
         return;
       }
 
@@ -1501,6 +1503,34 @@ function getActivityFilterValue(eventType = '') {
   }
 
   return '';
+}
+
+function matchesQuarterFilter(dateValue, quarterFilter, eventType = '') {
+  if (!quarterFilter) {
+    return true;
+  }
+
+  const quarterValue = getQuarterFilterValue(dateValue);
+
+  if (quarterValue) {
+    return quarterValue === quarterFilter;
+  }
+
+  return getActivityFilterValue(eventType) === 'Challenges';
+}
+
+function matchesYearFilter(dateValue, yearFilter, eventType = '') {
+  if (!yearFilter) {
+    return true;
+  }
+
+  const yearValue = getYearFilterValue(dateValue);
+
+  if (yearValue) {
+    return yearValue === yearFilter;
+  }
+
+  return getActivityFilterValue(eventType) === 'Challenges';
 }
 
 function getQuarterFilterValue(dateValue) {
