@@ -296,6 +296,7 @@ function AdminDashboardPage() {
               editingEvent={editingEvent}
               initialEventType={draftEventType}
               onCancelEdit={() => {
+                setActiveModule(getEventModuleForType(editingEvent?.eventType || draftEventType));
                 setEditingEvent(null);
                 setDraftEventType('');
               }}

@@ -14,7 +14,7 @@ import {
 import {
   subscribeToActiveEventLocationDefaults,
   subscribeToActiveEventTimeDefaults,
-  subscribeToMembershipSettings
+  subscribeToPaymentSettings
 } from '../../services/configurationService.js';
 import { formatTimeRange } from '../../utils/eventFormat.js';
 import { formatPhoneNumber } from '../../utils/profileFormat.js';
@@ -66,7 +66,7 @@ function EventForm({
       setConfiguredTimeOptions,
       () => setConfiguredTimeOptions([])
     );
-    const unsubscribeSettings = subscribeToMembershipSettings(
+    const unsubscribeSettings = subscribeToPaymentSettings(
       (settings) => setDefaultServiceFee(formatServiceFeeDefault(settings.defaultServiceFee)),
       () => setDefaultServiceFee('1.00')
     );

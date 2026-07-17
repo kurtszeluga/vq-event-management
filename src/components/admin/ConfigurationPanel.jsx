@@ -3,6 +3,7 @@ import {
   COORDINATOR_ASSIGNMENT_AREAS,
   DEFAULT_EMAIL_INSTRUCTIONS,
   DEFAULT_MEMBERSHIP_SETTINGS,
+  DEFAULT_PAYMENT_SETTINGS,
   EMAIL_INSTRUCTION_AREAS,
   archiveMembershipProfile,
   deleteEventLocationDefault,
@@ -16,12 +17,14 @@ import {
   sendEmailInstructionsTest,
   saveMembershipProfile,
   saveMembershipSettings,
+  savePaymentSettings,
   subscribeToCoordinatorAssignments,
   subscribeToEmailInstructions,
   subscribeToEventLocationDefaults,
   subscribeToEventTimeDefaults,
   subscribeToMembershipProfiles,
-  subscribeToMembershipSettings
+  subscribeToMembershipSettings,
+  subscribeToPaymentSettings
 } from '../../services/configurationService.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
 import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
@@ -85,6 +88,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [memberStatusFilter, setMemberStatusFilter] = useState('Active');
   const [members, setMembers] = useState([]);
   const [configurationView, setConfigurationView] = useState('membership');
+  const [paymentSettings, setPaymentSettings] = useState(DEFAULT_PAYMENT_SETTINGS);
   const [savingSection, setSavingSection] = useState('');
   const [settings, setSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const [successMessage, setSuccessMessage] = useState('');
@@ -180,7 +184,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   }
 
   useEffect(() => {
-    let pendingLoads = 6;
+    let pendingLoads = 7;
     const markLoaded = () => {
       pendingLoads -= 1;
       if (pendingLoads <= 0) {
@@ -194,6 +198,10 @@ function ConfigurationPanel({ currentUserProfile }) {
     const unsubscribers = [
       subscribeToMembershipSettings((nextSettings) => {
         setSettings(nextSettings);
+        markLoaded();
+      }, handleError),
+      subscribeToPaymentSettings((nextSettings) => {
+        setPaymentSettings(nextSettings);
         markLoaded();
       }, handleError),
       subscribeToEmailInstructions((nextInstructions) => {
@@ -240,6 +248,14 @@ function ConfigurationPanel({ currentUserProfile }) {
     await runSave('emailInstructions', async () => {
       await saveEmailInstructions(emailInstructions, currentUserProfile);
       setSuccessMessage('Email instructions saved.');
+    });
+  }
+
+  async function handleSavePaymentSettings(event) {
+    event.preventDefault();
+    await runSave('paymentSettings', async () => {
+      await savePaymentSettings(paymentSettings, currentUserProfile);
+      setSuccessMessage('Payment settings saved.');
     });
   }
 
@@ -453,24 +469,6 @@ function ConfigurationPanel({ currentUserProfile }) {
             <span>Allow Admins To Skip Membership Check</span>
           </label>
           <label>
-            <span>Default Event Service Fee</span>
-            <input
-              min="0"
-              step="0.01"
-              type="number"
-              value={settings.defaultServiceFee ?? 1}
-              onChange={(event) =>
-                setSettings((current) => ({
-                  ...current,
-                  defaultServiceFee: event.target.value
-                }))
-              }
-            />
-            <span className="form-help">
-              Used as the starting service fee when an event is marked as paid.
-            </span>
-          </label>
-          <label>
             <span>Membership Terms Version</span>
             <input
               placeholder="Example: 2026 Membership Terms"
@@ -505,6 +503,44 @@ function ConfigurationPanel({ currentUserProfile }) {
             type="submit"
           >
             {savingSection === 'settings' ? 'Saving...' : 'Save Membership Settings'}
+          </button>
+        </form>
+      </article>
+    );
+  }
+
+  function renderPaymentSettingsCard() {
+    return (
+      <article className="configuration-mini-card">
+        <div className="configuration-card-header">
+          <h3>Payment Settings</h3>
+          <p>Set payment defaults used when creating paid programs, workshops, retreats, and other paid activities.</p>
+        </div>
+        <form className="configuration-card-body" onSubmit={handleSavePaymentSettings}>
+          <label>
+            <span>Default Service Fee</span>
+            <input
+              min="0"
+              step="0.01"
+              type="number"
+              value={paymentSettings.defaultServiceFee ?? 1}
+              onChange={(event) =>
+                setPaymentSettings((current) => ({
+                  ...current,
+                  defaultServiceFee: event.target.value
+                }))
+              }
+            />
+            <span className="form-help">
+              Used as the starting service fee when an event or activity is marked as paid.
+            </span>
+          </label>
+          <button
+            className="button-link button-reset configuration-submit-button"
+            disabled={savingSection === 'paymentSettings'}
+            type="submit"
+          >
+            {savingSection === 'paymentSettings' ? 'Saving...' : 'Save Payment Settings'}
           </button>
         </form>
       </article>
@@ -1120,6 +1156,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           <div className="configuration-card-actions configuration-shell-actions">
             {[
               ['membership', 'Membership Check'],
+              ['paymentSettings', 'Payment Settings'],
               ['emailInstructions', 'Email Instructions'],
               ['members', 'Membership Profiles'],
               ['coordinators', 'Coordinator Assignments'],
@@ -1139,6 +1176,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         </div>
 
         {configurationView === 'membership' ? renderMembershipCard() : null}
+        {configurationView === 'paymentSettings' ? renderPaymentSettingsCard() : null}
         {configurationView === 'emailInstructions' ? renderEmailInstructionsCard() : null}
         {configurationView === 'members' ? renderMemberListCard() : null}
         {configurationView === 'coordinators' ? renderCoordinatorCard() : null}

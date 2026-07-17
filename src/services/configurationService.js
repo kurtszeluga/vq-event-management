@@ -13,6 +13,7 @@ import {
 import { auth, db } from '../lib/firebase.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
+const paymentSettingsRef = () => doc(db, 'appSettings', 'paymentSettings');
 const emailInstructionsRef = () => doc(db, 'appSettings', 'emailInstructions');
 const membersCollection = () => collection(db, 'members');
 const usersCollection = () => collection(db, 'users');
@@ -69,12 +70,15 @@ export const COORDINATOR_ASSIGNMENT_AREAS = [
 
 export const DEFAULT_MEMBERSHIP_SETTINGS = {
   allowAdminSkipMembershipCheck: false,
-  defaultServiceFee: 1,
   matchByEmail: true,
   matchByPhone: false,
   requireMembershipCheck: false,
   termsText: '',
   termsVersion: ''
+};
+
+export const DEFAULT_PAYMENT_SETTINGS = {
+  defaultServiceFee: 1
 };
 
 export const EMAIL_INSTRUCTION_AREAS = [
@@ -116,6 +120,19 @@ export function subscribeToMembershipSettings(onNext, onError) {
         ...DEFAULT_MEMBERSHIP_SETTINGS,
         ...snapshot.data()
       } : DEFAULT_MEMBERSHIP_SETTINGS);
+    },
+    onError
+  );
+}
+
+export function subscribeToPaymentSettings(onNext, onError) {
+  return onSnapshot(
+    paymentSettingsRef(),
+    (snapshot) => {
+      onNext(snapshot.exists() ? {
+        ...DEFAULT_PAYMENT_SETTINGS,
+        ...snapshot.data()
+      } : DEFAULT_PAYMENT_SETTINGS);
     },
     onError
   );
@@ -193,7 +210,6 @@ export async function saveMembershipSettings(settings, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
     allowAdminSkipMembershipCheck: Boolean(settings.allowAdminSkipMembershipCheck),
-    defaultServiceFee: Number(settings.defaultServiceFee || 0),
     matchByEmail: true,
     matchByPhone: false,
     requireMembershipCheck: Boolean(settings.requireMembershipCheck),
@@ -208,6 +224,24 @@ export async function saveMembershipSettings(settings, actorProfile) {
     after: payload,
     entityId: 'membership',
     summary: 'Updated membership check settings'
+  });
+
+  return batch.commit();
+}
+
+export async function savePaymentSettings(settings, actorProfile) {
+  const batch = writeBatch(db);
+  const payload = {
+    defaultServiceFee: Number(settings.defaultServiceFee || 0),
+    updatedDate: serverTimestamp()
+  };
+
+  batch.set(paymentSettingsRef(), payload, { merge: true });
+  addConfigurationAuditLog(batch, {
+    actorProfile,
+    after: payload,
+    entityId: 'paymentSettings',
+    summary: 'Updated payment settings'
   });
 
   return batch.commit();

@@ -541,6 +541,15 @@ service cloud.firestore {
         && request.resource.data.updatedDate is timestamp;
     }
 
+    function validPaymentSettings() {
+      return request.resource.data.keys().hasOnly([
+          'defaultServiceFee',
+          'updatedDate'
+        ])
+        && request.resource.data.defaultServiceFee is number
+        && request.resource.data.updatedDate is timestamp;
+    }
+
     function validMember() {
       return request.resource.data.keys().hasOnly([
           'email',
@@ -706,13 +715,15 @@ service cloud.firestore {
     }
 
     match /appSettings/{settingId} {
-      allow read: if settingId == 'membership' || isAdmin();
+      allow read: if settingId in ['membership', 'paymentSettings'] || isAdmin();
       allow create, update: if isSuperUser()
         && (
           settingId == 'membership'
             && validMembershipSettings()
           || settingId == 'emailInstructions'
             && validEmailInstructions()
+          || settingId == 'paymentSettings'
+            && validPaymentSettings()
         );
       allow delete: if isSuperUser();
     }
