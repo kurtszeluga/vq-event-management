@@ -159,7 +159,7 @@ function AdminDashboardPage() {
       <PageHeader
         eyebrow="Admin"
         title="Admin Dashboard"
-        description="Create classes, workshops, retreats, lectures, challenges, business listings, and sale listings."
+        description="Manage programs, workshops, challenges, business listings, and items for sale."
       />
       <nav className="admin-module-nav admin-public-nav" aria-label="Public site links">
         <button
