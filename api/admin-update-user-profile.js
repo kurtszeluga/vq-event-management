@@ -95,6 +95,13 @@ export default async function handler(request, response) {
     const payload = sanitizePayload(request.body || {}, actorProfile, before, targetProfileId);
     const membershipPayment = sanitizeMembershipPayment(request.body?.membershipPayment);
 
+    if (
+      membershipPayment?.status === 'Paid'
+      && ['Pending', 'Unknown', 'Inactive'].includes(payload.membershipStatus)
+    ) {
+      payload.membershipStatus = 'Active';
+    }
+
     if (!payload.firstName || !payload.lastName || !payload.email) {
       response.status(400).json({ error: 'First name, last name, and email are required.' });
       return;
@@ -137,18 +144,20 @@ export default async function handler(request, response) {
       userId: before.userId || targetProfileId
     });
 
-    try {
-      await updateAuthUser(profile.userId, {
-        disabled: profile.status !== 'Active',
-        displayName: profile.name,
-        email: profile.email
-      });
-    } catch (authError) {
-      if (!String(authError.message || '').includes('USER_NOT_FOUND')) {
-        throw authError;
-      }
+    if (profileAuthFieldsChanged(before, profile, targetProfileId)) {
+      try {
+        await updateAuthUser(profile.userId, {
+          disabled: profile.status !== 'Active',
+          displayName: profile.name,
+          email: profile.email
+        });
+      } catch (authError) {
+        if (!String(authError.message || '').includes('USER_NOT_FOUND')) {
+          throw authError;
+        }
 
-      console.warn('Firebase Auth user was not found for profile update', profile.userId);
+        console.warn('Firebase Auth user was not found for profile update', profile.userId);
+      }
     }
 
     const batch = db.batch();
@@ -428,6 +437,13 @@ async function handleSendEmailInstructionsTest(request, response, actorProfile) 
 
 function canUpdateTarget(actorProfile, targetProfile) {
   return actorProfile.role === 'Super User' || targetProfile.role === 'General User';
+}
+
+function profileAuthFieldsChanged(before, profile, targetProfileId) {
+  return (before.userId || targetProfileId) !== profile.userId
+    || cleanText(before.email).toLowerCase() !== profile.email
+    || cleanText(before.name) !== profile.name
+    || (before.status || 'Active') !== profile.status;
 }
 
 function normalizeProfileTags(profileTags = []) {

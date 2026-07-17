@@ -69,6 +69,13 @@ export default async function handler(request, response) {
     const payload = sanitizePayload(request.body || {}, actorProfile);
     const membershipPayment = sanitizeMembershipPayment(request.body?.membershipPayment);
 
+    if (
+      membershipPayment?.status === 'Paid'
+      && ['Pending', 'Unknown', 'Inactive'].includes(payload.membershipStatus)
+    ) {
+      payload.membershipStatus = 'Active';
+    }
+
     if (!payload.firstName || !payload.lastName || !payload.email) {
       response.status(400).json({ error: 'First name, last name, and email are required.' });
       return;

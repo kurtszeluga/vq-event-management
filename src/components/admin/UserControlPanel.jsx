@@ -299,12 +299,23 @@ function UserControlPanel({
       const formattedFirstName = toTitleCase(form.firstName);
       const formattedLastName = toTitleCase(form.lastName);
       const displayName = buildDisplayName(formattedFirstName, formattedLastName);
-      const membershipStatusForSave =
+      const requestedMembershipStatusForSave =
         user.role === 'Super User'
           ? user.membershipStatus || 'Unknown'
           : canEditMembershipStatus
             ? form.membershipStatus || 'Unknown'
             : user.membershipStatus || 'Unknown';
+      const membershipPayment =
+        canEditMembershipStatus && user.role !== 'Super User'
+          ? normalizeMembershipPayment(form)
+          : undefined;
+      const membershipStatusForSave =
+        canEditMembershipStatus
+          && user.role !== 'Super User'
+          && membershipPayment?.status === 'Paid'
+          && ['Pending', 'Unknown', 'Inactive'].includes(requestedMembershipStatusForSave)
+          ? 'Active'
+          : requestedMembershipStatusForSave;
       const statusForSave = form.role === 'Super User' ? 'Active' : form.status;
       const roleForSave = getAllowedFormRole({
         canManageAdminUsers,
@@ -324,11 +335,6 @@ function UserControlPanel({
       ) {
         throw new Error('Select at least one admin permission before saving an Admin profile.');
       }
-
-      const membershipPayment =
-        canEditMembershipStatus && user.role !== 'Super User'
-          ? normalizeMembershipPayment(form)
-          : undefined;
 
       const payload = {
         billingAddress: buildBillingAddress(form.billingAddress),
