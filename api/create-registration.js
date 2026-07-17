@@ -67,10 +67,16 @@ function getSquarePaymentConfig() {
   const applicationId = process.env.SQUARE_APPLICATION_ID || '';
   const locationId = process.env.SQUARE_LOCATION_ID || '';
   const environment = process.env.SQUARE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+  const expectedApplicationPrefix = environment === 'production'
+    ? 'sq0idp-'
+    : 'sandbox-sq0idb-';
+  const configured = applicationId.startsWith(expectedApplicationPrefix)
+    && locationId.length > 0
+    && !locationId.includes('Square Developer Dashboard');
 
   return {
     applicationId,
-    enabled: Boolean(applicationId && locationId),
+    enabled: configured,
     environment,
     locationId,
     scriptUrl: environment === 'production'

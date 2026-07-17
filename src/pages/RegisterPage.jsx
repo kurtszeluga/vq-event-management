@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
@@ -35,6 +35,7 @@ const MEMBERSHIP_TERMS_VERSION = '2026-07-16';
 const squareScriptPromises = new Map();
 
 function RegisterPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { eventId: routeEventId = '' } = useParams();
   const { currentUser, userProfile } = useAuth();
@@ -462,6 +463,11 @@ function RegisterPage() {
     window.setTimeout(() => {
       if (returnTarget) {
         window.location.assign(returnTarget);
+        return;
+      }
+
+      if (window.history.length > 1) {
+        navigate(-1);
         return;
       }
 
@@ -1188,6 +1194,7 @@ function RegistrationPaymentPanel({
       setLocalError('');
 
       try {
+        validateSquarePaymentConfig(config);
         await loadSquareScript(config.scriptUrl);
 
         if (!window.Square) {
@@ -1282,6 +1289,24 @@ function loadSquareScript(scriptUrl) {
   }
 
   return squareScriptPromises.get(scriptUrl);
+}
+
+function validateSquarePaymentConfig(config) {
+  const applicationId = String(config?.applicationId || '').trim();
+  const locationId = String(config?.locationId || '').trim();
+  const expectedAppIdPrefix = config?.environment === 'production'
+    ? 'sq0idp-'
+    : 'sandbox-sq0idb-';
+
+  if (!applicationId || !locationId) {
+    throw new Error('Online payment setup is missing the Square application ID or location ID.');
+  }
+
+  if (!applicationId.startsWith(expectedAppIdPrefix)) {
+    throw new Error(
+      `Online payment setup has an invalid Square application ID. Check SQUARE_APPLICATION_ID in Vercel; it should start with ${expectedAppIdPrefix}.`
+    );
+  }
 }
 
 function getEventPaymentTotal(event) {
