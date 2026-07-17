@@ -61,6 +61,7 @@ function RegisterPage() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [membershipSettings, setMembershipSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
+  const [paymentPreference, setPaymentPreference] = useState('');
   const [phone, setPhone] = useState('');
   const [phoneVerificationError, setPhoneVerificationError] = useState('');
   const [phoneVerificationInput, setPhoneVerificationInput] = useState('');
@@ -111,6 +112,10 @@ function RegisterPage() {
   }, [eventId]);
 
   useEffect(() => {
+    setPaymentPreference('');
+  }, [eventId]);
+
+  useEffect(() => {
     const unsubscribe = subscribeToMembershipSettings(
       setMembershipSettings,
       () => setMembershipSettings(DEFAULT_MEMBERSHIP_SETTINGS)
@@ -144,6 +149,8 @@ function RegisterPage() {
   const nonMemberRegistrationAllowed = lookup?.status === 'non-member-registration-allowed';
   const matchedProfile = lookup?.profile || null;
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
+  const isPaidEvent = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
+  const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
   const needsAccountPassword = lookupComplete
     && Boolean(matchedProfile)
@@ -275,6 +282,7 @@ function RegisterPage() {
         email,
         eventId,
         name: displayName,
+        paymentPreference: canPayLaterByCashCheck ? paymentPreference : '',
         phone,
         profileUserId: matchedProfile?.userId || '',
         profileUpdates,
@@ -768,6 +776,24 @@ function RegisterPage() {
               ) : null}
               {!needsProfileEdits ? (
                 <div className="registration-submit-block">
+                  {canPayLaterByCashCheck ? (
+                    <label className="checkbox-label">
+                      <input
+                        checked={paymentPreference === 'cash-check-later'}
+                        disabled={submitting || Boolean(confirmation)}
+                        type="checkbox"
+                        onChange={(inputEvent) =>
+                          setPaymentPreference(inputEvent.target.checked ? 'cash-check-later' : '')
+                        }
+                      />
+                      <span className="checkbox-label-copy">
+                        <span>I will pay by cash or check later.</span>
+                        <span className="form-help">
+                          Your spot will be registered now, and payment will remain pending until received.
+                        </span>
+                      </span>
+                    </label>
+                  ) : null}
                   {submitting ? (
                     <p className="form-success">
                       Submitting registration and preparing confirmation...
@@ -927,7 +953,7 @@ function LookupResult({
 }
 
 function EventSummary({ event }) {
-  const cost = event.isPaid ? formatCurrency(event.cost) : 'Free';
+  const cost = event.isPaid ? formatCurrency(event.cost) : 'No Charge';
 
   return (
     <aside className="registration-summary">
@@ -969,12 +995,16 @@ function RegistrationCompletion({ closeMessage, confirmation, event, onReturn })
         <strong>
           {confirmation.status === 'Waitlisted'
             ? 'You have been added to the waitlist.'
+            : confirmation.status === 'Pending Payment'
+              ? 'Registration pending payment.'
             : 'Registration confirmed.'}
         </strong>
         <span>
           {confirmation.profileReactivated ? ' Your profile was reactivated.' : ''}
-          {confirmation.paymentRequired
-            ? ' Payment is pending and will be handled when the payment module is enabled.'
+          {confirmation.paymentStatus === 'Pending'
+            ? confirmation.paymentPreference === 'cash-check-later'
+              ? ' Your spot is registered. Payment is pending until cash or check is received.'
+              : ' Payment is pending.'
             : ` You are registered for ${event.title}.`}
         </span>
       </div>

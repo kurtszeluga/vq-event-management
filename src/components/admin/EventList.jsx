@@ -233,8 +233,9 @@ function EventList({
               <div>
                 <dt>Cost</dt>
                 <dd>
-                  {event.isPaid ? formatCurrency(event.cost) : 'Free'} plus{' '}
-                  {formatCurrency(event.serviceFee)} fee
+                  {event.isPaid
+                    ? `${formatCurrency(event.cost)} plus ${formatCurrency(event.serviceFee)} fee`
+                    : 'No Charge'}
                 </dd>
               </div>
               <div>

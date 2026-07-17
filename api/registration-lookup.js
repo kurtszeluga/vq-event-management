@@ -73,7 +73,7 @@ async function findActiveRegistration(db, eventId, email, userId) {
   return snapshot.docs.some((docSnapshot) => {
     const registration = docSnapshot.data();
 
-    if (!['Registered', 'Waitlisted'].includes(registration.status)) {
+    if (!['Pending Payment', 'Registered', 'Waitlisted'].includes(registration.status)) {
       return false;
     }
 

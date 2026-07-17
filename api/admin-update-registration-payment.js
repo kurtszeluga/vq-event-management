@@ -3,8 +3,8 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 const PAYMENT_METHODS = ['', 'Online', 'Cash', 'Check', 'Comped'];
-const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
-const REGISTRATION_STATUSES = ['Registered', 'Cancelled', 'Waitlisted'];
+const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'];
+const REGISTRATION_STATUSES = ['Pending Payment', 'Registered', 'Cancelled', 'Waitlisted'];
 
 let firebaseProjectId = '';
 
@@ -82,7 +82,11 @@ export default async function handler(request, response) {
 
     const before = registrationSnap.data();
     const paymentUpdate = sanitizePaymentUpdate(request.body || {}, before);
-    const statusUpdate = sanitizeRegistrationStatus(request.body?.status, before);
+    const statusUpdate = getStatusUpdateForPayment({
+      requestedStatus: request.body?.status,
+      before,
+      paymentUpdate
+    });
     const now = FieldValue.serverTimestamp();
     const updatePayload = {
       ...paymentUpdate,
@@ -150,6 +154,30 @@ function sanitizeRegistrationStatus(status, registration) {
   }
 
   return { status: nextStatus };
+}
+
+function getStatusUpdateForPayment({ requestedStatus, before, paymentUpdate }) {
+  const explicitStatusUpdate = sanitizeRegistrationStatus(requestedStatus, before);
+
+  if (explicitStatusUpdate.status) {
+    return explicitStatusUpdate;
+  }
+
+  if (
+    ['Paid', 'Waived'].includes(paymentUpdate.paymentStatus)
+    && before.status === 'Pending Payment'
+  ) {
+    return { status: 'Registered' };
+  }
+
+  if (
+    paymentUpdate.paymentStatus === 'Refunded'
+    && before.status === 'Registered'
+  ) {
+    return { status: 'Cancelled' };
+  }
+
+  return {};
 }
 
 function buildAuditSummary(before, registrationId, paymentUpdate, statusUpdate) {
@@ -251,6 +279,19 @@ function sanitizePaymentUpdate(payload, registration) {
       paymentMethod: '',
       paymentNote,
       paymentStatus: 'Pending'
+    };
+  }
+
+  if (paymentStatus === 'No Charge') {
+    if (Number(registration.amountDue || 0) > 0) {
+      throw new Error('No Charge can only be used for registrations with no amount due.');
+    }
+
+    return {
+      amountPaid: 0,
+      paymentMethod: '',
+      paymentNote,
+      paymentStatus: 'No Charge'
     };
   }
 

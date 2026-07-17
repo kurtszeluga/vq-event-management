@@ -43,6 +43,7 @@ service cloud.firestore {
     function validEvent() {
       return request.resource.data.keys().hasOnly([
           'eventId',
+          'allowCashCheckPayment',
           'allowNonMemberRegistration',
           'type',
           'address',
@@ -89,6 +90,8 @@ service cloud.firestore {
           'updatedDate'
         ])
         && request.resource.data.title is string
+        && (!('allowCashCheckPayment' in request.resource.data)
+          || request.resource.data.allowCashCheckPayment is bool)
         && (!('allowNonMemberRegistration' in request.resource.data)
           || request.resource.data.allowNonMemberRegistration is bool)
         && (!('address' in request.resource.data) || request.resource.data.address is string)
@@ -179,10 +182,10 @@ service cloud.firestore {
         && (!('paymentMethod' in request.resource.data)
           || validStatus(request.resource.data.paymentMethod, ['', 'None', 'Online', 'Cash', 'Check', 'Comped']))
         && (!('paymentNote' in request.resource.data) || request.resource.data.paymentNote is string)
-        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived'])
+        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'])
         && (!('paymentUpdatedDate' in request.resource.data)
           || request.resource.data.paymentUpdatedDate is timestamp)
-        && validStatus(request.resource.data.status, ['Registered', 'Cancelled', 'Waitlisted'])
+        && validStatus(request.resource.data.status, ['Pending Payment', 'Registered', 'Cancelled', 'Waitlisted'])
         && (!('userId' in request.resource.data) || request.resource.data.userId is string)
         && (hasPermission('viewRegistrations')
           || !signedIn()
@@ -454,7 +457,7 @@ service cloud.firestore {
         && (!('registrationId' in request.resource.data) || request.resource.data.registrationId is string)
         && (!('registrationStatus' in request.resource.data) || request.resource.data.registrationStatus is string)
         && request.resource.data.squareTransactionId is string
-        && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Failed', 'Refunded', 'Waived'])
+        && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Failed', 'Refunded', 'Waived', 'No Charge'])
         && (!('updatedMembershipSnapshot' in request.resource.data)
           || request.resource.data.updatedMembershipSnapshot is map)
         && request.resource.data.updatedRegistrationSnapshot is map;

@@ -138,8 +138,9 @@ function EventDetailsPage() {
             <div>
               <dt>Cost</dt>
               <dd>
-                {event.isPaid ? formatCurrency(event.cost) : 'Free'} plus{' '}
-                {formatCurrency(event.serviceFee)} service fee
+                {event.isPaid
+                  ? `${formatCurrency(event.cost)} plus ${formatCurrency(event.serviceFee)} service fee`
+                  : 'No Charge'}
               </dd>
             </div>
             <div>

@@ -88,7 +88,7 @@ function buildEventPrintHtml(event) {
   const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
   const location = escapeHtml(event.location || 'To be announced');
   const presenter = escapeHtml(event.presenter || 'To be announced');
-  const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'Free');
+  const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'No Charge');
   const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
   const imageUrl = event.imageUrls?.find(Boolean) || '';
   const imageBlock = imageUrl
@@ -473,7 +473,7 @@ function EventsPage() {
                   </div>
                   <div>
                     <dt>Cost</dt>
-                    <dd>{event.isPaid ? formatCurrency(event.cost) : 'Free'}</dd>
+                    <dd>{event.isPaid ? formatCurrency(event.cost) : 'No Charge'}</dd>
                   </div>
                 </dl>
                 {coordinatorContact ? (

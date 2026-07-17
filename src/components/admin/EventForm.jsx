@@ -164,6 +164,7 @@ function EventForm({
       startTime: nextTimeOption?.startTime || '',
       endTime: nextTimeOption?.endTime || '',
       capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
+      allowCashCheckPayment: doesNotUseFees ? false : current.allowCashCheckPayment,
       allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale'
         ? false
         : current.allowNonMemberRegistration,
@@ -210,7 +211,7 @@ function EventForm({
     setForm((current) => ({
       ...current,
       isPaid: value,
-      ...(value ? {} : { cost: '0', serviceFee: '0' })
+      ...(value ? {} : { allowCashCheckPayment: false, cost: '0', serviceFee: '0' })
     }));
     setFieldErrors((current) => {
       const next = { ...current };
@@ -1152,6 +1153,21 @@ function EventForm({
                   Leave the default unless the fee changes.
                 </span>
               </label>
+              <label className="checkbox-label registration-exception-checkbox">
+                <input
+                  checked={Boolean(form.allowCashCheckPayment)}
+                  type="checkbox"
+                  onChange={(event) =>
+                    updateField('allowCashCheckPayment', event.target.checked)
+                  }
+                />
+                <span className="checkbox-label-copy">
+                  <strong>Allow cash/check payment later</strong>
+                  <small>
+                    Use only when registrants may reserve a spot now and pay by cash or check later.
+                  </small>
+                </span>
+              </label>
             </>
           ) : null}
         </div>
@@ -1507,6 +1523,9 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
 
   return {
     additionalNotes: form.additionalNotes.trim(),
+    allowCashCheckPayment: hasFees && form.isPaid === true
+      ? Boolean(form.allowCashCheckPayment)
+      : false,
     allowNonMemberRegistration: !isListingOnly && Boolean(form.allowNonMemberRegistration),
     address: toTitleCase(form.address.trim()),
     askingPrice: isForSale ? Number(form.askingPrice || 0) : 0,

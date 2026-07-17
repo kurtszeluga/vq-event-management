@@ -98,7 +98,7 @@ async function createRegistration(db, payload) {
       ...docSnapshot.data()
     }));
     const alreadyRegistered = existingRegistrations.some((registration) =>
-      ['Registered', 'Waitlisted'].includes(registration.status)
+      ['Pending Payment', 'Registered', 'Waitlisted'].includes(registration.status)
         && (
           normalizeEmail(registration.email) === payload.email
           || (profile?.id && registration.userId === (profile.userId || profile.id))
@@ -113,11 +113,16 @@ async function createRegistration(db, payload) {
       (registration) => registration.status === 'Registered'
     ).length;
     const hasCapacity = Boolean(event.capacityUnlimited) || registeredCount < Number(event.capacity || 0);
-    const status = hasCapacity ? 'Registered' : 'Waitlisted';
     const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
+    const payLaterByCashCheck =
+      isPaidEvent
+      && Boolean(event.allowCashCheckPayment)
+      && payload.paymentPreference === 'cash-check-later';
+    const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
     const eventCost = Number(event.cost || 0);
     const eventServiceFee = Number(event.serviceFee || 0);
     const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
+    const paymentStatus = getInitialPaymentStatus({ isPaidEvent, status });
     const userId = profile?.userId || profile?.id || '';
     const profileUpdates = payload.profileUpdates || {};
     const registrantFirstName = profileUpdates.firstName || profile?.firstName || getFirstName(payload.name);
@@ -133,11 +138,12 @@ async function createRegistration(db, payload) {
       eventServiceFee,
       eventTitle: event.title || '',
       eventType: event.eventType || '',
+      paymentPreference: payLaterByCashCheck ? 'cash-check-later' : '',
       name: payload.name,
       membershipStatusAtRegistration: membershipStatus,
       paymentMethod: '',
-      paymentNote: '',
-      paymentStatus: isPaidEvent ? 'Pending' : 'Paid',
+      paymentNote: payLaterByCashCheck ? 'Registrant chose to pay later by cash/check.' : '',
+      paymentStatus,
       paymentUpdatedDate: FieldValue.serverTimestamp(),
       phone: payload.phone,
       profileMatchedAtRegistration: Boolean(profile),
@@ -190,7 +196,7 @@ async function createRegistration(db, payload) {
       entityType: 'Registration',
       eventId: payload.eventId,
       method: registration.paymentMethod,
-      note: '',
+      note: registration.paymentNote,
       paymentId: paymentRef.id,
       processor: 'Manual',
       registrationId: registrationRef.id,
@@ -198,10 +204,11 @@ async function createRegistration(db, payload) {
       squareTransactionId: '',
       status: registration.paymentStatus,
       updatedRegistrationSnapshot: {
-        amountPaid: registration.amountPaid,
-        paymentMethod: registration.paymentMethod,
-        paymentStatus: registration.paymentStatus,
-        status
+      amountPaid: registration.amountPaid,
+      paymentMethod: registration.paymentMethod,
+      paymentStatus: registration.paymentStatus,
+      paymentPreference: registration.paymentPreference,
+      status
       }
     });
     transaction.set(auditRef, {
@@ -226,6 +233,7 @@ async function createRegistration(db, payload) {
       membershipStatus,
       paymentRequired: isPaidEvent,
       paymentStatus: registration.paymentStatus,
+      paymentPreference: registration.paymentPreference,
       profileReactivated: Boolean(profile && payload.reactivateProfile && profileStatus !== 'Active'),
       registrationId: registrationRef.id,
       registeredCount: registeredCount + (status === 'Registered' ? 1 : 0),
@@ -357,6 +365,7 @@ function sanitizeRegistrationPayload(payload) {
     email: normalizeEmail(payload.email),
     eventId: String(payload.eventId || '').trim(),
     name: normalizeName(payload.name || ''),
+    paymentPreference: payload.paymentPreference === 'cash-check-later' ? 'cash-check-later' : '',
     phone: String(payload.phone || '').trim(),
     profileUserId: String(payload.profileUserId || '').trim(),
     profileUpdates: sanitizeProfileUpdates(payload.profileUpdates || {}),
@@ -364,6 +373,26 @@ function sanitizeRegistrationPayload(payload) {
     reactivationTermsAccepted: Boolean(payload.reactivationTermsAccepted),
     termsVersion: String(payload.termsVersion || '').trim()
   };
+}
+
+function getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck }) {
+  if (!hasCapacity) {
+    return 'Waitlisted';
+  }
+
+  if (isPaidEvent && !payLaterByCashCheck) {
+    return 'Pending Payment';
+  }
+
+  return 'Registered';
+}
+
+function getInitialPaymentStatus({ isPaidEvent, status }) {
+  if (!isPaidEvent) {
+    return 'No Charge';
+  }
+
+  return status === 'Waitlisted' ? 'Pending' : 'Pending';
 }
 
 function validateReactivationTerms(payload) {
@@ -464,7 +493,7 @@ async function sendRegistrationConfirmationEmail(db, { event, registration }) {
   const instructionText = cleanText(emailSettings[area.areaId]);
   const coordinatorContact = await getCoordinatorContact(db, area.areaId);
   const replyTo = coordinatorContact.email;
-  const subjectStatus = registration.status === 'Waitlisted' ? 'Waitlist Confirmation' : 'Registration Confirmation';
+  const subjectStatus = getRegistrationEmailSubjectStatus(registration.status);
 
   await sendResendEmail({
     html: buildRegistrationConfirmationHtml({
@@ -606,6 +635,7 @@ function buildRegistrationConfirmationHtml({ area, coordinatorContact, event, in
   const supplyListUrl = event.supplyListUrl || '';
   const instructions = instructionText || 'No additional instructions have been provided for this area.';
   const contactHtml = buildCoordinatorContactHtml(coordinatorContact);
+  const confirmationIntro = getRegistrationEmailIntro(area, registration);
 
   return `<!doctype html>
 <html>
@@ -623,7 +653,7 @@ function buildRegistrationConfirmationHtml({ area, coordinatorContact, event, in
                     </td>
                     <td style="vertical-align:middle;">
                       <p style="margin:0 0 5px;color:#f3c6a8;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">The Village Quilters, Inc.</p>
-                      <h1 style="margin:0;color:#fffaf5;font-size:24px;line-height:1.25;">${escapeHtml(registration.status)} Confirmation</h1>
+                      <h1 style="margin:0;color:#fffaf5;font-size:24px;line-height:1.25;">${escapeHtml(getRegistrationEmailHeading(registration.status))}</h1>
                     </td>
                   </tr>
                 </table>
@@ -632,7 +662,7 @@ function buildRegistrationConfirmationHtml({ area, coordinatorContact, event, in
             <tr>
               <td style="padding:24px 28px;">
                 <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">Hello ${escapeHtml(registration.name)},</p>
-                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">Your ${escapeHtml(area.areaLabel.toLowerCase())} ${registration.status === 'Waitlisted' ? 'waitlist request' : 'registration'} has been received.</p>
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">${escapeHtml(confirmationIntro)}</p>
                 <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
                   <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">${escapeHtml(eventTitle)}</h2>
                   ${buildDetailRowHtml('Status', registration.status)}
@@ -677,11 +707,11 @@ function buildRegistrationConfirmationText({ area, coordinatorContact, event, in
   const coordinatorLines = buildCoordinatorContactText(coordinatorContact);
 
   return [
-    `The Village Quilters, Inc. ${registration.status} Confirmation`,
+    `The Village Quilters, Inc. ${getRegistrationEmailHeading(registration.status)}`,
     '',
     `Hello ${registration.name},`,
     '',
-    `Your ${area.areaLabel.toLowerCase()} ${registration.status === 'Waitlisted' ? 'waitlist request' : 'registration'} has been received.`,
+    getRegistrationEmailIntro(area, registration),
     '',
     `Event: ${event.title || event.eventType || 'Event'}`,
     `Status: ${registration.status}`,
@@ -698,6 +728,42 @@ function buildRegistrationConfirmationText({ area, coordinatorContact, event, in
     `${area.areaLabel} Instructions:`,
     instructionText || 'No additional instructions have been provided for this area.'
   ].filter((line) => line !== '').join('\n');
+}
+
+function getRegistrationEmailSubjectStatus(status) {
+  if (status === 'Waitlisted') {
+    return 'Waitlist Confirmation';
+  }
+
+  if (status === 'Pending Payment') {
+    return 'Payment Pending';
+  }
+
+  return 'Registration Confirmation';
+}
+
+function getRegistrationEmailHeading(status) {
+  if (status === 'Pending Payment') {
+    return 'Registration Pending Payment';
+  }
+
+  return `${status} Confirmation`;
+}
+
+function getRegistrationEmailIntro(area, registration) {
+  if (registration.status === 'Waitlisted') {
+    return `Your ${area.areaLabel.toLowerCase()} waitlist request has been received.`;
+  }
+
+  if (registration.status === 'Pending Payment') {
+    return `Your ${area.areaLabel.toLowerCase()} registration has been received and is pending payment.`;
+  }
+
+  if (registration.paymentPreference === 'cash-check-later') {
+    return `Your ${area.areaLabel.toLowerCase()} registration has been received. Payment is pending until cash or check is received.`;
+  }
+
+  return `Your ${area.areaLabel.toLowerCase()} registration has been received.`;
 }
 
 function buildMembershipConfirmationHtml({ area, coordinatorContact, instructionText, isReactivation, profile }) {

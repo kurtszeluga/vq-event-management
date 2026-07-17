@@ -11,8 +11,8 @@ import {
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatEventDate } from '../../utils/eventFormat.js';
 
-const REGISTRATION_STATUS_FILTERS = ['All', 'Registered', 'Waitlisted', 'Cancelled'];
-const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded', 'Failed', 'Waived'];
+const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
+const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'];
 const MANUAL_PAYMENT_METHOD_OPTIONS = ['Cash', 'Check'];
 const ACTIVITY_FILTERS = ['Programs', 'Workshops', 'Retreat', 'Challenges'];
 const QUARTER_FILTERS = [
@@ -172,7 +172,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         const eventRegistrations = groups.get(eventId) || [];
         const counts = eventRegistrations.reduce(
           (summary, registration) => {
-            if (registration.status === 'Registered') {
+            if (registration.status === 'Pending Payment') {
+              summary.pendingPayment += 1;
+            } else if (registration.status === 'Registered') {
               summary.registered += 1;
             } else if (registration.status === 'Waitlisted') {
               summary.waitlisted += 1;
@@ -182,12 +184,14 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
             return summary;
           },
-          { cancelled: 0, registered: 0, waitlisted: 0 }
+          { cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 }
         );
         const displayRegistrations = combineRegistrationsByRegistrant(eventRegistrations);
         const displayCounts = displayRegistrations.reduce(
           (summary, registration) => {
-            if (registration.status === 'Registered') {
+            if (registration.status === 'Pending Payment') {
+              summary.pendingPayment += 1;
+            } else if (registration.status === 'Registered') {
               summary.registered += 1;
             } else if (registration.status === 'Waitlisted') {
               summary.waitlisted += 1;
@@ -197,7 +201,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
             return summary;
           },
-          { cancelled: 0, registered: 0, waitlisted: 0 }
+          { cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 }
         );
 
         return {
@@ -396,18 +400,34 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     }
 
     if (nextStatus === 'Waived') {
+      if (selectedStatus === 'Pending Payment') {
+        setSelectedStatus('Registered');
+      }
       setSelectedPaymentMethod('Comped');
       setSelectedPaymentAmount('0');
       return;
     }
 
+    if (nextStatus === 'No Charge') {
+      setSelectedPaymentMethod('');
+      setSelectedPaymentAmount('0');
+      return;
+    }
+
     if (nextStatus === 'Refunded') {
+      if (selectedStatus === 'Registered') {
+        setSelectedStatus('Cancelled');
+      }
       setSelectedPaymentMethod(normalizePaymentMethod(selectedRegistration?.paymentMethod));
       setSelectedPaymentAmount(String(selectedRegistration?.amountPaid ?? 0));
       return;
     }
 
     if (nextStatus === 'Paid') {
+      if (selectedStatus === 'Pending Payment') {
+        setSelectedStatus('Registered');
+      }
+
       if (isOnlinePayment(selectedRegistration)) {
         setSelectedPaymentMethod('Online');
       } else if (!MANUAL_PAYMENT_METHOD_OPTIONS.includes(selectedPaymentMethod)) {
@@ -593,6 +613,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                   </span>
                   <span className={getStatPillClass(group.displayCounts.registered)}>
                     {group.displayCounts.registered} Registered
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.pendingPayment)}>
+                    {group.displayCounts.pendingPayment} Pending Payment
                   </span>
                   <span className={getStatPillClass(group.displayCounts.waitlisted)}>
                     {group.displayCounts.waitlisted} Waitlisted
@@ -872,7 +895,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                   >
                     {paymentMethodOptions.map((method) => (
                       <option key={method} value={method}>
-                        {method || 'Not recorded until paid'}
+                        {method || (selectedPaymentStatus === 'No Charge'
+                          ? 'No payment method'
+                          : 'Not recorded until paid')}
                       </option>
                     ))}
                   </select>
@@ -1038,6 +1063,10 @@ function compareRegistrationPriority(first, second) {
 }
 
 function getRegistrationStatusRank(status) {
+  if (status === 'Pending Payment') {
+    return 0;
+  }
+
   if (status === 'Registered') {
     return 1;
   }
@@ -1154,13 +1183,20 @@ function getPaymentStatusOptions(registration) {
     return ['Paid', 'Refunded'];
   }
 
-  const options = ['Pending', 'Paid', 'Refunded', 'Waived'];
-
-  if (registration?.paymentStatus === 'Failed') {
-    return ['Failed', ...options];
+  if (registration?.paymentStatus === 'No Charge') {
+    return ['No Charge'];
   }
 
-  return options;
+  const options = ['Pending', 'Paid', 'Refunded', 'Waived'];
+  const noChargeOptions = Number(getAmountDue(registration) || 0) <= 0
+    ? [...options, 'No Charge']
+    : options;
+
+  if (registration?.paymentStatus === 'Failed') {
+    return ['Failed', ...noChargeOptions];
+  }
+
+  return noChargeOptions;
 }
 
 function getPaymentMethodOptions(registration, paymentStatus) {
@@ -1176,6 +1212,10 @@ function getPaymentMethodOptions(registration, paymentStatus) {
     return ['Comped'];
   }
 
+  if (paymentStatus === 'No Charge') {
+    return [''];
+  }
+
   if (paymentStatus === 'Refunded') {
     return [normalizePaymentMethod(registration?.paymentMethod)].filter(Boolean);
   }
@@ -1187,9 +1227,9 @@ function getPaymentEditState(registration, paymentStatus) {
   const onlinePayment = isOnlinePayment(registration);
 
   return {
-    amountLocked: onlinePayment || paymentStatus !== 'Paid',
-    methodLocked: onlinePayment || paymentStatus !== 'Paid',
-    statusLocked: false
+    amountLocked: onlinePayment || !['Paid'].includes(paymentStatus),
+    methodLocked: onlinePayment || !['Paid'].includes(paymentStatus),
+    statusLocked: paymentStatus === 'No Charge'
   };
 }
 
@@ -1235,6 +1275,17 @@ function normalizePaymentEdit(registration, paymentEdit) {
           paymentNote,
           paymentStatus: 'Pending'
         }
+    };
+  }
+
+  if (paymentStatus === 'No Charge') {
+    return {
+      payment: {
+        amountPaid: 0,
+        paymentMethod: '',
+        paymentNote,
+        paymentStatus: 'No Charge'
+      }
     };
   }
 
@@ -1301,6 +1352,10 @@ function getPaymentHelpText(registration, paymentStatus) {
 
   if (paymentStatus === 'Pending') {
     return 'Method and amount stay locked until payment is marked paid.';
+  }
+
+  if (paymentStatus === 'No Charge') {
+    return 'Free registrations are recorded as No Charge with $0.00 paid.';
   }
 
   if (paymentStatus === 'Paid') {
