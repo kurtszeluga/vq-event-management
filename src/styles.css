@@ -1777,6 +1777,16 @@ body.popup-mode .page-content {
   padding-top: 10px;
 }
 
+.filter-count-label {
+  align-items: center;
+  color: #5c6966;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 800;
+  min-height: 38px;
+  padding-right: 6px;
+}
+
 .status-filter-button {
   background: #fffdfa;
   border: 1px solid #c9bbb0;

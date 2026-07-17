@@ -392,7 +392,7 @@ function EventsPage() {
     <section>
       <PageHeader
         eyebrow="Events"
-        title="Upcoming programs"
+        title="Programs & Activities"
         description="Browse upcoming classes, workshops, retreats, lectures, challenges, and other registerable activities."
       />
       {error ? <p className="form-error">{error}</p> : null}

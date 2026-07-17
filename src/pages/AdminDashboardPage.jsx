@@ -293,7 +293,6 @@ function AdminDashboardPage() {
             <div className="form-section-header form-section-header-stacked">
               <div className="form-section-header-top">
                 <h2>{eventModuleConfig[activeModule].title}</h2>
-                <span>{events.length} total</span>
               </div>
               {eventModuleConfig[activeModule].createLabel ? (
                 <div className="admin-list-panel-actions">

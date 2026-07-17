@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
 const ALL_TYPES = 'All';
 const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
 const DESCRIPTION_PREVIEW_LENGTH = 180;
-const FILTER_TYPES = [
-  'All',
-  ...EVENT_TYPES
+const CLASS_TYPES = ['Class (Half Day)', 'Class (Full Day)'];
+const DEFAULT_TYPE_FILTERS = [
+  { label: ALL_TYPES, value: ALL_TYPES, types: [] },
+  { label: 'Classes', value: 'Classes', types: CLASS_TYPES },
+  { label: 'Workshop', value: 'Workshop', types: ['Workshop'] },
+  { label: 'Lecture', value: 'Lecture', types: ['Lecture'] },
+  { label: 'Retreat', value: 'Retreat', types: ['Retreat'] },
+  { label: 'Other', value: 'Other', types: ['Other'] }
 ];
 
 function EventList({
@@ -23,6 +27,17 @@ function EventList({
   const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  const eventTypeFilters = useMemo(
+    () =>
+      DEFAULT_TYPE_FILTERS.filter((filter) =>
+        filter.value === ALL_TYPES || filter.types.some((type) => !excludedTypes.has(type))
+      ),
+    [excludedTypes]
+  );
+  const eventTypeFilterMap = useMemo(
+    () => new Map(eventTypeFilters.map((filter) => [filter.value, filter])),
+    [eventTypeFilters]
+  );
 
   const moduleEvents = useMemo(
     () =>
@@ -43,14 +58,19 @@ function EventList({
     () =>
       moduleEvents.reduce((counts, event) => {
         const type = event.eventType || 'Other';
+        const matchingFilter = eventTypeFilters.find(
+          (filter) => filter.value !== ALL_TYPES && filter.types.includes(type)
+        );
 
         if (!matchesEventStatus(event, eventStatusFilter)) {
           return counts;
         }
 
-        return type in counts ? { ...counts, [type]: counts[type] + 1 } : counts;
-      }, Object.fromEntries(FILTER_TYPES.slice(1).map((type) => [type, 0]))),
-    [eventStatusFilter, moduleEvents]
+        return matchingFilter
+          ? { ...counts, [matchingFilter.value]: counts[matchingFilter.value] + 1 }
+          : counts;
+      }, Object.fromEntries(eventTypeFilters.map((filter) => [filter.value, 0]))),
+    [eventStatusFilter, eventTypeFilters, moduleEvents]
   );
   const eventStatusCounts = useMemo(
     () =>
@@ -58,7 +78,7 @@ function EventList({
         (counts, event) => {
           const type = event.eventType || 'Other';
 
-          if (showTypeFilters && eventTypeFilter !== ALL_TYPES && type !== eventTypeFilter) {
+          if (showTypeFilters && !matchesEventTypeFilter(type, eventTypeFilter, eventTypeFilterMap)) {
             return counts;
           }
 
@@ -72,26 +92,22 @@ function EventList({
         },
         { active: 0, archived: 0 }
       ),
-    [eventTypeFilter, moduleEvents, showTypeFilters]
+    [eventTypeFilter, eventTypeFilterMap, moduleEvents, showTypeFilters]
   );
   const allTypeCount = useMemo(
     () => moduleEvents.filter((event) => matchesEventStatus(event, eventStatusFilter)).length,
     [eventStatusFilter, moduleEvents]
-  );
-  const eventTypeFilters = useMemo(
-    () => FILTER_TYPES,
-    []
   );
   const filteredEvents = useMemo(
     () =>
       moduleEvents
         .filter((event) => matchesEventStatus(event, eventStatusFilter))
         .filter((event) =>
-          !showTypeFilters || eventTypeFilter === ALL_TYPES
+          !showTypeFilters
             ? true
-            : (event.eventType || 'Other') === eventTypeFilter
+            : matchesEventTypeFilter(event.eventType || 'Other', eventTypeFilter, eventTypeFilterMap)
         ),
-    [eventStatusFilter, eventTypeFilter, moduleEvents, showTypeFilters]
+    [eventStatusFilter, eventTypeFilter, eventTypeFilterMap, moduleEvents, showTypeFilters]
   );
 
   useEffect(() => {
@@ -130,6 +146,7 @@ function EventList({
   return (
     <div className="event-admin-list">
       <div className="status-filter-group separated-filter-row" aria-label="Event status filters">
+          <span className="filter-count-label">{filteredEvents.length} matching</span>
           {EVENT_STATUS_FILTERS.map((status) => (
             <button
               className={`status-filter-button${eventStatusFilter === status ? ' active' : ''}${status === 'Archived' && eventStatusFilter === status ? ' archive-active' : ''}`}
@@ -143,14 +160,16 @@ function EventList({
         </div>
       {showTypeFilters ? (
         <div className="status-filter-group separated-filter-row" aria-label="Event type filters">
-          {eventTypeFilters.map((type) => (
+          {eventTypeFilters.map((filter) => (
             <button
-              className={`status-filter-button${eventTypeFilter === type ? ' active' : ''}`}
-              key={type}
+              className={`status-filter-button${eventTypeFilter === filter.value ? ' active' : ''}`}
+              key={filter.value}
               type="button"
-              onClick={() => setEventTypeFilter(type)}
+              onClick={() => setEventTypeFilter(filter.value)}
             >
-              {type === ALL_TYPES ? `All (${allTypeCount})` : `${type} (${eventTypeCounts[type] || 0})`}
+              {filter.value === ALL_TYPES
+                ? `All (${allTypeCount})`
+                : `${filter.label} (${eventTypeCounts[filter.value] || 0})`}
             </button>
           ))}
         </div>
@@ -347,6 +366,16 @@ function matchesEventStatus(event, statusFilter) {
   return statusFilter === 'Archived'
     ? event.status === 'Archived'
     : event.status !== 'Archived';
+}
+
+function matchesEventTypeFilter(type, filterValue, filterMap) {
+  if (filterValue === ALL_TYPES) {
+    return true;
+  }
+
+  const filter = filterMap.get(filterValue);
+
+  return filter ? filter.types.includes(type) : type === filterValue;
 }
 
 export default EventList;
