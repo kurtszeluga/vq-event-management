@@ -33,6 +33,8 @@ const router = createBrowserRouter([
       { path: 'events/:eventId/print', element: <EventListingPrintPage /> },
       { path: 'events/:eventId/supply-list', element: <SupplyListViewerPage /> },
       { path: 'register', element: <RegisterPage /> },
+      { path: 'register/:eventId', element: <RegisterPage /> },
+      { path: 'events/:eventId/register', element: <RegisterPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
       { path: 'profile', element: <ProfilePage /> },

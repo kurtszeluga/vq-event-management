@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
@@ -36,8 +36,9 @@ const squareScriptPromises = new Map();
 
 function RegisterPage() {
   const [searchParams] = useSearchParams();
+  const { eventId: routeEventId = '' } = useParams();
   const { currentUser, userProfile } = useAuth();
-  const eventId = searchParams.get('eventId') || '';
+  const eventId = searchParams.get('eventId') || routeEventId || '';
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const referrerUrl = getExternalReferrerUrl();
   const returnTarget = returnUrl || referrerUrl;
