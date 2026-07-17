@@ -168,6 +168,17 @@ function AdminDashboardPage() {
         <Link className="button-link secondary-action" to="/for-sale">
           View For Sale
         </Link>
+        {canReviewMemberships ? (
+          <button
+            className={`button-link button-reset ${
+              pendingMembershipCount ? 'pending-review-button' : 'secondary-action'
+            }`}
+            type="button"
+            onClick={openPendingMembershipReview}
+          >
+            Pending Membership Reviews ({pendingMembershipCount})
+          </button>
+        ) : null}
       </nav>
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
         {canViewRegistrations ? (
