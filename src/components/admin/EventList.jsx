@@ -231,11 +231,21 @@ function EventList({
                 </dd>
               </div>
               <div>
-                <dt>Cost</dt>
+                <dt>Payment Details</dt>
                 <dd>
-                  {event.isPaid
-                    ? `${formatCurrency(event.cost)} plus ${formatCurrency(event.serviceFee)} fee`
-                    : 'No Charge'}
+                  {event.isPaid ? (
+                    <>
+                      <span>{formatCurrency(event.cost || 0)} cost</span>
+                      <span> + {formatCurrency(event.serviceFee || 0)} service fee</span>
+                      <span> = {formatCurrency(getEventPaymentTotal(event))} total</span>
+                      <br />
+                      <span>
+                        Cash/check later: {event.allowCashCheckPayment ? 'Allowed' : 'Not allowed'}
+                      </span>
+                    </>
+                  ) : (
+                    'No Charge'
+                  )}
                 </dd>
               </div>
               <div>
@@ -376,6 +386,10 @@ function matchesEventTypeFilter(type, filterValue, filterMap) {
   const filter = filterMap.get(filterValue);
 
   return filter ? filter.types.includes(type) : type === filterValue;
+}
+
+function getEventPaymentTotal(event) {
+  return Number(event.cost || 0) + Number(event.serviceFee || 0);
 }
 
 export default EventList;

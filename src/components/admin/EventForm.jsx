@@ -106,6 +106,18 @@ function EventForm({
     });
   }
 
+  function handleMoneyFieldFocus(name) {
+    setForm((current) => {
+      const value = current[name];
+
+      if (value === '' || Number(value) !== 0) {
+        return current;
+      }
+
+      return { ...current, [name]: '' };
+    });
+  }
+
   function handleAllowNonMemberRegistration(value) {
     if (value) {
       const confirmed = window.confirm('Confirm NON member registration allowed');
@@ -211,7 +223,13 @@ function EventForm({
     setForm((current) => ({
       ...current,
       isPaid: value,
-      ...(value ? {} : { allowCashCheckPayment: false, cost: '0', serviceFee: '0' })
+      ...(value
+        ? {
+            serviceFee: current.serviceFee && Number(current.serviceFee) !== 0
+              ? current.serviceFee
+              : '1.00'
+          }
+        : { allowCashCheckPayment: false, cost: '0', serviceFee: '0' })
     }));
     setFieldErrors((current) => {
       const next = { ...current };
@@ -413,7 +431,7 @@ function EventForm({
             ? 'Event changes saved.'
             : 'Event submitted and saved.'
       );
-      onSaved();
+      onSaved(payload);
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -426,11 +444,6 @@ function EventForm({
     <form className="admin-form" noValidate onSubmit={handleSubmit}>
       <div className="form-section-header">
         <h2>{isEditing ? 'Edit Event' : 'Event/Activity Details'}</h2>
-        {isEditing ? (
-          <button className="button-link button-reset secondary-action" type="button" onClick={onCancelEdit}>
-            Cancel Edit
-          </button>
-        ) : null}
       </div>
 
       <div className="form-grid stacked">
@@ -1132,6 +1145,7 @@ function EventForm({
                   step="0.01"
                   type="number"
                   value={form.cost}
+                  onFocus={() => handleMoneyFieldFocus('cost')}
                   onChange={(event) => updateField('cost', event.target.value)}
                 />
                 <span className="form-help">
@@ -1145,6 +1159,7 @@ function EventForm({
                   step="0.01"
                   type="number"
                   value={form.serviceFee}
+                  onFocus={() => handleMoneyFieldFocus('serviceFee')}
                   onChange={(event) =>
                     updateField('serviceFee', event.target.value)
                   }
@@ -1326,6 +1341,16 @@ function EventForm({
         >
           Reset Form
         </button>
+        {isEditing ? (
+          <button
+            className="button-link button-reset secondary-action"
+            disabled={saving || Boolean(uploadingField)}
+            type="button"
+            onClick={onCancelEdit}
+          >
+            Cancel Edit
+          </button>
+        ) : null}
       </div>
     </form>
   );

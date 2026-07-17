@@ -145,6 +145,22 @@ function AdminDashboardPage() {
     setActiveModule('event-details');
   }
 
+  function getEventModuleForType(eventType) {
+    if (eventType === 'Challenges') {
+      return 'challenges';
+    }
+
+    if (eventType === 'Business Listing') {
+      return 'business-listings';
+    }
+
+    if (eventType === 'For Sale') {
+      return 'for-sale';
+    }
+
+    return 'events-activities';
+  }
+
   function openPendingMembershipReview() {
     setUserControlsQuickFilter('pending-review');
     setUserControlsMembershipFilter('Pending');
@@ -282,9 +298,12 @@ function AdminDashboardPage() {
                 setEditingEvent(null);
                 setDraftEventType('');
               }}
-              onSaved={() => {
+              onSaved={(savedEvent) => {
                 setEditingEvent(null);
                 setDraftEventType('');
+                setActiveModule(
+                  getEventModuleForType(savedEvent?.eventType || editingEvent?.eventType || draftEventType)
+                );
               }}
               userProfile={userProfile}
             />
