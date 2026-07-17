@@ -123,7 +123,7 @@
       ? `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`
       : description;
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
-    const cost = event.isPaid ? formatCurrency(event.cost) : 'Free';
+    const paymentDetails = getPaymentDetails(event);
     const thumbnail = event.imageUrl
       ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
       : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
@@ -170,7 +170,10 @@
             <div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>
             ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
             ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
-            <div><dt>Cost</dt><dd>${escapeHtml(cost)}</dd></div>
+            <div class="vq-feed-payment-detail">
+              <dt>Payment</dt>
+              <dd>${paymentDetails}</dd>
+            </div>
           </dl>
           <div class="vq-feed-registration-stats" aria-label="Registration statistics">
             ${registrationStats.map((stat) => `
@@ -207,6 +210,25 @@
     `;
   }
 
+  function getPaymentDetails(event) {
+    if (!event.isPaid) {
+      return '<strong>No Charge</strong>';
+    }
+
+    const cost = Number(event.cost || 0);
+    const serviceFee = Number(event.serviceFee || 0);
+    const total = cost + serviceFee;
+    const payLater = event.allowCashCheckPayment
+      ? '<span class="vq-feed-payment-note">Cash/check later available</span>'
+      : '';
+
+    return `
+      <strong>${escapeHtml(formatCurrency(total))} total</strong>
+      <span class="vq-feed-payment-breakdown">${escapeHtml(formatCurrency(cost))} + ${escapeHtml(formatCurrency(serviceFee))} service fee</span>
+      ${payLater}
+    `;
+  }
+
   function buildRegistrationUrl(registerUrl) {
     try {
       const url = new URL(registerUrl, window.location.href);
@@ -215,6 +237,10 @@
     } catch {
       return registerUrl;
     }
+  }
+
+  function getPaymentTotal(event) {
+    return Number(event.cost || 0) + Number(event.serviceFee || 0);
   }
 
   function wireFilters(root) {
@@ -573,6 +599,19 @@
       .vq-feed-meta dd {
         margin: 0;
       }
+      .vq-feed-payment-detail dd {
+        display: grid;
+        gap: 3px;
+      }
+      .vq-feed-payment-breakdown,
+      .vq-feed-payment-note {
+        color: #5a6b67;
+        font-size: 0.86rem;
+      }
+      .vq-feed-payment-note {
+        color: #225c56;
+        font-weight: 800;
+      }
       .vq-feed-registration-stats {
         align-items: center;
         display: flex;
@@ -748,7 +787,9 @@
     const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
     const location = escapeHtml(event.location || 'To be announced');
     const presenter = escapeHtml(event.presenter || 'To be announced');
-    const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'Free');
+    const cost = event.isPaid
+      ? `${escapeHtml(formatCurrency(getPaymentTotal(event)))} total (${escapeHtml(formatCurrency(event.cost || 0))} + ${escapeHtml(formatCurrency(event.serviceFee || 0))} service fee)`
+      : 'No Charge';
     const registration = escapeHtml(event.registrationOpen ? 'Registration open' : 'Registration closed');
     const imageBlock = event.imageUrl
       ? `<img alt="${title}" class="event-image" src="${escapeAttribute(event.imageUrl)}" />`
@@ -946,7 +987,7 @@
           <div class="meta-row"><div class="meta-label">Time</div><div>${time}</div></div>
           <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
-          <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
+          <div class="meta-row"><div class="meta-label">Payment</div><div>${cost}</div></div>
         </div>
         ${description}
       </main>
