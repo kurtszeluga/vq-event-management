@@ -172,6 +172,7 @@ function AdminDashboardPage() {
         ) : null}
       </nav>
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
+        <span className="admin-row-label">Manage/Edit:</span>
         {canViewRegistrations ? (
           <button
             className={`button-link button-reset ${
@@ -180,7 +181,7 @@ function AdminDashboardPage() {
             type="button"
             onClick={() => setActiveModule('registrations')}
           >
-            View Current Registrations
+            Registrations
           </button>
         ) : null}
         {canManageEvents ? (

@@ -144,9 +144,8 @@ function EventList({
   }
 
   return (
-    <div className="event-admin-list">
+      <div className="event-admin-list">
       <div className="status-filter-group separated-filter-row" aria-label="Event status filters">
-          <span className="filter-count-label">{filteredEvents.length} matching</span>
           {EVENT_STATUS_FILTERS.map((status) => (
             <button
               className={`status-filter-button${eventStatusFilter === status ? ' active' : ''}${status === 'Archived' && eventStatusFilter === status ? ' archive-active' : ''}`}

@@ -465,6 +465,14 @@ body.popup-mode .page-content {
   margin-top: 16px;
 }
 
+.admin-row-label {
+  align-items: center;
+  color: #3b4b48;
+  display: inline-flex;
+  font-weight: 900;
+  min-height: 42px;
+}
+
 .admin-form,
 .admin-list-panel,
 .detail-panel,
@@ -1775,16 +1783,6 @@ body.popup-mode .page-content {
 .separated-filter-row {
   margin-top: 10px;
   padding-top: 10px;
-}
-
-.filter-count-label {
-  align-items: center;
-  color: #5c6966;
-  display: inline-flex;
-  font-size: 0.95rem;
-  font-weight: 800;
-  min-height: 38px;
-  padding-right: 6px;
 }
 
 .status-filter-button {
