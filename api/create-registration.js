@@ -41,15 +41,23 @@ export default async function handler(request, response) {
     delete result.confirmationContext;
 
     if (confirmationContext) {
-      await sendRegistrationConfirmationEmail(db, confirmationContext).catch((emailError) => {
+      await withTimeout(
+        sendRegistrationConfirmationEmail(db, confirmationContext),
+        4000,
+        'Registration confirmation email timed out'
+      ).catch((emailError) => {
         console.error('Registration confirmation email failed', emailError);
       });
 
       if (confirmationContext.profileReactivated) {
-        await sendMembershipConfirmationEmail(db, {
-          kind: 'reactivation',
-          profile: confirmationContext.profile
-        }).catch((emailError) => {
+        await withTimeout(
+          sendMembershipConfirmationEmail(db, {
+            kind: 'reactivation',
+            profile: confirmationContext.profile
+          }),
+          4000,
+          'Membership reactivation confirmation email timed out'
+        ).catch((emailError) => {
           console.error('Membership reactivation confirmation email failed', emailError);
         });
       }
@@ -61,6 +69,15 @@ export default async function handler(request, response) {
       error: error.message || 'Registration could not be completed.'
     });
   }
+}
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    })
+  ]);
 }
 
 function getSquarePaymentConfig() {

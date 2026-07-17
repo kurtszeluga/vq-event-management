@@ -118,7 +118,7 @@ function MyRegistrationsPage() {
                       <td data-label="Event">
                         <strong>{event?.title || registration.eventTitle || registration.eventId || 'Event'}</strong>
                         {event ? (
-                          <Link className="table-inline-link" to={`/events/${event.id}`}>
+                          <Link className="table-inline-link" to={`/events/${event.id}?registered=1`}>
                             View Event
                           </Link>
                         ) : null}

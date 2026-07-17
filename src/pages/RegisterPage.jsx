@@ -76,6 +76,7 @@ function RegisterPage() {
   const [profileConfirmed, setProfileConfirmed] = useState(false);
   const [reactivateProfile, setReactivateProfile] = useState(false);
   const [reactivationTermsAccepted, setReactivationTermsAccepted] = useState(false);
+  const [registrationFinalizing, setRegistrationFinalizing] = useState(false);
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
   const [squareCard, setSquareCard] = useState(null);
   const [squareConfig, setSquareConfig] = useState(null);
@@ -293,6 +294,7 @@ function RegisterPage() {
     setFieldErrors(errors);
     setFormError('');
     setConfirmation(null);
+    setRegistrationFinalizing(false);
 
     if (!lookupComplete) {
       setFormError('Please look up the email address first.');
@@ -354,8 +356,10 @@ function RegisterPage() {
         squarePaymentToken,
         termsVersion: displayedTermsVersion
       });
+      setRegistrationFinalizing(true);
       setConfirmation(result);
     } catch (error) {
+      setRegistrationFinalizing(false);
       setFormError(error.message);
     } finally {
       setSubmitting(false);
@@ -915,7 +919,9 @@ function RegisterPage() {
                   ) : null}
                   {submitting ? (
                     <p className="form-success">
-                      Submitting registration and preparing confirmation...
+                      {registrationFinalizing
+                        ? 'Registration saved. Preparing confirmation...'
+                        : 'Submitting registration and preparing confirmation...'}
                     </p>
                   ) : null}
                   <button

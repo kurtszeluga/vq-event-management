@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
@@ -12,7 +12,9 @@ import {
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 
 function EventDetailsPage() {
+  const navigate = useNavigate();
   const { eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -108,6 +110,7 @@ function EventDetailsPage() {
   }
 
   const availability = getRegistrationAvailability(event, registrationCounts);
+  const alreadyRegisteredView = searchParams.get('registered') === '1';
 
   return (
     <section>
@@ -161,7 +164,16 @@ function EventDetailsPage() {
             <p className="form-error">Registration is not currently open.</p>
           ) : null}
           <div className="detail-actions">
-            {event.registrationOpen ? (
+            {alreadyRegisteredView ? (
+              <button
+                className="button-link button-reset"
+                type="button"
+                onClick={() => navigate('/my-registrations')}
+              >
+                Return To My Registrations
+              </button>
+            ) : null}
+            {event.registrationOpen && !alreadyRegisteredView ? (
               <Link className="button-link" to={`/register?eventId=${event.id}`}>
                 {availability.isFull ? 'Join Waitlist' : 'Register'}
               </Link>
