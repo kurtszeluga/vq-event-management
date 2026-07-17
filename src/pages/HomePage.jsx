@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
+import AdminDashboardPage from './AdminDashboardPage.jsx';
 import { subscribeToUsers } from '../services/userService.js';
 
 function HomePage() {
@@ -45,11 +46,15 @@ function HomePage() {
     });
   }
 
+  if (currentUser && hasAdminDashboardAccess) {
+    return <AdminDashboardPage />;
+  }
+
   return (
     <section>
       <PageHeader
         eyebrow="Home"
-        title="Village Quilters event Management"
+        title="The Village Quilters Network"
         description="Use the cards below to jump into the part of the site you need."
       />
 
