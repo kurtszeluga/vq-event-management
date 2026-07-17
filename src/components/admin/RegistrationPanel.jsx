@@ -170,9 +170,44 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       groups.set(registration.eventId, existing);
     });
 
-    return filteredEvents
-      .map((event) => {
-        const eventId = event.id;
+    const groupEventIds = new Set(filteredEvents.map((event) => event.id));
+
+    registrations.filter(Boolean).forEach((registration) => {
+      if (!registration.eventId || groupEventIds.has(registration.eventId)) {
+        return;
+      }
+
+      const event = eventMap.get(registration.eventId);
+      const eventType = event?.eventType || registration.eventType || '';
+      const eventDate = event?.date || registration.eventDate;
+
+      if (
+        activityFilter
+        && getActivityFilterValue(eventType) !== activityFilter
+      ) {
+        return;
+      }
+
+      if (
+        quarterFilter
+        && getQuarterFilterValue(eventDate) !== quarterFilter
+      ) {
+        return;
+      }
+
+      if (
+        yearFilter
+        && getYearFilterValue(eventDate) !== yearFilter
+      ) {
+        return;
+      }
+
+      groupEventIds.add(registration.eventId);
+    });
+
+    return [...groupEventIds]
+      .map((eventId) => {
+        const event = eventMap.get(eventId);
         const eventRegistrations = groups.get(eventId) || [];
         const counts = eventRegistrations.reduce(
           (summary, registration) => {
@@ -220,8 +255,8 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         };
       })
       .sort((first, second) => {
-        const firstDate = getEventSortValue(first.event);
-        const secondDate = getEventSortValue(second.event);
+        const firstDate = getEventSortValue(first.event, first.snapshot);
+        const secondDate = getEventSortValue(second.event, second.snapshot);
 
         if (firstDate !== secondDate) {
           return secondDate - firstDate;
@@ -231,7 +266,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           getEventDisplayTitle(second.event, second.eventId)
         );
       });
-  }, [filteredEvents, registrations]);
+  }, [activityFilter, eventMap, filteredEvents, quarterFilter, registrations, yearFilter]);
   const activityCounts = useMemo(() => {
     const counts = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, 0]));
     const eventIdsByFilter = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, new Set()]));
@@ -254,12 +289,35 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       }
     });
 
+    registrations.filter(Boolean).forEach((registration) => {
+      if (!registration.eventId) {
+        return;
+      }
+
+      const event = eventMap.get(registration.eventId);
+      const eventDate = event?.date || registration.eventDate;
+
+      if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
+        return;
+      }
+
+      if (quarterFilter && getQuarterFilterValue(eventDate) !== quarterFilter) {
+        return;
+      }
+
+      const filterValue = getActivityFilterValue(event?.eventType || registration.eventType || '');
+
+      if (filterValue && eventIdsByFilter[filterValue]) {
+        eventIdsByFilter[filterValue].add(registration.eventId);
+      }
+    });
+
     Object.entries(eventIdsByFilter).forEach(([filter, eventIds]) => {
       counts[filter] = eventIds.size;
     });
 
     return counts;
-  }, [events, quarterFilter, yearFilter]);
+  }, [eventMap, events, quarterFilter, registrations, yearFilter]);
   const quarterCounts = useMemo(() => {
     const counts = Object.fromEntries(QUARTER_FILTERS.map((filter) => [filter.value, 0]));
     const eventIdsByFilter = Object.fromEntries(QUARTER_FILTERS.map((filter) => [filter.value, new Set()]));
@@ -286,12 +344,40 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       }
     });
 
+    registrations.filter(Boolean).forEach((registration) => {
+      if (!registration.eventId) {
+        return;
+      }
+
+      const event = eventMap.get(registration.eventId);
+
+      if (
+        activityFilter
+        && getActivityFilterValue(event?.eventType || registration.eventType || '') !== activityFilter
+      ) {
+        return;
+      }
+
+      const eventDate = event?.date || registration.eventDate;
+
+      if (yearFilter && getYearFilterValue(eventDate) !== yearFilter) {
+        return;
+      }
+
+      const filterValue = getQuarterFilterValue(eventDate);
+
+      if (filterValue && eventIdsByFilter[filterValue]) {
+        eventIdsByFilter[filterValue].add(registration.eventId);
+        eventIdsByFilter[''].add(registration.eventId);
+      }
+    });
+
     Object.entries(eventIdsByFilter).forEach(([filter, eventIds]) => {
       counts[filter] = eventIds.size;
     });
 
     return counts;
-  }, [activityFilter, events, yearFilter]);
+  }, [activityFilter, eventMap, events, registrations, yearFilter]);
   const yearOptions = useMemo(() => {
     const years = new Set();
 
@@ -1461,12 +1547,16 @@ function hasRegistrationChanges(registration, edit) {
     || hasPaymentChanged(registration, edit);
 }
 
-function getEventSortValue(event) {
-  if (!event?.date) {
+function getEventSortValue(event, registrationSnapshot = {}) {
+  const dateValue = event?.date || registrationSnapshot.eventDate || registrationSnapshot.registrationDate;
+
+  if (!dateValue) {
     return Number.MAX_SAFE_INTEGER;
   }
 
-  const parsed = Date.parse(event.date);
+  const parsed = typeof dateValue.toDate === 'function'
+    ? dateValue.toDate().getTime()
+    : Date.parse(dateValue);
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
 }
 
