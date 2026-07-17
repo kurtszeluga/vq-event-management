@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
 const ALL_TYPES = 'All';
@@ -360,6 +361,14 @@ function EventList({
               Edit
             </button>
             {wasLastSaved ? <span className="recently-saved-flag">Saved</span> : null}
+            {canRegisterEvent(event) ? (
+              <Link
+                className="button-link secondary-action"
+                to={`/register?eventId=${event.id}`}
+              >
+                Register
+              </Link>
+            ) : null}
             <button
               className={event.status === 'Archived'
                 ? 'button-link button-reset secondary-action archive-action'
@@ -396,6 +405,12 @@ function matchesEventTypeFilter(type, filterValue, filterMap) {
 
 function getEventPaymentTotal(event) {
   return Number(event.cost || 0) + Number(event.serviceFee || 0);
+}
+
+function canRegisterEvent(event) {
+  return event.status !== 'Archived'
+    && event.registrationOpen
+    && !['Business Listing', 'For Sale'].includes(event.eventType);
 }
 
 export default EventList;

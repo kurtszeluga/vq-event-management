@@ -4,7 +4,7 @@
     emptyMessage: 'No published listings are available right now.',
     limit: 0,
     mountSelector: '[data-vq-feed]',
-    sourceUrl: '/api/public-events'
+    sourceUrl: `${getScriptOrigin()}/api/public-events`
   };
   const DESCRIPTION_PREVIEW_LENGTH = 180;
   const STYLE_ID = 'vq-embed-feed-styles';
@@ -133,7 +133,7 @@
     const supplyListLink = event.supplyListUrl
       ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
       : '';
-    const registerUrl = event.registerUrl ? buildRegistrationUrl(event.registerUrl) : '';
+    const registerUrl = event.registrationOpen ? buildRegistrationUrl(config.sourceUrl, event) : '';
     const registerLink = registerUrl
       ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
       : '';
@@ -229,13 +229,14 @@
     `;
   }
 
-  function buildRegistrationUrl(registerUrl) {
+  function buildRegistrationUrl(sourceUrl, event) {
     try {
-      const url = new URL(registerUrl, window.location.href);
+      const origin = getSourceOrigin(sourceUrl);
+      const url = new URL(`/register?eventId=${encodeURIComponent(event.id || '')}`, origin);
       url.searchParams.set('returnUrl', window.location.href);
       return url.toString();
     } catch {
-      return registerUrl;
+      return event.registerUrl || '';
     }
   }
 
@@ -754,6 +755,15 @@
   function getSourceOrigin(sourceUrl) {
     try {
       return new URL(sourceUrl, window.location.href).origin;
+    } catch {
+      return window.location.origin;
+    }
+  }
+
+  function getScriptOrigin() {
+    try {
+      const script = document.currentScript || document.querySelector('script[src*="godaddy-event-feed"]');
+      return script?.src ? new URL(script.src).origin : window.location.origin;
     } catch {
       return window.location.origin;
     }
