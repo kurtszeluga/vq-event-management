@@ -69,6 +69,7 @@ export const COORDINATOR_ASSIGNMENT_AREAS = [
 
 export const DEFAULT_MEMBERSHIP_SETTINGS = {
   allowAdminSkipMembershipCheck: false,
+  defaultServiceFee: 1,
   matchByEmail: true,
   matchByPhone: false,
   requireMembershipCheck: false,
@@ -192,6 +193,7 @@ export async function saveMembershipSettings(settings, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
     allowAdminSkipMembershipCheck: Boolean(settings.allowAdminSkipMembershipCheck),
+    defaultServiceFee: Number(settings.defaultServiceFee || 0),
     matchByEmail: true,
     matchByPhone: false,
     requireMembershipCheck: Boolean(settings.requireMembershipCheck),

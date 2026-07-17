@@ -13,7 +13,8 @@ import {
 } from '../../services/storageService.js';
 import {
   subscribeToActiveEventLocationDefaults,
-  subscribeToActiveEventTimeDefaults
+  subscribeToActiveEventTimeDefaults,
+  subscribeToMembershipSettings
 } from '../../services/configurationService.js';
 import { formatTimeRange } from '../../utils/eventFormat.js';
 import { formatPhoneNumber } from '../../utils/profileFormat.js';
@@ -49,6 +50,7 @@ function EventForm({
   const [successMessage, setSuccessMessage] = useState('');
   const [configuredLocations, setConfiguredLocations] = useState([]);
   const [configuredTimeOptions, setConfiguredTimeOptions] = useState([]);
+  const [defaultServiceFee, setDefaultServiceFee] = useState('1.00');
   const isEditing = Boolean(editingEvent);
 
   useEffect(() => {
@@ -64,10 +66,15 @@ function EventForm({
       setConfiguredTimeOptions,
       () => setConfiguredTimeOptions([])
     );
+    const unsubscribeSettings = subscribeToMembershipSettings(
+      (settings) => setDefaultServiceFee(formatServiceFeeDefault(settings.defaultServiceFee)),
+      () => setDefaultServiceFee('1.00')
+    );
 
     return () => {
       unsubscribeLocations();
       unsubscribeTimes();
+      unsubscribeSettings();
     };
   }, []);
 
@@ -227,7 +234,7 @@ function EventForm({
         ? {
             serviceFee: current.serviceFee && Number(current.serviceFee) !== 0
               ? current.serviceFee
-              : '1.00'
+              : defaultServiceFee
           }
         : { allowCashCheckPayment: false, cost: '0', serviceFee: '0' })
     }));
@@ -414,10 +421,12 @@ function EventForm({
     const payload = buildEventPayload(form, showSupplyListUpload, asDraft);
 
     try {
+      let savedEventId = editingEvent?.id || '';
+
       if (isEditing) {
         await updateEvent(editingEvent.id, payload, userProfile);
       } else {
-        await createEvent({
+        savedEventId = await createEvent({
           ...payload,
           createdBy: userProfile?.email || userProfile?.userId || 'admin'
         }, userProfile);
@@ -431,7 +440,7 @@ function EventForm({
             ? 'Event changes saved.'
             : 'Event submitted and saved.'
       );
-      onSaved(payload);
+      onSaved({ ...payload, id: savedEventId, eventId: savedEventId });
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -1681,6 +1690,16 @@ function getInitialForm(editingEvent, initialEventType = '') {
     ],
     serviceFee: String(editingEvent.serviceFee ?? '1.00')
   };
+}
+
+function formatServiceFeeDefault(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return '1.00';
+  }
+
+  return numericValue.toFixed(2);
 }
 
 function toTitleCase(value) {

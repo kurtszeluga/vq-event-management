@@ -20,6 +20,7 @@ function AdminDashboardPage() {
   const [draftEventType, setDraftEventType] = useState('');
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
+  const [lastSavedEventId, setLastSavedEventId] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
   const canManageEvents = hasPermission('manageEvents');
@@ -299,8 +300,10 @@ function AdminDashboardPage() {
                 setDraftEventType('');
               }}
               onSaved={(savedEvent) => {
+                const savedEventId = editingEvent?.id || savedEvent?.eventId || savedEvent?.id || '';
                 setEditingEvent(null);
                 setDraftEventType('');
+                setLastSavedEventId(savedEventId);
                 setActiveModule(
                   getEventModuleForType(savedEvent?.eventType || editingEvent?.eventType || draftEventType)
                 );
@@ -333,6 +336,7 @@ function AdminDashboardPage() {
               onDelete={handleDelete}
               onEdit={handleEditEvent}
               isSuperUser={isSuperUser}
+              lastSavedEventId={lastSavedEventId}
               defaultEventTypeFilter={eventModuleConfig[activeModule].filter}
               showTypeFilters={eventModuleConfig[activeModule].showTypeFilters}
               excludedEventTypes={eventModuleConfig[activeModule].excludedEventTypes}

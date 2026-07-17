@@ -453,6 +453,24 @@ function ConfigurationPanel({ currentUserProfile }) {
             <span>Allow Admins To Skip Membership Check</span>
           </label>
           <label>
+            <span>Default Event Service Fee</span>
+            <input
+              min="0"
+              step="0.01"
+              type="number"
+              value={settings.defaultServiceFee ?? 1}
+              onChange={(event) =>
+                setSettings((current) => ({
+                  ...current,
+                  defaultServiceFee: event.target.value
+                }))
+              }
+            />
+            <span className="form-help">
+              Used as the starting service fee when an event is marked as paid.
+            </span>
+          </label>
+          <label>
             <span>Membership Terms Version</span>
             <input
               placeholder="Example: 2026 Membership Terms"

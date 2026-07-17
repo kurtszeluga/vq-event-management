@@ -1025,6 +1025,12 @@ body.popup-mode .page-content {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.event-admin-card.recently-saved-card {
+  background: #fff3d7;
+  border-color: #c8442f;
+  box-shadow: inset 4px 0 0 #c8442f;
+}
+
 .user-admin-card .card-actions {
   justify-content: flex-start;
 }
@@ -1850,6 +1856,13 @@ body.popup-mode .page-content {
 
 .card-actions .archive-action {
   margin-left: auto;
+}
+
+.recently-saved-flag {
+  color: #b53a29;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .admin-list-panel-actions {

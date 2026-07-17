@@ -19,6 +19,7 @@ function EventList({
   loading,
   onDelete,
   onEdit,
+  lastSavedEventId = '',
   defaultEventTypeFilter = ALL_TYPES,
   showTypeFilters = true,
   excludedEventTypes = []
@@ -179,8 +180,11 @@ function EventList({
           <p>Try Active or Archived, or choose a different type filter.</p>
         </div>
       ) : null}
-      {filteredEvents.map((event) => (
-        <article className="event-admin-card" key={event.id}>
+      {filteredEvents.map((event) => {
+        const wasLastSaved = lastSavedEventId && event.id === lastSavedEventId;
+
+        return (
+          <article className={`event-admin-card${wasLastSaved ? ' recently-saved-card' : ''}`} key={event.id}>
           <div className="event-admin-card-main">
             <div className="card-kicker">
               <span>{event.eventType || 'Type TBD'}</span>
@@ -355,6 +359,7 @@ function EventList({
             <button className="button-link button-reset" type="button" onClick={() => onEdit(event)}>
               Edit
             </button>
+            {wasLastSaved ? <span className="recently-saved-flag">Saved</span> : null}
             <button
               className={event.status === 'Archived'
                 ? 'button-link button-reset secondary-action archive-action'
@@ -366,8 +371,9 @@ function EventList({
               {event.status === 'Archived' ? 'Reactivate' : 'Archive'}
             </button>
           </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 }
