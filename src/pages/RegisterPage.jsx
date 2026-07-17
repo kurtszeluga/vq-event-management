@@ -1179,6 +1179,7 @@ function RegistrationPaymentPanel({
   const cardContainerId = useRef(`square-card-${Math.random().toString(36).slice(2)}`);
   const [localError, setLocalError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [testCardMessage, setTestCardMessage] = useState('');
 
   useEffect(() => {
     if (!onlinePaymentRequired || !config?.enabled) {
@@ -1247,6 +1248,22 @@ function RegistrationPaymentPanel({
       ) : null}
       {onlinePaymentRequired ? (
         <>
+          {config?.environment === 'sandbox' ? (
+            <div className="sandbox-card-helper">
+              <strong>Sandbox Test Card</strong>
+              <button
+                className="button-link button-reset compact-action"
+                type="button"
+                onClick={() => copySandboxCardNumber(setTestCardMessage)}
+              >
+                Copy Test Card Number
+              </button>
+              <span>Exp: 12/30</span>
+              <span>CVV: 123</span>
+              <span>ZIP: 34748</span>
+              {testCardMessage ? <span className="form-help">{testCardMessage}</span> : null}
+            </div>
+          ) : null}
           <div
             aria-label="Secure Square card payment form"
             className={`square-card-container${disabled ? ' is-disabled' : ''}`}
@@ -1258,6 +1275,17 @@ function RegistrationPaymentPanel({
       ) : null}
     </div>
   );
+}
+
+async function copySandboxCardNumber(setMessage) {
+  const testCardNumber = '4111111111111111';
+
+  try {
+    await navigator.clipboard.writeText(testCardNumber);
+    setMessage('Copied 4111 1111 1111 1111');
+  } catch {
+    setMessage('Use card number 4111 1111 1111 1111');
+  }
 }
 
 function formatAddress(address = {}) {

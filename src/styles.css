@@ -1372,6 +1372,25 @@ body.popup-mode .page-content {
   pointer-events: none;
 }
 
+.sandbox-card-helper {
+  align-items: center;
+  background: #fffaf1;
+  border: 1px dashed #c58a2a;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px;
+}
+
+.sandbox-card-helper strong {
+  color: #7c3f00;
+}
+
+.sandbox-card-helper .form-help {
+  flex-basis: 100%;
+}
+
 .registration-completion-card {
   margin-top: 0;
 }
