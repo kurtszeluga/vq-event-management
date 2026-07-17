@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Link, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
+import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
 import { getEvent } from '../services/eventService.js';
 import {
@@ -35,6 +36,7 @@ const squareScriptPromises = new Map();
 
 function RegisterPage() {
   const [searchParams] = useSearchParams();
+  const { currentUser, userProfile } = useAuth();
   const eventId = searchParams.get('eventId') || '';
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const referrerUrl = getExternalReferrerUrl();
@@ -130,6 +132,14 @@ function RegisterPage() {
   }, []);
 
   useEffect(() => {
+    if (!eventId || !currentUser || !userProfile?.email || lookupComplete || lookupLoading) {
+      return;
+    }
+
+    runEmailLookup(userProfile.email, { alreadyVerified: true });
+  }, [currentUser, eventId, lookupComplete, lookupLoading, userProfile]);
+
+  useEffect(() => {
     if (!isPaidEvent) {
       setSquareCard(null);
       setSquareConfig(null);
@@ -204,6 +214,7 @@ function RegisterPage() {
   const canShowRegistrantFields = lookupComplete
     && !membershipBlocked
     && (accountVerified || phoneVerified || nonMemberRegistrationAllowed);
+  const usingSignedInProfile = Boolean(currentUser && userProfile?.email);
   const requiresReactivationTerms = Boolean(
     reactivateProfile
       && matchedProfile
@@ -212,10 +223,15 @@ function RegisterPage() {
   );
 
   async function handleEmailLookup() {
-    const normalizedEmail = email.trim().toLowerCase();
+    await runEmailLookup(email);
+  }
+
+  async function runEmailLookup(emailValue, options = {}) {
+    const normalizedEmail = String(emailValue || '').trim().toLowerCase();
+    const alreadyVerified = Boolean(options.alreadyVerified);
 
     setFieldErrors({});
-    setAccountVerified(false);
+    setAccountVerified(alreadyVerified);
     setAuthError('');
     setAuthPassword('');
     setFormError('');
@@ -236,16 +252,19 @@ function RegisterPage() {
       return;
     }
 
+    setEmail(normalizedEmail);
     setLookupLoading(true);
 
     try {
       const result = await lookupRegistrationEmail(normalizedEmail, eventId);
-      setEmail(normalizedEmail);
       setLookup(result);
       setLookupComplete(true);
 
       if (result.profile) {
         applyProfileToForm(result.profile);
+        setAccountVerified(alreadyVerified);
+        setReactivateProfile(alreadyVerified && result.profile.status !== 'Active');
+        setReactivationTermsAccepted(false);
         setShowPhoneVerification(false);
       } else if (result.status === 'non-member-registration-allowed') {
         resetRegistrantFields();
@@ -589,10 +608,10 @@ function RegisterPage() {
           ) : null}
           {formError ? <p className="form-error">{formError}</p> : null}
           <label>
-            <span>Email *</span>
+            <span>{usingSignedInProfile ? 'Signed In Email' : 'Email *'}</span>
             <input
               className={fieldErrors.email ? 'field-invalid' : ''}
-              disabled={submitting || Boolean(confirmation)}
+              disabled={usingSignedInProfile || submitting || Boolean(confirmation)}
               onChange={(inputEvent) => {
                 setEmail(inputEvent.target.value);
                 setLookupComplete(false);
@@ -613,15 +632,24 @@ function RegisterPage() {
               type="email"
               value={email}
             />
+            {usingSignedInProfile ? (
+              <span className="form-help">
+                We used your signed-in profile to start this registration.
+              </span>
+            ) : null}
           </label>
-          <button
-            className="button-link button-reset"
-            disabled={lookupLoading || submitting || Boolean(confirmation)}
-            type="button"
-            onClick={handleEmailLookup}
-          >
-            {lookupLoading ? 'Checking...' : 'Check Email'}
-          </button>
+          {usingSignedInProfile ? (
+            lookupLoading ? <p className="form-help">Checking your profile...</p> : null
+          ) : (
+            <button
+              className="button-link button-reset"
+              disabled={lookupLoading || submitting || Boolean(confirmation)}
+              type="button"
+              onClick={handleEmailLookup}
+            >
+              {lookupLoading ? 'Checking...' : 'Check Email'}
+            </button>
+          )}
           {lookupComplete ? (
             <LookupResult
               billingAddress={{
