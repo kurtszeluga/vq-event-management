@@ -13,6 +13,11 @@ export default async function handler(request, response) {
     const app = initializeAdminApp();
     const db = getFirestore();
 
+    if (request.body?.action === 'squareConfig') {
+      response.status(200).json(getSquarePaymentConfig());
+      return;
+    }
+
     if (request.body?.action === 'sendMembershipConfirmation') {
       await handleMembershipConfirmationRequest(request, response, db, app.options.projectId);
       return;
@@ -56,6 +61,22 @@ export default async function handler(request, response) {
       error: error.message || 'Registration could not be completed.'
     });
   }
+}
+
+function getSquarePaymentConfig() {
+  const applicationId = process.env.SQUARE_APPLICATION_ID || '';
+  const locationId = process.env.SQUARE_LOCATION_ID || '';
+  const environment = process.env.SQUARE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+
+  return {
+    applicationId,
+    enabled: Boolean(applicationId && locationId),
+    environment,
+    locationId,
+    scriptUrl: environment === 'production'
+      ? 'https://web.squarecdn.com/v1/square.js'
+      : 'https://sandbox.web.squarecdn.com/v1/square.js'
+  };
 }
 
 async function createRegistration(db, payload) {

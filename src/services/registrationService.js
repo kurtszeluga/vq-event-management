@@ -60,7 +60,13 @@ export async function createRegistration(registrationData) {
 }
 
 export async function loadSquarePaymentConfig() {
-  const response = await fetch('/api/square-config');
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({ action: 'squareConfig' }),
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
   const result = await parseJsonResponse(response);
 
   if (!response.ok) {
