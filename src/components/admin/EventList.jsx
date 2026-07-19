@@ -274,7 +274,7 @@ function EventList({
               {event.visibleUntil ? (
                 <div>
                   <dt>Listing Ends</dt>
-                  <dd>{new Date(event.visibleUntil).toLocaleString()}</dd>
+                  <dd>{formatListingEnd(event)}</dd>
                 </div>
               ) : null}
               {event.registrationMode ? (
@@ -292,13 +292,13 @@ function EventList({
               {event.registrationOpenAt ? (
                 <div>
                   <dt>Registration Opens</dt>
-                  <dd>{new Date(event.registrationOpenAt).toLocaleString()}</dd>
+                  <dd>{formatRegistrationWindowDate(event, event.registrationOpenAt)}</dd>
                 </div>
               ) : null}
               {event.registrationCloseAt ? (
                 <div>
                   <dt>Registration Closes</dt>
-                  <dd>{new Date(event.registrationCloseAt).toLocaleString()}</dd>
+                  <dd>{formatRegistrationWindowDate(event, event.registrationCloseAt)}</dd>
                 </div>
               ) : null}
               {event.businessName ? (
@@ -413,6 +413,30 @@ function canRegisterEvent(event) {
   return event.status !== 'Archived'
     && event.registrationOpen
     && !['Business Listing', 'For Sale'].includes(event.eventType);
+}
+
+function formatListingEnd(event) {
+  const date = new Date(event.visibleUntil);
+
+  if (Number.isNaN(date.getTime())) {
+    return event.visibleUntil;
+  }
+
+  return event.eventType === 'Challenges'
+    ? date.toLocaleDateString()
+    : date.toLocaleString();
+}
+
+function formatRegistrationWindowDate(event, value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return event.eventType === 'Challenges'
+    ? formatEventDate(value)
+    : date.toLocaleString();
 }
 
 export default EventList;

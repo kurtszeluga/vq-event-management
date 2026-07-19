@@ -168,6 +168,8 @@
           </div>
           <dl class="vq-feed-meta">
             ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
+            ${event.eventType === 'Challenges' && event.registrationOpenAt ? `<div><dt>Registration Starts</dt><dd>${escapeHtml(formatEventDate(event.registrationOpenAt))}</dd></div>` : ''}
+            ${event.eventType === 'Challenges' && event.registrationCloseAt ? `<div><dt>Registration Ends</dt><dd>${escapeHtml(formatEventDate(event.registrationCloseAt))}</dd></div>` : ''}
             ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
             ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
             <div class="vq-feed-payment-detail">

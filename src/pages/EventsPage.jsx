@@ -471,6 +471,18 @@ function EventsPage() {
                       <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
                     </div>
                   ) : null}
+                  {event.eventType === 'Challenges' && event.registrationOpenAt ? (
+                    <div>
+                      <dt>Registration Starts</dt>
+                      <dd>{formatEventDate(event.registrationOpenAt)}</dd>
+                    </div>
+                  ) : null}
+                  {event.eventType === 'Challenges' && event.registrationCloseAt ? (
+                    <div>
+                      <dt>Registration Ends</dt>
+                      <dd>{formatEventDate(event.registrationCloseAt)}</dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt>Presenter</dt>
                     <dd>{event.presenter || 'To be announced'}</dd>
