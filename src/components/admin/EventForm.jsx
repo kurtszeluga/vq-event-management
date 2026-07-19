@@ -157,6 +157,7 @@ function EventForm({
     const isClassOrWorkshop = Boolean(nextTimeOption);
     const isLectureType = value === 'Lecture';
     const isRetreatType = value === 'Retreat';
+    const isChallengeType = value === 'Challenges';
     const doesNotUseFees = [
       'Business Listing',
       'For Sale',
@@ -179,9 +180,9 @@ function EventForm({
           ? eventLocations[0].value
           : 'other'
         : '',
-      timePreset: value && !isLectureType ? nextTimeOption?.value || 'other' : '',
-      startTime: nextTimeOption?.startTime || '',
-      endTime: nextTimeOption?.endTime || '',
+      timePreset: isChallengeType ? 'other' : value && !isLectureType ? nextTimeOption?.value || 'other' : '',
+      startTime: isChallengeType ? '00:00' : nextTimeOption?.startTime || '',
+      endTime: isChallengeType ? '00:00' : nextTimeOption?.endTime || '',
       capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
       allowCashCheckPayment: doesNotUseFees ? false : current.allowCashCheckPayment,
       allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale'

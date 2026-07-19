@@ -894,7 +894,7 @@ function buildRegistrationConfirmationHtml({ area, coordinatorContact, event, in
                   ${buildDetailRowHtml('Status', registration.status)}
                   ${buildDetailRowHtml('Event Type', event.eventType || 'Event')}
                   ${buildDetailRowHtml('Date', formatEventDate(event.date))}
-                  ${buildDetailRowHtml('Time', formatTimeRange(event.startTime, event.endTime))}
+                  ${event.eventType === 'Challenges' ? '' : buildDetailRowHtml('Time', formatTimeRange(event.startTime, event.endTime))}
                   ${buildDetailRowHtml('Location', event.location || 'To be announced')}
                   ${buildDetailRowHtml('Presenter', event.presenter || 'To be announced')}
                   ${buildDetailRowHtml('Payment Status', registration.paymentStatus || 'Pending')}
@@ -943,7 +943,7 @@ function buildRegistrationConfirmationText({ area, coordinatorContact, event, in
     `Status: ${registration.status}`,
     `Event Type: ${event.eventType || 'Event'}`,
     `Date: ${formatEventDate(event.date)}`,
-    `Time: ${formatTimeRange(event.startTime, event.endTime)}`,
+    event.eventType === 'Challenges' ? '' : `Time: ${formatTimeRange(event.startTime, event.endTime)}`,
     `Location: ${event.location || 'To be announced'}`,
     `Presenter: ${event.presenter || 'To be announced'}`,
     `Payment Status: ${registration.paymentStatus || 'Pending'}`,

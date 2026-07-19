@@ -144,10 +144,12 @@ function EventListingPrintPage() {
               <dt>Date</dt>
               <dd>{formatEventDate(event.date)}</dd>
             </div>
-            <div>
-              <dt>Time</dt>
-              <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-            </div>
+            {event.eventType !== 'Challenges' ? (
+              <div>
+                <dt>Time</dt>
+                <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Location</dt>
               <dd>{event.location || 'To be announced'}</dd>

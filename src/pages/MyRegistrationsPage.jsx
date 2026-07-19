@@ -127,7 +127,9 @@ function MyRegistrationsPage() {
                         {event ? (
                           <>
                             <span>{formatEventDate(event.date)}</span>
-                            <span className="table-subtext">{formatTimeRange(event)}</span>
+                            {event.eventType !== 'Challenges' ? (
+                              <span className="table-subtext">{formatTimeRange(event.startTime, event.endTime)}</span>
+                            ) : null}
                           </>
                         ) : (
                           <span>Not listed</span>

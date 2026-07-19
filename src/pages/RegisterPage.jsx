@@ -1098,10 +1098,12 @@ function EventSummary({ event }) {
           <dt>Date</dt>
           <dd>{formatEventDate(event.date)}</dd>
         </div>
-        <div>
-          <dt>Time</dt>
-          <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-        </div>
+        {event.eventType !== 'Challenges' ? (
+          <div>
+            <dt>Time</dt>
+            <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Location</dt>
           <dd>{event.location || 'To be announced'}</dd>
@@ -1151,10 +1153,12 @@ function RegistrationCompletion({ closeMessage, confirmation, event, onReturn })
           <dt>Date</dt>
           <dd>{formatEventDate(event.date)}</dd>
         </div>
-        <div>
-          <dt>Time</dt>
-          <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-        </div>
+        {event.eventType !== 'Challenges' ? (
+          <div>
+            <dt>Time</dt>
+            <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Registration Status</dt>
           <dd>{confirmation.status}</dd>

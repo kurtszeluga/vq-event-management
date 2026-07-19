@@ -85,7 +85,9 @@ function buildEventPrintHtml(event) {
   const eventType = escapeHtml(getEventTypeLabel(event));
   const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
   const date = escapeHtml(formatEventDate(event.date));
-  const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
+  const timeRow = event.eventType === 'Challenges'
+    ? ''
+    : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;
   const location = escapeHtml(event.location || 'To be announced');
   const presenter = escapeHtml(event.presenter || 'To be announced');
   const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'No Charge');
@@ -229,7 +231,7 @@ function buildEventPrintHtml(event) {
         <div class="meta">
           <div class="meta-row"><div class="meta-label">Status</div><div>${registration}</div></div>
           <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
-          <div class="meta-row"><div class="meta-label">Time</div><div>${time}</div></div>
+          ${timeRow}
           <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
           <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
@@ -463,10 +465,12 @@ function EventsPage() {
                     <dt>Date</dt>
                     <dd>{formatEventDate(event.date)}</dd>
                   </div>
-                  <div>
-                    <dt>Time</dt>
-                    <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-                  </div>
+                  {event.eventType !== 'Challenges' ? (
+                    <div>
+                      <dt>Time</dt>
+                      <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt>Presenter</dt>
                     <dd>{event.presenter || 'To be announced'}</dd>

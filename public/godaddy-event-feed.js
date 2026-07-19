@@ -167,7 +167,7 @@
             <div class="vq-feed-thumb">${thumbnail}</div>
           </div>
           <dl class="vq-feed-meta">
-            <div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>
+            ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
             ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
             ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
             <div class="vq-feed-payment-detail">
@@ -806,7 +806,9 @@
     const eventType = escapeHtml(event.eventType || 'Other');
     const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
     const date = escapeHtml(formatEventDate(event.date));
-    const time = escapeHtml(formatTimeRange(event.startTime, event.endTime));
+    const timeRow = event.eventType === 'Challenges'
+      ? ''
+      : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;
     const location = escapeHtml(event.location || 'To be announced');
     const presenter = escapeHtml(event.presenter || 'To be announced');
     const cost = event.isPaid
@@ -1006,7 +1008,7 @@
         ${imageBlock}
         <div class="meta">
           <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
-          <div class="meta-row"><div class="meta-label">Time</div><div>${time}</div></div>
+          ${timeRow}
           <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
           <div class="meta-row"><div class="meta-label">Payment</div><div>${cost}</div></div>
