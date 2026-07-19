@@ -78,6 +78,31 @@ function EventForm({
     };
   }, []);
 
+  useEffect(() => {
+    if (!['future', 'now'].includes(form.registrationMode)) {
+      return;
+    }
+
+    const defaultCloseAt = getRegistrationDefaultCloseAt(form);
+
+    if (!defaultCloseAt || form.registrationCloseAt) {
+      return;
+    }
+
+    setForm((current) => (
+      current.registrationCloseAt
+        ? current
+        : { ...current, registrationCloseAt: defaultCloseAt }
+    ));
+  }, [
+    form.date,
+    form.eventType,
+    form.registrationCloseAt,
+    form.registrationMode,
+    form.startTime,
+    form.timePreset
+  ]);
+
   const eventTypeSelected = Boolean(form.eventType);
   const eventLabel = form.eventType || 'Event';
   const eventLocations = mergeOptionLists(configuredLocations, EVENT_LOCATIONS);
@@ -96,8 +121,10 @@ function EventForm({
   const showImageUpload = eventTypeSelected && !isChallenge;
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
-  const showRegistrationSection = eventTypeSelected && !isListingOnly;
+  const showRegistrationSection = eventTypeSelected && !isListingOnly && !isLecture;
   const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge && !isLecture;
+  const showRegistrationDateFields = ['future', 'now'].includes(form.registrationMode);
+  const supportsRegistrationNa = form.eventType === 'Other';
 
   function updateField(name, value) {
     setSuccessMessage('');
@@ -109,6 +136,49 @@ function EventForm({
 
       const next = { ...current };
       delete next[name];
+      return next;
+    });
+  }
+
+  function getRegistrationDefaultCloseAt(event) {
+    if (!supportsClassWorkshopRegistrationDefault(event.eventType)) {
+      return '';
+    }
+
+    const presetValue = event.timePreset || eventTypeTimePresetMap[event.eventType];
+    const presetStartTime = eventTimeOptions.find(
+      (option) => option.value === presetValue
+    )?.startTime;
+
+    return getClassWorkshopStartDateTime({
+      ...event,
+      startTime: event.startTime || presetStartTime || ''
+    });
+  }
+
+  function updateScheduleField(name, value) {
+    setSuccessMessage('');
+    setForm((current) => {
+      const previousEventStart = getRegistrationDefaultCloseAt(current);
+      const next = { ...current, [name]: value };
+      const nextEventStart = getRegistrationDefaultCloseAt(next);
+
+      if (
+        ['future', 'now'].includes(next.registrationMode)
+        && nextEventStart
+        && (!current.registrationCloseAt || current.registrationCloseAt === previousEventStart)
+      ) {
+        next.registrationCloseAt = nextEventStart;
+      }
+
+      return next;
+    });
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next[name];
+      if (name === 'date' || name === 'startTime') {
+        delete next.registrationCloseAt;
+      }
       return next;
     });
   }
@@ -139,16 +209,23 @@ function EventForm({
 
   function handleRegistrationMode(value) {
     setSuccessMessage('');
-    setForm((current) => ({
-      ...current,
-      registrationMode: value,
-      registrationOpenAt: value === 'now'
-        ? toDateTimeLocalValue(new Date())
-        : current.registrationOpenAt,
-      registrationCloseAt: value === 'now'
-        ? ''
-        : current.registrationCloseAt
-    }));
+    setForm((current) => {
+      const isRegistrationEnabled = ['future', 'now'].includes(value);
+      const defaultCloseAt = getRegistrationDefaultCloseAt(current);
+
+      return {
+        ...current,
+        registrationMode: value,
+        registrationOpenAt: value === 'now'
+          ? toDateTimeLocalValue(new Date())
+          : isRegistrationEnabled
+            ? current.registrationOpenAt
+            : '',
+        registrationCloseAt: isRegistrationEnabled
+          ? defaultCloseAt || (value === 'now' ? '' : current.registrationCloseAt)
+          : ''
+      };
+    });
     setFieldErrors((current) => {
       const next = { ...current };
       delete next.registrationMode;
@@ -159,12 +236,26 @@ function EventForm({
   function handleTimePreset(value) {
     setSuccessMessage('');
     const option = eventTimeOptions.find((item) => item.value === value);
-    setForm((current) => ({
-      ...current,
-      timePreset: value,
-      startTime: option?.startTime || '',
-      endTime: option?.endTime || ''
-    }));
+    setForm((current) => {
+      const previousEventStart = getRegistrationDefaultCloseAt(current);
+      const next = {
+        ...current,
+        timePreset: value,
+        startTime: option?.startTime || '',
+        endTime: option?.endTime || ''
+      };
+      const nextEventStart = getRegistrationDefaultCloseAt(next);
+
+      if (
+        ['future', 'now'].includes(next.registrationMode)
+        && nextEventStart
+        && (!current.registrationCloseAt || current.registrationCloseAt === previousEventStart)
+      ) {
+        next.registrationCloseAt = nextEventStart;
+      }
+
+      return next;
+    });
   }
 
   function handleEventType(value) {
@@ -204,7 +295,7 @@ function EventForm({
       endTime: isChallengeType ? '00:00' : nextTimeOption?.endTime || '',
       capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
       allowCashCheckPayment: doesNotUseFees ? false : current.allowCashCheckPayment,
-      allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale'
+      allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale' || isLectureType
         ? false
         : current.allowNonMemberRegistration,
       presenter: isRetreatType ? '' : current.presenter,
@@ -215,8 +306,22 @@ function EventForm({
       documentTitle: value === 'Challenges' ? current.documentTitle : '',
       documentUrl: value === 'Challenges' ? current.documentUrl : '',
       isPaid: doesNotUseFees ? false : current.isPaid,
-      registrationMode: value === 'Business Listing' || value === 'For Sale' ? 'none' : current.registrationMode,
+      registrationMode: value === 'Business Listing' || value === 'For Sale' || isLectureType
+        ? 'none'
+        : current.registrationMode,
+      registrationCloseAt: isClassOrWorkshop && ['future', 'now'].includes(current.registrationMode)
+        ? getRegistrationDefaultCloseAt({
+            ...current,
+            eventType: value,
+            startTime: nextTimeOption?.startTime || ''
+          })
+        : value === 'Business Listing' || value === 'For Sale' || isLectureType
+          ? ''
+          : current.registrationCloseAt,
       registrationOpen: false,
+      registrationOpenAt: value === 'Business Listing' || value === 'For Sale' || isLectureType
+        ? ''
+        : current.registrationOpenAt,
       visibleUntil: value === 'For Sale' ? '' : current.visibleUntil
     }));
     setFieldErrors((current) => {
@@ -625,7 +730,7 @@ function EventForm({
                 className={fieldErrors.date ? 'field-invalid' : ''}
                 type="date"
                 value={form.date}
-                onChange={(event) => updateField('date', event.target.value)}
+                onChange={(event) => updateScheduleField('date', event.target.value)}
               />
               {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
             </label>
@@ -661,7 +766,7 @@ function EventForm({
                         type="time"
                         value={form.startTime}
                         onChange={(event) =>
-                          updateField('startTime', event.target.value)
+                          updateScheduleField('startTime', event.target.value)
                         }
                       />
                     </label>
@@ -673,7 +778,7 @@ function EventForm({
                         type="time"
                         value={form.endTime}
                         onChange={(event) =>
-                          updateField('endTime', event.target.value)
+                          updateScheduleField('endTime', event.target.value)
                         }
                       />
                       {fieldErrors.endTime ? <small>{fieldErrors.endTime}</small> : null}
@@ -692,7 +797,7 @@ function EventForm({
                     disabled={!eventTypeSelected}
                     type="time"
                     value={form.startTime}
-                    onChange={(event) => updateField('startTime', event.target.value)}
+                    onChange={(event) => updateScheduleField('startTime', event.target.value)}
                   />
                 </label>
                 <label>
@@ -702,7 +807,7 @@ function EventForm({
                     disabled={!eventTypeSelected}
                     type="time"
                     value={form.endTime}
-                    onChange={(event) => updateField('endTime', event.target.value)}
+                    onChange={(event) => updateScheduleField('endTime', event.target.value)}
                   />
                   {fieldErrors.endTime ? <small>{fieldErrors.endTime}</small> : null}
                 </label>
@@ -1289,12 +1394,15 @@ function EventForm({
                 <option value="">Select One</option>
                 <option value="now">Now</option>
                 <option value="future">In The Future</option>
+                {supportsRegistrationNa ? (
+                  <option value="none">N/A</option>
+                ) : null}
               </select>
               <span className="form-help">
                 Choose Now to let members register as soon as it is saved.
               </span>
             </label>
-            {form.registrationMode === 'future' || form.registrationMode === 'now' ? (
+            {showRegistrationDateFields ? (
               <div className="form-row-pair nested-fields">
                 <label>
                   <span>Registration Starts</span>
@@ -1406,7 +1514,7 @@ function validateEventForm(form) {
   const requiresTimePreset = requiresTime && !isRetreat;
   const requiresDirectTime = requiresTime && isRetreat;
   const requiresCapacity = requiresSchedule && !isLecture && !isChallenge;
-  const requiresRegistration = form.eventType && !isBusinessListing && !isForSale;
+  const requiresRegistration = form.eventType && !isBusinessListing && !isForSale && !isLecture;
   const requiresFees = requiresSchedule && !isLecture && !isChallenge;
 
   if (!form.eventType) {
@@ -1578,6 +1686,8 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const hasTime = hasSchedule && !isLecture && !isChallenge;
   const hasCapacity = hasSchedule && !isLecture && !isChallenge;
   const hasFees = hasSchedule && !isLecture && !isChallenge;
+  const hasRegistration = !isListingOnly && !isLecture && form.registrationMode !== 'none';
+  const hasRegistrationWindow = hasRegistration && ['future', 'now'].includes(form.registrationMode);
   const title = isBusinessListing ? form.businessName : form.title;
   const visibleFrom = form.visibleFrom;
   const visibleUntil = isForSale
@@ -1615,10 +1725,10 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
     locationPreset: hasSchedule ? form.locationPreset : '',
     ownerName: toTitleCase(form.ownerName.trim()),
     presenter: hasSchedule && !isRetreat ? toTitleCase(form.presenter.trim()) : '',
-    registrationCloseAt: isListingOnly ? '' : form.registrationCloseAt,
-    registrationMode: isListingOnly ? 'none' : form.registrationMode,
-    registrationOpen: !isListingOnly && form.registrationMode === 'now',
-    registrationOpenAt: isListingOnly ? '' : form.registrationOpenAt,
+    registrationCloseAt: hasRegistrationWindow ? form.registrationCloseAt : '',
+    registrationMode: isListingOnly || isLecture ? 'none' : form.registrationMode,
+    registrationOpen: hasRegistration && form.registrationMode === 'now',
+    registrationOpenAt: hasRegistrationWindow ? form.registrationOpenAt : '',
     serviceFee: form.isPaid && hasFees ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
     startTime: isChallenge ? '00:00' : hasTime ? form.startTime : '',
@@ -1636,6 +1746,22 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
 
 function supportsSupplyList(eventType) {
   return eventType.startsWith('Class') || eventType === 'Workshop';
+}
+
+function supportsClassWorkshopRegistrationDefault(eventType) {
+  return eventType?.startsWith('Class') || eventType === 'Workshop';
+}
+
+function getClassWorkshopStartDateTime(event) {
+  if (
+    !supportsClassWorkshopRegistrationDefault(event.eventType)
+    || !event.date
+    || !event.startTime
+  ) {
+    return '';
+  }
+
+  return `${event.date}T${event.startTime}`;
 }
 
 function getEventTypeCardTitle(eventType) {

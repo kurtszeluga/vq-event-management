@@ -146,11 +146,16 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
   const safeOrigin = origin.replace(/\/$/, '');
   const availability = getAvailability(event, registrationCounts);
   const coordinatorContact = getCoordinatorContact(eventType, coordinatorAssignments);
-  const registrationOpenAt = event.registrationOpenAt
-    || event.visibleFrom
-    || toIsoString(event.createdDate)
-    || '';
-  const registrationCloseAt = event.registrationCloseAt || event.date || '';
+  const hasRegistrationWindow = ['future', 'now'].includes(event.registrationMode);
+  const registrationOpenAt = hasRegistrationWindow
+    ? event.registrationOpenAt
+      || event.visibleFrom
+      || toIsoString(event.createdDate)
+      || ''
+    : '';
+  const registrationCloseAt = hasRegistrationWindow
+    ? event.registrationCloseAt || event.date || ''
+    : '';
 
   return {
     id: event.id,

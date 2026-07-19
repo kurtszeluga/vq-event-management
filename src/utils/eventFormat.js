@@ -44,6 +44,10 @@ export function formatDateOnly(dateValue) {
 }
 
 export function getRegistrationStartDate(event) {
+  if (!event || !['future', 'now'].includes(event.registrationMode)) {
+    return '';
+  }
+
   return event?.registrationOpenAt
     || event?.visibleFrom
     || event?.createdDate
@@ -51,6 +55,10 @@ export function getRegistrationStartDate(event) {
 }
 
 export function getRegistrationEndDate(event) {
+  if (!event || !['future', 'now'].includes(event.registrationMode)) {
+    return '';
+  }
+
   return event?.registrationCloseAt
     || event?.date
     || '';
