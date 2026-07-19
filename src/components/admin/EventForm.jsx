@@ -1241,10 +1241,13 @@ function EventForm({
                     <input
                       className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
                       disabled={!eventTypeSelected}
-                      type="datetime-local"
-                      value={form.visibleUntil}
+                      type={isChallenge ? 'date' : 'datetime-local'}
+                      value={isChallenge ? getDateInputValue(form.visibleUntil) : form.visibleUntil}
                       onChange={(event) =>
-                        updateField('visibleUntil', event.target.value)
+                        updateField(
+                          'visibleUntil',
+                          isChallenge ? toMidnightDateTimeValue(event.target.value) : event.target.value
+                        )
                       }
                     />
                   </label>
@@ -1503,7 +1506,7 @@ function validateEventForm(form) {
   }
 
   if (isChallenge && !form.visibleUntil) {
-    errors.visibleUntil = 'Remove listing date/time is required.';
+    errors.visibleUntil = 'Remove listing date is required.';
   }
 
   if (requiresRegistration && !form.registrationMode) {
@@ -1554,7 +1557,9 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const visibleFrom = form.visibleFrom;
   const visibleUntil = isForSale
     ? getDefaultForSaleExpiration(visibleFrom)
-    : form.visibleUntil;
+    : isChallenge
+      ? toMidnightDateTimeValue(getDateInputValue(form.visibleUntil))
+      : form.visibleUntil;
 
   return {
     additionalNotes: form.additionalNotes.trim(),
@@ -1742,6 +1747,14 @@ function toDateTimeLocalValue(date) {
   const minutes = String(date.getMinutes()).padStart(2, '0');
 
   return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function getDateInputValue(value) {
+  return String(value || '').split('T')[0];
+}
+
+function toMidnightDateTimeValue(dateValue) {
+  return dateValue ? `${dateValue}T00:00` : '';
 }
 
 export default EventForm;
