@@ -289,13 +289,13 @@ function EventList({
               {registrationStartDate ? (
                 <div>
                   <dt>Registration Opens</dt>
-                  <dd>{formatRegistrationWindowDate(event, registrationStartDate)}</dd>
+                  <dd>{formatRegistrationWindowDate(registrationStartDate)}</dd>
                 </div>
               ) : null}
               {registrationEndDate ? (
                 <div>
                   <dt>Registration Closes</dt>
-                  <dd>{formatRegistrationWindowDate(event, registrationEndDate)}</dd>
+                  <dd>{formatRegistrationWindowDate(registrationEndDate)}</dd>
                 </div>
               ) : null}
               {event.businessName ? (
@@ -424,16 +424,8 @@ function formatListingEnd(event) {
     : date.toLocaleString();
 }
 
-function formatRegistrationWindowDate(event, value) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return event.eventType === 'Challenges'
-    ? formatDateOnly(value)
-    : date.toLocaleString();
+function formatRegistrationWindowDate(value) {
+  return formatDateOnly(value);
 }
 
 export default EventList;
