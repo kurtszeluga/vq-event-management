@@ -563,6 +563,12 @@ body.popup-mode .page-content {
   width: 100%;
 }
 
+.admin-form input[type="date"] {
+  max-width: 190px;
+  min-width: 170px;
+  width: auto;
+}
+
 .admin-form textarea {
   border: 1px solid #c9bbb0;
   border-radius: 8px;

@@ -89,7 +89,7 @@ function EventForm({
   const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
   const showEventScheduleFields = eventTypeSelected && !isListingOnly;
-  const showTimePresetField = showEventScheduleFields && !isRetreat && !isLecture;
+  const showTimePresetField = showEventScheduleFields && !isRetreat && !isLecture && !isChallenge;
   const showDirectTimeFields = showEventScheduleFields && isRetreat;
   const showPresenterField = showEventScheduleFields && !isRetreat;
   const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge;
@@ -1373,7 +1373,7 @@ function validateEventForm(form) {
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
   const requiresSchedule = form.eventType && !isBusinessListing && !isForSale;
-  const requiresTime = requiresSchedule && !isLecture;
+  const requiresTime = requiresSchedule && !isLecture && !isChallenge;
   const requiresTimePreset = requiresTime && !isRetreat;
   const requiresDirectTime = requiresTime && isRetreat;
   const requiresCapacity = requiresSchedule && !isLecture && !isChallenge;
@@ -1546,7 +1546,7 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
   const hasSchedule = !isListingOnly;
-  const hasTime = hasSchedule && !isLecture;
+  const hasTime = hasSchedule && !isLecture && !isChallenge;
   const hasCapacity = hasSchedule && !isLecture && !isChallenge;
   const hasFees = hasSchedule && !isLecture && !isChallenge;
   const title = isBusinessListing ? form.businessName : form.title;
@@ -1575,7 +1575,7 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
     documentFileName: isChallenge ? form.documentFileName.trim() : '',
     documentTitle: isChallenge ? form.documentTitle.trim() : '',
     documentUrl: isChallenge ? form.documentUrl.trim() : '',
-    endTime: hasTime ? form.endTime : '',
+    endTime: isChallenge ? '00:00' : hasTime ? form.endTime : '',
     eventType: form.eventType,
     imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
     isPaid: form.isPaid === true && hasFees,
@@ -1590,12 +1590,12 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
     registrationOpenAt: isListingOnly ? '' : form.registrationOpenAt,
     serviceFee: form.isPaid && hasFees ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
-    startTime: hasTime ? form.startTime : '',
+    startTime: isChallenge ? '00:00' : hasTime ? form.startTime : '',
     status: asDraft ? 'Draft' : 'Published',
     supplyListFileName: showSupplyListUpload || isChallenge ? form.supplyListFileName.trim() : '',
     supplyListTitle: showSupplyListUpload || isChallenge ? form.supplyListTitle.trim() : '',
     supplyListUrl: showSupplyListUpload || isChallenge ? form.supplyListUrl.trim() : '',
-    timePreset: hasTime ? (isRetreat ? 'other' : form.timePreset) : '',
+    timePreset: isChallenge ? 'other' : hasTime ? (isRetreat ? 'other' : form.timePreset) : '',
     title: toTitleCase(title.trim()),
     type: form.eventType,
     visibleFrom,
