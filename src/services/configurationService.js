@@ -78,7 +78,10 @@ export const DEFAULT_MEMBERSHIP_SETTINGS = {
 };
 
 export const DEFAULT_PAYMENT_SETTINGS = {
-  defaultServiceFee: 1
+  defaultServiceFee: 1,
+  enableApplePay: false,
+  enableCardPayments: true,
+  enableGooglePay: false
 };
 
 export const EMAIL_INSTRUCTION_AREAS = [
@@ -233,6 +236,9 @@ export async function savePaymentSettings(settings, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
     defaultServiceFee: Number(settings.defaultServiceFee || 0),
+    enableApplePay: Boolean(settings.enableApplePay),
+    enableCardPayments: Boolean(settings.enableCardPayments),
+    enableGooglePay: Boolean(settings.enableGooglePay),
     updatedDate: serverTimestamp()
   };
 

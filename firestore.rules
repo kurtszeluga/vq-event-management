@@ -544,9 +544,15 @@ service cloud.firestore {
     function validPaymentSettings() {
       return request.resource.data.keys().hasOnly([
           'defaultServiceFee',
+          'enableApplePay',
+          'enableCardPayments',
+          'enableGooglePay',
           'updatedDate'
         ])
         && request.resource.data.defaultServiceFee is number
+        && request.resource.data.enableApplePay is bool
+        && request.resource.data.enableCardPayments is bool
+        && request.resource.data.enableGooglePay is bool
         && request.resource.data.updatedDate is timestamp;
     }
 

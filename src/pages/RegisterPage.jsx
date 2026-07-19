@@ -84,6 +84,7 @@ function RegisterPage() {
   const [squareCard, setSquareCard] = useState(null);
   const [squareConfig, setSquareConfig] = useState(null);
   const [squareError, setSquareError] = useState('');
+  const [squareWalletToken, setSquareWalletToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
@@ -160,6 +161,7 @@ function RegisterPage() {
       setSquareCard(null);
       setSquareConfig(null);
       setSquareError('');
+      setSquareWalletToken('');
       return;
     }
 
@@ -186,6 +188,22 @@ function RegisterPage() {
       active = false;
     };
   }, [isPaidEvent]);
+
+  useEffect(() => {
+    setSquareWalletToken('');
+  }, [
+    billingCity,
+    billingCountry,
+    billingPostalCode,
+    billingState,
+    billingStreet,
+    email,
+    eventId,
+    firstName,
+    lastName,
+    paymentPreference,
+    phone
+  ]);
 
   const registrationUnavailable = useMemo(() => {
     if (!event) {
@@ -328,7 +346,7 @@ function RegisterPage() {
 
     try {
       const squarePaymentToken = requiresSquarePayment
-        ? await tokenizeSquarePayment()
+        ? squareWalletToken || await tokenizeSquarePayment()
         : '';
       const profileUpdates = {
         firstName: toTitleCase(firstName),
@@ -370,6 +388,10 @@ function RegisterPage() {
   }
 
   async function tokenizeSquarePayment() {
+    if (squareWalletToken) {
+      return squareWalletToken;
+    }
+
     if (!squareCard) {
       throw new Error(squareError || 'Card payment is not ready yet.');
     }
@@ -917,6 +939,7 @@ function RegisterPage() {
                       disabled={submitting || Boolean(confirmation)}
                       error={squareError}
                       onCardReady={setSquareCard}
+                      onWalletTokenReady={setSquareWalletToken}
                       onlinePaymentRequired={requiresSquarePayment}
                     />
                   ) : null}
@@ -931,7 +954,7 @@ function RegisterPage() {
                     className="button-link button-reset"
                     disabled={submitting
                       || Boolean(registrationUnavailable)
-                      || (requiresSquarePayment && (!squareCard || Boolean(squareError)))
+                      || (requiresSquarePayment && (!squareCard && !squareWalletToken || Boolean(squareError)))
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
                   >
@@ -1204,25 +1227,42 @@ function RegistrationPaymentPanel({
   disabled,
   error,
   onCardReady,
+  onWalletTokenReady,
   onlinePaymentRequired
 }) {
+  const applePayRef = useRef(null);
   const cardContainerId = useRef(`square-card-${Math.random().toString(36).slice(2)}`);
+  const googlePayContainerId = useRef(`square-google-pay-${Math.random().toString(36).slice(2)}`);
   const [localError, setLocalError] = useState('');
   const [loading, setLoading] = useState(false);
   const [testCardMessage, setTestCardMessage] = useState('');
+  const [walletMessage, setWalletMessage] = useState('');
+  const [walletProcessing, setWalletProcessing] = useState('');
+  const [walletSupport, setWalletSupport] = useState({
+    applePay: false,
+    googlePay: false
+  });
 
   useEffect(() => {
     if (!onlinePaymentRequired || !config?.enabled) {
       onCardReady(null);
+      onWalletTokenReady('');
+      setWalletSupport({ applePay: false, googlePay: false });
       return undefined;
     }
 
     let cancelled = false;
     let cardInstance = null;
+    let googlePayClickHandler = null;
+    let googlePayContainer = null;
+    let walletInstances = [];
 
-    async function initializeSquareCard() {
+    async function initializeSquarePayments() {
       setLoading(true);
       setLocalError('');
+      setWalletMessage('');
+      onWalletTokenReady('');
+      setWalletSupport({ applePay: false, googlePay: false });
 
       try {
         validateSquarePaymentConfig(config);
@@ -1233,15 +1273,57 @@ function RegistrationPaymentPanel({
         }
 
         const payments = window.Square.payments(config.applicationId, config.locationId);
-        cardInstance = await payments.card();
-        await cardInstance.attach(`#${cardContainerId.current}`);
+        const paymentRequest = buildSquarePaymentRequest(payments, amountDue);
 
-        if (!cancelled) {
-          onCardReady(cardInstance);
+        if (config.enableCardPayments !== false) {
+          cardInstance = await payments.card();
+          await cardInstance.attach(`#${cardContainerId.current}`);
+
+          if (!cancelled) {
+            onCardReady(cardInstance);
+          }
+        }
+
+        if (config.enableApplePay) {
+          try {
+            const applePay = await payments.applePay(paymentRequest);
+            walletInstances.push(applePay);
+
+            if (!cancelled) {
+              applePayRef.current = applePay;
+              setWalletSupport((current) => ({ ...current, applePay: true }));
+            }
+          } catch {
+            if (!cancelled) {
+              applePayRef.current = null;
+            }
+          }
+        }
+
+        if (config.enableGooglePay) {
+          try {
+            const googlePay = await payments.googlePay(paymentRequest);
+            walletInstances.push(googlePay);
+            googlePayContainer = document.getElementById(googlePayContainerId.current);
+
+            await googlePay.attach(`#${googlePayContainerId.current}`);
+
+            googlePayClickHandler = (clickEvent) => {
+              clickEvent.preventDefault();
+              handleWalletPayment(googlePay, 'Google Pay');
+            };
+            googlePayContainer?.addEventListener('click', googlePayClickHandler);
+
+            if (!cancelled) {
+              setWalletSupport((current) => ({ ...current, googlePay: true }));
+            }
+          } catch {
+          }
         }
       } catch (squareLoadError) {
         if (!cancelled) {
           onCardReady(null);
+          onWalletTokenReady('');
           setLocalError(squareLoadError.message || 'Square payment form could not be loaded.');
         }
       } finally {
@@ -1251,34 +1333,96 @@ function RegistrationPaymentPanel({
       }
     }
 
-    initializeSquareCard();
+    initializeSquarePayments();
 
     return () => {
       cancelled = true;
       onCardReady(null);
+      onWalletTokenReady('');
+      applePayRef.current = null;
+
+      if (googlePayContainer && googlePayClickHandler) {
+        googlePayContainer.removeEventListener('click', googlePayClickHandler);
+      }
 
       if (cardInstance && typeof cardInstance.destroy === 'function') {
         cardInstance.destroy();
       }
+
+      walletInstances.forEach((paymentMethod) => {
+        if (paymentMethod && typeof paymentMethod.destroy === 'function') {
+          paymentMethod.destroy();
+        }
+      });
     };
-  }, [config, onCardReady, onlinePaymentRequired]);
+  }, [amountDue, config, onCardReady, onWalletTokenReady, onlinePaymentRequired]);
+
+  async function handleWalletPayment(paymentMethod, walletName) {
+    if (!paymentMethod || disabled) {
+      return;
+    }
+
+    setLocalError('');
+    setWalletMessage('');
+    setWalletProcessing(walletName);
+    onWalletTokenReady('');
+
+    try {
+      const tokenResult = await paymentMethod.tokenize();
+
+      if (tokenResult.status !== 'OK') {
+        throw new Error(getSquareTokenizeError(tokenResult));
+      }
+
+      onWalletTokenReady(tokenResult.token);
+      setWalletMessage(`${walletName} authorized. Click Submit Registration to finish.`);
+    } catch (walletError) {
+      onWalletTokenReady('');
+      setLocalError(walletError.message || `${walletName} could not be verified.`);
+    } finally {
+      setWalletProcessing('');
+    }
+  }
 
   return (
     <div className="registration-payment-panel">
       <strong>Payment</strong>
       <span className="form-help">
-        Amount due by card: {formatCurrency(amountDue)}
+        Amount due: {formatCurrency(amountDue)}
       </span>
       <p className="form-help">
-        Your card information is entered directly into Square&apos;s secure payment form.
-        The Village Quilters Network does not store your card number or security code.
+        Card, Apple Pay, and Google Pay information is entered directly into Square&apos;s secure payment form.
+        The Village Quilters Network does not store your card number, security code, or wallet payment details.
       </p>
       {!onlinePaymentRequired ? (
         <p className="form-help">Cash/check later is selected, so online card payment is not needed now.</p>
       ) : null}
       {onlinePaymentRequired ? (
         <>
-          {config?.environment === 'sandbox' ? (
+          {walletSupport.applePay || walletSupport.googlePay ? (
+            <div className="square-wallet-section">
+              {walletSupport.applePay ? (
+                <button
+                  aria-label="Pay with Apple Pay"
+                  className="square-apple-pay-button"
+                  disabled={disabled || Boolean(walletProcessing)}
+                  type="button"
+                  onClick={() => handleWalletPayment(applePayRef.current, 'Apple Pay')}
+                >
+                  {walletProcessing === 'Apple Pay' ? 'Authorizing Apple Pay...' : ''}
+                </button>
+              ) : null}
+              {walletSupport.googlePay ? (
+                <div
+                  aria-label="Pay with Google Pay"
+                  className={`square-google-pay-container${disabled || walletProcessing ? ' is-disabled' : ''}`}
+                  id={googlePayContainerId.current}
+                />
+              ) : null}
+              {walletMessage ? <p className="form-success">{walletMessage}</p> : null}
+            </div>
+          ) : null}
+          {config?.environment === 'sandbox' && config?.enableCardPayments !== false ? (
             <div className="sandbox-card-helper">
               <strong>Sandbox Test Card</strong>
               <button
@@ -1294,11 +1438,23 @@ function RegistrationPaymentPanel({
               {testCardMessage ? <span className="form-help">{testCardMessage}</span> : null}
             </div>
           ) : null}
-          <div
-            aria-label="Secure Square card payment form"
-            className={`square-card-container${disabled ? ' is-disabled' : ''}`}
-            id={cardContainerId.current}
-          />
+          {config?.enableCardPayments !== false ? (
+            <>
+              {(walletSupport.applePay || walletSupport.googlePay) ? (
+                <span className="form-help">Or enter a card:</span>
+              ) : null}
+              <div
+                aria-label="Secure Square card payment form"
+                className={`square-card-container${disabled ? ' is-disabled' : ''}`}
+                id={cardContainerId.current}
+              />
+            </>
+          ) : null}
+          {config?.enableCardPayments === false && !walletSupport.applePay && !walletSupport.googlePay ? (
+            <p className="form-error">
+              No enabled online payment methods are available in this browser.
+            </p>
+          ) : null}
           {loading ? <p className="form-help">Loading secure payment form...</p> : null}
           {error || localError ? <p className="form-error">{error || localError}</p> : null}
         </>
@@ -1365,6 +1521,17 @@ function validateSquarePaymentConfig(config) {
       `Online payment setup has an invalid Square application ID. Check SQUARE_APPLICATION_ID in Vercel; it should start with ${expectedAppIdPrefix}.`
     );
   }
+}
+
+function buildSquarePaymentRequest(payments, amountDue) {
+  return payments.paymentRequest({
+    countryCode: 'US',
+    currencyCode: 'USD',
+    total: {
+      amount: Number(amountDue || 0).toFixed(2),
+      label: 'The Village Quilters'
+    }
+  });
 }
 
 function getEventPaymentTotal(event) {

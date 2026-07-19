@@ -14,7 +14,7 @@ export default async function handler(request, response) {
     const db = getFirestore();
 
     if (request.body?.action === 'squareConfig') {
-      response.status(200).json(getSquarePaymentConfig());
+      response.status(200).json(await getSquarePaymentConfig(db));
       return;
     }
 
@@ -80,7 +80,7 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
   ]);
 }
 
-function getSquarePaymentConfig() {
+async function getSquarePaymentConfig(db) {
   const applicationId = process.env.SQUARE_APPLICATION_ID || '';
   const locationId = process.env.SQUARE_LOCATION_ID || '';
   const environment = process.env.SQUARE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
@@ -90,15 +90,40 @@ function getSquarePaymentConfig() {
   const configured = applicationId.startsWith(expectedApplicationPrefix)
     && locationId.length > 0
     && !locationId.includes('Square Developer Dashboard');
+  const settings = await getPaymentSettings(db);
+  const enableCardPayments = settings.enableCardPayments !== false;
+  const enableApplePay = Boolean(settings.enableApplePay);
+  const enableGooglePay = Boolean(settings.enableGooglePay);
 
   return {
     applicationId,
-    enabled: configured,
+    enabled: configured && (enableCardPayments || enableApplePay || enableGooglePay),
+    enableApplePay,
+    enableCardPayments,
+    enableGooglePay,
     environment,
     locationId,
     scriptUrl: environment === 'production'
       ? 'https://web.squarecdn.com/v1/square.js'
       : 'https://sandbox.web.squarecdn.com/v1/square.js'
+  };
+}
+
+async function getPaymentSettings(db) {
+  const snapshot = await db.collection('appSettings').doc('paymentSettings').get();
+
+  if (!snapshot.exists) {
+    return {
+      enableApplePay: false,
+      enableCardPayments: true,
+      enableGooglePay: false
+    };
+  }
+
+  return {
+    enableApplePay: Boolean(snapshot.data().enableApplePay),
+    enableCardPayments: snapshot.data().enableCardPayments !== false,
+    enableGooglePay: Boolean(snapshot.data().enableGooglePay)
   };
 }
 

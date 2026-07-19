@@ -535,6 +535,54 @@ function ConfigurationPanel({ currentUserProfile }) {
               Used as the starting service fee when an event or activity is marked as paid.
             </span>
           </label>
+          <label className="checkbox-label registration-exception-checkbox">
+            <input
+              checked={paymentSettings.enableCardPayments !== false}
+              type="checkbox"
+              onChange={(event) =>
+                setPaymentSettings((current) => ({
+                  ...current,
+                  enableCardPayments: event.target.checked
+                }))
+              }
+            />
+            <span className="checkbox-label-copy">
+              <strong>Card Payments</strong>
+              <small>Allow members to pay online by entering card details through Square.</small>
+            </span>
+          </label>
+          <label className="checkbox-label registration-exception-checkbox">
+            <input
+              checked={Boolean(paymentSettings.enableApplePay)}
+              type="checkbox"
+              onChange={(event) =>
+                setPaymentSettings((current) => ({
+                  ...current,
+                  enableApplePay: event.target.checked
+                }))
+              }
+            />
+            <span className="checkbox-label-copy">
+              <strong>Apple Pay</strong>
+              <small>Enable after Apple Pay is configured for this domain in Square.</small>
+            </span>
+          </label>
+          <label className="checkbox-label registration-exception-checkbox">
+            <input
+              checked={Boolean(paymentSettings.enableGooglePay)}
+              type="checkbox"
+              onChange={(event) =>
+                setPaymentSettings((current) => ({
+                  ...current,
+                  enableGooglePay: event.target.checked
+                }))
+              }
+            />
+            <span className="checkbox-label-copy">
+              <strong>Google Pay</strong>
+              <small>Enable after Google Pay is tested with the Square payment form.</small>
+            </span>
+          </label>
           <button
             className="button-link button-reset configuration-submit-button"
             disabled={savingSection === 'paymentSettings'}
