@@ -4,6 +4,7 @@ import {
   formatCurrency,
   formatDateOnly,
   formatEventDate,
+  formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
   getRegistrationStartDate
@@ -189,8 +190,6 @@ function EventList({
         </div>
       ) : null}
       {filteredEvents.map((event) => {
-        const registrationStartDate = getRegistrationStartDate(event);
-        const registrationEndDate = getRegistrationEndDate(event);
         const wasLastSaved = lastSavedEventId && event.id === lastSavedEventId;
 
         return (
@@ -286,16 +285,10 @@ function EventList({
                   <dd>{formatListingEnd(event)}</dd>
                 </div>
               ) : null}
-              {registrationStartDate ? (
+              {getRegistrationStartDate(event) || getRegistrationEndDate(event) ? (
                 <div>
-                  <dt>Registration Opens</dt>
-                  <dd>{formatRegistrationWindowDate(registrationStartDate)}</dd>
-                </div>
-              ) : null}
-              {registrationEndDate ? (
-                <div>
-                  <dt>Registration Closes</dt>
-                  <dd>{formatRegistrationWindowDate(registrationEndDate)}</dd>
+                  <dt>Registration Open/Closes</dt>
+                  <dd>{formatRegistrationDateRange(event)}</dd>
                 </div>
               ) : null}
               {event.businessName ? (
@@ -422,10 +415,6 @@ function formatListingEnd(event) {
   return event.eventType === 'Challenges'
     ? date.toLocaleDateString()
     : date.toLocaleString();
-}
-
-function formatRegistrationWindowDate(value) {
-  return formatDateOnly(value);
 }
 
 export default EventList;

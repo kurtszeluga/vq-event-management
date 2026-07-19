@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getEvent } from '../services/eventService.js';
 import {
   formatCurrency,
-  formatDateOnly,
   formatEventDate,
+  formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
   getRegistrationStartDate,
@@ -155,16 +155,10 @@ function EventListingPrintPage() {
                 <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
               </div>
             ) : null}
-            {registrationStartDate ? (
+            {registrationStartDate || registrationEndDate ? (
               <div>
-                <dt>Registration Starts</dt>
-                <dd>{formatDateOnly(registrationStartDate)}</dd>
-              </div>
-            ) : null}
-            {registrationEndDate ? (
-              <div>
-                <dt>Registration Ends</dt>
-                <dd>{formatDateOnly(registrationEndDate)}</dd>
+                <dt>Registration Open/Closes</dt>
+                <dd>{formatRegistrationDateRange(event)}</dd>
               </div>
             ) : null}
             <div>

@@ -143,10 +143,11 @@ function EventForm({
       ...current,
       registrationMode: value,
       registrationOpenAt: value === 'now'
-        ? current.registrationOpenAt || toDateTimeLocalValue(new Date())
+        ? toDateTimeLocalValue(new Date())
         : current.registrationOpenAt,
-      registrationCloseAt: current.registrationCloseAt
-        || getDefaultRegistrationCloseAt(current.date, current.eventType)
+      registrationCloseAt: value === 'now'
+        ? ''
+        : current.registrationCloseAt
     }));
     setFieldErrors((current) => {
       const next = { ...current };
@@ -1779,16 +1780,6 @@ function getDateInputValue(value) {
 
 function toMidnightDateTimeValue(dateValue) {
   return dateValue ? `${dateValue}T00:00` : '';
-}
-
-function getDefaultRegistrationCloseAt(eventDate, eventType) {
-  if (!eventDate) {
-    return '';
-  }
-
-  return eventType === 'Challenges'
-    ? toMidnightDateTimeValue(eventDate)
-    : `${eventDate}T23:59`;
 }
 
 export default EventForm;

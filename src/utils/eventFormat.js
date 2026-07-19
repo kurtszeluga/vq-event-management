@@ -56,6 +56,25 @@ export function getRegistrationEndDate(event) {
     || '';
 }
 
+export function formatRegistrationDateRange(event) {
+  const startDate = getRegistrationStartDate(event);
+  const endDate = getRegistrationEndDate(event);
+
+  if (!startDate && !endDate) {
+    return 'Dates TBD';
+  }
+
+  if (!startDate) {
+    return formatDateOnly(endDate);
+  }
+
+  if (!endDate) {
+    return formatDateOnly(startDate);
+  }
+
+  return `${formatDateOnly(startDate)} - ${formatDateOnly(endDate)}`;
+}
+
 export function formatTimeRange(startTime, endTime) {
   if (!startTime || !endTime) {
     return 'Time TBD';

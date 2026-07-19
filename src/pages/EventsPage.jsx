@@ -5,8 +5,8 @@ import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
   formatCurrency,
-  formatDateOnly,
   formatEventDate,
+  formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
   getRegistrationStartDate,
@@ -97,11 +97,8 @@ function buildEventPrintHtml(event) {
   const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
-  const registrationStarts = registrationStartDate
-    ? `<div class="meta-row"><div class="meta-label">Registration Starts</div><div>${escapeHtml(formatDateOnly(registrationStartDate))}</div></div>`
-    : '';
-  const registrationEnds = registrationEndDate
-    ? `<div class="meta-row"><div class="meta-label">Registration Ends</div><div>${escapeHtml(formatDateOnly(registrationEndDate))}</div></div>`
+  const registrationWindow = registrationStartDate || registrationEndDate
+    ? `<div class="meta-row"><div class="meta-label">Registration Open/Closes</div><div>${escapeHtml(formatRegistrationDateRange(event))}</div></div>`
     : '';
   const imageUrl = event.imageUrls?.find(Boolean) || '';
   const imageBlock = imageUrl
@@ -243,8 +240,7 @@ function buildEventPrintHtml(event) {
           <div class="meta-row"><div class="meta-label">Status</div><div>${registration}</div></div>
         <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
         ${timeRow}
-        ${registrationStarts}
-        ${registrationEnds}
+        ${registrationWindow}
         <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
           <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
@@ -486,16 +482,10 @@ function EventsPage() {
                       <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
                     </div>
                   ) : null}
-                  {registrationStartDate ? (
+                  {registrationStartDate || registrationEndDate ? (
                     <div>
-                      <dt>Registration Starts</dt>
-                      <dd>{formatDateOnly(registrationStartDate)}</dd>
-                    </div>
-                  ) : null}
-                  {registrationEndDate ? (
-                    <div>
-                      <dt>Registration Ends</dt>
-                      <dd>{formatDateOnly(registrationEndDate)}</dd>
+                      <dt>Registration Open/Closes</dt>
+                      <dd>{formatRegistrationDateRange(event)}</dd>
                     </div>
                   ) : null}
                   <div>
