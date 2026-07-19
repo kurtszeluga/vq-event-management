@@ -440,7 +440,11 @@ function EventsPage() {
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
           const thumbnailUrl = getEventThumbnail(event);
           const availability = getRegistrationAvailability(event, registrationCounts[event.id]);
-          const availabilityTone = event.registrationOpen ? availability.tone : 'closed';
+          const availabilityTone = availability.label === 'Unlimited'
+            ? availability.tone
+            : event.registrationOpen
+              ? availability.tone
+              : 'closed';
           const coordinatorContact = coordinatorContacts[event.id];
           const registrationStartDate = getRegistrationStartDate(event);
           const registrationEndDate = getRegistrationEndDate(event);
