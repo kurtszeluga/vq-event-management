@@ -615,6 +615,9 @@ export async function saveEventLocationDefault(location, actorProfile) {
     : doc(eventLocationsCollection());
   const payload = {
     address: cleanText(location.address),
+    defaultEventTypes: Array.isArray(location.defaultEventTypes)
+      ? location.defaultEventTypes.map(cleanText).filter(Boolean)
+      : [],
     eventLocationId: locationRef.id,
     isActive: location.isActive !== false,
     label: cleanText(location.label),

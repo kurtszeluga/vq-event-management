@@ -1780,6 +1780,13 @@ body.popup-mode .page-content {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.configuration-edit-window {
+  background: #fffdfa;
+  border: 2px solid #8a2f1f;
+  border-radius: 8px;
+  padding: 14px;
+}
+
 .configuration-form-grid label {
   display: grid;
   gap: 8px;
@@ -1794,6 +1801,42 @@ body.popup-mode .page-content {
   height: 48px;
   padding: 12px 14px;
   width: 100%;
+}
+
+.configuration-form-grid .compact-checkbox-label {
+  align-items: center;
+  align-self: start;
+  display: inline-flex;
+  gap: 8px;
+  justify-self: start;
+  min-height: 36px;
+  width: fit-content;
+}
+
+.configuration-form-grid .compact-checkbox-label input {
+  height: 16px;
+  padding: 0;
+  width: 16px;
+}
+
+.configuration-checkbox-panel {
+  border: 1px solid #d8c9bc;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.configuration-checkbox-panel legend {
+  color: #263632;
+  font-weight: 900;
+  padding: 0 6px;
+}
+
+.configuration-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
 
 .configuration-span {

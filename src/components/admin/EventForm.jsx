@@ -268,6 +268,8 @@ function EventForm({
     const isLectureType = value === 'Lecture';
     const isRetreatType = value === 'Retreat';
     const isChallengeType = value === 'Challenges';
+    const isListingType = value === 'Business Listing' || value === 'For Sale';
+    const defaultLocation = value && !isListingType ? getDefaultLocationForEventType(value, eventLocations) : null;
     const doesNotUseFees = [
       'Business Listing',
       'For Sale',
@@ -284,12 +286,8 @@ function EventForm({
     setForm((current) => ({
       ...current,
       eventType: value,
-      location: isClassOrWorkshop ? getLocationSelectionValue(eventLocations[0]) : '',
-      locationPreset: value
-        ? isClassOrWorkshop
-          ? eventLocations[0].value
-          : 'other'
-        : '',
+      location: defaultLocation ? getLocationSelectionValue(defaultLocation) : '',
+      locationPreset: defaultLocation?.value || (value && !isListingType ? 'other' : ''),
       timePreset: isChallengeType ? 'other' : value && !isLectureType ? nextTimeOption?.value || 'other' : '',
       startTime: isChallengeType ? '00:00' : nextTimeOption?.startTime || '',
       endTime: isChallengeType ? '00:00' : nextTimeOption?.endTime || '',
@@ -1812,6 +1810,17 @@ function getLocationOptionDisplay(location) {
 
 function getLocationSelectionValue(location) {
   return getLocationOptionDisplay(location);
+}
+
+function getDefaultLocationForEventType(eventType, locations) {
+  if (!eventType || !locations.length) {
+    return null;
+  }
+
+  return locations.find((location) =>
+    Array.isArray(location.defaultEventTypes)
+    && location.defaultEventTypes.includes(eventType)
+  ) || locations[0];
 }
 
 function getTimeOptionDisplay(option) {

@@ -26,7 +26,7 @@ import {
   subscribeToMembershipSettings,
   subscribeToPaymentSettings
 } from '../../services/configurationService.js';
-import { EVENT_LOCATIONS } from '../../data/eventOptions.js';
+import { EVENT_LOCATIONS, EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
 import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
 
@@ -42,6 +42,7 @@ const EMPTY_MEMBER_FORM = {
 
 const EMPTY_LOCATION_FORM = {
   address: '',
+  defaultEventTypes: [],
   id: '',
   isActive: true,
   label: '',
@@ -833,7 +834,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           </button>
         </div>
         {locationFormOpen ? (
-          <form className="configuration-form-grid" onSubmit={handleSaveLocation}>
+          <form className="configuration-form-grid configuration-edit-window location-edit-window" onSubmit={handleSaveLocation}>
             <label>
               <span>Location Label *</span>
               <input
@@ -878,7 +879,36 @@ function ConfigurationPanel({ currentUserProfile }) {
                 }
               />
             </label>
-            <label className="checkbox-label">
+            <fieldset className="configuration-span configuration-checkbox-panel">
+              <legend>Default For Event Type</legend>
+              <p className="form-help">
+                Choose which event types should auto-select this location when creating a new record.
+              </p>
+              <div className="configuration-checkbox-grid">
+                {EVENT_TYPES
+                  .filter((eventType) => !['Business Listing', 'For Sale'].includes(eventType))
+                  .map((eventType) => (
+                    <label className="checkbox-label compact-checkbox-label" key={eventType}>
+                      <input
+                        checked={(locationForm.defaultEventTypes || []).includes(eventType)}
+                        type="checkbox"
+                        onChange={(event) =>
+                          setLocationForm((current) => ({
+                            ...current,
+                            defaultEventTypes: toggleListValue(
+                              current.defaultEventTypes || [],
+                              eventType,
+                              event.target.checked
+                            )
+                          }))
+                        }
+                      />
+                      <span>{eventType}</span>
+                    </label>
+                  ))}
+              </div>
+            </fieldset>
+            <label className="checkbox-label compact-checkbox-label">
               <input
                 checked={locationForm.isActive}
                 type="checkbox"
@@ -906,7 +936,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           </form>
         ) : null}
         <ConfigurationTable
-          columns={['Location', 'Value', 'Status', 'Actions']}
+          columns={['Location', 'Value', 'Defaults', 'Status', 'Actions']}
           emptyText="No default locations have been added yet."
           rows={displayedLocations.map((location) => ({
             id: location.id,
@@ -916,6 +946,7 @@ function ConfigurationPanel({ currentUserProfile }) {
                 <span>{location.address}</span>
               </>,
               location.value,
+              formatLocationDefaultTypes(location.defaultEventTypes),
               location.isBuiltIn ? 'Built-in Default' : location.isActive === false ? 'Inactive' : 'Active',
               <RowActions
                 key={location.id}
@@ -1281,12 +1312,29 @@ function mergeDefaultLocations(configuredLocations) {
       .map((location, index) => ({
         ...location,
         address: location.address || '',
+        defaultEventTypes: location.defaultEventTypes || [],
         id: `built-in-location-${location.value}`,
         isActive: true,
         isBuiltIn: true,
         sortOrder: 9000 + index
       }))
   ];
+}
+
+function toggleListValue(values, value, checked) {
+  const currentValues = new Set(values);
+
+  if (checked) {
+    currentValues.add(value);
+  } else {
+    currentValues.delete(value);
+  }
+
+  return Array.from(currentValues);
+}
+
+function formatLocationDefaultTypes(defaultEventTypes = []) {
+  return defaultEventTypes.length ? defaultEventTypes.join(', ') : '-';
 }
 
 function ConfigurationTable({ columns, emptyText, rows }) {

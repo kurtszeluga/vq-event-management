@@ -590,6 +590,7 @@ service cloud.firestore {
     function validEventLocationDefault() {
       return request.resource.data.keys().hasOnly([
           'address',
+          'defaultEventTypes',
           'eventLocationId',
           'isActive',
           'label',
@@ -598,6 +599,17 @@ service cloud.firestore {
           'value'
         ])
         && request.resource.data.address is string
+        && (!('defaultEventTypes' in request.resource.data)
+          || request.resource.data.defaultEventTypes is list
+            && request.resource.data.defaultEventTypes.hasOnly([
+              'Class (Half Day)',
+              'Class (Full Day)',
+              'Workshop',
+              'Retreat',
+              'Lecture',
+              'Challenges',
+              'Other'
+            ]))
         && request.resource.data.eventLocationId is string
         && request.resource.data.isActive is bool
         && request.resource.data.label is string
