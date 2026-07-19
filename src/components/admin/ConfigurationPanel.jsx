@@ -26,6 +26,7 @@ import {
   subscribeToMembershipSettings,
   subscribeToPaymentSettings
 } from '../../services/configurationService.js';
+import { EVENT_LOCATIONS } from '../../data/eventOptions.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
 import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
 
@@ -811,6 +812,8 @@ function ConfigurationPanel({ currentUserProfile }) {
   }
 
   function renderLocationCard() {
+    const displayedLocations = mergeDefaultLocations(eventLocations);
+
     return (
       <article className="configuration-mini-card">
         <div className="configuration-card-header">
@@ -905,7 +908,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         <ConfigurationTable
           columns={['Location', 'Value', 'Status', 'Actions']}
           emptyText="No default locations have been added yet."
-          rows={eventLocations.map((location) => ({
+          rows={displayedLocations.map((location) => ({
             id: location.id,
             cells: [
               <>
@@ -913,12 +916,17 @@ function ConfigurationPanel({ currentUserProfile }) {
                 <span>{location.address}</span>
               </>,
               location.value,
-              location.isActive === false ? 'Inactive' : 'Active',
+              location.isBuiltIn ? 'Built-in Default' : location.isActive === false ? 'Inactive' : 'Active',
               <RowActions
                 key={location.id}
-                onDelete={() => deleteEventLocationDefault(location, currentUserProfile)}
+                onDelete={location.isBuiltIn ? null : () => deleteEventLocationDefault(location, currentUserProfile)}
                 onEdit={() => {
-                  setLocationForm({ ...EMPTY_LOCATION_FORM, ...location });
+                  setLocationForm({
+                    ...EMPTY_LOCATION_FORM,
+                    ...location,
+                    id: location.isBuiltIn ? '' : location.id,
+                    isActive: location.isActive !== false
+                  });
                   setLocationFormOpen(true);
                 }}
               />
@@ -1254,11 +1262,31 @@ function RowActions({
       <button className="button-link button-reset" type="button" onClick={onEdit}>
         Edit
       </button>
-      <button className="danger-button archive-action" type="button" onClick={handleDelete}>
-        {deleteLabel}
-      </button>
+      {onDelete ? (
+        <button className="danger-button archive-action" type="button" onClick={handleDelete}>
+          {deleteLabel}
+        </button>
+      ) : null}
     </div>
   );
+}
+
+function mergeDefaultLocations(configuredLocations) {
+  const configuredValues = new Set(configuredLocations.map((location) => location.value));
+
+  return [
+    ...configuredLocations,
+    ...EVENT_LOCATIONS
+      .filter((location) => !configuredValues.has(location.value))
+      .map((location, index) => ({
+        ...location,
+        address: location.address || '',
+        id: `built-in-location-${location.value}`,
+        isActive: true,
+        isBuiltIn: true,
+        sortOrder: 9000 + index
+      }))
+  ];
 }
 
 function ConfigurationTable({ columns, emptyText, rows }) {
