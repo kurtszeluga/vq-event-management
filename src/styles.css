@@ -1146,6 +1146,11 @@ body.popup-mode .page-content {
   color: #7a5200;
 }
 
+.event-availability-pill.closed {
+  background: #fff3c4;
+  color: #7a5200;
+}
+
 .event-admin-card dl,
 .user-admin-card dl,
 .public-event-card dl,

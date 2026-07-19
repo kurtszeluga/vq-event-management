@@ -440,6 +440,7 @@ function EventsPage() {
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
           const thumbnailUrl = getEventThumbnail(event);
           const availability = getRegistrationAvailability(event, registrationCounts[event.id]);
+          const availabilityTone = event.registrationOpen ? availability.tone : 'closed';
           const coordinatorContact = coordinatorContacts[event.id];
           const registrationStartDate = getRegistrationStartDate(event);
           const registrationEndDate = getRegistrationEndDate(event);
@@ -448,10 +449,10 @@ function EventsPage() {
             <article className="public-event-card" key={event.id}>
               <div className="card-kicker">
                 <span className="event-type-pill">{getEventTypeLabel(event)}</span>
-                <strong className={`event-availability-pill ${availability.tone}`}>
+                <strong className={`event-availability-pill ${availabilityTone}`}>
                   {availability.label}
                 </strong>
-                <strong>
+                <strong className={`event-availability-pill ${event.registrationOpen ? 'open' : 'closed'}`}>
                   {event.registrationOpen ? 'Registration open' : 'Registration closed'}
                 </strong>
               </div>

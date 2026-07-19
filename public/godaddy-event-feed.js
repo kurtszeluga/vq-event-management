@@ -138,7 +138,11 @@
       ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
       : '';
     const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
-    const availabilityTone = event.registrationIsFull ? 'is-waitlist' : 'is-open';
+    const availabilityTone = event.registrationIsFull
+      ? 'is-waitlist'
+      : event.registrationOpen
+        ? 'is-open'
+        : 'is-closed';
     const registrationStats = getRegistrationStats(event);
     const coordinatorContact = buildCoordinatorContactMarkup(event);
 
