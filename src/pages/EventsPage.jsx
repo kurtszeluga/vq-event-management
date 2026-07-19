@@ -5,6 +5,7 @@ import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
   formatCurrency,
+  formatDateOnly,
   formatEventDate,
   formatTimeRange,
   isEventVisible
@@ -92,6 +93,12 @@ function buildEventPrintHtml(event) {
   const presenter = escapeHtml(event.presenter || 'To be announced');
   const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'No Charge');
   const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
+  const registrationStarts = event.registrationOpenAt
+    ? `<div class="meta-row"><div class="meta-label">Registration Starts</div><div>${escapeHtml(formatDateOnly(event.registrationOpenAt))}</div></div>`
+    : '';
+  const registrationEnds = event.registrationCloseAt
+    ? `<div class="meta-row"><div class="meta-label">Registration Ends</div><div>${escapeHtml(formatDateOnly(event.registrationCloseAt))}</div></div>`
+    : '';
   const imageUrl = event.imageUrls?.find(Boolean) || '';
   const imageBlock = imageUrl
     ? `<div class="image-wrap"><img alt="${title} thumbnail" src="${escapeHtml(imageUrl)}" /></div>`
@@ -230,9 +237,11 @@ function buildEventPrintHtml(event) {
         <div class="pill">${eventType}</div>
         <div class="meta">
           <div class="meta-row"><div class="meta-label">Status</div><div>${registration}</div></div>
-          <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
-          ${timeRow}
-          <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
+        <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+        ${timeRow}
+        ${registrationStarts}
+        ${registrationEnds}
+        <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
           <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
         </div>
@@ -471,16 +480,16 @@ function EventsPage() {
                       <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
                     </div>
                   ) : null}
-                  {event.eventType === 'Challenges' && event.registrationOpenAt ? (
+                  {event.registrationOpenAt ? (
                     <div>
                       <dt>Registration Starts</dt>
-                      <dd>{formatEventDate(event.registrationOpenAt)}</dd>
+                      <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
                     </div>
                   ) : null}
-                  {event.eventType === 'Challenges' && event.registrationCloseAt ? (
+                  {event.registrationCloseAt ? (
                     <div>
                       <dt>Registration Ends</dt>
-                      <dd>{formatEventDate(event.registrationCloseAt)}</dd>
+                      <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
                     </div>
                   ) : null}
                   <div>

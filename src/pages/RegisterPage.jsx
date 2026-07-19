@@ -18,6 +18,7 @@ import {
 import { auth } from '../lib/firebase.js';
 import {
   formatCurrency,
+  formatDateOnly,
   formatEventDate,
   formatTimeRange,
   isEventVisible
@@ -1104,6 +1105,18 @@ function EventSummary({ event }) {
             <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
           </div>
         ) : null}
+        {event.registrationOpenAt ? (
+          <div>
+            <dt>Registration Starts</dt>
+            <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+          </div>
+        ) : null}
+        {event.registrationCloseAt ? (
+          <div>
+            <dt>Registration Ends</dt>
+            <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Location</dt>
           <dd>{event.location || 'To be announced'}</dd>
@@ -1157,6 +1170,18 @@ function RegistrationCompletion({ closeMessage, confirmation, event, onReturn })
           <div>
             <dt>Time</dt>
             <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+          </div>
+        ) : null}
+        {event.registrationOpenAt ? (
+          <div>
+            <dt>Registration Starts</dt>
+            <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+          </div>
+        ) : null}
+        {event.registrationCloseAt ? (
+          <div>
+            <dt>Registration Ends</dt>
+            <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
           </div>
         ) : null}
         <div>

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getEvent } from '../services/eventService.js';
 import {
   formatCurrency,
+  formatDateOnly,
   formatEventDate,
   formatTimeRange,
   isEventVisible
@@ -148,6 +149,18 @@ function EventListingPrintPage() {
               <div>
                 <dt>Time</dt>
                 <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+              </div>
+            ) : null}
+            {event.registrationOpenAt ? (
+              <div>
+                <dt>Registration Starts</dt>
+                <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+              </div>
+            ) : null}
+            {event.registrationCloseAt ? (
+              <div>
+                <dt>Registration Ends</dt>
+                <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
               </div>
             ) : null}
             <div>

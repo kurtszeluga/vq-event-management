@@ -168,8 +168,8 @@
           </div>
           <dl class="vq-feed-meta">
             ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
-            ${event.eventType === 'Challenges' && event.registrationOpenAt ? `<div><dt>Registration Starts</dt><dd>${escapeHtml(formatEventDate(event.registrationOpenAt))}</dd></div>` : ''}
-            ${event.eventType === 'Challenges' && event.registrationCloseAt ? `<div><dt>Registration Ends</dt><dd>${escapeHtml(formatEventDate(event.registrationCloseAt))}</dd></div>` : ''}
+            ${event.registrationOpenAt ? `<div><dt>Registration Starts</dt><dd>${escapeHtml(formatEventDate(event.registrationOpenAt))}</dd></div>` : ''}
+            ${event.registrationCloseAt ? `<div><dt>Registration Ends</dt><dd>${escapeHtml(formatEventDate(event.registrationCloseAt))}</dd></div>` : ''}
             ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
             ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
             <div class="vq-feed-payment-detail">
@@ -811,6 +811,12 @@
     const timeRow = event.eventType === 'Challenges'
       ? ''
       : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;
+    const registrationStarts = event.registrationOpenAt
+      ? `<div class="meta-row"><div class="meta-label">Registration Starts</div><div>${escapeHtml(formatEventDate(event.registrationOpenAt))}</div></div>`
+      : '';
+    const registrationEnds = event.registrationCloseAt
+      ? `<div class="meta-row"><div class="meta-label">Registration Ends</div><div>${escapeHtml(formatEventDate(event.registrationCloseAt))}</div></div>`
+      : '';
     const location = escapeHtml(event.location || 'To be announced');
     const presenter = escapeHtml(event.presenter || 'To be announced');
     const cost = event.isPaid
@@ -1009,9 +1015,11 @@
         </div>
         ${imageBlock}
         <div class="meta">
-          <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
-          ${timeRow}
-          <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
+              <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+              ${timeRow}
+              ${registrationStarts}
+              ${registrationEnds}
+              <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
           <div class="meta-row"><div class="meta-label">Payment</div><div>${cost}</div></div>
         </div>

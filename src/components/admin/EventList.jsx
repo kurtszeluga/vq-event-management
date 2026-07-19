@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatCurrency, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
+import { formatCurrency, formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
 const ALL_TYPES = 'All';
 const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
@@ -277,18 +277,6 @@ function EventList({
                   <dd>{formatListingEnd(event)}</dd>
                 </div>
               ) : null}
-              {event.registrationMode ? (
-                <div>
-                  <dt>Registration</dt>
-                  <dd>
-                    {event.registrationMode === 'future'
-                      ? 'Scheduled for later'
-                      : event.registrationMode === 'now'
-                        ? 'Open now'
-                        : 'Closed'}
-                  </dd>
-                </div>
-              ) : null}
               {event.registrationOpenAt ? (
                 <div>
                   <dt>Registration Opens</dt>
@@ -435,7 +423,7 @@ function formatRegistrationWindowDate(event, value) {
   }
 
   return event.eventType === 'Challenges'
-    ? formatEventDate(value)
+    ? formatDateOnly(value)
     : date.toLocaleString();
 }
 

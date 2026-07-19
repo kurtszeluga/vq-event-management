@@ -19,6 +19,26 @@ export function formatEventDate(dateValue) {
   return dateValue;
 }
 
+export function formatDateOnly(dateValue) {
+  if (!dateValue) {
+    return 'Date TBD';
+  }
+
+  const datePart = String(dateValue).split('T')[0];
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return formatEventDate(datePart);
+  }
+
+  const parsed = new Date(dateValue);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return dateValue;
+  }
+
+  return parsed.toLocaleDateString();
+}
+
 export function formatTimeRange(startTime, endTime) {
   if (!startTime || !endTime) {
     return 'Time TBD';
