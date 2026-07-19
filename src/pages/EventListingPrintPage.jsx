@@ -6,6 +6,8 @@ import {
   formatDateOnly,
   formatEventDate,
   formatTimeRange,
+  getRegistrationEndDate,
+  getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
 
@@ -17,6 +19,8 @@ function EventListingPrintPage() {
   const [event, setEvent] = useState(() => readCachedEvent(cacheKey));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(() => !readCachedEvent(cacheKey));
+  const registrationStartDate = getRegistrationStartDate(event);
+  const registrationEndDate = getRegistrationEndDate(event);
 
   useEffect(() => {
     if (event) {
@@ -151,16 +155,16 @@ function EventListingPrintPage() {
                 <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
               </div>
             ) : null}
-            {event.registrationOpenAt ? (
+            {registrationStartDate ? (
               <div>
                 <dt>Registration Starts</dt>
-                <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+                <dd>{formatDateOnly(registrationStartDate)}</dd>
               </div>
             ) : null}
-            {event.registrationCloseAt ? (
+            {registrationEndDate ? (
               <div>
                 <dt>Registration Ends</dt>
-                <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
+                <dd>{formatDateOnly(registrationEndDate)}</dd>
               </div>
             ) : null}
             <div>

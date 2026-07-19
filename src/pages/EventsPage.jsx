@@ -8,6 +8,8 @@ import {
   formatDateOnly,
   formatEventDate,
   formatTimeRange,
+  getRegistrationEndDate,
+  getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
@@ -93,11 +95,13 @@ function buildEventPrintHtml(event) {
   const presenter = escapeHtml(event.presenter || 'To be announced');
   const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'No Charge');
   const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
-  const registrationStarts = event.registrationOpenAt
-    ? `<div class="meta-row"><div class="meta-label">Registration Starts</div><div>${escapeHtml(formatDateOnly(event.registrationOpenAt))}</div></div>`
+  const registrationStartDate = getRegistrationStartDate(event);
+  const registrationEndDate = getRegistrationEndDate(event);
+  const registrationStarts = registrationStartDate
+    ? `<div class="meta-row"><div class="meta-label">Registration Starts</div><div>${escapeHtml(formatDateOnly(registrationStartDate))}</div></div>`
     : '';
-  const registrationEnds = event.registrationCloseAt
-    ? `<div class="meta-row"><div class="meta-label">Registration Ends</div><div>${escapeHtml(formatDateOnly(event.registrationCloseAt))}</div></div>`
+  const registrationEnds = registrationEndDate
+    ? `<div class="meta-row"><div class="meta-label">Registration Ends</div><div>${escapeHtml(formatDateOnly(registrationEndDate))}</div></div>`
     : '';
   const imageUrl = event.imageUrls?.find(Boolean) || '';
   const imageBlock = imageUrl
@@ -441,6 +445,8 @@ function EventsPage() {
           const thumbnailUrl = getEventThumbnail(event);
           const availability = getRegistrationAvailability(event, registrationCounts[event.id]);
           const coordinatorContact = coordinatorContacts[event.id];
+          const registrationStartDate = getRegistrationStartDate(event);
+          const registrationEndDate = getRegistrationEndDate(event);
 
           return (
             <article className="public-event-card" key={event.id}>
@@ -480,16 +486,16 @@ function EventsPage() {
                       <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
                     </div>
                   ) : null}
-                  {event.registrationOpenAt ? (
+                  {registrationStartDate ? (
                     <div>
                       <dt>Registration Starts</dt>
-                      <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+                      <dd>{formatDateOnly(registrationStartDate)}</dd>
                     </div>
                   ) : null}
-                  {event.registrationCloseAt ? (
+                  {registrationEndDate ? (
                     <div>
                       <dt>Registration Ends</dt>
-                      <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
+                      <dd>{formatDateOnly(registrationEndDate)}</dd>
                     </div>
                   ) : null}
                   <div>

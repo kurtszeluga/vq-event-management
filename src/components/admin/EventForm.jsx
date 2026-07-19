@@ -137,6 +137,24 @@ function EventForm({
     updateField('allowNonMemberRegistration', value);
   }
 
+  function handleRegistrationMode(value) {
+    setSuccessMessage('');
+    setForm((current) => ({
+      ...current,
+      registrationMode: value,
+      registrationOpenAt: value === 'now'
+        ? current.registrationOpenAt || toDateTimeLocalValue(new Date())
+        : current.registrationOpenAt,
+      registrationCloseAt: current.registrationCloseAt
+        || getDefaultRegistrationCloseAt(current.date, current.eventType)
+    }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.registrationMode;
+      return next;
+    });
+  }
+
   function handleTimePreset(value) {
     setSuccessMessage('');
     const option = eventTimeOptions.find((item) => item.value === value);
@@ -1264,7 +1282,7 @@ function EventForm({
                 disabled={!eventTypeSelected}
                 value={form.registrationMode}
                 onChange={(event) =>
-                  updateField('registrationMode', event.target.value)
+                  handleRegistrationMode(event.target.value)
                 }
               >
                 <option value="">Select One</option>
@@ -1275,33 +1293,39 @@ function EventForm({
                 Choose Now to let members register as soon as it is saved.
               </span>
             </label>
-            {form.registrationMode === 'future' ? (
+            {form.registrationMode === 'future' || form.registrationMode === 'now' ? (
               <div className="form-row-pair nested-fields">
                 <label>
-                  <span>Enable Registration</span>
+                  <span>Registration Starts</span>
                   <input
                     className={
                       fieldErrors.registrationOpenAt ? 'field-invalid' : ''
                     }
                     disabled={!eventTypeSelected}
-                    type="datetime-local"
-                    value={form.registrationOpenAt}
+                    type={isChallenge ? 'date' : 'datetime-local'}
+                    value={isChallenge ? getDateInputValue(form.registrationOpenAt) : form.registrationOpenAt}
                     onChange={(event) =>
-                      updateField('registrationOpenAt', event.target.value)
+                      updateField(
+                        'registrationOpenAt',
+                        isChallenge ? toMidnightDateTimeValue(event.target.value) : event.target.value
+                      )
                     }
                   />
                 </label>
                 <label>
-                  <span>Disable Registration</span>
+                  <span>Registration Ends</span>
                   <input
                     className={
                       fieldErrors.registrationCloseAt ? 'field-invalid' : ''
                     }
                     disabled={!eventTypeSelected}
-                    type="datetime-local"
-                    value={form.registrationCloseAt}
+                    type={isChallenge ? 'date' : 'datetime-local'}
+                    value={isChallenge ? getDateInputValue(form.registrationCloseAt) : form.registrationCloseAt}
                     onChange={(event) =>
-                      updateField('registrationCloseAt', event.target.value)
+                      updateField(
+                        'registrationCloseAt',
+                        isChallenge ? toMidnightDateTimeValue(event.target.value) : event.target.value
+                      )
                     }
                   />
                 </label>
@@ -1513,13 +1537,13 @@ function validateEventForm(form) {
     errors.registrationMode = 'Select when to enable registration.';
   }
 
-  if (requiresRegistration && form.registrationMode === 'future') {
+  if (requiresRegistration && ['future', 'now'].includes(form.registrationMode)) {
     if (!form.registrationOpenAt) {
-      errors.registrationOpenAt = 'Registration enable date/time is required.';
+      errors.registrationOpenAt = 'Registration start date is required.';
     }
 
     if (!form.registrationCloseAt) {
-      errors.registrationCloseAt = 'Registration disable date/time is required.';
+      errors.registrationCloseAt = 'Registration end date is required.';
     }
   }
 
@@ -1755,6 +1779,16 @@ function getDateInputValue(value) {
 
 function toMidnightDateTimeValue(dateValue) {
   return dateValue ? `${dateValue}T00:00` : '';
+}
+
+function getDefaultRegistrationCloseAt(eventDate, eventType) {
+  if (!eventDate) {
+    return '';
+  }
+
+  return eventType === 'Challenges'
+    ? toMidnightDateTimeValue(eventDate)
+    : `${eventDate}T23:59`;
 }
 
 export default EventForm;

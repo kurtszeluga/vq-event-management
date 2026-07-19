@@ -21,6 +21,8 @@ import {
   formatDateOnly,
   formatEventDate,
   formatTimeRange,
+  getRegistrationEndDate,
+  getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
 import {
@@ -1086,6 +1088,8 @@ function EventSummary({ event }) {
   const paymentBreakdown = event.isPaid
     ? `${formatCurrency(event.cost || 0)} + ${formatCurrency(event.serviceFee || 0)} service fee`
     : '';
+  const registrationStartDate = getRegistrationStartDate(event);
+  const registrationEndDate = getRegistrationEndDate(event);
 
   return (
     <aside className="registration-summary">
@@ -1105,16 +1109,16 @@ function EventSummary({ event }) {
             <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
           </div>
         ) : null}
-        {event.registrationOpenAt ? (
+        {registrationStartDate ? (
           <div>
             <dt>Registration Starts</dt>
-            <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+            <dd>{formatDateOnly(registrationStartDate)}</dd>
           </div>
         ) : null}
-        {event.registrationCloseAt ? (
+        {registrationEndDate ? (
           <div>
             <dt>Registration Ends</dt>
-            <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
+            <dd>{formatDateOnly(registrationEndDate)}</dd>
           </div>
         ) : null}
         <div>
@@ -1138,6 +1142,9 @@ function EventSummary({ event }) {
 }
 
 function RegistrationCompletion({ closeMessage, confirmation, event, onReturn }) {
+  const registrationStartDate = getRegistrationStartDate(event);
+  const registrationEndDate = getRegistrationEndDate(event);
+
   return (
     <div className="form-panel registration-completion-card">
       <div className="form-success">
@@ -1172,16 +1179,16 @@ function RegistrationCompletion({ closeMessage, confirmation, event, onReturn })
             <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
           </div>
         ) : null}
-        {event.registrationOpenAt ? (
+        {registrationStartDate ? (
           <div>
             <dt>Registration Starts</dt>
-            <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+            <dd>{formatDateOnly(registrationStartDate)}</dd>
           </div>
         ) : null}
-        {event.registrationCloseAt ? (
+        {registrationEndDate ? (
           <div>
             <dt>Registration Ends</dt>
-            <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
+            <dd>{formatDateOnly(registrationEndDate)}</dd>
           </div>
         ) : null}
         <div>

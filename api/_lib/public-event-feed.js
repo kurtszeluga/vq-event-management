@@ -146,6 +146,11 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
   const safeOrigin = origin.replace(/\/$/, '');
   const availability = getAvailability(event, registrationCounts);
   const coordinatorContact = getCoordinatorContact(eventType, coordinatorAssignments);
+  const registrationOpenAt = event.registrationOpenAt
+    || event.visibleFrom
+    || toIsoString(event.createdDate)
+    || '';
+  const registrationCloseAt = event.registrationCloseAt || event.date || '';
 
   return {
     id: event.id,
@@ -174,6 +179,8 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
     capacity: Number(event.capacity || 0),
     capacityUnlimited: Boolean(event.capacityUnlimited),
     registrationOpen: Boolean(event.registrationOpen),
+    registrationOpenAt,
+    registrationCloseAt,
     registeredCount: registrationCounts.registered || 0,
     waitlistedCount: registrationCounts.waitlisted || 0,
     registrationAvailability: availability.label,
@@ -197,6 +204,19 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
   };
+}
+
+function toIsoString(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value.toDate === 'function') {
+    return value.toDate().toISOString();
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
 }
 
 function getCoordinatorContact(eventType, coordinatorAssignments) {

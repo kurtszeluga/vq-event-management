@@ -8,6 +8,8 @@ import {
   formatDateOnly,
   formatEventDate,
   formatTimeRange,
+  getRegistrationEndDate,
+  getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
@@ -20,6 +22,8 @@ function EventDetailsPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [registrationCounts, setRegistrationCounts] = useState({});
+  const registrationStartDate = getRegistrationStartDate(event);
+  const registrationEndDate = getRegistrationEndDate(event);
 
   function openSupplyListPopup() {
     if (!event?.supplyListUrl) {
@@ -133,16 +137,16 @@ function EventDetailsPage() {
                 <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
               </div>
             ) : null}
-            {event.registrationOpenAt ? (
+            {registrationStartDate ? (
               <div>
                 <dt>Registration Starts</dt>
-                <dd>{formatDateOnly(event.registrationOpenAt)}</dd>
+                <dd>{formatDateOnly(registrationStartDate)}</dd>
               </div>
             ) : null}
-            {event.registrationCloseAt ? (
+            {registrationEndDate ? (
               <div>
                 <dt>Registration Ends</dt>
-                <dd>{formatDateOnly(event.registrationCloseAt)}</dd>
+                <dd>{formatDateOnly(registrationEndDate)}</dd>
               </div>
             ) : null}
             <div>

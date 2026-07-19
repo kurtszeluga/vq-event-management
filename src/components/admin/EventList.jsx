@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatCurrency, formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
+import {
+  formatCurrency,
+  formatDateOnly,
+  formatEventDate,
+  formatTimeRange,
+  getRegistrationEndDate,
+  getRegistrationStartDate
+} from '../../utils/eventFormat.js';
 
 const ALL_TYPES = 'All';
 const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
@@ -182,6 +189,8 @@ function EventList({
         </div>
       ) : null}
       {filteredEvents.map((event) => {
+        const registrationStartDate = getRegistrationStartDate(event);
+        const registrationEndDate = getRegistrationEndDate(event);
         const wasLastSaved = lastSavedEventId && event.id === lastSavedEventId;
 
         return (
@@ -277,16 +286,16 @@ function EventList({
                   <dd>{formatListingEnd(event)}</dd>
                 </div>
               ) : null}
-              {event.registrationOpenAt ? (
+              {registrationStartDate ? (
                 <div>
                   <dt>Registration Opens</dt>
-                  <dd>{formatRegistrationWindowDate(event, event.registrationOpenAt)}</dd>
+                  <dd>{formatRegistrationWindowDate(event, registrationStartDate)}</dd>
                 </div>
               ) : null}
-              {event.registrationCloseAt ? (
+              {registrationEndDate ? (
                 <div>
                   <dt>Registration Closes</dt>
-                  <dd>{formatRegistrationWindowDate(event, event.registrationCloseAt)}</dd>
+                  <dd>{formatRegistrationWindowDate(event, registrationEndDate)}</dd>
                 </div>
               ) : null}
               {event.businessName ? (
