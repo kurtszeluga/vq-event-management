@@ -973,6 +973,10 @@ function getRegistrationEmailHeading(status) {
     return 'Registration Pending Payment';
   }
 
+  if (status === 'Registered') {
+    return 'Registration Confirmation';
+  }
+
   return `${status} Confirmation`;
 }
 

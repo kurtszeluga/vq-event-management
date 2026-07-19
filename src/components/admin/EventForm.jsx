@@ -88,11 +88,11 @@ function EventForm({
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
-  const showEventScheduleFields = eventTypeSelected && !isListingOnly && !isChallenge;
+  const showEventScheduleFields = eventTypeSelected && !isListingOnly;
   const showTimePresetField = showEventScheduleFields && !isRetreat && !isLecture;
   const showDirectTimeFields = showEventScheduleFields && isRetreat;
   const showPresenterField = showEventScheduleFields && !isRetreat;
-  const showCapacityField = showEventScheduleFields && !isLecture;
+  const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge;
   const showImageUpload = eventTypeSelected && !isChallenge;
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
@@ -1372,13 +1372,13 @@ function validateEventForm(form) {
   const isChallenge = form.eventType === 'Challenges';
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
-  const requiresSchedule = form.eventType && !isBusinessListing && !isForSale && !isChallenge;
+  const requiresSchedule = form.eventType && !isBusinessListing && !isForSale;
   const requiresTime = requiresSchedule && !isLecture;
   const requiresTimePreset = requiresTime && !isRetreat;
   const requiresDirectTime = requiresTime && isRetreat;
-  const requiresCapacity = requiresSchedule && !isLecture;
+  const requiresCapacity = requiresSchedule && !isLecture && !isChallenge;
   const requiresRegistration = form.eventType && !isBusinessListing && !isForSale;
-  const requiresFees = requiresSchedule && !isLecture;
+  const requiresFees = requiresSchedule && !isLecture && !isChallenge;
 
   if (!form.eventType) {
     errors.eventType = 'Event type is required.';
@@ -1545,10 +1545,10 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
-  const hasSchedule = !isListingOnly && !isChallenge;
+  const hasSchedule = !isListingOnly;
   const hasTime = hasSchedule && !isLecture;
-  const hasCapacity = hasSchedule && !isLecture;
-  const hasFees = hasSchedule && !isLecture;
+  const hasCapacity = hasSchedule && !isLecture && !isChallenge;
+  const hasFees = hasSchedule && !isLecture && !isChallenge;
   const title = isBusinessListing ? form.businessName : form.title;
   const visibleFrom = form.visibleFrom;
   const visibleUntil = isForSale
