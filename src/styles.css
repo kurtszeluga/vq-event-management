@@ -2172,9 +2172,9 @@ body.popup-mode .page-content {
 }
 
 .registration-event-stats .has-count {
-  background: #e9f2ef;
-  border: 1px solid #cfe3de;
-  color: #225c56;
+  background: #fff1df;
+  border: 1px solid #e5b77f;
+  color: #8a4b00;
 }
 
 .registration-event-stats .no-count {

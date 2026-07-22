@@ -1654,11 +1654,7 @@ function getCapacitySummaryCount(event, registeredCount) {
     return 0;
   }
 
-  if (event.capacityUnlimited) {
-    return registeredCount;
-  }
-
-  return Number(event.capacity || 0);
+  return registeredCount;
 }
 
 function getStatPillClass(count) {
