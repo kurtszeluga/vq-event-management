@@ -1,8 +1,15 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
+import {
+  getTimestampMillis,
+  normalizeEmail,
+  verificationSecretsMatch
+} from './_lib/registration-verification.js';
 
 export default async function handler(request, response) {
+  response.setHeader('Cache-Control', 'no-store');
+
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST');
     response.status(405).json({ error: 'Method not allowed.' });
@@ -35,7 +42,12 @@ export default async function handler(request, response) {
       return;
     }
 
-    const result = await createRegistration(db, payload);
+    const authorization = await authorizeRegistrationRequest(
+      request,
+      payload,
+      app.options.projectId
+    );
+    const result = await createRegistration(db, payload, authorization);
     const confirmationContext = result.confirmationContext;
 
     delete result.confirmationContext;
@@ -127,13 +139,16 @@ async function getPaymentSettings(db) {
   };
 }
 
-async function createRegistration(db, payload) {
+async function createRegistration(db, payload, authorization) {
   const eventRef = db.collection('events').doc(payload.eventId);
   const registrationRef = db.collection('registrations').doc();
   const paymentRef = db.collection('payments').doc();
   const auditRef = db.collection('auditLogs').doc();
 
   const result = await db.runTransaction(async (transaction) => {
+    const verificationChallenge = authorization.kind === 'email-code'
+      ? await getVerificationChallenge(transaction, db, payload, authorization)
+      : null;
     const eventSnap = await transaction.get(eventRef);
 
     if (!eventSnap.exists) {
@@ -147,9 +162,16 @@ async function createRegistration(db, payload) {
     const membershipStatus = getMembershipStatus(profile);
     const profileStatus = getProfileStatus(profile);
 
+    if (authorization.kind === 'firebase' && profile) {
+      const profileUserId = profile.userId || profile.id;
+
+      if (profileUserId !== authorization.userId) {
+        throw httpError(403, 'The signed-in account is not linked to this member profile.');
+      }
+    }
+
     validateRegistrationEligibility(event, {
       membershipStatus,
-      phone: payload.phone,
       profile,
       profileStatus,
       reactivateProfile: payload.reactivateProfile
@@ -230,6 +252,14 @@ async function createRegistration(db, payload) {
       status,
       userId
     };
+
+    if (verificationChallenge) {
+      transaction.update(verificationChallenge.ref, {
+        consumedAt: FieldValue.serverTimestamp(),
+        consumedRegistrationId: registrationRef.id,
+        registrationTokenHash: ''
+      });
+    }
 
     if (profile && payload.reactivateProfile && profileStatus !== 'Active') {
       transaction.update(db.collection('users').doc(profile.id), {
@@ -401,7 +431,7 @@ async function findUserProfileByEmail(db, email) {
 
 function validateRegistrationEligibility(
   event,
-  { membershipStatus, phone, profile, profileStatus, reactivateProfile }
+  { membershipStatus, profile, profileStatus, reactivateProfile }
 ) {
   if (!isEventVisible(event)) {
     throw httpError(404, 'This event is not currently available.');
@@ -425,10 +455,6 @@ function validateRegistrationEligibility(
 
   if (!profile) {
     throw httpError(403, 'We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.');
-  }
-
-  if (!doesPhoneMatchProfile(profile, phone)) {
-    throw httpError(403, 'The phone number does not match the membership record for this email address.');
   }
 
   if (!event.allowNonMemberRegistration && membershipStatus !== 'Active') {
@@ -484,8 +510,74 @@ function sanitizeRegistrationPayload(payload) {
     reactivateProfile: Boolean(payload.reactivateProfile),
     reactivationTermsAccepted: Boolean(payload.reactivationTermsAccepted),
     squarePaymentToken: String(payload.squarePaymentToken || '').trim(),
-    termsVersion: String(payload.termsVersion || '').trim()
+    termsVersion: String(payload.termsVersion || '').trim(),
+    verificationChallengeId: cleanText(payload.verificationChallengeId),
+    verificationToken: cleanText(payload.verificationToken)
   };
+}
+
+async function authorizeRegistrationRequest(request, payload, projectId) {
+  const authHeader = request.headers.authorization || '';
+  const idToken = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : '';
+
+  if (idToken) {
+    let decodedToken;
+
+    try {
+      decodedToken = await verifyFirebaseIdToken(idToken, projectId);
+    } catch {
+      throw httpError(401, 'Your sign-in has expired. Please sign in again or verify your email address.');
+    }
+    const tokenEmail = normalizeEmail(decodedToken.email);
+    const userId = decodedToken.user_id || decodedToken.sub || decodedToken.uid || '';
+
+    if (!tokenEmail || tokenEmail !== payload.email || !userId) {
+      throw httpError(403, 'The signed-in account does not match this registration email.');
+    }
+
+    return { kind: 'firebase', userId };
+  }
+
+  if (!payload.verificationChallengeId || !payload.verificationToken) {
+    throw httpError(401, 'Verify your email address before submitting this registration.');
+  }
+
+  return {
+    challengeId: payload.verificationChallengeId,
+    kind: 'email-code'
+  };
+}
+
+async function getVerificationChallenge(transaction, db, payload, authorization) {
+  const challengeRef = db
+    .collection('registrationVerifications')
+    .doc(authorization.challengeId);
+  const challengeSnap = await transaction.get(challengeRef);
+
+  if (!challengeSnap.exists) {
+    throw httpError(401, 'Your email verification has expired. Request a new code.');
+  }
+
+  const challenge = challengeSnap.data();
+  const validToken = verificationSecretsMatch(
+    challenge.registrationTokenHash,
+    authorization.challengeId,
+    payload.verificationToken
+  );
+
+  if (
+    challenge.email !== payload.email
+    || challenge.eventId !== payload.eventId
+    || challenge.consumedAt
+    || getTimestampMillis(challenge.registrationTokenExpiresAt) <= Date.now()
+    || !validToken
+  ) {
+    throw httpError(401, 'Your email verification has expired. Request a new code.');
+  }
+
+  return { ref: challengeRef };
 }
 
 async function createSquarePayment(paymentRequest) {
@@ -679,30 +771,11 @@ function sanitizeProfileUpdates(profileUpdates) {
   return sanitized;
 }
 
-function normalizeEmail(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
 function normalizeName(value) {
   return String(value || '')
     .trim()
     .replace(/\s+/g, ' ')
     .replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
-}
-
-function normalizePhone(value) {
-  return String(value || '').replace(/\D/g, '').slice(-10);
-}
-
-function doesPhoneMatchProfile(profile, phone) {
-  const memberPhone = normalizePhone(profile?.phone || '');
-  const submittedPhone = normalizePhone(phone);
-
-  if (!memberPhone) {
-    return true;
-  }
-
-  return Boolean(submittedPhone) && memberPhone === submittedPhone;
 }
 
 function buildDisplayName(firstName = '', lastName = '') {

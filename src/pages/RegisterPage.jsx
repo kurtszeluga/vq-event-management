@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
@@ -9,7 +9,8 @@ import {
   createRegistration,
   loadSquarePaymentConfig,
   lookupRegistrationEmail,
-  verifyRegistrationPhone
+  startRegistrationEmailVerification,
+  verifyRegistrationEmailCode
 } from '../services/registrationService.js';
 import {
   DEFAULT_MEMBERSHIP_SETTINGS,
@@ -58,6 +59,13 @@ function RegisterPage() {
   const [closeMessage, setCloseMessage] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [email, setEmail] = useState('');
+  const [emailVerificationChallengeId, setEmailVerificationChallengeId] = useState('');
+  const [emailVerificationCode, setEmailVerificationCode] = useState('');
+  const [emailVerificationError, setEmailVerificationError] = useState('');
+  const [emailVerificationMessage, setEmailVerificationMessage] = useState('');
+  const [emailVerificationSending, setEmailVerificationSending] = useState(false);
+  const [emailVerificationVerifying, setEmailVerificationVerifying] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [event, setEvent] = useState(null);
   const [eventError, setEventError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
@@ -72,15 +80,11 @@ function RegisterPage() {
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [paymentPreference, setPaymentPreference] = useState('');
   const [phone, setPhone] = useState('');
-  const [phoneVerificationError, setPhoneVerificationError] = useState('');
-  const [phoneVerificationInput, setPhoneVerificationInput] = useState('');
-  const [phoneVerificationSubmitting, setPhoneVerificationSubmitting] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
-  const [profileConfirmed, setProfileConfirmed] = useState(false);
   const [reactivateProfile, setReactivateProfile] = useState(false);
   const [reactivationTermsAccepted, setReactivationTermsAccepted] = useState(false);
+  const [registrationVerificationToken, setRegistrationVerificationToken] = useState('');
   const [registrationFinalizing, setRegistrationFinalizing] = useState(false);
-  const [showPhoneVerification, setShowPhoneVerification] = useState(false);
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [squareCard, setSquareCard] = useState(null);
   const [squareConfig, setSquareConfig] = useState(null);
   const [squareError, setSquareError] = useState('');
@@ -88,6 +92,81 @@ function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
+  const applyProfileToForm = useCallback((profile) => {
+    setFirstName(getProfileFirstName(profile));
+    setLastName(getProfileLastName(profile));
+    setPhone(profile.phone || '');
+    setBillingCity(profile.billingAddress?.city || '');
+    setBillingCountry(profile.billingAddress?.country || 'United States');
+    setBillingPostalCode(profile.billingAddress?.postalCode || '');
+    setBillingState(profile.billingAddress?.state || '');
+    setBillingStreet(profile.billingAddress?.street || '');
+  }, []);
+  const resetRegistrantFields = useCallback(() => {
+    setFirstName('');
+    setLastName('');
+    setPhone('');
+    setBillingCity('');
+    setBillingCountry('United States');
+    setBillingPostalCode('');
+    setBillingState('');
+    setBillingStreet('');
+  }, []);
+  const runEmailLookup = useCallback(async (emailValue, options = {}) => {
+    const normalizedEmail = String(emailValue || '').trim().toLowerCase();
+    const alreadyVerified = Boolean(options.alreadyVerified);
+
+    setFieldErrors({});
+    setAccountVerified(alreadyVerified);
+    setAuthError('');
+    setAuthPassword('');
+    setFormError('');
+    setConfirmation(null);
+    setEmailVerificationChallengeId('');
+    setEmailVerificationCode('');
+    setEmailVerificationError('');
+    setEmailVerificationMessage('');
+    setEmailVerified(false);
+    setRegistrationVerificationToken('');
+    setLookup(null);
+    setLookupComplete(false);
+    setReactivateProfile(false);
+    setReactivationTermsAccepted(false);
+    setShowEmailVerification(false);
+
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      setFieldErrors({ email: 'Valid email is required.' });
+      setFormError('Enter a valid email address first.');
+      return;
+    }
+
+    setEmail(normalizedEmail);
+    setLookupLoading(true);
+
+    try {
+      const result = await lookupRegistrationEmail(normalizedEmail, eventId);
+      setLookup(result);
+      setLookupComplete(true);
+
+      if (result.profile) {
+        applyProfileToForm(result.profile);
+        setAccountVerified(Boolean(alreadyVerified && result.verified));
+        setReactivateProfile(Boolean(alreadyVerified && result.profile.status !== 'Active'));
+        setReactivationTermsAccepted(false);
+        setShowEmailVerification(false);
+      } else if (result.status === 'email-verification-required') {
+        resetRegistrantFields();
+        setShowEmailVerification(true);
+      } else {
+        resetRegistrantFields();
+        setShowEmailVerification(false);
+      }
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setLookupLoading(false);
+    }
+  }, [applyProfileToForm, eventId, resetRegistrantFields]);
 
   useEffect(() => {
     if (!eventId) {
@@ -144,12 +223,12 @@ function RegisterPage() {
     }
 
     runEmailLookup(userProfile.email, { alreadyVerified: true });
-  }, [currentUser, eventId, lookupComplete, lookupLoading, userProfile]);
+  }, [currentUser, eventId, lookupComplete, lookupLoading, runEmailLookup, userProfile]);
 
   const membershipBlocked = lookupComplete
     && ['already-registered', 'profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
-  const nonMemberRegistrationAllowed = lookup?.status === 'non-member-registration-allowed';
   const matchedProfile = lookup?.profile || null;
+  const profileExists = Boolean(lookup?.profileExists);
   const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const isPaidEvent = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
@@ -226,19 +305,19 @@ function RegisterPage() {
   }, [event]);
 
   const needsAccountPassword = lookupComplete
-    && Boolean(matchedProfile)
+    && profileExists
     && !membershipBlocked
     && !accountVerified
-    && !phoneVerified;
-  const needsPhoneVerification = lookupComplete
+    && !emailVerified
+    && !showEmailVerification;
+  const needsEmailVerification = lookupComplete
     && !membershipBlocked
-    && (
-      (!matchedProfile && !phoneVerified)
-      || (Boolean(matchedProfile) && showPhoneVerification && !phoneVerified)
-    );
+    && Boolean(lookup?.verificationRequired)
+    && (!profileExists || showEmailVerification)
+    && !emailVerified;
   const canShowRegistrantFields = lookupComplete
     && !membershipBlocked
-    && (accountVerified || phoneVerified || nonMemberRegistrationAllowed);
+    && (accountVerified || emailVerified);
   const usingSignedInProfile = Boolean(currentUser && userProfile?.email);
   const requiresReactivationTerms = Boolean(
     reactivateProfile
@@ -249,62 +328,6 @@ function RegisterPage() {
 
   async function handleEmailLookup() {
     await runEmailLookup(email);
-  }
-
-  async function runEmailLookup(emailValue, options = {}) {
-    const normalizedEmail = String(emailValue || '').trim().toLowerCase();
-    const alreadyVerified = Boolean(options.alreadyVerified);
-
-    setFieldErrors({});
-    setAccountVerified(alreadyVerified);
-    setAuthError('');
-    setAuthPassword('');
-    setFormError('');
-    setConfirmation(null);
-    setLookup(null);
-    setLookupComplete(false);
-    setPhoneVerificationError('');
-    setPhoneVerificationInput('');
-    setPhoneVerified(false);
-    setProfileConfirmed(false);
-    setReactivateProfile(false);
-    setReactivationTermsAccepted(false);
-    setShowPhoneVerification(false);
-
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
-      setFieldErrors({ email: 'Valid email is required.' });
-      setFormError('Enter a valid email address first.');
-      return;
-    }
-
-    setEmail(normalizedEmail);
-    setLookupLoading(true);
-
-    try {
-      const result = await lookupRegistrationEmail(normalizedEmail, eventId);
-      setLookup(result);
-      setLookupComplete(true);
-
-      if (result.profile) {
-        applyProfileToForm(result.profile);
-        setAccountVerified(alreadyVerified);
-        setReactivateProfile(alreadyVerified && result.profile.status !== 'Active');
-        setReactivationTermsAccepted(false);
-        setShowPhoneVerification(false);
-      } else if (result.status === 'non-member-registration-allowed') {
-        resetRegistrantFields();
-        setPhoneVerificationInput('');
-        setShowPhoneVerification(false);
-      } else {
-        resetRegistrantFields();
-        setPhoneVerificationInput('');
-        setShowPhoneVerification(result.status === 'new-registrant');
-      }
-    } catch (error) {
-      setFormError(error.message);
-    } finally {
-      setLookupLoading(false);
-    }
   }
 
   async function handleSubmit(formEvent) {
@@ -322,7 +345,7 @@ function RegisterPage() {
       return;
     }
 
-    if (!accountVerified && !phoneVerified) {
+    if (!accountVerified && !emailVerified) {
       setFormError('Please verify your account information before registering.');
       return;
     }
@@ -375,7 +398,9 @@ function RegisterPage() {
         reactivateProfile,
         reactivationTermsAccepted,
         squarePaymentToken,
-        termsVersion: displayedTermsVersion
+        termsVersion: displayedTermsVersion,
+        verificationChallengeId: emailVerificationChallengeId,
+        verificationToken: registrationVerificationToken
       });
       setRegistrationFinalizing(true);
       setConfirmation(result);
@@ -423,7 +448,7 @@ function RegisterPage() {
   }
 
   async function handlePasswordSignIn() {
-    if (!matchedProfile) {
+    if (!profileExists) {
       return;
     }
 
@@ -434,55 +459,85 @@ function RegisterPage() {
 
     setAuthSubmitting(true);
     setAuthError('');
-    setPhoneVerificationError('');
+    setEmailVerificationError('');
 
     try {
       await signInWithEmailAndPassword(auth, email, authPassword);
-      setAccountVerified(true);
-      setPhoneVerified(false);
-      setShowPhoneVerification(false);
-      setProfileConfirmed(matchedProfile.status === 'Active');
-      setReactivateProfile(matchedProfile.status !== 'Active');
-      setReactivationTermsAccepted(false);
+      await runEmailLookup(email, { alreadyVerified: true });
     } catch {
       setAccountVerified(false);
       setAuthPassword('');
-      setPhoneVerificationInput('');
-      setPhoneVerificationError('We could not sign you in. You can continue by verifying your phone number.');
-      setShowPhoneVerification(true);
+      setEmailVerificationCode('');
+      setEmailVerificationError('We could not sign you in. You can continue with a code sent to your email address.');
+      setShowEmailVerification(true);
     } finally {
       setAuthSubmitting(false);
     }
   }
 
-  async function handlePhoneVerification() {
-    const normalizedPhone = formatPhoneNumber(phoneVerificationInput);
+  async function handleStartEmailVerification() {
+    setEmailVerificationSending(true);
+    setEmailVerificationError('');
+    setEmailVerificationMessage('');
 
-    setPhoneVerificationInput(normalizedPhone);
-    setPhoneVerificationError('');
+    try {
+      const result = await startRegistrationEmailVerification(email, eventId);
+      setEmailVerificationChallengeId(result.challengeId || '');
+      setEmailVerificationCode('');
+      setEmailVerificationMessage(result.message || 'Check your email for a verification code.');
+      setShowEmailVerification(true);
+    } catch (error) {
+      setEmailVerificationError(error.message);
+    } finally {
+      setEmailVerificationSending(false);
+    }
+  }
 
-    if (normalizedPhone.replace(/\D/g, '').length < 10) {
-      setFieldErrors((current) => ({ ...current, phone: 'Phone number is required.' }));
-      setPhoneVerificationError('Enter the phone number tied to your membership record.');
+  async function handleVerifyEmailCode() {
+    const code = emailVerificationCode.replace(/\D/g, '').slice(0, 6);
+
+    setEmailVerificationCode(code);
+    setEmailVerificationError('');
+
+    if (!emailVerificationChallengeId || code.length !== 6) {
+      setEmailVerificationError('Enter the six-digit verification code from your email.');
       return;
     }
 
-    setPhoneVerificationSubmitting(true);
+    setEmailVerificationVerifying(true);
 
     try {
-      await verifyRegistrationPhone(email, normalizedPhone, eventId);
+      const result = await verifyRegistrationEmailCode({
+        challengeId: emailVerificationChallengeId,
+        code,
+        email,
+        eventId
+      });
+
+      setLookup(result);
+      setLookupComplete(true);
       setAccountVerified(false);
-      setPhone(normalizedPhone);
-      setPhoneVerified(true);
-      setPhoneVerificationError('');
-      setProfileConfirmed(Boolean(matchedProfile) && matchedProfile.status === 'Active');
-      setReactivateProfile(Boolean(matchedProfile) && matchedProfile.status !== 'Active');
+      setEmailVerified(true);
+      setRegistrationVerificationToken(result.registrationToken || '');
+      setEmailVerificationError('');
+      setEmailVerificationMessage('Email verified. You can continue with registration.');
+      setShowEmailVerification(false);
+
+      if (result.profile) {
+        applyProfileToForm(result.profile);
+        setReactivateProfile(result.profile.status !== 'Active');
+      } else {
+        resetRegistrantFields();
+        setReactivateProfile(false);
+      }
+
       setReactivationTermsAccepted(false);
     } catch (error) {
-      setPhoneVerified(false);
-      setPhoneVerificationError(error.message);
+      setEmailVerified(false);
+      setRegistrationVerificationToken('');
+      setEmailVerificationError(error.message);
     } finally {
-      setPhoneVerificationSubmitting(false);
+      setEmailVerificationVerifying(false);
     }
   }
 
@@ -543,28 +598,6 @@ function RegisterPage() {
 
     setFormError('');
     setNeedsProfileEdits(false);
-  }
-
-  function applyProfileToForm(profile) {
-    setFirstName(getProfileFirstName(profile));
-    setLastName(getProfileLastName(profile));
-    setPhone(profile.phone || '');
-    setBillingCity(profile.billingAddress?.city || '');
-    setBillingCountry(profile.billingAddress?.country || 'United States');
-    setBillingPostalCode(profile.billingAddress?.postalCode || '');
-    setBillingState(profile.billingAddress?.state || '');
-    setBillingStreet(profile.billingAddress?.street || '');
-  }
-
-  function resetRegistrantFields() {
-    setFirstName('');
-    setLastName('');
-    setPhone('');
-    setBillingCity('');
-    setBillingCountry('United States');
-    setBillingPostalCode('');
-    setBillingState('');
-    setBillingStreet('');
   }
 
   if (!eventId) {
@@ -653,15 +686,17 @@ function RegisterPage() {
                 setEmail(inputEvent.target.value);
                 setLookupComplete(false);
                 setLookup(null);
-                setProfileConfirmed(false);
                 setReactivateProfile(false);
                 setAccountVerified(false);
                 setAuthError('');
                 setAuthPassword('');
-                setPhoneVerificationError('');
-                setPhoneVerificationInput('');
-                setPhoneVerified(false);
-                setShowPhoneVerification(false);
+                setEmailVerificationChallengeId('');
+                setEmailVerificationCode('');
+                setEmailVerificationError('');
+                setEmailVerificationMessage('');
+                setEmailVerified(false);
+                setRegistrationVerificationToken('');
+                setShowEmailVerification(false);
                 setNeedsProfileEdits(false);
                 setReactivationTermsAccepted(false);
                 resetRegistrantFields();
@@ -699,7 +734,7 @@ function RegisterPage() {
               lookup={lookup}
               needsProfileEdits={needsProfileEdits}
               onEditProfile={handleStartProfileEdit}
-              verificationPassed={accountVerified || phoneVerified}
+              verificationPassed={accountVerified || emailVerified}
             />
           ) : null}
           {needsAccountPassword ? (
@@ -728,38 +763,66 @@ function RegisterPage() {
               >
                 {authSubmitting ? 'Signing in...' : 'Sign In And Continue'}
               </button>
+              <button
+                className="button-link button-reset secondary-action"
+                disabled={emailVerificationSending || authSubmitting || Boolean(confirmation)}
+                type="button"
+                onClick={handleStartEmailVerification}
+              >
+                {emailVerificationSending ? 'Sending Code...' : 'Email Me A Verification Code'}
+              </button>
             </div>
           ) : null}
-          {needsPhoneVerification ? (
+          {needsEmailVerification ? (
             <div className="registration-lookup-card">
-              <strong>{matchedProfile ? 'Verify With Phone Number' : 'Membership Verification'}</strong>
+              <strong>Email Verification</strong>
               <span>
-                Enter the phone number tied to this membership record so we can continue.
+                We will send a six-digit code to this email address so you can continue securely.
               </span>
-              {phoneVerificationError ? <p className="form-error">{phoneVerificationError}</p> : null}
-              <label>
-                <span>Phone Number *</span>
-                <input
-                  className={fieldErrors.phone ? 'field-invalid' : ''}
-                  autoComplete="off"
-                  disabled={phoneVerificationSubmitting || Boolean(confirmation)}
-                  name="registration-verification-phone"
-                  onChange={(inputEvent) => {
-                    setPhoneVerificationInput(formatPhoneNumber(inputEvent.target.value));
-                    setPhoneVerificationError('');
-                  }}
-                  type="tel"
-                  value={phoneVerificationInput}
-                />
-              </label>
+              {emailVerificationError ? <p className="form-error">{emailVerificationError}</p> : null}
+              {emailVerificationMessage ? <p className="form-success">{emailVerificationMessage}</p> : null}
+              {emailVerificationChallengeId ? (
+                <label>
+                  <span>Verification Code *</span>
+                  <input
+                    autoComplete="one-time-code"
+                    disabled={emailVerificationVerifying || Boolean(confirmation)}
+                    inputMode="numeric"
+                    maxLength="6"
+                    name="registration-verification-code"
+                    onChange={(inputEvent) => {
+                      setEmailVerificationCode(inputEvent.target.value.replace(/\D/g, '').slice(0, 6));
+                      setEmailVerificationError('');
+                    }}
+                    type="text"
+                    value={emailVerificationCode}
+                  />
+                </label>
+              ) : null}
               <button
                 className="button-link button-reset"
-                disabled={phoneVerificationSubmitting || Boolean(confirmation)}
+                disabled={emailVerificationChallengeId
+                  ? emailVerificationVerifying || emailVerificationCode.length !== 6
+                  : emailVerificationSending}
                 type="button"
-                onClick={handlePhoneVerification}
+                onClick={emailVerificationChallengeId
+                  ? handleVerifyEmailCode
+                  : handleStartEmailVerification}
               >
-                {phoneVerificationSubmitting ? 'Verifying...' : 'Verify Phone And Continue'}
+                {emailVerificationChallengeId
+                  ? emailVerificationVerifying ? 'Verifying...' : 'Verify Code And Continue'
+                  : emailVerificationSending ? 'Sending Code...' : 'Send Verification Code'}
               </button>
+              {emailVerificationChallengeId ? (
+                <button
+                  className="text-button"
+                  disabled={emailVerificationSending || emailVerificationVerifying}
+                  type="button"
+                  onClick={handleStartEmailVerification}
+                >
+                  {emailVerificationSending ? 'Sending...' : 'Send A New Code'}
+                </button>
+              ) : null}
             </div>
           ) : null}
           {canShowRegistrantFields ? (
@@ -1050,6 +1113,24 @@ function LookupResult({
     );
   }
 
+  if (lookup.status === 'profile-verification-required') {
+    return (
+      <div className="registration-lookup-card">
+        <strong>Profile Found</strong>
+        <span>Verify your identity to view and use the profile information connected to this email.</span>
+      </div>
+    );
+  }
+
+  if (lookup.status === 'email-verification-required') {
+    return (
+      <div className="registration-lookup-card">
+        <strong>Email Verification Required</strong>
+        <span>Verify this email address before entering registration information.</span>
+      </div>
+    );
+  }
+
   if (!profile) {
     return (
       <div className="registration-lookup-card">
@@ -1242,6 +1323,32 @@ function RegistrationPaymentPanel({
     applePay: false,
     googlePay: false
   });
+  const handleWalletPayment = useCallback(async (paymentMethod, walletName) => {
+    if (!paymentMethod || disabled) {
+      return;
+    }
+
+    setLocalError('');
+    setWalletMessage('');
+    setWalletProcessing(walletName);
+    onWalletTokenReady('');
+
+    try {
+      const tokenResult = await paymentMethod.tokenize();
+
+      if (tokenResult.status !== 'OK') {
+        throw new Error(getSquareTokenizeError(tokenResult));
+      }
+
+      onWalletTokenReady(tokenResult.token);
+      setWalletMessage(`${walletName} authorized. Click Submit Registration to finish.`);
+    } catch (walletError) {
+      onWalletTokenReady('');
+      setLocalError(walletError.message || `${walletName} could not be verified.`);
+    } finally {
+      setWalletProcessing('');
+    }
+  }, [disabled, onWalletTokenReady]);
 
   useEffect(() => {
     if (!onlinePaymentRequired || !config?.enabled) {
@@ -1296,6 +1403,7 @@ function RegistrationPaymentPanel({
           } catch {
             if (!cancelled) {
               applePayRef.current = null;
+              setWalletSupport((current) => ({ ...current, applePay: false }));
             }
           }
         }
@@ -1318,6 +1426,9 @@ function RegistrationPaymentPanel({
               setWalletSupport((current) => ({ ...current, googlePay: true }));
             }
           } catch {
+            if (!cancelled) {
+              setWalletSupport((current) => ({ ...current, googlePay: false }));
+            }
           }
         }
       } catch (squareLoadError) {
@@ -1355,34 +1466,7 @@ function RegistrationPaymentPanel({
         }
       });
     };
-  }, [amountDue, config, onCardReady, onWalletTokenReady, onlinePaymentRequired]);
-
-  async function handleWalletPayment(paymentMethod, walletName) {
-    if (!paymentMethod || disabled) {
-      return;
-    }
-
-    setLocalError('');
-    setWalletMessage('');
-    setWalletProcessing(walletName);
-    onWalletTokenReady('');
-
-    try {
-      const tokenResult = await paymentMethod.tokenize();
-
-      if (tokenResult.status !== 'OK') {
-        throw new Error(getSquareTokenizeError(tokenResult));
-      }
-
-      onWalletTokenReady(tokenResult.token);
-      setWalletMessage(`${walletName} authorized. Click Submit Registration to finish.`);
-    } catch (walletError) {
-      onWalletTokenReady('');
-      setLocalError(walletError.message || `${walletName} could not be verified.`);
-    } finally {
-      setWalletProcessing('');
-    }
-  }
+  }, [amountDue, config, handleWalletPayment, onCardReady, onWalletTokenReady, onlinePaymentRequired]);
 
   return (
     <div className="registration-payment-panel">
@@ -1571,11 +1655,8 @@ function validateForm({ email, firstName, lastName, phone }) {
 }
 
 function validateProfileFields({
-  billingCity,
-  billingCountry,
   billingPostalCode,
   billingState,
-  billingStreet,
   firstName,
   lastName,
   phone

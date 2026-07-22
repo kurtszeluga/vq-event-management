@@ -711,7 +711,9 @@ service cloud.firestore {
     }
 
     match /registrations/{registrationId} {
-      allow create: if validRegistration();
+      // Registration creation is server-only so membership, capacity,
+      // duplicate-registration, verification, and payment checks cannot be bypassed.
+      allow create: if false;
       allow read: if hasPermission('viewRegistrations') || isOwner(resource.data.userId);
       allow update: if hasPermission('viewRegistrations') && validRegistration()
         || isOwner(resource.data.userId)
@@ -720,6 +722,10 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status'])
           && request.resource.data.status == 'Cancelled';
       allow delete: if hasPermission('viewRegistrations');
+    }
+
+    match /registrationVerifications/{verificationId} {
+      allow read, write: if false;
     }
 
     match /users/{userId} {

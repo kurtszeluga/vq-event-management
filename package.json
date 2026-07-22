@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test": "node --test tests/*.test.js",
     "setup:first-admin": "node scripts/setupFirstAdmin.mjs"
   },
   "dependencies": {

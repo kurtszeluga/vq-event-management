@@ -53,9 +53,11 @@ export function subscribeToRegistrationPayments(registrationId, onNext, onError)
 }
 
 export async function lookupRegistrationEmail(email, eventId = '') {
+  const idToken = await getMatchingUserIdToken(email);
   const response = await fetch('/api/registration-lookup', {
     body: JSON.stringify({ email, eventId }),
     headers: {
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
       'Content-Type': 'application/json'
     },
     method: 'POST'
@@ -70,9 +72,11 @@ export async function lookupRegistrationEmail(email, eventId = '') {
 }
 
 export async function createRegistration(registrationData) {
+  const idToken = await getMatchingUserIdToken(registrationData.email);
   const response = await fetch('/api/create-registration', {
     body: JSON.stringify(registrationData),
     headers: {
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
       'Content-Type': 'application/json'
     },
     method: 'POST'
@@ -130,9 +134,13 @@ export async function sendMembershipConfirmation(kind = 'signup') {
   return result;
 }
 
-export async function verifyRegistrationPhone(email, phone, eventId = '') {
-  const response = await fetch('/api/verify-registration-phone', {
-    body: JSON.stringify({ email, eventId, phone }),
+export async function startRegistrationEmailVerification(email, eventId = '') {
+  const response = await fetch('/api/registration-lookup', {
+    body: JSON.stringify({
+      action: 'startEmailVerification',
+      email,
+      eventId
+    }),
     headers: {
       'Content-Type': 'application/json'
     },
@@ -141,7 +149,30 @@ export async function verifyRegistrationPhone(email, phone, eventId = '') {
   const result = await parseJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error(result.error || 'Phone verification failed.');
+    throw new Error(result.error || 'Verification email could not be sent.');
+  }
+
+  return result;
+}
+
+export async function verifyRegistrationEmailCode({ challengeId, code, email, eventId = '' }) {
+  const response = await fetch('/api/registration-lookup', {
+    body: JSON.stringify({
+      action: 'verifyEmailCode',
+      challengeId,
+      code,
+      email,
+      eventId
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Email verification failed.');
   }
 
   return result;
@@ -196,7 +227,7 @@ export async function updateRegistrationStatus(registrationId, status, actorProf
   return batch.commit();
 }
 
-export async function updateRegistrationPayment(registrationId, paymentData, actorProfile) {
+export async function updateRegistrationPayment(registrationId, paymentData) {
   const idToken = await auth?.currentUser?.getIdToken();
 
   if (!idToken) {
@@ -244,4 +275,18 @@ async function parseJsonResponse(response) {
   } catch {
     return { error: bodyText };
   }
+}
+
+async function getMatchingUserIdToken(email) {
+  const currentUser = auth?.currentUser;
+
+  if (!currentUser || normalizeEmail(currentUser.email) !== normalizeEmail(email)) {
+    return '';
+  }
+
+  return currentUser.getIdToken();
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
 }
