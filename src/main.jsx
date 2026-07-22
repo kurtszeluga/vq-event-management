@@ -12,6 +12,7 @@ import EventListingPrintPage from './pages/EventListingPrintPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
+import TermsPage from './pages/TermsPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import MyRegistrationsPage from './pages/MyRegistrationsPage.jsx';
 import MemberDirectoryPage from './pages/MemberDirectoryPage.jsx';
@@ -41,6 +42,7 @@ const router = createBrowserRouter([
       { path: 'events/:eventId/register', element: <RegisterPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
+      { path: 'terms', element: <TermsPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'profile/edit', element: <ProfilePage /> },
       { path: 'admin/profile/edit', element: <ProfilePage /> },

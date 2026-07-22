@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './context/useAuth.js';
 
 function App() {
@@ -19,6 +19,7 @@ function App() {
   const showMemberDirectoryLink =
     currentUser
     && userHasActiveMembership(userProfile);
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     document.body.classList.toggle('popup-mode', isPopupMode);
@@ -133,6 +134,16 @@ function App() {
       <main className="page-content">
         <Outlet />
       </main>
+      <footer className="site-footer">
+        <div>
+          <strong>The Village Quilters, Inc.</strong>
+          <span>145 Awohili Drive, Loudon TN 37774</span>
+        </div>
+        <nav aria-label="Footer navigation">
+          <span>&copy; {currentYear} The Village Quilters, Inc.</span>
+          <Link to="/terms">Terms And Conditions</Link>
+        </nav>
+      </footer>
     </div>
   );
 }
