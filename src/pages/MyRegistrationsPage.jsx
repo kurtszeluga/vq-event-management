@@ -263,11 +263,6 @@ function MyRegistrationDetails({
       ) : null}
       <PaymentHistoryList payments={payments} />
       {paymentError ? <p className="form-error">{paymentError}</p> : null}
-      {event ? (
-        <Link className="table-inline-link" to={`/events/${event.id}?registered=1`}>
-          View Event
-        </Link>
-      ) : null}
     </div>
   );
 }

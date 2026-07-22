@@ -2224,6 +2224,10 @@ body.popup-mode .page-content {
   color: #687572;
 }
 
+.registration-detail-footer-actions {
+  margin-top: 14px;
+}
+
 .registration-admin-card-header {
   align-items: start;
   display: grid;

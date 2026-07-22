@@ -742,13 +742,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     {group.event?.location ? ` | ${group.event.location}` : ''}
                   </p>
                 </div>
-                <button
-                  className="button-link button-reset secondary-action compact-action"
-                  type="button"
-                  onClick={handleBackToEvents}
-                >
-                  Back To Events
-                </button>
               </div>
               <div className="user-table-wrap">
                 {selectedDisplayRegistrations.length ? (
@@ -900,6 +893,15 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     <p>This event is listed, but no one has registered yet. Use Back To Events to choose another event.</p>
                   </div>
                 )}
+              </div>
+              <div className="form-actions registration-detail-footer-actions">
+                <button
+                  className="button-link button-reset"
+                  type="button"
+                  onClick={handleBackToEvents}
+                >
+                  Back To Events
+                </button>
               </div>
             </article>
           );
