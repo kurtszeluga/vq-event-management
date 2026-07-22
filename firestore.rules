@@ -516,7 +516,6 @@ service cloud.firestore {
     function validMembershipSettings() {
       return request.resource.data.keys().hasOnly([
           'allowAdminSkipMembershipCheck',
-          'defaultServiceFee',
           'matchByEmail',
           'matchByPhone',
           'requireMembershipCheck',
@@ -525,7 +524,6 @@ service cloud.firestore {
           'updatedDate'
         ])
         && request.resource.data.allowAdminSkipMembershipCheck is bool
-        && request.resource.data.defaultServiceFee is number
         && request.resource.data.matchByEmail is bool
         && request.resource.data.matchByPhone is bool
         && request.resource.data.requireMembershipCheck is bool
