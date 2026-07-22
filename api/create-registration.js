@@ -278,6 +278,7 @@ async function createRegistration(db, payload) {
       registrationStatus: status,
       squareTransactionId: '',
       status: registration.paymentStatus,
+      userId,
       updatedRegistrationSnapshot: {
       amountPaid: registration.amountPaid,
       paymentMethod: registration.paymentMethod,

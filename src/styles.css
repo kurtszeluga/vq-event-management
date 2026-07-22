@@ -1700,6 +1700,47 @@ body.popup-mode .page-content {
   margin-top: 3px;
 }
 
+.my-registrations-table .selected-registration-row td {
+  background: #fff7ed;
+}
+
+.my-registration-detail-row td {
+  background: #fffdfa;
+  border-top: 0;
+  padding: 0 14px 16px;
+}
+
+.my-registration-details {
+  border: 2px solid #8a2f1f;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.my-registration-details-header {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.my-registration-details-header div {
+  display: grid;
+  gap: 3px;
+}
+
+.my-registration-details-header strong {
+  color: #1d2927;
+  font-size: 1.1rem;
+}
+
+.my-registration-details-header span {
+  color: #5c6966;
+  font-weight: 800;
+}
+
 .configuration-detail-row td {
   background: #fffaf5;
   padding: 18px;

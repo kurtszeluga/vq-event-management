@@ -39,6 +39,19 @@ export function subscribeToPayments(onNext, onError) {
   return onSnapshot(paymentsQuery, onNext, onError);
 }
 
+export function subscribeToRegistrationPayments(registrationId, onNext, onError) {
+  if (!registrationId) {
+    return () => {};
+  }
+
+  const paymentsQuery = query(
+    paymentsCollection(),
+    where('registrationId', '==', registrationId)
+  );
+
+  return onSnapshot(paymentsQuery, onNext, onError);
+}
+
 export async function lookupRegistrationEmail(email, eventId = '') {
   const response = await fetch('/api/registration-lookup', {
     body: JSON.stringify({ email, eventId }),

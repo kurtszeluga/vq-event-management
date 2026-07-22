@@ -439,7 +439,8 @@ service cloud.firestore {
           'squareTransactionId',
           'status',
           'updatedMembershipSnapshot',
-          'updatedRegistrationSnapshot'
+          'updatedRegistrationSnapshot',
+          'userId'
         ])
         && request.resource.data.paymentId is string
         && request.resource.data.amount is number
@@ -460,7 +461,8 @@ service cloud.firestore {
         && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Failed', 'Refunded', 'Waived', 'No Charge'])
         && (!('updatedMembershipSnapshot' in request.resource.data)
           || request.resource.data.updatedMembershipSnapshot is map)
-        && request.resource.data.updatedRegistrationSnapshot is map;
+        && request.resource.data.updatedRegistrationSnapshot is map
+        && (!('userId' in request.resource.data) || request.resource.data.userId is string);
     }
 
     function validAuditLog() {
@@ -718,7 +720,11 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if hasPermission('managePayments')
         || hasPermission('viewRegistrations')
-        || hasPermission('manageMembershipStatus');
+        || hasPermission('manageMembershipStatus')
+        || signedIn()
+          && resource.data.entityType == 'Registration'
+          && resource.data.registrationId is string
+          && get(/databases/$(database)/documents/registrations/$(resource.data.registrationId)).data.userId == request.auth.uid;
       allow create, update: if (hasPermission('managePayments')
           || hasPermission('viewRegistrations')
           || hasPermission('manageMembershipStatus'))

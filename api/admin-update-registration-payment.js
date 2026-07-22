@@ -371,6 +371,7 @@ function buildPaymentRecord({
     registrationStatus: statusUpdate.status || before.status || '',
     squareTransactionId: before.squareTransactionId || '',
     status: paymentUpdate.paymentStatus || 'Pending',
+    userId: before.userId || '',
     updatedRegistrationSnapshot: {
       amountPaid: Number(paymentUpdate.amountPaid || 0),
       paymentMethod: paymentUpdate.paymentMethod || '',
