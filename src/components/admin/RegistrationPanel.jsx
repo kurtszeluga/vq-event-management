@@ -900,7 +900,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                   type="button"
                   onClick={handleBackToEvents}
                 >
-                  Back To Events
+                  Return
                 </button>
               </div>
             </article>
