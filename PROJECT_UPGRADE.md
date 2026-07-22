@@ -26,7 +26,7 @@ This document tracks the security, reliability, usability, and product improveme
 
 - [ ] Push the application changes and confirm the Vercel deployment succeeds.
 - [ ] Publish `firestore.rules` to Firebase before testing registration.
-- [ ] Enable a Firestore TTL policy for `registrationVerifications.expiresAt` so expired verification records are cleaned up automatically.
+- [ ] Deploy the Firestore indexes; `firestore.indexes.json` now enables TTL for `registrationVerifications.expiresAt` so expired verification records are cleaned up automatically.
 - [ ] Test a signed-in member registration.
 - [ ] Test a profile/password registration and the email-code fallback.
 - [ ] Test a CSV-created profile that has no activated login.
@@ -116,3 +116,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-22 | Created the upgrade plan and started Phase 1 registration security work. |
 | 2026-07-22 | Completed Phase 1 code: protected profile lookup, Firebase/password verification, Resend email codes, one-use registration tokens, server-only registration creation, and removal of phone verification. |
 | 2026-07-22 | Verified five registration-security tests, zero changed-file lint findings, a successful production build, Firestore rules compilation, and denial of an unauthenticated direct registration write. |
+| 2026-07-22 | Added the `registrationVerifications.expiresAt` TTL policy to the version-controlled Firestore index configuration. |
