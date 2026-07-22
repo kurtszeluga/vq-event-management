@@ -20,6 +20,16 @@ service cloud.firestore {
         && currentUserData().status == 'Active';
     }
 
+    function isActiveMember() {
+      return isActiveProfile()
+        && currentUserData().membershipStatus == 'Active';
+    }
+
+    function directoryEnabled() {
+      return exists(/databases/$(database)/documents/appSettings/directorySettings)
+        && get(/databases/$(database)/documents/appSettings/directorySettings).data.enableMemberDirectory == true;
+    }
+
     function isSuperUser() {
       return isActiveProfile() && currentUserData().role == 'Super User';
     }
@@ -558,6 +568,25 @@ service cloud.firestore {
         && request.resource.data.updatedDate is timestamp;
     }
 
+    function validDirectorySettings() {
+      return request.resource.data.keys().hasOnly([
+          'directoryNote',
+          'enableMemberDirectory',
+          'showCityState',
+          'showEmail',
+          'showFullAddress',
+          'showPhone',
+          'updatedDate'
+        ])
+        && request.resource.data.directoryNote is string
+        && request.resource.data.enableMemberDirectory is bool
+        && request.resource.data.showCityState is bool
+        && request.resource.data.showEmail is bool
+        && request.resource.data.showFullAddress is bool
+        && request.resource.data.showPhone is bool
+        && request.resource.data.updatedDate is timestamp;
+    }
+
     function validMember() {
       return request.resource.data.keys().hasOnly([
           'email',
@@ -698,7 +727,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId)
         || isSuperUser()
-        || isAdmin() && resource.data.role == 'General User';
+        || isAdmin() && resource.data.role == 'General User'
+        || isActiveMember()
+          && directoryEnabled()
+          && resource.data.status == 'Active'
+          && resource.data.membershipStatus == 'Active';
       allow create: if isSuperUser() && validUser() || validSelfUserCreate(userId) && validUser();
       allow update: if isSuperUser() && validUser()
         || hasPermission('addUsers')
@@ -739,7 +772,7 @@ service cloud.firestore {
     }
 
     match /appSettings/{settingId} {
-      allow read: if settingId in ['membership', 'paymentSettings'] || isAdmin();
+      allow read: if settingId in ['membership', 'paymentSettings', 'directorySettings'] || isAdmin();
       allow create, update: if isSuperUser()
         && (
           settingId == 'membership'
@@ -748,6 +781,8 @@ service cloud.firestore {
             && validEmailInstructions()
           || settingId == 'paymentSettings'
             && validPaymentSettings()
+          || settingId == 'directorySettings'
+            && validDirectorySettings()
         );
       allow delete: if isSuperUser();
     }

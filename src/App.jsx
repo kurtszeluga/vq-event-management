@@ -4,7 +4,7 @@ import { useAuth } from './context/useAuth.js';
 
 function App() {
   const location = useLocation();
-  const { currentUser, hasPermission, isAdmin, isSuperUser, logOut } = useAuth();
+  const { currentUser, hasPermission, isAdmin, isSuperUser, logOut, userProfile } = useAuth();
   const normalizedPath = location.pathname.replace(/\/+$/, '');
   const isPopupMode =
     normalizedPath.endsWith('/supply-list') || normalizedPath.endsWith('/print');
@@ -16,6 +16,9 @@ function App() {
       || hasPermission('manageEvents')
       || hasPermission('manageMembershipStatus')
       || hasPermission('viewRegistrations'));
+  const showMemberDirectoryLink =
+    currentUser
+    && userHasActiveMembership(userProfile);
 
   useEffect(() => {
     document.body.classList.toggle('popup-mode', isPopupMode);
@@ -76,6 +79,14 @@ function App() {
           >
             My Registrations
           </NavLink>
+          {showMemberDirectoryLink ? (
+            <NavLink
+              to="/member-directory"
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              Member Directory
+            </NavLink>
+          ) : null}
           {!currentUser ? (
             <NavLink
               to="/login"
@@ -124,6 +135,10 @@ function App() {
       </main>
     </div>
   );
+}
+
+function userHasActiveMembership(profile) {
+  return profile?.status === 'Active' && profile?.membershipStatus === 'Active';
 }
 
 function usePullToRefresh(disabled = false) {

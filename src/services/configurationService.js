@@ -8,6 +8,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  where,
   writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase.js';
@@ -15,6 +16,7 @@ import { auth, db } from '../lib/firebase.js';
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const paymentSettingsRef = () => doc(db, 'appSettings', 'paymentSettings');
 const emailInstructionsRef = () => doc(db, 'appSettings', 'emailInstructions');
+const directorySettingsRef = () => doc(db, 'appSettings', 'directorySettings');
 const membersCollection = () => collection(db, 'members');
 const usersCollection = () => collection(db, 'users');
 const eventLocationsCollection = () => collection(db, 'eventLocationDefaults');
@@ -84,6 +86,15 @@ export const DEFAULT_PAYMENT_SETTINGS = {
   enableGooglePay: false
 };
 
+export const DEFAULT_DIRECTORY_SETTINGS = {
+  directoryNote: '',
+  enableMemberDirectory: false,
+  showCityState: true,
+  showEmail: true,
+  showFullAddress: false,
+  showPhone: true
+};
+
 export const EMAIL_INSTRUCTION_AREAS = [
   {
     areaId: 'programs',
@@ -141,6 +152,19 @@ export function subscribeToPaymentSettings(onNext, onError) {
   );
 }
 
+export function subscribeToDirectorySettings(onNext, onError) {
+  return onSnapshot(
+    directorySettingsRef(),
+    (snapshot) => {
+      onNext(snapshot.exists() ? {
+        ...DEFAULT_DIRECTORY_SETTINGS,
+        ...snapshot.data()
+      } : DEFAULT_DIRECTORY_SETTINGS);
+    },
+    onError
+  );
+}
+
 export function subscribeToEmailInstructions(onNext, onError) {
   return onSnapshot(
     emailInstructionsRef(),
@@ -166,6 +190,25 @@ export function subscribeToMembershipProfiles(onNext, onError) {
     (snapshot) => {
       onNext({
         docs: snapshot.docs.filter((profileDoc) => profileDoc.data().role !== 'Super User')
+      });
+    },
+    onError
+  );
+}
+
+export function subscribeToActiveMemberDirectoryProfiles(onNext, onError) {
+  const profilesQuery = query(
+    usersCollection(),
+    where('membershipStatus', '==', 'Active')
+  );
+
+  return onSnapshot(
+    profilesQuery,
+    (snapshot) => {
+      onNext({
+        docs: snapshot.docs.filter((profileDoc) =>
+          profileDoc.data().status === 'Active'
+          && profileDoc.data().role !== 'Super User')
       });
     },
     onError
@@ -248,6 +291,29 @@ export async function savePaymentSettings(settings, actorProfile) {
     after: payload,
     entityId: 'paymentSettings',
     summary: 'Updated payment settings'
+  });
+
+  return batch.commit();
+}
+
+export async function saveDirectorySettings(settings, actorProfile) {
+  const batch = writeBatch(db);
+  const payload = {
+    directoryNote: cleanText(settings.directoryNote),
+    enableMemberDirectory: Boolean(settings.enableMemberDirectory),
+    showCityState: Boolean(settings.showCityState),
+    showEmail: Boolean(settings.showEmail),
+    showFullAddress: Boolean(settings.showFullAddress),
+    showPhone: Boolean(settings.showPhone),
+    updatedDate: serverTimestamp()
+  };
+
+  batch.set(directorySettingsRef(), payload, { merge: true });
+  addConfigurationAuditLog(batch, {
+    actorProfile,
+    after: payload,
+    entityId: 'directorySettings',
+    summary: 'Updated member directory settings'
   });
 
   return batch.commit();

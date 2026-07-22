@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   COORDINATOR_ASSIGNMENT_AREAS,
+  DEFAULT_DIRECTORY_SETTINGS,
   DEFAULT_EMAIL_INSTRUCTIONS,
   DEFAULT_MEMBERSHIP_SETTINGS,
   DEFAULT_PAYMENT_SETTINGS,
@@ -10,6 +11,7 @@ import {
   deleteEventTimeDefault,
   importMembersFromCsvRows,
   reactivateMembershipProfile,
+  saveDirectorySettings,
   saveEmailInstructions,
   saveEventLocationDefault,
   saveEventTimeDefault,
@@ -19,6 +21,7 @@ import {
   saveMembershipSettings,
   savePaymentSettings,
   subscribeToCoordinatorAssignments,
+  subscribeToDirectorySettings,
   subscribeToEmailInstructions,
   subscribeToEventLocationDefaults,
   subscribeToEventTimeDefaults,
@@ -74,6 +77,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [error, setError] = useState('');
   const [coordinatorForms, setCoordinatorForms] = useState({});
   const [coordinatorMessages, setCoordinatorMessages] = useState({});
+  const [directorySettings, setDirectorySettings] = useState(DEFAULT_DIRECTORY_SETTINGS);
   const [emailInstructions, setEmailInstructions] = useState(DEFAULT_EMAIL_INSTRUCTIONS);
   const [emailTestArea, setEmailTestArea] = useState(EMAIL_INSTRUCTION_AREAS[0].areaId);
   const [emailTestRecipient, setEmailTestRecipient] = useState(currentUserProfile?.email || '');
@@ -231,6 +235,10 @@ function ConfigurationPanel({ currentUserProfile }) {
         }));
         setCoordinatorForms((current) => getCoordinatorForms(assignments, current));
         markLoaded();
+      }, handleError),
+      subscribeToDirectorySettings((settingsSnapshot) => {
+        setDirectorySettings(settingsSnapshot);
+        markLoaded();
       }, handleError)
     ];
 
@@ -258,6 +266,14 @@ function ConfigurationPanel({ currentUserProfile }) {
     await runSave('paymentSettings', async () => {
       await savePaymentSettings(paymentSettings, currentUserProfile);
       setSuccessMessage('Payment settings saved.');
+    });
+  }
+
+  async function handleSaveDirectorySettings(event) {
+    event.preventDefault();
+    await runSave('directorySettings', async () => {
+      await saveDirectorySettings(directorySettings, currentUserProfile);
+      setSuccessMessage('Directory settings saved.');
     });
   }
 
@@ -591,6 +607,80 @@ function ConfigurationPanel({ currentUserProfile }) {
             type="submit"
           >
             {savingSection === 'paymentSettings' ? 'Saving...' : 'Save Payment Settings'}
+          </button>
+        </form>
+      </article>
+    );
+  }
+
+  function renderDirectorySettingsCard() {
+    return (
+      <article className="configuration-mini-card">
+        <div className="configuration-card-header">
+          <h3>Directory Settings</h3>
+          <p>Control what active members can see in the member directory.</p>
+        </div>
+        <form className="configuration-card-body" onSubmit={handleSaveDirectorySettings}>
+          <label className="checkbox-label registration-exception-checkbox">
+            <input
+              checked={Boolean(directorySettings.enableMemberDirectory)}
+              type="checkbox"
+              onChange={(event) =>
+                setDirectorySettings((current) => ({
+                  ...current,
+                  enableMemberDirectory: event.target.checked
+                }))
+              }
+            />
+            <span className="checkbox-label-copy">
+              <strong>Enable Member Directory</strong>
+              <small>Allow active members to view the member-only directory.</small>
+            </span>
+          </label>
+          <div className="configuration-checkbox-panel">
+            <strong>Directory Fields</strong>
+            <div className="configuration-checkbox-grid">
+              {[
+                ['showEmail', 'Email'],
+                ['showPhone', 'Phone'],
+                ['showCityState', 'City/State'],
+                ['showFullAddress', 'Full Address']
+              ].map(([key, label]) => (
+                <label className="checkbox-label compact-checkbox-label" key={key}>
+                  <input
+                    checked={Boolean(directorySettings[key])}
+                    type="checkbox"
+                    onChange={(event) =>
+                      setDirectorySettings((current) => ({
+                        ...current,
+                        [key]: event.target.checked
+                      }))
+                    }
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <label>
+            <span>Directory Note</span>
+            <textarea
+              placeholder="Optional note shown at the top of the member directory."
+              value={directorySettings.directoryNote || ''}
+              onChange={(event) =>
+                setDirectorySettings((current) => ({
+                  ...current,
+                  directoryNote: event.target.value
+                }))
+              }
+            />
+          </label>
+          <button
+            className="button-link button-reset configuration-submit-button"
+            disabled={savingSection === 'directorySettings'}
+            type="submit"
+          >
+            {savingSection === 'directorySettings' ? 'Saving...' : 'Save Directory Settings'}
           </button>
         </form>
       </article>
@@ -1244,6 +1334,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             {[
               ['membership', 'Membership Check'],
               ['paymentSettings', 'Payment Settings'],
+              ['directorySettings', 'Directory Settings'],
               ['emailInstructions', 'Email Instructions'],
               ['members', 'Membership Profiles'],
               ['coordinators', 'Coordinator Assignments'],
@@ -1264,6 +1355,7 @@ function ConfigurationPanel({ currentUserProfile }) {
 
         {configurationView === 'membership' ? renderMembershipCard() : null}
         {configurationView === 'paymentSettings' ? renderPaymentSettingsCard() : null}
+        {configurationView === 'directorySettings' ? renderDirectorySettingsCard() : null}
         {configurationView === 'emailInstructions' ? renderEmailInstructionsCard() : null}
         {configurationView === 'members' ? renderMemberListCard() : null}
         {configurationView === 'coordinators' ? renderCoordinatorCard() : null}
