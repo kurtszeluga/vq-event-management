@@ -24,15 +24,24 @@ export default async function handler(request, response) {
   }
 
   try {
-    initializeAdminApp();
-
     const rawBody = await getRawRequestBody(request);
     const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY || '';
     const notificationUrl = getNotificationUrl(request);
     const receivedSignature = getSquareSignature(request);
 
     if (!signatureKey) {
-      response.status(500).json({ error: 'Square webhook signature key is not configured.' });
+      response.status(500).json({
+        code: 'missing_square_signature_key',
+        error: 'Square webhook signature key is not configured.'
+      });
+      return;
+    }
+
+    if (!rawBody) {
+      response.status(400).json({
+        code: 'missing_body',
+        error: 'Square webhook request body was empty.'
+      });
       return;
     }
 
@@ -42,17 +51,24 @@ export default async function handler(request, response) {
       receivedSignature,
       signatureKey
     })) {
-      response.status(403).json({ error: 'Invalid Square webhook signature.' });
+      response.status(403).json({
+        code: 'invalid_square_signature',
+        error: 'Invalid Square webhook signature.'
+      });
       return;
     }
 
-    const event = JSON.parse(rawBody);
+    const event = parseWebhookEvent(rawBody);
 
+    initializeAdminApp();
     await recordSquareWebhookEvent(getFirestore(), event, request);
     response.status(200).json({ received: true });
   } catch (error) {
     console.error('Square webhook failed', error);
-    response.status(500).json({ error: error.message || 'Square webhook failed.' });
+    response.status(error.statusCode || 500).json({
+      code: error.code || 'square_webhook_failed',
+      error: error.message || 'Square webhook failed.'
+    });
   }
 }
 
@@ -348,6 +364,18 @@ async function getRawRequestBody(request) {
   }
 
   return Buffer.concat(chunks).toString('utf8');
+}
+
+function parseWebhookEvent(rawBody) {
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    const error = new Error('Square webhook request body was not valid JSON.');
+
+    error.code = 'invalid_json_body';
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 function getSquareSignature(request) {
