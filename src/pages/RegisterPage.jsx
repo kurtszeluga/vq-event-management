@@ -90,6 +90,9 @@ function RegisterPage() {
   const [squareConfig, setSquareConfig] = useState(null);
   const [squareError, setSquareError] = useState('');
   const [squareWalletToken, setSquareWalletToken] = useState('');
+  const [paymentReservation, setPaymentReservation] = useState(null);
+  const [paymentReservationError, setPaymentReservationError] = useState('');
+  const [paymentReservationLoading, setPaymentReservationLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
@@ -129,6 +132,9 @@ function RegisterPage() {
     setEmailVerificationMessage('');
     setEmailVerified(false);
     setRegistrationVerificationToken('');
+    setPaymentReservation(null);
+    setPaymentReservationError('');
+    setPaymentReservationLoading(false);
     setLookup(null);
     setLookupComplete(false);
     setReactivateProfile(false);
@@ -207,6 +213,8 @@ function RegisterPage() {
 
   useEffect(() => {
     setPaymentPreference('');
+    setPaymentReservation(null);
+    setPaymentReservationError('');
   }, [eventId]);
 
   useEffect(() => {
@@ -271,6 +279,8 @@ function RegisterPage() {
 
   useEffect(() => {
     setSquareWalletToken('');
+    setPaymentReservation(null);
+    setPaymentReservationError('');
   }, [
     billingCity,
     billingCountry,
@@ -283,6 +293,60 @@ function RegisterPage() {
     lastName,
     paymentPreference,
     phone
+  ]);
+
+  const buildRegistrationRequest = useCallback(() => {
+    const displayName = buildDisplayName(firstName, lastName);
+    const profileUpdates = {
+      firstName: toTitleCase(firstName),
+      lastName: toTitleCase(lastName),
+      phone: formatPhoneNumber(phone)
+    };
+
+    if (requiresBillingAddress) {
+      profileUpdates.billingAddress = buildBillingAddress({
+        city: billingCity,
+        country: billingCountry,
+        postalCode: billingPostalCode,
+        state: billingState,
+        street: billingStreet
+      });
+    }
+
+    return {
+      email,
+      eventId,
+      name: displayName,
+      paymentPreference: canPayLaterByCashCheck ? paymentPreference : '',
+      phone,
+      profileUserId: matchedProfile?.userId || '',
+      profileUpdates,
+      reactivateProfile,
+      reactivationTermsAccepted,
+      termsVersion: displayedTermsVersion,
+      verificationChallengeId: emailVerificationChallengeId,
+      verificationToken: registrationVerificationToken
+    };
+  }, [
+    billingCity,
+    billingCountry,
+    billingPostalCode,
+    billingState,
+    billingStreet,
+    canPayLaterByCashCheck,
+    displayedTermsVersion,
+    email,
+    emailVerificationChallengeId,
+    eventId,
+    firstName,
+    lastName,
+    matchedProfile,
+    paymentPreference,
+    phone,
+    reactivateProfile,
+    reactivationTermsAccepted,
+    registrationVerificationToken,
+    requiresBillingAddress
   ]);
 
   const registrationUnavailable = useMemo(() => {
@@ -327,6 +391,62 @@ function RegisterPage() {
       && !confirmation
   );
 
+  useEffect(() => {
+    if (
+      !requiresSquarePayment
+      || !canShowRegistrantFields
+      || needsProfileEdits
+      || confirmation
+      || paymentReservation
+      || paymentReservationLoading
+      || !email
+      || (!accountVerified && !emailVerified)
+    ) {
+      return undefined;
+    }
+
+    let active = true;
+
+    setPaymentReservationLoading(true);
+    setPaymentReservationError('');
+
+    beginSquareReservation(buildRegistrationRequest())
+      .then((reservation) => {
+        if (!active) {
+          return;
+        }
+
+        setPaymentReservation(reservation);
+        setPaymentReservationError('');
+      })
+      .catch((error) => {
+        if (active) {
+          setPaymentReservation(null);
+          setPaymentReservationError(error.message);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setPaymentReservationLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    accountVerified,
+    buildRegistrationRequest,
+    canShowRegistrantFields,
+    confirmation,
+    email,
+    emailVerified,
+    needsProfileEdits,
+    paymentReservation,
+    paymentReservationLoading,
+    requiresSquarePayment
+  ]);
+
   async function handleEmailLookup() {
     await runEmailLookup(email);
   }
@@ -334,7 +454,6 @@ function RegisterPage() {
   async function handleSubmit(formEvent) {
     formEvent.preventDefault();
     const errors = validateForm({ email, firstName, lastName, phone });
-    const displayName = buildDisplayName(firstName, lastName);
 
     setFieldErrors(errors);
     setFormError('');
@@ -369,46 +488,20 @@ function RegisterPage() {
     setSubmitting(true);
 
     try {
-      const profileUpdates = {
-        firstName: toTitleCase(firstName),
-        lastName: toTitleCase(lastName),
-        phone: formatPhoneNumber(phone)
-      };
-
-      if (requiresBillingAddress) {
-        profileUpdates.billingAddress = buildBillingAddress({
-          city: billingCity,
-          country: billingCountry,
-          postalCode: billingPostalCode,
-          state: billingState,
-          street: billingStreet
-        });
-      }
-      const registrationRequest = {
-        email,
-        eventId,
-        name: displayName,
-        paymentPreference: canPayLaterByCashCheck ? paymentPreference : '',
-        phone,
-        profileUserId: matchedProfile?.userId || '',
-        profileUpdates,
-        reactivateProfile,
-        reactivationTermsAccepted,
-        termsVersion: displayedTermsVersion,
-        verificationChallengeId: emailVerificationChallengeId,
-        verificationToken: registrationVerificationToken
-      };
-      const paymentReservation = requiresSquarePayment
-        ? await beginSquareReservation(registrationRequest)
+      const registrationRequest = buildRegistrationRequest();
+      const activePaymentReservation = requiresSquarePayment
+        ? isPaymentReservationActive(paymentReservation)
+          ? paymentReservation
+          : await beginSquareReservation(registrationRequest)
         : null;
-      const squarePaymentToken = requiresSquarePayment && paymentReservation?.paymentRequired !== false
+      const squarePaymentToken = requiresSquarePayment && activePaymentReservation?.paymentRequired !== false
         ? squareWalletToken || await tokenizeSquarePayment()
         : '';
 
       const result = await createRegistration({
         ...registrationRequest,
-        paymentReservationId: paymentReservation?.reservationId || '',
-        paymentReservationToken: paymentReservation?.reservationToken || '',
+        paymentReservationId: activePaymentReservation?.reservationId || '',
+        paymentReservationToken: activePaymentReservation?.reservationToken || '',
         squarePaymentToken,
       });
       setRegistrationFinalizing(true);
@@ -992,7 +1085,7 @@ function RegisterPage() {
                         checked={paymentPreference === 'cash-check-later'}
                         disabled={submitting || Boolean(confirmation)}
                         type="checkbox"
-                        onChange={(inputEvent) =>
+                      onChange={(inputEvent) =>
                           setPaymentPreference(inputEvent.target.checked ? 'cash-check-later' : '')
                         }
                       />
@@ -1013,6 +1106,9 @@ function RegisterPage() {
                       onCardReady={setSquareCard}
                       onWalletTokenReady={setSquareWalletToken}
                       onlinePaymentRequired={requiresSquarePayment}
+                      reservation={paymentReservation}
+                      reservationError={paymentReservationError}
+                      reservationLoading={paymentReservationLoading}
                     />
                   ) : null}
                   {submitting ? (
@@ -1026,6 +1122,8 @@ function RegisterPage() {
                     className="button-link button-reset"
                     disabled={submitting
                       || Boolean(registrationUnavailable)
+                      || paymentReservationLoading
+                      || Boolean(paymentReservationError)
                       || (requiresSquarePayment && (!squareCard && !squareWalletToken || Boolean(squareError)))
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
@@ -1318,7 +1416,10 @@ function RegistrationPaymentPanel({
   error,
   onCardReady,
   onWalletTokenReady,
-  onlinePaymentRequired
+  onlinePaymentRequired,
+  reservation,
+  reservationError,
+  reservationLoading
 }) {
   const applePayRef = useRef(null);
   const cardContainerId = useRef(`square-card-${Math.random().toString(36).slice(2)}`);
@@ -1328,6 +1429,7 @@ function RegistrationPaymentPanel({
   const [testCardMessage, setTestCardMessage] = useState('');
   const [walletMessage, setWalletMessage] = useState('');
   const [walletProcessing, setWalletProcessing] = useState('');
+  const [reservationTimeLeft, setReservationTimeLeft] = useState('');
   const [walletSupport, setWalletSupport] = useState({
     applePay: false,
     googlePay: false
@@ -1358,6 +1460,32 @@ function RegistrationPaymentPanel({
       setWalletProcessing('');
     }
   }, [disabled, onWalletTokenReady]);
+
+  useEffect(() => {
+    if (!reservation?.expiresAt) {
+      setReservationTimeLeft('');
+      return undefined;
+    }
+
+    function updateCountdown() {
+      const millisLeft = Date.parse(reservation.expiresAt) - Date.now();
+
+      if (millisLeft <= 0) {
+        setReservationTimeLeft('expired');
+        return;
+      }
+
+      const minutes = Math.floor(millisLeft / 60000);
+      const seconds = Math.floor((millisLeft % 60000) / 1000);
+
+      setReservationTimeLeft(`${minutes}:${String(seconds).padStart(2, '0')}`);
+    }
+
+    updateCountdown();
+    const intervalId = window.setInterval(updateCountdown, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [reservation]);
 
   useEffect(() => {
     if (!onlinePaymentRequired || !config?.enabled) {
@@ -1492,6 +1620,17 @@ function RegistrationPaymentPanel({
       ) : null}
       {onlinePaymentRequired ? (
         <>
+          {reservationLoading ? (
+            <p className="form-help">Holding your seat for online payment...</p>
+          ) : null}
+          {reservationError ? <p className="form-error">{reservationError}</p> : null}
+          {reservationTimeLeft ? (
+            <p className={reservationTimeLeft === 'expired' ? 'form-error' : 'form-success'}>
+              {reservationTimeLeft === 'expired'
+                ? 'Your payment seat hold expired. Submit again to start a new hold.'
+                : `Your seat is held for ${reservationTimeLeft} while you complete payment.`}
+            </p>
+          ) : null}
           {walletSupport.applePay || walletSupport.googlePay ? (
             <div className="square-wallet-section">
               {walletSupport.applePay ? (
@@ -1521,13 +1660,11 @@ function RegistrationPaymentPanel({
               <button
                 className="button-link button-reset compact-action"
                 type="button"
-                onClick={() => copySandboxCardNumber(setTestCardMessage)}
+                onClick={() => selectSandboxTestPayment(onWalletTokenReady, setTestCardMessage)}
               >
-                Copy Test Card Number
+                Use Test Card
               </button>
-              <span>Exp: 12/30</span>
-              <span>CVV: 123</span>
-              <span>ZIP: 34748</span>
+              <span>Uses Square sandbox token cnon:card-nonce-ok.</span>
               {testCardMessage ? <span className="form-help">{testCardMessage}</span> : null}
             </div>
           ) : null}
@@ -1556,15 +1693,9 @@ function RegistrationPaymentPanel({
   );
 }
 
-async function copySandboxCardNumber(setMessage) {
-  const testCardNumber = '4111111111111111';
-
-  try {
-    await navigator.clipboard.writeText(testCardNumber);
-    setMessage('Copied 4111 1111 1111 1111');
-  } catch {
-    setMessage('Use card number 4111 1111 1111 1111');
-  }
+function selectSandboxTestPayment(onWalletTokenReady, setMessage) {
+  onWalletTokenReady('cnon:card-nonce-ok');
+  setMessage('Test payment selected. Click Submit Registration to finish.');
 }
 
 function formatAddress(address = {}) {
@@ -1639,6 +1770,14 @@ function getSquareTokenizeError(tokenResult) {
     .join(' ');
 
   return message || 'Card payment could not be verified. Please check the card details and try again.';
+}
+
+function isPaymentReservationActive(reservation) {
+  return Boolean(
+    reservation?.reservationId
+      && reservation?.expiresAt
+      && Date.parse(reservation.expiresAt) > Date.now()
+  );
 }
 
 function validateForm({ email, firstName, lastName, phone }) {

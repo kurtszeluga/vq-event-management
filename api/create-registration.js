@@ -741,7 +741,7 @@ async function getVerificationChallenge(transaction, db, payload, authorization)
 }
 
 async function validatePaymentReservation(transaction, db, payload, expected) {
-  if (!payload.paymentReservationId || !payload.paymentReservationToken) {
+  if (!payload.paymentReservationId) {
     throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
   }
 
@@ -755,19 +755,17 @@ async function validatePaymentReservation(transaction, db, payload, expected) {
   }
 
   const reservation = reservationSnap.data();
-  const tokenMatches = verificationSecretsMatch(
-    reservation.tokenHash,
-    payload.paymentReservationId,
-    payload.paymentReservationToken
-  );
+  const expiresAtMillis = getTimestampMillis(reservation.expiresAt)
+    || getTimestampMillis(reservation.createdAt) + PAYMENT_RESERVATION_EXPIRATION_MS;
+  const reservationAmountCents = Math.round(Number(reservation.amountDue || 0) * 100);
+  const expectedAmountCents = Math.round(Number(expected.amountDue || 0) * 100);
 
   if (
     reservation.status !== 'Active'
     || reservation.eventId !== expected.eventId
     || reservation.email !== expected.email
-    || Number(reservation.amountDue || 0) !== Number(expected.amountDue || 0)
-    || getTimestampMillis(reservation.expiresAt) <= Date.now()
-    || !tokenMatches
+    || reservationAmountCents !== expectedAmountCents
+    || expiresAtMillis <= Date.now()
   ) {
     throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
   }
