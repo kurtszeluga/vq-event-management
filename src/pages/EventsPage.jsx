@@ -375,20 +375,26 @@ function EventsPage() {
       return undefined;
     }
 
-    loadPublicRegistrationCounts(eventIds)
-      .then((counts) => {
-        if (active) {
-          setRegistrationCounts(counts);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setRegistrationCounts({});
-        }
-      });
+    function refreshCounts() {
+      loadPublicRegistrationCounts(eventIds)
+        .then((counts) => {
+          if (active) {
+            setRegistrationCounts(counts);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setRegistrationCounts({});
+          }
+        });
+    }
+
+    refreshCounts();
+    const intervalId = window.setInterval(refreshCounts, 15000);
 
     return () => {
       active = false;
+      window.clearInterval(intervalId);
     };
   }, [registerableEvents]);
 

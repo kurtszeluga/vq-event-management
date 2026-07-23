@@ -8,6 +8,7 @@ import RegistrationPanel from '../components/admin/RegistrationPanel.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
+import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import { subscribeToUsers } from '../services/userService.js';
 
 function AdminDashboardPage() {
@@ -20,6 +21,7 @@ function AdminDashboardPage() {
   const [draftEventType, setDraftEventType] = useState('');
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState('');
+  const [eventRegistrationCounts, setEventRegistrationCounts] = useState({});
   const [lastSavedEventId, setLastSavedEventId] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
@@ -96,6 +98,38 @@ function AdminDashboardPage() {
 
     return unsubscribe;
   }, [canManageEvents]);
+
+  useEffect(() => {
+    if (!canManageEvents || !events.length) {
+      setEventRegistrationCounts({});
+      return undefined;
+    }
+
+    const eventIds = events.map((event) => event.id).filter(Boolean);
+    let active = true;
+
+    function refreshCounts() {
+      loadPublicRegistrationCounts(eventIds)
+        .then((counts) => {
+          if (active) {
+            setEventRegistrationCounts(counts);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setEventRegistrationCounts({});
+          }
+        });
+    }
+
+    refreshCounts();
+    const intervalId = window.setInterval(refreshCounts, 15000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [canManageEvents, events]);
 
   useEffect(() => {
     if (!canReviewMemberships) {
@@ -333,6 +367,7 @@ function AdminDashboardPage() {
             </div>
             <EventList
               events={events}
+              registrationCounts={eventRegistrationCounts}
               loading={loadingEvents}
               onDelete={handleDelete}
               onEdit={handleEditEvent}

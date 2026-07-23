@@ -17,12 +17,12 @@ export function getRegistrationAvailability(event, counts = {}) {
     };
   }
 
-  const registeredCount = Number(counts.registered || 0);
+  const registeredCount = Number(counts.registered || 0) + Number(counts.held || 0);
 
   if (registeredCount >= capacity) {
     return {
       isFull: true,
-      label: 'Full - waitlist available',
+      label: counts.held ? 'Seat on hold - waitlist available' : 'Full - waitlist available',
       tone: 'waitlist'
     };
   }

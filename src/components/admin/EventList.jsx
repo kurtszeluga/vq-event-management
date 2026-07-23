@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   formatCurrency,
-  formatDateOnly,
   formatEventDate,
   formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
   getRegistrationStartDate
 } from '../../utils/eventFormat.js';
+import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
 
 const ALL_TYPES = 'All';
 const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
@@ -28,6 +28,7 @@ function EventList({
   loading,
   onDelete,
   onEdit,
+  registrationCounts = {},
   lastSavedEventId = '',
   defaultEventTypeFilter = ALL_TYPES,
   showTypeFilters = true,
@@ -37,6 +38,7 @@ function EventList({
   const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  const [now, setNow] = useState(Date.now());
   const eventTypeFilters = useMemo(
     () =>
       DEFAULT_TYPE_FILTERS.filter((filter) =>
@@ -128,6 +130,12 @@ function EventList({
     setEventStatusFilter('Active');
   }, [defaultEventTypeFilter]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   function toggleDescription(eventId) {
     setExpandedDescriptions((current) => ({
       ...current,
@@ -191,6 +199,9 @@ function EventList({
       ) : null}
       {filteredEvents.map((event) => {
         const wasLastSaved = lastSavedEventId && event.id === lastSavedEventId;
+        const counts = registrationCounts[event.id] || {};
+        const availability = getRegistrationAvailability(event, counts);
+        const holdTimeLeft = formatHoldTimeLeft(counts.heldExpiresAt, now);
 
         return (
           <article className={`event-admin-card${wasLastSaved ? ' recently-saved-card' : ''}`} key={event.id}>
@@ -243,6 +254,21 @@ function EventList({
                 <dt>Capacity</dt>
                 <dd>
                   {event.capacityUnlimited ? 'Unlimited' : event.capacity ? `${event.capacity}` : 'Capacity TBD'}
+                </dd>
+              </div>
+              <div>
+                <dt>Registration Count</dt>
+                <dd>
+                  <span>{Number(counts.registered || 0)} registered</span>
+                  {Number(counts.held || 0) ? (
+                    <>
+                      <span> / {Number(counts.held || 0)} held</span>
+                      {holdTimeLeft ? <span> (hold expires in {holdTimeLeft})</span> : null}
+                    </>
+                  ) : null}
+                  {Number(counts.waitlisted || 0) ? (
+                    <span> / {Number(counts.waitlisted || 0)} waitlisted</span>
+                  ) : null}
                 </dd>
               </div>
               <div>
@@ -358,7 +384,7 @@ function EventList({
                 className="button-link secondary-action"
                 to={`/register?eventId=${event.id}`}
               >
-                Register
+                {availability.isFull ? 'Join Waitlist' : 'Register'}
               </Link>
             ) : null}
             <button
@@ -415,6 +441,23 @@ function formatListingEnd(event) {
   return event.eventType === 'Challenges'
     ? date.toLocaleDateString()
     : date.toLocaleString();
+}
+
+function formatHoldTimeLeft(expiresAt, now) {
+  if (!expiresAt) {
+    return '';
+  }
+
+  const millisLeft = Date.parse(expiresAt) - now;
+
+  if (millisLeft <= 0) {
+    return '';
+  }
+
+  const minutes = Math.floor(millisLeft / 60000);
+  const seconds = Math.floor((millisLeft % 60000) / 1000);
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 export default EventList;

@@ -246,6 +246,7 @@ function RegisterPage() {
   const isPaidEvent = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
   const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
   const requiresSquarePayment = isPaidEvent && paymentPreference !== 'cash-check-later';
+  const paymentRequiredForCurrentSeat = requiresSquarePayment && paymentReservation?.paymentRequired !== false;
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
 
   useEffect(() => {
@@ -1128,7 +1129,7 @@ function RegisterPage() {
                       onEnsureReservation={ensurePaymentReservation}
                       onReservationExpired={handlePaymentReservationExpired}
                       onWalletTokenReady={setSquareWalletToken}
-                      onlinePaymentRequired={requiresSquarePayment}
+                      onlinePaymentRequired={paymentRequiredForCurrentSeat}
                       reservation={paymentReservation}
                       reservationError={paymentReservationError}
                       reservationLoading={paymentReservationLoading}
@@ -1147,7 +1148,7 @@ function RegisterPage() {
                     disabled={submitting
                       || Boolean(registrationUnavailable)
                       || paymentReservationExpired
-                      || (requiresSquarePayment && (!squareCard && !squareWalletToken || Boolean(squareError && !squareWalletToken)))
+                      || (paymentRequiredForCurrentSeat && (!squareCard && !squareWalletToken || Boolean(squareError && !squareWalletToken)))
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
                   >
@@ -1650,7 +1651,11 @@ function RegistrationPaymentPanel({
         The Village Quilters Network does not store your card number, security code, or wallet payment details.
       </p>
       {!onlinePaymentRequired ? (
-        <p className="form-help">Cash/check later is selected, so online card payment is not needed now.</p>
+        <p className="form-help">
+          {reservation?.status === 'Waitlisted'
+            ? 'No seat is currently available. Submit to join the waitlist; no payment is due now.'
+            : 'Cash/check later is selected, so online card payment is not needed now.'}
+        </p>
       ) : null}
       {onlinePaymentRequired ? (
         <>

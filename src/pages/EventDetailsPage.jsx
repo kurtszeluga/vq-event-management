@@ -70,20 +70,26 @@ function EventDetailsPage() {
       return undefined;
     }
 
-    loadPublicRegistrationCounts([event.id])
-      .then((counts) => {
-        if (active) {
-          setRegistrationCounts(counts[event.id] || {});
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setRegistrationCounts({});
-        }
-      });
+    function refreshCounts() {
+      loadPublicRegistrationCounts([event.id])
+        .then((counts) => {
+          if (active) {
+            setRegistrationCounts(counts[event.id] || {});
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setRegistrationCounts({});
+          }
+        });
+    }
+
+    refreshCounts();
+    const intervalId = window.setInterval(refreshCounts, 15000);
 
     return () => {
       active = false;
+      window.clearInterval(intervalId);
     };
   }, [event?.id]);
 

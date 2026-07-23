@@ -97,12 +97,15 @@ export async function loadRegistrationCounts(db, eventIds = []) {
   const counts = Object.fromEntries(
     [...targetEventIds].map((eventId) => [
       eventId,
-      { registered: 0, waitlisted: 0 }
+      { held: 0, heldExpiresAt: '', registered: 0, waitlisted: 0 }
     ])
   );
-  const snapshot = await db.collection('registrations').get();
+  const [registrationSnapshot, reservationSnapshot] = await Promise.all([
+    db.collection('registrations').get(),
+    db.collection('registrationReservations').get()
+  ]);
 
-  snapshot.docs.forEach((docSnapshot) => {
+  registrationSnapshot.docs.forEach((docSnapshot) => {
     const registration = docSnapshot.data();
 
     if (!targetEventIds.has(registration.eventId)) {
@@ -116,7 +119,47 @@ export async function loadRegistrationCounts(db, eventIds = []) {
     }
   });
 
+  const now = Date.now();
+
+  reservationSnapshot.docs.forEach((docSnapshot) => {
+    const reservation = docSnapshot.data();
+    const expiresAtMillis = getMillis(reservation.expiresAt);
+
+    if (
+      !targetEventIds.has(reservation.eventId)
+      || reservation.status !== 'Active'
+      || expiresAtMillis <= now
+    ) {
+      return;
+    }
+
+    const eventCounts = counts[reservation.eventId];
+
+    eventCounts.held += 1;
+
+    if (!eventCounts.heldExpiresAt || expiresAtMillis < Date.parse(eventCounts.heldExpiresAt)) {
+      eventCounts.heldExpiresAt = new Date(expiresAtMillis).toISOString();
+    }
+  });
+
   return counts;
+}
+
+function getMillis(value) {
+  if (!value) {
+    return 0;
+  }
+
+  if (typeof value.toMillis === 'function') {
+    return value.toMillis();
+  }
+
+  if (typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
 async function loadCoordinatorAssignments(db) {
@@ -187,6 +230,8 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
     registrationOpenAt,
     registrationCloseAt,
     registeredCount: registrationCounts.registered || 0,
+    heldCount: registrationCounts.held || 0,
+    heldExpiresAt: registrationCounts.heldExpiresAt || '',
     waitlistedCount: registrationCounts.waitlisted || 0,
     registrationAvailability: availability.label,
     registrationIsFull: availability.isFull,
@@ -293,7 +338,7 @@ function getAvailability(event, registrationCounts = {}) {
     return { isFull: false, label: 'Seats available' };
   }
 
-  const registeredCount = Number(registrationCounts.registered || 0);
+  const registeredCount = Number(registrationCounts.registered || 0) + Number(registrationCounts.held || 0);
 
   if (registeredCount >= capacity) {
     return { isFull: true, label: 'Full - waitlist available' };
