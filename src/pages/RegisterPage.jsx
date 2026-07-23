@@ -94,6 +94,7 @@ function RegisterPage() {
   const [paymentReservationError, setPaymentReservationError] = useState('');
   const [paymentReservationLoading, setPaymentReservationLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const paymentReservationRequestActive = useRef(false);
 
   const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
   const applyProfileToForm = useCallback((profile) => {
@@ -398,7 +399,7 @@ function RegisterPage() {
       || needsProfileEdits
       || confirmation
       || paymentReservation
-      || paymentReservationLoading
+      || paymentReservationRequestActive.current
       || !email
       || (!accountVerified && !emailVerified)
     ) {
@@ -407,6 +408,7 @@ function RegisterPage() {
 
     let active = true;
 
+    paymentReservationRequestActive.current = true;
     setPaymentReservationLoading(true);
     setPaymentReservationError('');
 
@@ -429,6 +431,7 @@ function RegisterPage() {
         if (active) {
           setPaymentReservationLoading(false);
         }
+        paymentReservationRequestActive.current = false;
       });
 
     return () => {
@@ -443,7 +446,6 @@ function RegisterPage() {
     emailVerified,
     needsProfileEdits,
     paymentReservation,
-    paymentReservationLoading,
     requiresSquarePayment
   ]);
 
@@ -1123,8 +1125,6 @@ function RegisterPage() {
                     className="button-link button-reset"
                     disabled={submitting
                       || Boolean(registrationUnavailable)
-                      || paymentReservationLoading
-                      || Boolean(paymentReservationError)
                       || (requiresSquarePayment && (!squareCard && !squareWalletToken || Boolean(squareError && !squareWalletToken)))
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
