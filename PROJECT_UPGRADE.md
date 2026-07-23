@@ -24,21 +24,21 @@ This document tracks the security, reliability, usability, and product improveme
 
 ### Phase 1 Production Checklist
 
-- [ ] Push the application changes and confirm the Vercel deployment succeeds.
-- [ ] Publish `firestore.rules` to Firebase before testing registration.
-- [ ] Deploy the Firestore indexes; `firestore.indexes.json` now enables TTL for `registrationVerifications.expiresAt` so expired verification records are cleaned up automatically.
-- [ ] Test a signed-in member registration.
-- [ ] Test a profile/password registration and the email-code fallback.
-- [ ] Test a CSV-created profile that has no activated login.
-- [ ] Test an allowed non-member registration and a blocked non-member registration.
-- [ ] Confirm profile contact and billing information never appears before successful verification.
-- [ ] Confirm incorrect, expired, and reused verification codes/tokens are rejected.
+- [x] Push the application changes and confirm the Vercel deployment succeeds.
+- [x] Publish `firestore.rules` to Firebase before testing registration.
+- [x] Deploy the Firestore indexes; `firestore.indexes.json` now enables TTL for `registrationVerifications.expiresAt` so expired verification records are cleaned up automatically.
+- [x] Test a signed-in member registration.
+- [x] Test a profile/password registration and the email-code fallback.
+- [x] Test a CSV-created profile that has no activated login.
+- [x] Test an allowed non-member registration and a blocked non-member registration.
+- [x] Confirm profile contact and billing information never appears before successful verification.
+- [x] Confirm incorrect, expired, and reused verification codes/tokens are rejected.
 
 ## Phase 2 - Payment And Capacity Reliability
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| Add temporary seat reservations during online checkout | Not Started | Prevent concurrent Square payments from exceeding event capacity. |
+| Add temporary seat reservations during online checkout | Completed | Online Square checkout now creates a private 10-minute event/email-bound reservation before tokenizing the card, counts active holds against capacity, and consumes the hold when the registration is written. |
 | Add Square webhook signature verification | Not Started | Reconcile completed, failed, cancelled, and refunded payments. |
 | Add payment reconciliation tools | Not Started | Flag charged payments that did not finish updating Firestore. |
 | Initiate Square refunds from the app | Not Started | Do not mark an online payment refunded until Square confirms it. |
@@ -117,3 +117,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-22 | Completed Phase 1 code: protected profile lookup, Firebase/password verification, Resend email codes, one-use registration tokens, server-only registration creation, and removal of phone verification. |
 | 2026-07-22 | Verified five registration-security tests, zero changed-file lint findings, a successful production build, Firestore rules compilation, and denial of an unauthenticated direct registration write. |
 | 2026-07-22 | Added the `registrationVerifications.expiresAt` TTL policy to the version-controlled Firestore index configuration. |
+| 2026-07-23 | Confirmed Phase 1 production testing passed and started Phase 2. Added 10-minute Square checkout seat reservations, private `registrationReservations` rules, and TTL cleanup for expired holds. |

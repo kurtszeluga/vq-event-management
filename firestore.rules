@@ -164,6 +164,7 @@ service cloud.firestore {
           'registrantLastName',
           'paymentMethod',
           'paymentNote',
+          'paymentPreference',
           'paymentStatus',
           'paymentUpdatedDate',
           'status'
@@ -192,6 +193,8 @@ service cloud.firestore {
         && (!('paymentMethod' in request.resource.data)
           || validStatus(request.resource.data.paymentMethod, ['', 'None', 'Online', 'Cash', 'Check', 'Comped']))
         && (!('paymentNote' in request.resource.data) || request.resource.data.paymentNote is string)
+        && (!('paymentPreference' in request.resource.data)
+          || validStatus(request.resource.data.paymentPreference, ['', 'cash-check-later', 'online']))
         && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'])
         && (!('paymentUpdatedDate' in request.resource.data)
           || request.resource.data.paymentUpdatedDate is timestamp)
@@ -725,6 +728,10 @@ service cloud.firestore {
     }
 
     match /registrationVerifications/{verificationId} {
+      allow read, write: if false;
+    }
+
+    match /registrationReservations/{reservationId} {
       allow read, write: if false;
     }
 

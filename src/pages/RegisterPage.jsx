@@ -6,6 +6,7 @@ import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
 import { getEvent } from '../services/eventService.js';
 import {
+  beginSquareReservation,
   createRegistration,
   loadSquarePaymentConfig,
   lookupRegistrationEmail,
@@ -368,9 +369,6 @@ function RegisterPage() {
     setSubmitting(true);
 
     try {
-      const squarePaymentToken = requiresSquarePayment
-        ? squareWalletToken || await tokenizeSquarePayment()
-        : '';
       const profileUpdates = {
         firstName: toTitleCase(firstName),
         lastName: toTitleCase(lastName),
@@ -386,8 +384,7 @@ function RegisterPage() {
           street: billingStreet
         });
       }
-
-      const result = await createRegistration({
+      const registrationRequest = {
         email,
         eventId,
         name: displayName,
@@ -397,10 +394,22 @@ function RegisterPage() {
         profileUpdates,
         reactivateProfile,
         reactivationTermsAccepted,
-        squarePaymentToken,
         termsVersion: displayedTermsVersion,
         verificationChallengeId: emailVerificationChallengeId,
         verificationToken: registrationVerificationToken
+      };
+      const paymentReservation = requiresSquarePayment
+        ? await beginSquareReservation(registrationRequest)
+        : null;
+      const squarePaymentToken = requiresSquarePayment && paymentReservation?.paymentRequired !== false
+        ? squareWalletToken || await tokenizeSquarePayment()
+        : '';
+
+      const result = await createRegistration({
+        ...registrationRequest,
+        paymentReservationId: paymentReservation?.reservationId || '',
+        paymentReservationToken: paymentReservation?.reservationToken || '',
+        squarePaymentToken,
       });
       setRegistrationFinalizing(true);
       setConfirmation(result);

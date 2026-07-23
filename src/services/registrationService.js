@@ -107,6 +107,28 @@ export async function loadSquarePaymentConfig() {
   return result;
 }
 
+export async function beginSquareReservation(registrationData) {
+  const idToken = await getMatchingUserIdToken(registrationData.email);
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({
+      ...registrationData,
+      action: 'beginSquareReservation'
+    }),
+    headers: {
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Payment seat hold could not be created.');
+  }
+
+  return result;
+}
+
 export async function sendMembershipConfirmation(kind = 'signup') {
   const idToken = await auth?.currentUser?.getIdToken();
 

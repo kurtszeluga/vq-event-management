@@ -3,9 +3,13 @@ import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import {
   getTimestampMillis,
+  generateRegistrationToken,
+  hashVerificationSecret,
   normalizeEmail,
   verificationSecretsMatch
 } from './_lib/registration-verification.js';
+
+const PAYMENT_RESERVATION_EXPIRATION_MS = 10 * 60 * 1000;
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
@@ -27,6 +31,19 @@ export default async function handler(request, response) {
 
     if (request.body?.action === 'sendMembershipConfirmation') {
       await handleMembershipConfirmationRequest(request, response, db, app.options.projectId);
+      return;
+    }
+
+    if (request.body?.action === 'beginSquareReservation') {
+      const payload = sanitizeRegistrationPayload(request.body || {});
+      const authorization = await authorizeRegistrationRequest(
+        request,
+        payload,
+        app.options.projectId
+      );
+      const reservation = await beginSquarePaymentReservation(db, payload, authorization);
+
+      response.status(200).json(reservation);
       return;
     }
 
@@ -215,6 +232,13 @@ async function createRegistration(db, payload, authorization) {
     const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
     const paymentStatus = getInitialPaymentStatus({ isPaidEvent, status });
     const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
+    const paymentReservation = requiresSquarePayment
+      ? await validatePaymentReservation(transaction, db, payload, {
+        amountDue,
+        email: payload.email,
+        eventId: payload.eventId
+      })
+      : null;
 
     if (requiresSquarePayment && !payload.squarePaymentToken) {
       throw httpError(400, 'Enter card payment details before submitting registration.');
@@ -258,6 +282,15 @@ async function createRegistration(db, payload, authorization) {
         consumedAt: FieldValue.serverTimestamp(),
         consumedRegistrationId: registrationRef.id,
         registrationTokenHash: ''
+      });
+    }
+
+    if (paymentReservation) {
+      transaction.update(paymentReservation.ref, {
+        consumedAt: FieldValue.serverTimestamp(),
+        registrationId: registrationRef.id,
+        status: 'Consumed',
+        tokenHash: ''
       });
     }
 
@@ -401,6 +434,131 @@ async function createRegistration(db, payload, authorization) {
   }
 }
 
+async function beginSquarePaymentReservation(db, payload, authorization) {
+  if (!payload.eventId) {
+    throw httpError(400, 'Select an event before starting payment.');
+  }
+
+  if (!payload.email) {
+    throw httpError(400, 'Enter an email address before starting payment.');
+  }
+
+  const eventRef = db.collection('events').doc(payload.eventId);
+  const reservationRef = db.collection('registrationReservations').doc();
+  const now = Date.now();
+  const expiresAtMillis = now + PAYMENT_RESERVATION_EXPIRATION_MS;
+
+  return db.runTransaction(async (transaction) => {
+    if (authorization.kind === 'email-code') {
+      await getVerificationChallenge(transaction, db, payload, authorization);
+    }
+
+    const eventSnap = await transaction.get(eventRef);
+
+    if (!eventSnap.exists) {
+      throw httpError(404, 'This event is no longer available.');
+    }
+
+    const event = { id: eventSnap.id, ...eventSnap.data() };
+    const profile = payload.profileUserId
+      ? await getProfileById(transaction, db, payload.profileUserId, payload.email)
+      : await findUserProfileByEmail(db, payload.email);
+    const membershipStatus = getMembershipStatus(profile);
+    const profileStatus = getProfileStatus(profile);
+
+    if (authorization.kind === 'firebase' && profile) {
+      const profileUserId = profile.userId || profile.id;
+
+      if (profileUserId !== authorization.userId) {
+        throw httpError(403, 'The signed-in account is not linked to this member profile.');
+      }
+    }
+
+    validateRegistrationEligibility(event, {
+      membershipStatus,
+      profile,
+      profileStatus,
+      reactivateProfile: payload.reactivateProfile
+    });
+
+    const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
+    const payLaterByCashCheck =
+      isPaidEvent
+      && Boolean(event.allowCashCheckPayment)
+      && payload.paymentPreference === 'cash-check-later';
+
+    if (!isPaidEvent || payLaterByCashCheck) {
+      return {
+        amountDue: 0,
+        paymentRequired: false,
+        reservationId: '',
+        reservationToken: '',
+        status: 'No Reservation Needed'
+      };
+    }
+
+    const existingSnapshot = await transaction.get(
+      db.collection('registrations').where('eventId', '==', payload.eventId)
+    );
+    const existingRegistrations = existingSnapshot.docs.map((docSnapshot) => ({
+      id: docSnapshot.id,
+      ...docSnapshot.data()
+    }));
+    const alreadyRegistered = existingRegistrations.some((registration) =>
+      ['Pending Payment', 'Registered', 'Waitlisted'].includes(registration.status)
+        && (
+          normalizeEmail(registration.email) === payload.email
+          || (profile?.id && registration.userId === (profile.userId || profile.id))
+        )
+    );
+
+    if (alreadyRegistered) {
+      throw httpError(409, 'An active registration already exists for this email and event.');
+    }
+
+    const registeredCount = existingRegistrations.filter(
+      (registration) => registration.status === 'Registered'
+    ).length;
+    const activeReservationCount = await getActiveReservationCount(transaction, db, payload.eventId, now);
+    const seatsAvailable = Boolean(event.capacityUnlimited)
+      || registeredCount + activeReservationCount < Number(event.capacity || 0);
+
+    if (!seatsAvailable) {
+      return {
+        amountDue: 0,
+        paymentRequired: false,
+        reservationId: '',
+        reservationToken: '',
+        status: 'Waitlisted'
+      };
+    }
+
+    const amountDue = Number(event.cost || 0) + Number(event.serviceFee || 0);
+    const reservationToken = generateRegistrationToken();
+
+    transaction.set(reservationRef, {
+      amountDue,
+      createdAt: FieldValue.serverTimestamp(),
+      email: payload.email,
+      eventId: payload.eventId,
+      expiresAt: new Date(expiresAtMillis),
+      registrationId: '',
+      status: 'Active',
+      tokenHash: hashVerificationSecret(reservationRef.id, reservationToken),
+      userId: profile?.userId || profile?.id || ''
+    });
+
+    return {
+      amountDue,
+      expiresAt: new Date(expiresAtMillis).toISOString(),
+      paymentRequired: true,
+      reservationId: reservationRef.id,
+      reservationToken,
+      status: 'Reserved'
+    };
+  });
+}
+
 async function getProfileById(transaction, db, profileUserId, email) {
   const profileRef = db.collection('users').doc(profileUserId);
   const profileSnap = await transaction.get(profileRef);
@@ -504,6 +662,8 @@ function sanitizeRegistrationPayload(payload) {
     eventId: String(payload.eventId || '').trim(),
     name: normalizeName(payload.name || ''),
     paymentPreference: payload.paymentPreference === 'cash-check-later' ? 'cash-check-later' : '',
+    paymentReservationId: cleanText(payload.paymentReservationId),
+    paymentReservationToken: cleanText(payload.paymentReservationToken),
     phone: String(payload.phone || '').trim(),
     profileUserId: String(payload.profileUserId || '').trim(),
     profileUpdates: sanitizeProfileUpdates(payload.profileUpdates || {}),
@@ -578,6 +738,54 @@ async function getVerificationChallenge(transaction, db, payload, authorization)
   }
 
   return { ref: challengeRef };
+}
+
+async function validatePaymentReservation(transaction, db, payload, expected) {
+  if (!payload.paymentReservationId || !payload.paymentReservationToken) {
+    throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
+  }
+
+  const reservationRef = db
+    .collection('registrationReservations')
+    .doc(payload.paymentReservationId);
+  const reservationSnap = await transaction.get(reservationRef);
+
+  if (!reservationSnap.exists) {
+    throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
+  }
+
+  const reservation = reservationSnap.data();
+  const tokenMatches = verificationSecretsMatch(
+    reservation.tokenHash,
+    payload.paymentReservationId,
+    payload.paymentReservationToken
+  );
+
+  if (
+    reservation.status !== 'Active'
+    || reservation.eventId !== expected.eventId
+    || reservation.email !== expected.email
+    || Number(reservation.amountDue || 0) !== Number(expected.amountDue || 0)
+    || getTimestampMillis(reservation.expiresAt) <= Date.now()
+    || !tokenMatches
+  ) {
+    throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
+  }
+
+  return { ref: reservationRef };
+}
+
+async function getActiveReservationCount(transaction, db, eventId, now) {
+  const snapshot = await transaction.get(
+    db.collection('registrationReservations').where('eventId', '==', eventId)
+  );
+
+  return snapshot.docs.filter((docSnapshot) => {
+    const reservation = docSnapshot.data();
+
+    return reservation.status === 'Active'
+      && getTimestampMillis(reservation.expiresAt) > now;
+  }).length;
 }
 
 async function createSquarePayment(paymentRequest) {
