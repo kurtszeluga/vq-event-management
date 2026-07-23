@@ -9,7 +9,7 @@ import {
   verificationSecretsMatch
 } from './_lib/registration-verification.js';
 
-const PAYMENT_RESERVATION_EXPIRATION_MS = 10 * 60 * 1000;
+const PAYMENT_RESERVATION_EXPIRATION_MS = 2 * 60 * 1000;
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
