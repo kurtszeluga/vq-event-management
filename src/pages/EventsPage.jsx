@@ -445,7 +445,9 @@ function EventsPage() {
           const descriptionIsLong = description.length > DESCRIPTION_PREVIEW_LENGTH;
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
           const thumbnailUrl = getEventThumbnail(event);
-          const availability = getRegistrationAvailability(event, registrationCounts[event.id]);
+          const counts = registrationCounts[event.id] || {};
+          const availability = getRegistrationAvailability(event, counts);
+          const registrationStats = getEventRegistrationStats(event, counts);
           const availabilityTone = availability.label === 'Unlimited'
             ? availability.tone
             : event.registrationOpen
@@ -482,6 +484,23 @@ function EventsPage() {
                     ) : null}
                   </div>
                 ) : null}
+                <div className="event-registration-pill-row" aria-label="Registration statistics">
+                  {registrationStats.map((stat) => (
+                    <span
+                      className={`event-registration-pill${stat.tone ? ` ${stat.tone}` : ''}`}
+                      key={stat.label}
+                    >
+                      <strong>{stat.value}</strong>
+                      {stat.label}
+                    </span>
+                  ))}
+                  {Number(counts.held || 0) ? (
+                    <span className="event-registration-pill hold">
+                      <strong>{Number(counts.held || 0)}</strong>
+                      Held
+                    </span>
+                  ) : null}
+                </div>
                 <dl>
                   <div className="event-card-date">
                     <dt>Date</dt>
@@ -560,6 +579,35 @@ function EventsPage() {
       </div>
     </section>
   );
+}
+
+function getEventRegistrationStats(event, counts = {}) {
+  const registered = Number(counts.registered || 0);
+  const waitlisted = Number(counts.waitlisted || 0);
+
+  if (event.capacityUnlimited) {
+    return [
+      { label: 'Capacity', value: 'Unlimited' },
+      { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+      { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
+      { label: 'Open Seats', value: 'Unlimited', tone: 'open' }
+    ];
+  }
+
+  const capacity = Number(event.capacity || 0);
+  const held = Number(counts.held || 0);
+  const openSeats = capacity ? Math.max(capacity - registered - held, 0) : null;
+
+  return [
+    { label: 'Capacity', value: capacity ? String(capacity) : 'Not Set' },
+    { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+    { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
+    {
+      label: 'Open Seats',
+      value: openSeats === null ? 'N/A' : String(openSeats),
+      tone: openSeats === 0 && capacity ? 'full' : 'open'
+    }
+  ];
 }
 
 export default EventsPage;
