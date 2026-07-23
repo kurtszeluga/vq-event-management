@@ -392,6 +392,39 @@ function RegisterPage() {
       && !confirmation
   );
 
+  const ensurePaymentReservation = useCallback(async () => {
+    if (isPaymentReservationActive(paymentReservation)) {
+      return paymentReservation;
+    }
+
+    if (!requiresSquarePayment) {
+      return null;
+    }
+
+    if (paymentReservationRequestActive.current) {
+      return null;
+    }
+
+    paymentReservationRequestActive.current = true;
+    setPaymentReservationLoading(true);
+    setPaymentReservationError('');
+
+    try {
+      const reservation = await beginSquareReservation(buildRegistrationRequest());
+
+      setPaymentReservation(reservation);
+      setPaymentReservationError('');
+      return reservation;
+    } catch (error) {
+      setPaymentReservation(null);
+      setPaymentReservationError(error.message);
+      throw error;
+    } finally {
+      setPaymentReservationLoading(false);
+      paymentReservationRequestActive.current = false;
+    }
+  }, [buildRegistrationRequest, paymentReservation, requiresSquarePayment]);
+
   useEffect(() => {
     if (
       !requiresSquarePayment
@@ -399,51 +432,20 @@ function RegisterPage() {
       || needsProfileEdits
       || confirmation
       || paymentReservation
-      || paymentReservationRequestActive.current
       || !email
       || (!accountVerified && !emailVerified)
     ) {
-      return undefined;
+      return;
     }
 
-    let active = true;
-
-    paymentReservationRequestActive.current = true;
-    setPaymentReservationLoading(true);
-    setPaymentReservationError('');
-
-    beginSquareReservation(buildRegistrationRequest())
-      .then((reservation) => {
-        if (!active) {
-          return;
-        }
-
-        setPaymentReservation(reservation);
-        setPaymentReservationError('');
-      })
-      .catch((error) => {
-        if (active) {
-          setPaymentReservation(null);
-          setPaymentReservationError(error.message);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setPaymentReservationLoading(false);
-        }
-        paymentReservationRequestActive.current = false;
-      });
-
-    return () => {
-      active = false;
-    };
+    ensurePaymentReservation().catch(() => {});
   }, [
     accountVerified,
-    buildRegistrationRequest,
     canShowRegistrantFields,
     confirmation,
     email,
     emailVerified,
+    ensurePaymentReservation,
     needsProfileEdits,
     paymentReservation,
     requiresSquarePayment
@@ -494,7 +496,7 @@ function RegisterPage() {
       const activePaymentReservation = requiresSquarePayment
         ? isPaymentReservationActive(paymentReservation)
           ? paymentReservation
-          : await beginSquareReservation(registrationRequest)
+          : await ensurePaymentReservation()
         : null;
       const squarePaymentToken = requiresSquarePayment && activePaymentReservation?.paymentRequired !== false
         ? squareWalletToken || await tokenizeSquarePayment()
@@ -1106,6 +1108,7 @@ function RegisterPage() {
                       disabled={submitting || Boolean(confirmation)}
                       error={squareError}
                       onCardReady={setSquareCard}
+                      onEnsureReservation={ensurePaymentReservation}
                       onWalletTokenReady={setSquareWalletToken}
                       onlinePaymentRequired={requiresSquarePayment}
                       reservation={paymentReservation}
@@ -1416,6 +1419,7 @@ function RegistrationPaymentPanel({
   disabled,
   error,
   onCardReady,
+  onEnsureReservation,
   onWalletTokenReady,
   onlinePaymentRequired,
   reservation,
@@ -1662,7 +1666,12 @@ function RegistrationPaymentPanel({
               <button
                 className="button-link button-reset compact-action"
                 type="button"
-                onClick={() => selectSandboxTestPayment(onWalletTokenReady, setTestCardMessage)}
+                onClick={() => selectSandboxTestPayment({
+                  onEnsureReservation,
+                  onWalletTokenReady,
+                  setLocalError,
+                  setMessage: setTestCardMessage
+                })}
               >
                 {selectedPaymentToken === 'cnon:card-nonce-ok' ? 'Test Card Selected' : 'Use Test Card'}
               </button>
@@ -1704,9 +1713,24 @@ function RegistrationPaymentPanel({
   );
 }
 
-function selectSandboxTestPayment(onWalletTokenReady, setMessage) {
-  onWalletTokenReady('cnon:card-nonce-ok');
-  setMessage('Test payment selected. Click Submit Registration to finish.');
+async function selectSandboxTestPayment({
+  onEnsureReservation,
+  onWalletTokenReady,
+  setLocalError,
+  setMessage
+}) {
+  setLocalError('');
+  setMessage('Starting seat hold...');
+
+  try {
+    await onEnsureReservation();
+    onWalletTokenReady('cnon:card-nonce-ok');
+    setMessage('Test payment selected. Click Submit Registration to finish.');
+  } catch (error) {
+    onWalletTokenReady('');
+    setMessage('');
+    setLocalError(error.message || 'Payment seat hold could not be created.');
+  }
 }
 
 function formatAddress(address = {}) {
