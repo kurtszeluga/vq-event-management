@@ -44,7 +44,10 @@ export function subscribeToRegistrationPayments(registrationId, userId, onNext, 
     return () => {};
   }
 
-  const paymentConstraints = [where('registrationId', '==', registrationId)];
+  const paymentConstraints = [
+    where('entityType', '==', 'Registration'),
+    where('registrationId', '==', registrationId)
+  ];
 
   if (userId) {
     paymentConstraints.push(where('userId', '==', userId));
