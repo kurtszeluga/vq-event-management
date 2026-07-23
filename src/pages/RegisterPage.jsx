@@ -93,6 +93,7 @@ function RegisterPage() {
   const [paymentReservation, setPaymentReservation] = useState(null);
   const [paymentReservationError, setPaymentReservationError] = useState('');
   const [paymentReservationLoading, setPaymentReservationLoading] = useState(false);
+  const [paymentReservationExpired, setPaymentReservationExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const paymentReservationRequestActive = useRef(false);
 
@@ -135,6 +136,7 @@ function RegisterPage() {
     setRegistrationVerificationToken('');
     setPaymentReservation(null);
     setPaymentReservationError('');
+    setPaymentReservationExpired(false);
     setPaymentReservationLoading(false);
     setLookup(null);
     setLookupComplete(false);
@@ -216,6 +218,7 @@ function RegisterPage() {
     setPaymentPreference('');
     setPaymentReservation(null);
     setPaymentReservationError('');
+    setPaymentReservationExpired(false);
   }, [eventId]);
 
   useEffect(() => {
@@ -282,6 +285,7 @@ function RegisterPage() {
     setSquareWalletToken('');
     setPaymentReservation(null);
     setPaymentReservationError('');
+    setPaymentReservationExpired(false);
   }, [
     billingCity,
     billingCountry,
@@ -393,6 +397,10 @@ function RegisterPage() {
   );
 
   const ensurePaymentReservation = useCallback(async () => {
+    if (paymentReservationExpired) {
+      throw new Error('Your payment seat hold expired. Start registration again.');
+    }
+
     if (isPaymentReservationActive(paymentReservation)) {
       return paymentReservation;
     }
@@ -414,6 +422,7 @@ function RegisterPage() {
 
       setPaymentReservation(reservation);
       setPaymentReservationError('');
+      setPaymentReservationExpired(false);
       return reservation;
     } catch (error) {
       setPaymentReservation(null);
@@ -423,7 +432,7 @@ function RegisterPage() {
       setPaymentReservationLoading(false);
       paymentReservationRequestActive.current = false;
     }
-  }, [buildRegistrationRequest, paymentReservation, requiresSquarePayment]);
+  }, [buildRegistrationRequest, paymentReservation, paymentReservationExpired, requiresSquarePayment]);
 
   useEffect(() => {
     if (
@@ -647,7 +656,7 @@ function RegisterPage() {
     }
   }
 
-  function handleClose() {
+  const handleClose = useCallback(() => {
     window.close();
 
     window.setTimeout(() => {
@@ -663,14 +672,22 @@ function RegisterPage() {
 
       setCloseMessage('You can close this registration window or tab.');
     }, 250);
-  }
+  }, [navigate, returnTarget]);
 
-  function handleCompletionClose() {
+  const handleCompletionClose = useCallback(() => {
     window.close();
     window.setTimeout(() => {
       setCloseMessage('You can close this registration window or tab.');
     }, 250);
-  }
+  }, []);
+
+  const handlePaymentReservationExpired = useCallback(() => {
+    setPaymentReservationExpired(true);
+    setPaymentReservation(null);
+    setPaymentReservationError('Your payment seat hold expired. Start registration again.');
+    setSquareWalletToken('');
+    window.setTimeout(handleClose, 1500);
+  }, [handleClose]);
 
   function handleStartProfileEdit() {
     setNeedsProfileEdits(true);
@@ -1109,6 +1126,7 @@ function RegisterPage() {
                       error={squareError}
                       onCardReady={setSquareCard}
                       onEnsureReservation={ensurePaymentReservation}
+                      onReservationExpired={handlePaymentReservationExpired}
                       onWalletTokenReady={setSquareWalletToken}
                       onlinePaymentRequired={requiresSquarePayment}
                       reservation={paymentReservation}
@@ -1128,6 +1146,7 @@ function RegisterPage() {
                     className="button-link button-reset"
                     disabled={submitting
                       || Boolean(registrationUnavailable)
+                      || paymentReservationExpired
                       || (requiresSquarePayment && (!squareCard && !squareWalletToken || Boolean(squareError && !squareWalletToken)))
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
@@ -1420,6 +1439,7 @@ function RegistrationPaymentPanel({
   error,
   onCardReady,
   onEnsureReservation,
+  onReservationExpired,
   onWalletTokenReady,
   onlinePaymentRequired,
   reservation,
@@ -1436,6 +1456,7 @@ function RegistrationPaymentPanel({
   const [walletMessage, setWalletMessage] = useState('');
   const [walletProcessing, setWalletProcessing] = useState('');
   const [reservationTimeLeft, setReservationTimeLeft] = useState('');
+  const reservationExpiredHandled = useRef(false);
   const [walletSupport, setWalletSupport] = useState({
     applePay: false,
     googlePay: false
@@ -1470,14 +1491,21 @@ function RegistrationPaymentPanel({
   useEffect(() => {
     if (!reservation?.expiresAt) {
       setReservationTimeLeft('');
+      reservationExpiredHandled.current = false;
       return undefined;
     }
+
+    reservationExpiredHandled.current = false;
 
     function updateCountdown() {
       const millisLeft = Date.parse(reservation.expiresAt) - Date.now();
 
       if (millisLeft <= 0) {
         setReservationTimeLeft('expired');
+        if (!reservationExpiredHandled.current) {
+          reservationExpiredHandled.current = true;
+          onReservationExpired();
+        }
         return;
       }
 
@@ -1491,7 +1519,7 @@ function RegistrationPaymentPanel({
     const intervalId = window.setInterval(updateCountdown, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [reservation]);
+  }, [onReservationExpired, reservation]);
 
   useEffect(() => {
     if (!onlinePaymentRequired || !config?.enabled) {
@@ -1633,7 +1661,7 @@ function RegistrationPaymentPanel({
           {reservationTimeLeft ? (
             <p className={reservationTimeLeft === 'expired' ? 'form-error' : 'form-success'}>
               {reservationTimeLeft === 'expired'
-                ? 'Your payment seat hold expired. Submit again to start a new hold.'
+                ? 'Your payment seat hold expired. Returning you to the listing.'
                 : `Your seat is held for ${reservationTimeLeft} while you complete payment.`}
             </p>
           ) : null}

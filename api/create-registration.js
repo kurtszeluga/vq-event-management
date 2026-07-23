@@ -217,28 +217,37 @@ async function createRegistration(db, payload, authorization) {
       throw httpError(409, 'An active registration already exists for this email and event.');
     }
 
-    const registeredCount = existingRegistrations.filter(
-      (registration) => registration.status === 'Registered'
-    ).length;
-    const hasCapacity = Boolean(event.capacityUnlimited) || registeredCount < Number(event.capacity || 0);
     const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
     const payLaterByCashCheck =
       isPaidEvent
       && Boolean(event.allowCashCheckPayment)
       && payload.paymentPreference === 'cash-check-later';
-    const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
     const eventCost = Number(event.cost || 0);
     const eventServiceFee = Number(event.serviceFee || 0);
     const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
-    const paymentStatus = getInitialPaymentStatus({ isPaidEvent, status });
-    const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
-    const paymentReservation = requiresSquarePayment
+    const possiblePaymentReservation = isPaidEvent && !payLaterByCashCheck && payload.paymentReservationId
       ? await validatePaymentReservation(transaction, db, payload, {
         amountDue,
         email: payload.email,
         eventId: payload.eventId
       })
       : null;
+    const registeredCount = existingRegistrations.filter(
+      (registration) => registration.status === 'Registered'
+    ).length;
+    const activeReservationCount = await getActiveReservationCount(
+      transaction,
+      db,
+      payload.eventId,
+      Date.now(),
+      possiblePaymentReservation?.id || payload.paymentReservationId
+    );
+    const hasCapacity = Boolean(event.capacityUnlimited)
+      || registeredCount + activeReservationCount < Number(event.capacity || 0);
+    const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
+    const paymentStatus = getInitialPaymentStatus({ isPaidEvent, status });
+    const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
+    const paymentReservation = requiresSquarePayment ? possiblePaymentReservation : null;
 
     if (requiresSquarePayment && !payload.squarePaymentToken) {
       throw httpError(400, 'Enter card payment details before submitting registration.');
@@ -770,10 +779,10 @@ async function validatePaymentReservation(transaction, db, payload, expected) {
     throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
   }
 
-  return { ref: reservationRef };
+  return { id: payload.paymentReservationId, ref: reservationRef };
 }
 
-async function getActiveReservationCount(transaction, db, eventId, now) {
+async function getActiveReservationCount(transaction, db, eventId, now, excludedReservationId = '') {
   const snapshot = await transaction.get(
     db.collection('registrationReservations').where('eventId', '==', eventId)
   );
@@ -781,7 +790,8 @@ async function getActiveReservationCount(transaction, db, eventId, now) {
   return snapshot.docs.filter((docSnapshot) => {
     const reservation = docSnapshot.data();
 
-    return reservation.status === 'Active'
+    return docSnapshot.id !== excludedReservationId
+      && reservation.status === 'Active'
       && getTimestampMillis(reservation.expiresAt) > now;
   }).length;
 }
