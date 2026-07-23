@@ -45,6 +45,31 @@ export function subscribeToSquareWebhookEvents(onNext, onError) {
   return onSnapshot(webhookEventsQuery, onNext, onError);
 }
 
+export async function resolvePaymentReviewItem(reviewId, resolutionNote) {
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error('You must be signed in to resolve payment review items.');
+  }
+
+  const idToken = await currentUser.getIdToken();
+  const response = await fetch('/api/admin-update-registration-payment', {
+    body: JSON.stringify({ action: 'resolvePaymentReview', resolutionNote, reviewId }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Payment review item could not be resolved.');
+  }
+
+  return result;
+}
+
 export function subscribeToRegistrationPayments(registrationId, userId, onNext, onError) {
   if (!registrationId) {
     return () => {};

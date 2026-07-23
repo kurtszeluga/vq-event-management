@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { subscribeToSquareWebhookEvents } from '../../services/registrationService.js';
+import {
+  resolvePaymentReviewItem,
+  subscribeToSquareWebhookEvents
+} from '../../services/registrationService.js';
 
 const FILTERS = [
   { label: 'Needs Review', value: 'needs-review' },
   { label: 'All', value: 'all' },
   { label: 'Completed', value: 'completed' },
+  { label: 'Reviewed', value: 'reviewed' },
   { label: 'No Action', value: 'no-action' }
 ];
 
@@ -13,6 +17,9 @@ function PaymentReconciliationPanel() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('needs-review');
   const [loading, setLoading] = useState(true);
+  const [resolutionNotes, setResolutionNotes] = useState({});
+  const [resolvingId, setResolvingId] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const unsubscribe = subscribeToSquareWebhookEvents(
@@ -36,7 +43,8 @@ function PaymentReconciliationPanel() {
       all: events.length,
       completed: events.filter(isCompletedEvent).length,
       needsReview: events.filter(isNeedsReviewEvent).length,
-      noAction: events.filter(isNoActionEvent).length
+      noAction: events.filter(isNoActionEvent).length,
+      reviewed: events.filter(isReviewedEvent).length
     }),
     [events]
   );
@@ -44,6 +52,36 @@ function PaymentReconciliationPanel() {
     () => events.filter((event) => matchesFilter(event, filter)),
     [events, filter]
   );
+  const handleNoteChange = (eventId, value) => {
+    setResolutionNotes((currentNotes) => ({ ...currentNotes, [eventId]: value }));
+  };
+  const handleResolveReview = async (event) => {
+    const resolutionNote = String(resolutionNotes[event.id] || '').trim();
+
+    if (!resolutionNote) {
+      setError('Enter a short note before marking the payment review item as reviewed.');
+      setSuccessMessage('');
+      return;
+    }
+
+    setError('');
+    setSuccessMessage('');
+    setResolvingId(event.id);
+
+    try {
+      await resolvePaymentReviewItem(event.id, resolutionNote);
+      setResolutionNotes((currentNotes) => {
+        const nextNotes = { ...currentNotes };
+        delete nextNotes[event.id];
+        return nextNotes;
+      });
+      setSuccessMessage('Payment review item marked reviewed.');
+    } catch (resolveError) {
+      setError(resolveError.message || 'Payment review item could not be marked reviewed.');
+    } finally {
+      setResolvingId('');
+    }
+  };
 
   return (
     <section className="admin-list-panel" id="payment-review-card">
@@ -68,6 +106,7 @@ function PaymentReconciliationPanel() {
         ))}
       </div>
       {error ? <p className="form-error">{error}</p> : null}
+      {successMessage ? <p className="form-success">{successMessage}</p> : null}
       {loading ? (
         <div className="empty-state compact-empty-state">
           <h2>Loading payment events</h2>
@@ -90,6 +129,7 @@ function PaymentReconciliationPanel() {
                 <th scope="col">Reconciliation</th>
                 <th scope="col">Object</th>
                 <th scope="col">Review Details</th>
+                <th scope="col">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +148,35 @@ function PaymentReconciliationPanel() {
                     <span className="table-subtext">{event.objectId || 'No object id'}</span>
                   </td>
                   <td data-label="Review Details">{formatReviewDetails(event.reviewDetails)}</td>
+                  <td data-label="Action">
+                    {isNeedsReviewEvent(event) ? (
+                      <div className="payment-review-actions">
+                        <label htmlFor={`payment-review-note-${event.id}`}>Resolution note</label>
+                        <textarea
+                          id={`payment-review-note-${event.id}`}
+                          value={resolutionNotes[event.id] || ''}
+                          onChange={(changeEvent) => handleNoteChange(event.id, changeEvent.target.value)}
+                          placeholder="Example: matched manually to registration, no further action needed."
+                        />
+                        <button
+                          className="button-link"
+                          disabled={resolvingId === event.id}
+                          type="button"
+                          onClick={() => handleResolveReview(event)}
+                        >
+                          {resolvingId === event.id ? 'Saving...' : 'Mark Reviewed'}
+                        </button>
+                      </div>
+                    ) : isReviewedEvent(event) ? (
+                      <div className="payment-review-reviewed">
+                        <strong>Reviewed</strong>
+                        <span>{formatResolvedBy(event)}</span>
+                        {event.resolutionNote ? <span>{event.resolutionNote}</span> : null}
+                      </div>
+                    ) : (
+                      <span className="table-subtext">No action needed</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -127,6 +196,10 @@ function matchesFilter(event, filter) {
     return isCompletedEvent(event);
   }
 
+  if (filter === 'reviewed') {
+    return isReviewedEvent(event);
+  }
+
   if (filter === 'no-action') {
     return isNoActionEvent(event);
   }
@@ -141,6 +214,10 @@ function getFilterCount(filter, counts) {
 
   if (filter === 'completed') {
     return counts.completed;
+  }
+
+  if (filter === 'reviewed') {
+    return counts.reviewed;
   }
 
   if (filter === 'no-action') {
@@ -162,6 +239,10 @@ function isNeedsReviewEvent(event) {
   return String(event.reconciliationStatus || '').includes('Needs Review');
 }
 
+function isReviewedEvent(event) {
+  return event.reconciliationStatus === 'Reviewed';
+}
+
 function getStatusPillClass(event) {
   if (isNeedsReviewEvent(event)) {
     return 'status-pill warning';
@@ -169,6 +250,10 @@ function getStatusPillClass(event) {
 
   if (isCompletedEvent(event)) {
     return 'status-pill good';
+  }
+
+  if (isReviewedEvent(event)) {
+    return 'status-pill neutral';
   }
 
   return 'status-pill neutral';
@@ -194,6 +279,13 @@ function formatDateTime(value) {
   const date = toDate(value);
 
   return date ? date.toLocaleString() : 'Not recorded';
+}
+
+function formatResolvedBy(event) {
+  const reviewer = event.resolvedByName || event.resolvedByEmail || 'Admin';
+  const reviewedAt = formatDateTime(event.resolvedAt);
+
+  return `${reviewer} on ${reviewedAt}`;
 }
 
 function toDate(value) {

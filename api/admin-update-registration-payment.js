@@ -65,6 +65,18 @@ export default async function handler(request, response) {
       return;
     }
 
+    if (request.body?.action === 'resolvePaymentReview') {
+      await resolvePaymentReview({
+        actorProfile,
+        actorUid,
+        db,
+        decodedToken,
+        request,
+        response
+      });
+      return;
+    }
+
     const registrationId = cleanText(request.body?.registrationId);
 
     if (!registrationId) {
@@ -136,6 +148,48 @@ export default async function handler(request, response) {
       error: error.message || 'Payment could not be updated.'
     });
   }
+}
+
+async function resolvePaymentReview({
+  actorProfile,
+  actorUid,
+  db,
+  decodedToken,
+  request,
+  response
+}) {
+  const reviewId = cleanText(request.body?.reviewId);
+  const resolutionNote = cleanText(request.body?.resolutionNote);
+
+  if (!reviewId) {
+    response.status(400).json({ error: 'Payment review ID is required.' });
+    return;
+  }
+
+  if (!resolutionNote) {
+    response.status(400).json({ error: 'Enter a short note explaining how this item was reviewed.' });
+    return;
+  }
+
+  const reviewRef = db.collection('squareWebhookEvents').doc(reviewId);
+  const reviewSnap = await reviewRef.get();
+
+  if (!reviewSnap.exists) {
+    response.status(404).json({ error: 'Payment review item could not be found.' });
+    return;
+  }
+
+  await reviewRef.update({
+    resolvedAt: FieldValue.serverTimestamp(),
+    resolvedByEmail: actorProfile.email || decodedToken.email || '',
+    resolvedByName: actorProfile.name || actorProfile.email || decodedToken.email || 'Admin',
+    resolvedByUserId: actorProfile.userId || actorUid,
+    resolutionNote,
+    reconciliationStatus: 'Reviewed',
+    status: 'Reviewed'
+  });
+
+  response.status(200).json({ status: 'Reviewed' });
 }
 
 function sanitizeRegistrationStatus(status, registration) {
