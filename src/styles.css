@@ -1847,8 +1847,41 @@ body.popup-mode .page-content {
   background: #fff7ed;
 }
 
+.payment-review-table {
+  table-layout: fixed;
+}
+
+.payment-review-table th:nth-child(1),
+.payment-review-table td:nth-child(1) {
+  width: 145px;
+}
+
+.payment-review-table th:nth-child(2),
+.payment-review-table td:nth-child(2) {
+  width: 260px;
+}
+
+.payment-review-table th:nth-child(3),
+.payment-review-table td:nth-child(3) {
+  width: 150px;
+}
+
+.payment-review-table th:nth-child(4),
+.payment-review-table td:nth-child(4) {
+  width: 280px;
+}
+
+.payment-review-table th:nth-child(5),
 .payment-review-table td:nth-child(5) {
-  max-width: 420px;
+  width: 240px;
+}
+
+.payment-review-table td {
+  vertical-align: top;
+}
+
+.payment-review-table td:nth-child(4) {
+  overflow-wrap: anywhere;
 }
 
 .payment-review-actions {

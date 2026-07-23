@@ -113,6 +113,7 @@ async function recordSquareWebhookEvent(db, event, request) {
 
   batch.set(eventRef, {
     processedAt: FieldValue.serverTimestamp(),
+    ...buildWebhookEventSummary(reconciliation),
     reviewDetails: reconciliation?.webhookOnly || {},
     reconciliationStatus: reconciliation?.status || 'No Action',
     status: 'Processed'
@@ -134,14 +135,18 @@ async function buildPaymentReconciliation(db, squarePayment) {
     ? db.collection('registrations').doc(registrationId)
     : null;
   const registrationSnap = registrationRef ? await registrationRef.get() : null;
+  const registration = registrationSnap?.exists ? registrationSnap.data() : null;
   const paymentDocs = await findPaymentDocs(db, {
     registrationId,
     squareTransactionId: squarePaymentId
   });
   const paymentDoc = paymentDocs[0] || null;
+  const payment = paymentDoc?.data() || null;
+  const context = buildPaymentContext({ payment, registration, registrationId });
 
   if (!registrationRef || !registrationSnap?.exists || !paymentDoc) {
     return {
+      context,
       status: 'Needs Review',
       webhookOnly: {
         registrationId,
@@ -155,6 +160,7 @@ async function buildPaymentReconciliation(db, squarePayment) {
     const amountPaid = getSquareAmount(squarePayment.total_money || squarePayment.amount_money);
 
     return {
+      context,
       paymentRef: paymentDoc.ref,
       registrationRef,
       registrationUpdate: {
@@ -185,6 +191,7 @@ async function buildPaymentReconciliation(db, squarePayment) {
 
   if (['CANCELED', 'FAILED'].includes(squareStatus)) {
     return {
+      context,
       paymentRef: paymentDoc.ref,
       registrationRef,
       registrationUpdate: {
@@ -215,6 +222,7 @@ async function buildPaymentReconciliation(db, squarePayment) {
   }
 
   return {
+    context,
     status: 'No Action'
   };
 }
@@ -229,10 +237,16 @@ async function buildRefundReconciliation(db, squareRefund) {
 
   const paymentDocs = await findPaymentDocs(db, { squareTransactionId: squarePaymentId });
   const paymentDoc = paymentDocs[0] || null;
-  const registrationId = cleanText(paymentDoc?.data().registrationId || '');
+  const payment = paymentDoc?.data() || null;
+  const registrationId = cleanText(payment?.registrationId || '');
+  const registrationRef = registrationId ? db.collection('registrations').doc(registrationId) : null;
+  const registrationSnap = registrationRef ? await registrationRef.get() : null;
+  const registration = registrationSnap?.exists ? registrationSnap.data() : null;
+  const context = buildPaymentContext({ payment, registration, registrationId });
 
   if (!paymentDoc || !registrationId) {
     return {
+      context,
       status: 'Needs Review',
       webhookOnly: {
         squarePaymentId,
@@ -241,12 +255,12 @@ async function buildRefundReconciliation(db, squareRefund) {
     };
   }
 
-  const registrationRef = db.collection('registrations').doc(registrationId);
   const refundAmount = getSquareAmount(squareRefund.amount_money);
-  const recordedPaymentAmount = Number(paymentDoc.data().amount || 0);
+  const recordedPaymentAmount = Number(payment?.amount || 0);
 
   if (recordedPaymentAmount && refundAmount < recordedPaymentAmount) {
     return {
+      context,
       status: 'Partial Refund Needs Review',
       webhookOnly: {
         recordedPaymentAmount,
@@ -258,6 +272,7 @@ async function buildRefundReconciliation(db, squareRefund) {
   }
 
   return {
+    context,
     paymentRef: paymentDoc.ref,
     registrationRef,
     registrationUpdate: {
@@ -284,6 +299,26 @@ async function buildRefundReconciliation(db, squareRefund) {
       }
     },
     status: 'Refund Completed'
+  };
+}
+
+function buildWebhookEventSummary(reconciliation) {
+  const context = reconciliation?.context || {};
+
+  return {
+    eventTitle: cleanText(context.eventTitle || ''),
+    registrationEmail: cleanText(context.registrationEmail || ''),
+    registrationId: cleanText(context.registrationId || ''),
+    registrationName: cleanText(context.registrationName || '')
+  };
+}
+
+function buildPaymentContext({ payment = {}, registration = {}, registrationId = '' }) {
+  return {
+    eventTitle: cleanText(registration?.eventTitle || payment?.eventTitle || ''),
+    registrationEmail: cleanText(registration?.email || payment?.createdByEmail || ''),
+    registrationId: cleanText(registrationId || registration?.registrationId || payment?.registrationId || ''),
+    registrationName: cleanText(registration?.name || payment?.createdByName || '')
   };
 }
 

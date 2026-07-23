@@ -125,9 +125,8 @@ function PaymentReconciliationPanel() {
             <thead>
               <tr>
                 <th scope="col">Received</th>
-                <th scope="col">Event</th>
+                <th scope="col">Registrant / Event</th>
                 <th scope="col">Reconciliation</th>
-                <th scope="col">Object</th>
                 <th scope="col">Review Details</th>
                 <th scope="col">Action</th>
               </tr>
@@ -136,18 +135,15 @@ function PaymentReconciliationPanel() {
               {filteredEvents.map((event) => (
                 <tr className={isNeedsReviewEvent(event) ? 'payment-review-needs-attention' : ''} key={event.id}>
                   <td data-label="Received">{formatDateTime(event.receivedAt)}</td>
-                  <td data-label="Event">
-                    <strong>{event.eventType || 'Unknown'}</strong>
-                    <span className="table-subtext">{event.eventId || event.id}</span>
+                  <td data-label="Registrant / Event">
+                    <strong>{event.registrationName || event.registrationEmail || 'Registrant not matched'}</strong>
+                    <span className="table-subtext">{event.eventTitle || 'Event not matched'}</span>
+                    {event.registrationId ? <span className="table-subtext">Registration: {event.registrationId}</span> : null}
                   </td>
                   <td data-label="Reconciliation">
                     <span className={getStatusPillClass(event)}>{event.reconciliationStatus || 'No Action'}</span>
                   </td>
-                  <td data-label="Object">
-                    <strong>{event.objectType || 'Square Object'}</strong>
-                    <span className="table-subtext">{event.objectId || 'No object id'}</span>
-                  </td>
-                  <td data-label="Review Details">{formatReviewDetails(event.reviewDetails)}</td>
+                  <td data-label="Review Details">{formatReviewDetails(event)}</td>
                   <td data-label="Action">
                     {isNeedsReviewEvent(event) ? (
                       <div className="payment-review-actions">
@@ -259,8 +255,14 @@ function getStatusPillClass(event) {
   return 'status-pill neutral';
 }
 
-function formatReviewDetails(details = {}) {
-  const entries = Object.entries(details || {}).filter(([, value]) => value !== '' && value != null);
+function formatReviewDetails(event = {}) {
+  const details = {
+    ...(event.reviewDetails || {}),
+    squareObjectId: event.objectId || '',
+    squareObjectType: event.objectType || '',
+    webhookType: event.eventType || ''
+  };
+  const entries = Object.entries(details).filter(([, value]) => value !== '' && value != null);
 
   if (!entries.length) {
     return 'None';
