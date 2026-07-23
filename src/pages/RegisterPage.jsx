@@ -96,6 +96,7 @@ function RegisterPage() {
   const [paymentReservationExpired, setPaymentReservationExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const paymentReservationRequestActive = useRef(false);
+  const registrationAttemptKey = useRef(createRegistrationAttemptKey());
 
   const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
   const applyProfileToForm = useCallback((profile) => {
@@ -323,6 +324,7 @@ function RegisterPage() {
     return {
       email,
       eventId,
+      idempotencyKey: registrationAttemptKey.current,
       name: displayName,
       paymentPreference: canPayLaterByCashCheck ? paymentPreference : '',
       phone,
@@ -1807,6 +1809,14 @@ function loadSquareScript(scriptUrl) {
   }
 
   return squareScriptPromises.get(scriptUrl);
+}
+
+function createRegistrationAttemptKey() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function validateSquarePaymentConfig(config) {

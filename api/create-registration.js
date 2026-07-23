@@ -9,7 +9,7 @@ import {
   verificationSecretsMatch
 } from './_lib/registration-verification.js';
 
-const PAYMENT_RESERVATION_EXPIRATION_MS = 2 * 60 * 1000;
+const PAYMENT_RESERVATION_EXPIRATION_MS = 5 * 60 * 1000;
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
@@ -161,8 +161,19 @@ async function createRegistration(db, payload, authorization) {
   const registrationRef = db.collection('registrations').doc();
   const paymentRef = db.collection('payments').doc();
   const auditRef = db.collection('auditLogs').doc();
+  const attemptRef = payload.idempotencyKey
+    ? db.collection('registrationAttempts').doc(payload.idempotencyKey)
+    : null;
 
   const result = await db.runTransaction(async (transaction) => {
+    const existingAttempt = attemptRef
+      ? await getExistingRegistrationAttempt(transaction, db, attemptRef, payload)
+      : null;
+
+    if (existingAttempt) {
+      return existingAttempt;
+    }
+
     const verificationChallenge = authorization.kind === 'email-code'
       ? await getVerificationChallenge(transaction, db, payload, authorization)
       : null;
@@ -303,6 +314,19 @@ async function createRegistration(db, payload, authorization) {
       });
     }
 
+    if (attemptRef) {
+      transaction.set(attemptRef, {
+        amountDue,
+        createdAt: FieldValue.serverTimestamp(),
+        email: payload.email,
+        eventId: payload.eventId,
+        paymentId: paymentRef.id,
+        registrationId: registrationRef.id,
+        status: requiresSquarePayment ? 'Payment Pending' : 'Completed',
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    }
+
     if (profile && payload.reactivateProfile && profileStatus !== 'Active') {
       transaction.update(db.collection('users').doc(profile.id), {
         archivedBy: FieldValue.delete(),
@@ -387,6 +411,7 @@ async function createRegistration(db, payload, authorization) {
         email: payload.email,
         eventTitle: event.title || event.eventType || payload.eventId,
         name: payload.name,
+        idempotencyKey: payload.idempotencyKey || registrationRef.id,
         paymentId: paymentRef.id,
         registrationId: registrationRef.id,
         sourceId: payload.squarePaymentToken
@@ -453,7 +478,9 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
   }
 
   const eventRef = db.collection('events').doc(payload.eventId);
-  const reservationRef = db.collection('registrationReservations').doc();
+  const reservationRef = payload.idempotencyKey
+    ? db.collection('registrationReservations').doc(payload.idempotencyKey)
+    : db.collection('registrationReservations').doc();
   const now = Date.now();
   const expiresAtMillis = now + PAYMENT_RESERVATION_EXPIRATION_MS;
 
@@ -528,7 +555,13 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     const registeredCount = existingRegistrations.filter(
       (registration) => registration.status === 'Registered'
     ).length;
-    const activeReservationCount = await getActiveReservationCount(transaction, db, payload.eventId, now);
+    const activeReservationCount = await getActiveReservationCount(
+      transaction,
+      db,
+      payload.eventId,
+      now,
+      reservationRef.id
+    );
     const seatsAvailable = Boolean(event.capacityUnlimited)
       || registeredCount + activeReservationCount < Number(event.capacity || 0);
 
@@ -543,7 +576,33 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     }
 
     const amountDue = Number(event.cost || 0) + Number(event.serviceFee || 0);
-    const reservationToken = generateRegistrationToken();
+    const existingReservationSnap = payload.idempotencyKey
+      ? await transaction.get(reservationRef)
+      : null;
+
+    if (existingReservationSnap?.exists) {
+      const existingReservation = existingReservationSnap.data();
+      const existingExpiresAtMillis = getTimestampMillis(existingReservation.expiresAt)
+        || getTimestampMillis(existingReservation.createdAt) + PAYMENT_RESERVATION_EXPIRATION_MS;
+
+      if (
+        existingReservation.status === 'Active'
+        && existingReservation.eventId === payload.eventId
+        && existingReservation.email === payload.email
+        && existingExpiresAtMillis > now
+      ) {
+        return {
+          amountDue: Number(existingReservation.amountDue || amountDue),
+          expiresAt: new Date(existingExpiresAtMillis).toISOString(),
+          paymentRequired: true,
+          reservationId: reservationRef.id,
+          reservationToken: payload.idempotencyKey,
+          status: 'Reserved'
+        };
+      }
+    }
+
+    const reservationToken = payload.idempotencyKey || generateRegistrationToken();
 
     transaction.set(reservationRef, {
       amountDue,
@@ -566,6 +625,62 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       status: 'Reserved'
     };
   });
+}
+
+async function getExistingRegistrationAttempt(transaction, db, attemptRef, payload) {
+  const attemptSnap = await transaction.get(attemptRef);
+
+  if (!attemptSnap.exists) {
+    return null;
+  }
+
+  const attempt = attemptSnap.data();
+
+  if (attempt.eventId !== payload.eventId || attempt.email !== payload.email) {
+    throw httpError(409, 'This registration attempt is already being used. Refresh and start registration again.');
+  }
+
+  if (!attempt.registrationId) {
+    throw httpError(409, 'This registration is already being processed. Please wait a moment before trying again.');
+  }
+
+  const registrationRef = db.collection('registrations').doc(attempt.registrationId);
+  const registrationSnap = await transaction.get(registrationRef);
+
+  if (!registrationSnap.exists) {
+    throw httpError(409, 'This registration is already being processed. Please wait a moment before trying again.');
+  }
+
+  const registration = { id: registrationSnap.id, ...registrationSnap.data() };
+
+  if (registration.status === 'Cancelled' && registration.paymentStatus === 'Failed') {
+    throw httpError(409, 'The previous payment attempt failed. Refresh and start registration again.');
+  }
+
+  const eventSnap = await transaction.get(db.collection('events').doc(payload.eventId));
+  const event = eventSnap.exists ? { id: eventSnap.id, ...eventSnap.data() } : {};
+  const existingSnapshot = await transaction.get(
+    db.collection('registrations').where('eventId', '==', payload.eventId)
+  );
+  const existingRegistrations = existingSnapshot.docs.map((docSnapshot) => docSnapshot.data());
+
+  return {
+    eventTitle: registration.eventTitle || event.title || '',
+    idempotentReplay: true,
+    membershipStatus: registration.membershipStatusAtRegistration || 'Unknown',
+    paymentPreference: registration.paymentPreference || '',
+    paymentRequired: Boolean(registration.eventPaymentRequired),
+    paymentStatus: registration.paymentStatus || 'Pending',
+    profileReactivated: false,
+    registrationId: registration.registrationId || registration.id,
+    registeredCount: existingRegistrations.filter(
+      (registrationRecord) => registrationRecord.status === 'Registered'
+    ).length,
+    status: registration.status || 'Registered',
+    waitlistedCount: existingRegistrations.filter(
+      (registrationRecord) => registrationRecord.status === 'Waitlisted'
+    ).length
+  };
 }
 
 async function getProfileById(transaction, db, profileUserId, email) {
@@ -669,6 +784,7 @@ function sanitizeRegistrationPayload(payload) {
   return {
     email: normalizeEmail(payload.email),
     eventId: String(payload.eventId || '').trim(),
+    idempotencyKey: sanitizeIdempotencyKey(payload.idempotencyKey),
     name: normalizeName(payload.name || ''),
     paymentPreference: payload.paymentPreference === 'cash-check-later' ? 'cash-check-later' : '',
     paymentReservationId: cleanText(payload.paymentReservationId),
@@ -683,6 +799,12 @@ function sanitizeRegistrationPayload(payload) {
     verificationChallengeId: cleanText(payload.verificationChallengeId),
     verificationToken: cleanText(payload.verificationToken)
   };
+}
+
+function sanitizeIdempotencyKey(value) {
+  const key = String(value || '').trim();
+
+  return /^[A-Za-z0-9_-]{16,80}$/.test(key) ? key : '';
 }
 
 async function authorizeRegistrationRequest(request, payload, projectId) {
@@ -814,7 +936,7 @@ async function createSquarePayment(paymentRequest) {
         amount: Math.round(Number(paymentRequest.amountDue || 0) * 100),
         currency: 'USD'
       },
-      idempotency_key: paymentRequest.registrationId,
+      idempotency_key: paymentRequest.idempotencyKey || paymentRequest.registrationId,
       location_id: locationId,
       note: `Village Quilters registration: ${paymentRequest.eventTitle}`,
       source_id: paymentRequest.sourceId
@@ -873,6 +995,13 @@ async function finalizeSquareRegistrationPayment(db, result, squarePayment) {
         status: 'Registered'
       }
     });
+    if (payment.idempotencyKey) {
+      transaction.update(db.collection('registrationAttempts').doc(payment.idempotencyKey), {
+        squareTransactionId,
+        status: 'Completed',
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    }
     transaction.set(auditRef, {
       action: 'Pay',
       actorEmail: payment.email,
@@ -922,6 +1051,13 @@ async function markSquareRegistrationPaymentFailed(db, result, paymentError) {
         status: 'Cancelled'
       }
     });
+    if (payment.idempotencyKey) {
+      transaction.update(db.collection('registrationAttempts').doc(payment.idempotencyKey), {
+        failureMessage: paymentError.message || 'Square payment failed.',
+        status: 'Failed',
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    }
   });
 }
 

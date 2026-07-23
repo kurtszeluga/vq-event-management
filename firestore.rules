@@ -735,6 +735,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /registrationAttempts/{attemptId} {
+      allow read, write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId)
         || isSuperUser()
