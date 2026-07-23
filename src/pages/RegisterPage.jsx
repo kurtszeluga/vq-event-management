@@ -679,11 +679,13 @@ function RegisterPage() {
   }, [navigate, returnTarget]);
 
   const handleCompletionClose = useCallback(() => {
-    window.close();
-    window.setTimeout(() => {
-      setCloseMessage('You can close this registration window or tab.');
-    }, 250);
-  }, []);
+    if (returnTarget) {
+      window.location.assign(returnTarget);
+      return;
+    }
+
+    navigate('/events');
+  }, [navigate, returnTarget]);
 
   const handlePaymentReservationExpired = useCallback(() => {
     setPaymentReservationExpired(true);
@@ -1439,7 +1441,7 @@ function RegistrationCompletion({ closeMessage, confirmation, event, onReturn })
       </dl>
       <div className="form-actions">
         <button className="button-link button-reset" type="button" onClick={onReturn}>
-          Close Window
+          Return To List
         </button>
       </div>
       {closeMessage ? <p className="form-help">{closeMessage}</p> : null}
@@ -1472,10 +1474,16 @@ function RegistrationPaymentPanel({
   const [walletProcessing, setWalletProcessing] = useState('');
   const [reservationTimeLeft, setReservationTimeLeft] = useState('');
   const reservationExpiredHandled = useRef(false);
+  const selectedPaymentTokenRef = useRef(selectedPaymentToken);
   const [walletSupport, setWalletSupport] = useState({
     applePay: false,
     googlePay: false
   });
+
+  useEffect(() => {
+    selectedPaymentTokenRef.current = selectedPaymentToken;
+  }, [selectedPaymentToken]);
+
   const handleWalletPayment = useCallback(async (paymentMethod, walletName) => {
     if (!paymentMethod || disabled) {
       return;
@@ -1569,7 +1577,19 @@ function RegistrationPaymentPanel({
         const paymentRequest = buildSquarePaymentRequest(payments, amountDue);
 
         if (config.enableCardPayments !== false) {
+          if (selectedPaymentTokenRef.current === 'cnon:card-nonce-ok') {
+            onCardReady(null);
+            return;
+          }
+
           cardInstance = await payments.card();
+          const cardContainer = document.getElementById(cardContainerId.current);
+
+          if (!cardContainer || selectedPaymentTokenRef.current === 'cnon:card-nonce-ok') {
+            onCardReady(null);
+            return;
+          }
+
           await cardInstance.attach(`#${cardContainerId.current}`);
 
           if (!cancelled) {
@@ -1620,8 +1640,10 @@ function RegistrationPaymentPanel({
       } catch (squareLoadError) {
         if (!cancelled) {
           onCardReady(null);
-          onWalletTokenReady('');
-          setLocalError(squareLoadError.message || 'Square payment form could not be loaded.');
+          if (selectedPaymentTokenRef.current !== 'cnon:card-nonce-ok') {
+            onWalletTokenReady('');
+            setLocalError(squareLoadError.message || 'Square payment form could not be loaded.');
+          }
         }
       } finally {
         if (!cancelled) {

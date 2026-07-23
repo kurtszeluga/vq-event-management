@@ -306,33 +306,48 @@
       return { isFull: false, label: 'Seats available' };
     }
 
-    return Number(event.registeredCount || 0) >= capacity
-      ? { isFull: true, label: 'Full - waitlist available' }
+    const seatHoldingCount = Number(event.registeredCount || 0)
+      + Number(event.pendingPaymentCount || 0)
+      + Number(event.heldCount || 0);
+
+    return seatHoldingCount >= capacity
+      ? {
+        isFull: true,
+        label: Number(event.heldCount || 0)
+          ? 'Seat on hold - waitlist available'
+          : Number(event.pendingPaymentCount || 0)
+            ? 'Seat pending payment - waitlist available'
+            : 'Full - waitlist available'
+      }
       : { isFull: false, label: 'Seats available' };
   }
 
   function getRegistrationStats(event) {
     const registered = Number(event.registeredCount || 0);
+    const pendingPayment = Number(event.pendingPaymentCount || 0);
     const waitlisted = Number(event.waitlistedCount || 0);
+    const held = Number(event.heldCount || 0);
 
     if (event.capacityUnlimited) {
       return [
         { label: 'Capacity', value: 'Unlimited' },
         { label: 'Registered', value: String(registered) },
+        { label: 'Pending Payment', tone: pendingPayment ? 'waitlist' : '', value: String(pendingPayment) },
         { label: 'Waitlisted', tone: waitlisted ? 'waitlist' : '', value: String(waitlisted) }
       ];
     }
 
     const capacity = Number(event.capacity || 0);
-    const remaining = capacity ? Math.max(capacity - registered, 0) : null;
+    const remaining = capacity ? Math.max(capacity - registered - pendingPayment - held, 0) : null;
 
     return [
       { label: 'Capacity', value: capacity ? String(capacity) : 'Not Set' },
       { label: 'Registered', value: String(registered) },
+      { label: 'Pending Payment', tone: pendingPayment ? 'waitlist' : '', value: String(pendingPayment) },
       { label: 'Waitlisted', tone: waitlisted ? 'waitlist' : '', value: String(waitlisted) },
       {
-        label: registered >= capacity && capacity ? 'Waitlist Available' : 'Open Seats',
-        tone: registered >= capacity && capacity ? 'waitlist' : 'open',
+        label: remaining === 0 && capacity ? 'Waitlist Available' : 'Open Seats',
+        tone: remaining === 0 && capacity ? 'waitlist' : 'open',
         value: remaining === null ? 'N/A' : String(remaining)
       }
     ];

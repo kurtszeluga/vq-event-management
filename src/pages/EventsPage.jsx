@@ -583,12 +583,14 @@ function EventsPage() {
 
 function getEventRegistrationStats(event, counts = {}) {
   const registered = Number(counts.registered || 0);
+  const pendingPayment = Number(counts.pendingPayment || 0);
   const waitlisted = Number(counts.waitlisted || 0);
 
   if (event.capacityUnlimited) {
     return [
       { label: 'Capacity', value: 'Unlimited' },
       { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+      { label: 'Pending Payment', value: String(pendingPayment), tone: pendingPayment ? 'waitlist' : '' },
       { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
       { label: 'Open Seats', value: 'Unlimited', tone: 'open' }
     ];
@@ -596,11 +598,12 @@ function getEventRegistrationStats(event, counts = {}) {
 
   const capacity = Number(event.capacity || 0);
   const held = Number(counts.held || 0);
-  const openSeats = capacity ? Math.max(capacity - registered - held, 0) : null;
+  const openSeats = capacity ? Math.max(capacity - registered - pendingPayment - held, 0) : null;
 
   return [
     { label: 'Capacity', value: capacity ? String(capacity) : 'Not Set' },
     { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+    { label: 'Pending Payment', value: String(pendingPayment), tone: pendingPayment ? 'waitlist' : '' },
     { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
     {
       label: 'Open Seats',

@@ -246,6 +246,7 @@ async function createRegistration(db, payload, authorization) {
     const registeredCount = existingRegistrations.filter(
       (registration) => registration.status === 'Registered'
     ).length;
+    const activeSeatCount = existingRegistrations.filter(isSeatHoldingRegistration).length;
     const activeReservationCount = await getActiveReservationCount(
       transaction,
       db,
@@ -254,7 +255,7 @@ async function createRegistration(db, payload, authorization) {
       possiblePaymentReservation?.id || payload.paymentReservationId
     );
     const hasCapacity = Boolean(event.capacityUnlimited)
-      || registeredCount + activeReservationCount < Number(event.capacity || 0);
+      || activeSeatCount + activeReservationCount < Number(event.capacity || 0);
     const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
     const paymentStatus = getInitialPaymentStatus({ isPaidEvent, status });
     const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
@@ -552,9 +553,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       throw httpError(409, 'An active registration already exists for this email and event.');
     }
 
-    const registeredCount = existingRegistrations.filter(
-      (registration) => registration.status === 'Registered'
-    ).length;
+    const activeSeatCount = existingRegistrations.filter(isSeatHoldingRegistration).length;
     const activeReservationCount = await getActiveReservationCount(
       transaction,
       db,
@@ -563,7 +562,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       reservationRef.id
     );
     const seatsAvailable = Boolean(event.capacityUnlimited)
-      || registeredCount + activeReservationCount < Number(event.capacity || 0);
+      || activeSeatCount + activeReservationCount < Number(event.capacity || 0);
 
     if (!seatsAvailable) {
       return {
@@ -1081,6 +1080,10 @@ function getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCash
   }
 
   return 'Registered';
+}
+
+function isSeatHoldingRegistration(registration = {}) {
+  return ['Pending Payment', 'Registered'].includes(registration.status);
 }
 
 function getInitialPaymentStatus({ isPaidEvent, status }) {

@@ -97,7 +97,7 @@ export async function loadRegistrationCounts(db, eventIds = []) {
   const counts = Object.fromEntries(
     [...targetEventIds].map((eventId) => [
       eventId,
-      { held: 0, heldExpiresAt: '', registered: 0, waitlisted: 0 }
+      { held: 0, heldExpiresAt: '', pendingPayment: 0, registered: 0, waitlisted: 0 }
     ])
   );
   const [registrationSnapshot, reservationSnapshot] = await Promise.all([
@@ -112,7 +112,9 @@ export async function loadRegistrationCounts(db, eventIds = []) {
       return;
     }
 
-    if (registration.status === 'Registered') {
+    if (registration.status === 'Pending Payment') {
+      counts[registration.eventId].pendingPayment += 1;
+    } else if (registration.status === 'Registered') {
       counts[registration.eventId].registered += 1;
     } else if (registration.status === 'Waitlisted') {
       counts[registration.eventId].waitlisted += 1;
@@ -230,6 +232,7 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
     registrationOpenAt,
     registrationCloseAt,
     registeredCount: registrationCounts.registered || 0,
+    pendingPaymentCount: registrationCounts.pendingPayment || 0,
     heldCount: registrationCounts.held || 0,
     heldExpiresAt: registrationCounts.heldExpiresAt || '',
     waitlistedCount: registrationCounts.waitlisted || 0,
@@ -338,10 +341,21 @@ function getAvailability(event, registrationCounts = {}) {
     return { isFull: false, label: 'Seats available' };
   }
 
-  const registeredCount = Number(registrationCounts.registered || 0) + Number(registrationCounts.held || 0);
+  const registeredCount = Number(registrationCounts.registered || 0)
+    + Number(registrationCounts.pendingPayment || 0)
+    + Number(registrationCounts.held || 0);
 
   if (registeredCount >= capacity) {
-    return { isFull: true, label: 'Full - waitlist available' };
+    const pendingPaymentCount = Number(registrationCounts.pendingPayment || 0);
+
+    return {
+      isFull: true,
+      label: registrationCounts.held
+        ? 'Seat on hold - waitlist available'
+        : pendingPaymentCount
+          ? 'Seat pending payment - waitlist available'
+          : 'Full - waitlist available'
+    };
   }
 
   return { isFull: false, label: 'Seats available' };
