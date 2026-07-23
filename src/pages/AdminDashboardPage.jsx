@@ -4,11 +4,15 @@ import PageHeader from '../components/PageHeader.jsx';
 import ConfigurationPanel from '../components/admin/ConfigurationPanel.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
 import EventList from '../components/admin/EventList.jsx';
+import PaymentReconciliationPanel from '../components/admin/PaymentReconciliationPanel.jsx';
 import RegistrationPanel from '../components/admin/RegistrationPanel.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
-import { loadPublicRegistrationCounts } from '../services/registrationService.js';
+import {
+  loadPublicRegistrationCounts,
+  subscribeToSquareWebhookEvents
+} from '../services/registrationService.js';
 import { subscribeToUsers } from '../services/userService.js';
 
 function AdminDashboardPage() {
@@ -25,6 +29,7 @@ function AdminDashboardPage() {
   const [lastSavedEventId, setLastSavedEventId] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
+  const [paymentReviewCount, setPaymentReviewCount] = useState(0);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
   const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
@@ -153,6 +158,26 @@ function AdminDashboardPage() {
     return unsubscribe;
   }, [canReviewMemberships]);
 
+  useEffect(() => {
+    if (!canViewRegistrations) {
+      setPaymentReviewCount(0);
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToSquareWebhookEvents(
+      (snapshot) => {
+        setPaymentReviewCount(snapshot.docs
+          .map((eventDoc) => eventDoc.data())
+          .filter((event) => String(event.reconciliationStatus || '').includes('Needs Review')).length);
+      },
+      () => {
+        setPaymentReviewCount(0);
+      }
+    );
+
+    return unsubscribe;
+  }, [canViewRegistrations]);
+
   async function handleDelete(event) {
     const isArchived = event.status === 'Archived';
     const confirmed = window.confirm(
@@ -209,18 +234,31 @@ function AdminDashboardPage() {
         title="Admin Dashboard"
         description="Manage programs, workshops, challenges, business listings, and items for sale."
       />
-      {canReviewMemberships ? (
+      {canReviewMemberships || canViewRegistrations ? (
         <nav className="admin-module-nav admin-public-nav" aria-label="Needs attention">
           <span className="admin-row-label">Needs Attention:</span>
-          <button
-            className={`button-link button-reset ${
-              pendingMembershipCount ? 'pending-review-button' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={openPendingMembershipReview}
-          >
-            Pending Membership Reviews ({pendingMembershipCount})
-          </button>
+          {canReviewMemberships ? (
+            <button
+              className={`button-link button-reset ${
+                pendingMembershipCount ? 'pending-review-button' : 'secondary-action'
+              }`}
+              type="button"
+              onClick={openPendingMembershipReview}
+            >
+              Pending Membership Reviews ({pendingMembershipCount})
+            </button>
+          ) : null}
+          {canViewRegistrations ? (
+            <button
+              className={`button-link button-reset ${
+                paymentReviewCount ? 'pending-review-button' : 'secondary-action'
+              }`}
+              type="button"
+              onClick={() => setActiveModule('payment-review')}
+            >
+              Payment Review ({paymentReviewCount})
+            </button>
+          ) : null}
         </nav>
       ) : null}
       <nav className="admin-module-nav" aria-label="Admin dashboard modules">
@@ -234,6 +272,17 @@ function AdminDashboardPage() {
             onClick={() => setActiveModule('registrations')}
           >
             Registrations
+          </button>
+        ) : null}
+        {canViewRegistrations ? (
+          <button
+            className={`button-link button-reset ${
+              activeModule === 'payment-review' ? '' : 'secondary-action'
+            }`}
+            type="button"
+            onClick={() => setActiveModule('payment-review')}
+          >
+            Payment Review
           </button>
         ) : null}
         {canManageEvents ? (
@@ -392,6 +441,9 @@ function AdminDashboardPage() {
             canManageEvents={canManageEvents}
             currentUserProfile={userProfile}
           />
+        ) : null}
+        {canViewRegistrations && activeModule === 'payment-review' ? (
+          <PaymentReconciliationPanel />
         ) : null}
         {isSuperUser && activeModule === 'configuration' ? (
           <ConfigurationPanel currentUserProfile={userProfile} />

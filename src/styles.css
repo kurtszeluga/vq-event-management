@@ -1820,6 +1820,37 @@ body.popup-mode .page-content {
   margin-top: 3px;
 }
 
+.status-pill {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
+.status-pill.good {
+  background: #e9f2ef;
+  color: #225c56;
+}
+
+.status-pill.neutral {
+  background: #f5f2ed;
+  color: #4d5653;
+}
+
+.status-pill.warning {
+  background: #fff0d6;
+  color: #744800;
+}
+
+.payment-review-table .payment-review-needs-attention td {
+  background: #fff7ed;
+}
+
+.payment-review-table td:last-child {
+  max-width: 420px;
+}
+
 .my-registrations-panel {
   background: #fffdfa;
   border: 1px solid #ded5ca;

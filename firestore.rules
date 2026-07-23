@@ -740,7 +740,10 @@ service cloud.firestore {
     }
 
     match /squareWebhookEvents/{webhookEventId} {
-      allow read, write: if false;
+      allow read: if hasPermission('managePayments')
+        || hasPermission('viewRegistrations')
+        || isSuperUser();
+      allow write: if false;
     }
 
     match /users/{userId} {

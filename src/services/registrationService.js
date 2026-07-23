@@ -15,6 +15,7 @@ import { db } from '../lib/firebase.js';
 const registrationsCollection = () => collection(db, 'registrations');
 const paymentsCollection = () => collection(db, 'payments');
 const auditLogsCollection = () => collection(db, 'auditLogs');
+const squareWebhookEventsCollection = () => collection(db, 'squareWebhookEvents');
 
 export function subscribeToRegistrations(onNext, onError) {
   const registrationsQuery = query(registrationsCollection(), orderBy('registrationDate', 'desc'));
@@ -37,6 +38,11 @@ export function subscribeToUserRegistrations(userId, onNext, onError) {
 export function subscribeToPayments(onNext, onError) {
   const paymentsQuery = query(paymentsCollection(), orderBy('createdDate', 'desc'));
   return onSnapshot(paymentsQuery, onNext, onError);
+}
+
+export function subscribeToSquareWebhookEvents(onNext, onError) {
+  const webhookEventsQuery = query(squareWebhookEventsCollection(), orderBy('receivedAt', 'desc'));
+  return onSnapshot(webhookEventsQuery, onNext, onError);
 }
 
 export function subscribeToRegistrationPayments(registrationId, userId, onNext, onError) {
