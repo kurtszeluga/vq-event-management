@@ -938,6 +938,7 @@ async function createSquarePayment(paymentRequest) {
       idempotency_key: paymentRequest.idempotencyKey || paymentRequest.registrationId,
       location_id: locationId,
       note: `Village Quilters registration: ${paymentRequest.eventTitle}`,
+      reference_id: paymentRequest.registrationId,
       source_id: paymentRequest.sourceId
     }),
     headers: {

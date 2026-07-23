@@ -739,6 +739,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /squareWebhookEvents/{webhookEventId} {
+      allow read, write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId)
         || isSuperUser()

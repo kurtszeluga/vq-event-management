@@ -39,7 +39,7 @@ This document tracks the security, reliability, usability, and product improveme
 | Item | Status | Notes |
 | --- | --- | --- |
 | Add temporary seat reservations during online checkout | Completed | Online Square checkout now creates a private 5-minute event/email-bound reservation before tokenizing the card, counts active holds against capacity, and consumes the hold when the registration is written. |
-| Add Square webhook signature verification | Not Started | Reconcile completed, failed, cancelled, and refunded payments. |
+| Add Square webhook signature verification | Completed | Added `/api/square-webhook`, HMAC signature verification, private `squareWebhookEvents` logging, and conservative payment/refund reconciliation hooks. |
 | Add payment reconciliation tools | Not Started | Flag charged payments that did not finish updating Firestore. |
 | Initiate Square refunds from the app | Not Started | Do not mark an online payment refunded until Square confirms it. |
 | Add payment and card-testing rate limits | Not Started | Include bot protection such as Cloudflare Turnstile or Firebase App Check. |
@@ -119,3 +119,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-22 | Added the `registrationVerifications.expiresAt` TTL policy to the version-controlled Firestore index configuration. |
 | 2026-07-23 | Confirmed Phase 1 production testing passed and started Phase 2. Added 5-minute Square checkout seat reservations, private `registrationReservations` rules, and TTL cleanup for expired holds. |
 | 2026-07-23 | Added registration idempotency protection using private `registrationAttempts` records and Square idempotency keys to guard against double-clicks and retry-created duplicate charges. |
+| 2026-07-23 | Added Square webhook endpoint with signature verification, webhook event logging, payment completion/failure reconciliation, and full-refund-only registration refund updates. |
