@@ -771,6 +771,9 @@ service cloud.firestore {
         || hasPermission('manageMembershipStatus')
         || signedIn()
           && resource.data.entityType == 'Registration'
+          && resource.data.userId == request.auth.uid
+        || signedIn()
+          && resource.data.entityType == 'Registration'
           && resource.data.registrationId is string
           && get(/databases/$(database)/documents/registrations/$(resource.data.registrationId)).data.userId == request.auth.uid;
       allow create, update: if (hasPermission('managePayments')

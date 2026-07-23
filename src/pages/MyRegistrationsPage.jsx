@@ -69,6 +69,7 @@ function MyRegistrationsPage() {
 
     return subscribeToRegistrationPayments(
       selectedRegistrationId,
+      currentUser.uid,
       (snapshot) => {
         setPayments(snapshot.docs
           .map((paymentDoc) => ({ id: paymentDoc.id, ...paymentDoc.data() }))
@@ -80,7 +81,7 @@ function MyRegistrationsPage() {
         setPaymentError(error.message);
       }
     );
-  }, [selectedRegistrationId]);
+  }, [currentUser, selectedRegistrationId]);
 
   const eventMap = useMemo(
     () => new Map(events.map((event) => [event.id, event])),

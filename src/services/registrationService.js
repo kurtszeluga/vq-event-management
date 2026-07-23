@@ -39,15 +39,18 @@ export function subscribeToPayments(onNext, onError) {
   return onSnapshot(paymentsQuery, onNext, onError);
 }
 
-export function subscribeToRegistrationPayments(registrationId, onNext, onError) {
+export function subscribeToRegistrationPayments(registrationId, userId, onNext, onError) {
   if (!registrationId) {
     return () => {};
   }
 
-  const paymentsQuery = query(
-    paymentsCollection(),
-    where('registrationId', '==', registrationId)
-  );
+  const paymentConstraints = [where('registrationId', '==', registrationId)];
+
+  if (userId) {
+    paymentConstraints.push(where('userId', '==', userId));
+  }
+
+  const paymentsQuery = query(paymentsCollection(), ...paymentConstraints);
 
   return onSnapshot(paymentsQuery, onNext, onError);
 }
