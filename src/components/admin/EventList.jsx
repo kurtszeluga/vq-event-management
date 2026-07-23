@@ -201,6 +201,7 @@ function EventList({
         const wasLastSaved = lastSavedEventId && event.id === lastSavedEventId;
         const counts = registrationCounts[event.id] || {};
         const availability = getRegistrationAvailability(event, counts);
+        const registrationStats = getEventRegistrationStats(event, counts);
         const holdTimeLeft = formatHoldTimeLeft(counts.heldExpiresAt, now);
 
         return (
@@ -231,6 +232,23 @@ function EventList({
             ) : (
               <p>Description TBD</p>
             )}
+            <div className="event-registration-pill-row" aria-label="Registration statistics">
+              {registrationStats.map((stat) => (
+                <span
+                  className={`event-registration-pill${stat.tone ? ` ${stat.tone}` : ''}`}
+                  key={stat.label}
+                >
+                  <strong>{stat.value}</strong>
+                  {stat.label}
+                </span>
+              ))}
+              {Number(counts.held || 0) ? (
+                <span className="event-registration-pill hold">
+                  <strong>{Number(counts.held || 0)}</strong>
+                  {holdTimeLeft ? `Held (${holdTimeLeft})` : 'Held'}
+                </span>
+              ) : null}
+            </div>
             <dl>
               <div>
                 <dt>Date</dt>
@@ -249,27 +267,6 @@ function EventList({
               <div>
                 <dt>Presenter</dt>
                 <dd>{event.presenter || 'To be announced'}</dd>
-              </div>
-              <div>
-                <dt>Capacity</dt>
-                <dd>
-                  {event.capacityUnlimited ? 'Unlimited' : event.capacity ? `${event.capacity}` : 'Capacity TBD'}
-                </dd>
-              </div>
-              <div>
-                <dt>Registration Count</dt>
-                <dd>
-                  <span>{Number(counts.registered || 0)} registered</span>
-                  {Number(counts.held || 0) ? (
-                    <>
-                      <span> / {Number(counts.held || 0)} held</span>
-                      {holdTimeLeft ? <span> (hold expires in {holdTimeLeft})</span> : null}
-                    </>
-                  ) : null}
-                  {Number(counts.waitlisted || 0) ? (
-                    <span> / {Number(counts.waitlisted || 0)} waitlisted</span>
-                  ) : null}
-                </dd>
               </div>
               <div>
                 <dt>Payment Details</dt>
@@ -429,6 +426,35 @@ function canRegisterEvent(event) {
   return event.status !== 'Archived'
     && event.registrationOpen
     && !['Business Listing', 'For Sale'].includes(event.eventType);
+}
+
+function getEventRegistrationStats(event, counts = {}) {
+  const registered = Number(counts.registered || 0);
+  const waitlisted = Number(counts.waitlisted || 0);
+
+  if (event.capacityUnlimited) {
+    return [
+      { label: 'Capacity', value: 'Unlimited' },
+      { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+      { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
+      { label: 'Open Seats', value: 'Unlimited', tone: 'open' }
+    ];
+  }
+
+  const capacity = Number(event.capacity || 0);
+  const held = Number(counts.held || 0);
+  const openSeats = capacity ? Math.max(capacity - registered - held, 0) : null;
+
+  return [
+    { label: 'Capacity', value: capacity ? String(capacity) : 'Not Set' },
+    { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+    { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
+    {
+      label: 'Open Seats',
+      value: openSeats === null ? 'N/A' : String(openSeats),
+      tone: openSeats === 0 && capacity ? 'full' : 'open'
+    }
+  ];
 }
 
 function formatListingEnd(event) {

@@ -1292,6 +1292,59 @@ body.popup-mode .page-content {
   justify-self: start;
 }
 
+.event-registration-pill-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.event-registration-pill {
+  align-items: baseline;
+  background: #f5f2ed;
+  border: 1px solid #ded5ca;
+  border-radius: 999px;
+  color: #4d5653;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 5px;
+  line-height: 1;
+  min-height: 30px;
+  padding: 7px 10px;
+}
+
+.event-registration-pill strong {
+  color: #172421;
+  font-size: 0.96rem;
+}
+
+.event-registration-pill.active {
+  background: #fff0d6;
+  border-color: #e7b96f;
+  color: #744800;
+}
+
+.event-registration-pill.open {
+  background: #e9f2ef;
+  border-color: #bad7cf;
+  color: #225c56;
+}
+
+.event-registration-pill.waitlist,
+.event-registration-pill.hold {
+  background: #fff3c4;
+  border-color: #edcf68;
+  color: #7a5200;
+}
+
+.event-registration-pill.full {
+  background: #fde7de;
+  border-color: #ecad97;
+  color: #9a2d17;
+}
+
 .event-type-filter {
   margin-top: 24px;
 }
@@ -1438,6 +1491,16 @@ body.popup-mode .page-content {
   gap: 10px;
   padding: 14px;
   width: min(100%, 520px);
+}
+
+.waitlist-notice {
+  background: #fff1eb;
+  border: 1px solid #e4b39e;
+  border-radius: 8px;
+  color: #8f351d;
+  font-weight: 800;
+  margin: 0;
+  padding: 12px;
 }
 
 .square-card-container {

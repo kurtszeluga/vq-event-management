@@ -247,6 +247,7 @@ function RegisterPage() {
   const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
   const requiresSquarePayment = isPaidEvent && paymentPreference !== 'cash-check-later';
   const paymentRequiredForCurrentSeat = requiresSquarePayment && paymentReservation?.paymentRequired !== false;
+  const joiningWaitlist = paymentReservation?.status === 'Waitlisted';
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
 
   useEffect(() => {
@@ -687,8 +688,15 @@ function RegisterPage() {
     setPaymentReservation(null);
     setPaymentReservationError('Your payment seat hold expired. Start registration again.');
     setSquareWalletToken('');
-    window.setTimeout(handleClose, 1500);
-  }, [handleClose]);
+    window.setTimeout(() => {
+      if (returnTarget) {
+        window.location.assign(returnTarget);
+        return;
+      }
+
+      navigate('/events');
+    }, 1500);
+  }, [navigate, returnTarget]);
 
   function handleStartProfileEdit() {
     setNeedsProfileEdits(true);
@@ -1152,7 +1160,11 @@ function RegisterPage() {
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
                   >
-                    {submitting ? 'Submitting...' : 'Submit Registration'}
+                    {submitting
+                      ? 'Submitting...'
+                      : joiningWaitlist
+                        ? 'Add Me To The Waitlist'
+                        : 'Submit Registration'}
                   </button>
                 </div>
               ) : null}
@@ -1651,7 +1663,7 @@ function RegistrationPaymentPanel({
         The Village Quilters Network does not store your card number, security code, or wallet payment details.
       </p>
       {!onlinePaymentRequired ? (
-        <p className="form-help">
+        <p className={reservation?.status === 'Waitlisted' ? 'waitlist-notice' : 'form-help'}>
           {reservation?.status === 'Waitlisted'
             ? 'No seat is currently available. Submit to join the waitlist; no payment is due now.'
             : 'Cash/check later is selected, so online card payment is not needed now.'}
