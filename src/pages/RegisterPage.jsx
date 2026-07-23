@@ -1730,14 +1730,14 @@ function RegistrationPaymentPanel({
               {testCardMessage ? <span className="form-help">{testCardMessage}</span> : null}
             </div>
           ) : null}
-          {config?.enableCardPayments !== false && selectedPaymentToken !== 'cnon:card-nonce-ok' ? (
+          {config?.enableCardPayments !== false ? (
             <>
-              {(walletSupport.applePay || walletSupport.googlePay) ? (
+              {(walletSupport.applePay || walletSupport.googlePay) && selectedPaymentToken !== 'cnon:card-nonce-ok' ? (
                 <span className="form-help">Or enter a card:</span>
               ) : null}
               <div
                 aria-label="Secure Square card payment form"
-                className={`square-card-container${disabled ? ' is-disabled' : ''}`}
+                className={`square-card-container${disabled ? ' is-disabled' : ''}${selectedPaymentToken === 'cnon:card-nonce-ok' ? ' is-test-token-selected' : ''}`}
                 id={cardContainerId.current}
               />
             </>

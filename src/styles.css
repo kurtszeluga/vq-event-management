@@ -1517,6 +1517,15 @@ body.popup-mode .page-content {
   pointer-events: none;
 }
 
+.square-card-container.is-test-token-selected {
+  border: 0;
+  min-height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0;
+  pointer-events: none;
+}
+
 .square-wallet-section {
   display: grid;
   gap: 8px;
