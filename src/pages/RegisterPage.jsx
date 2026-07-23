@@ -1109,6 +1109,7 @@ function RegisterPage() {
                       reservation={paymentReservation}
                       reservationError={paymentReservationError}
                       reservationLoading={paymentReservationLoading}
+                      selectedPaymentToken={squareWalletToken}
                     />
                   ) : null}
                   {submitting ? (
@@ -1124,7 +1125,7 @@ function RegisterPage() {
                       || Boolean(registrationUnavailable)
                       || paymentReservationLoading
                       || Boolean(paymentReservationError)
-                      || (requiresSquarePayment && (!squareCard && !squareWalletToken || Boolean(squareError)))
+                      || (requiresSquarePayment && (!squareCard && !squareWalletToken || Boolean(squareError && !squareWalletToken)))
                       || (requiresReactivationTerms && !reactivationTermsAccepted)}
                     type="submit"
                   >
@@ -1419,7 +1420,8 @@ function RegistrationPaymentPanel({
   onlinePaymentRequired,
   reservation,
   reservationError,
-  reservationLoading
+  reservationLoading,
+  selectedPaymentToken
 }) {
   const applePayRef = useRef(null);
   const cardContainerId = useRef(`square-card-${Math.random().toString(36).slice(2)}`);
@@ -1620,7 +1622,7 @@ function RegistrationPaymentPanel({
       ) : null}
       {onlinePaymentRequired ? (
         <>
-          {reservationLoading ? (
+          {reservationLoading || (!reservation && !reservationError) ? (
             <p className="form-help">Holding your seat for online payment...</p>
           ) : null}
           {reservationError ? <p className="form-error">{reservationError}</p> : null}
@@ -1662,13 +1664,17 @@ function RegistrationPaymentPanel({
                 type="button"
                 onClick={() => selectSandboxTestPayment(onWalletTokenReady, setTestCardMessage)}
               >
-                Use Test Card
+                {selectedPaymentToken === 'cnon:card-nonce-ok' ? 'Test Card Selected' : 'Use Test Card'}
               </button>
-              <span>Uses Square sandbox token cnon:card-nonce-ok.</span>
+              <span>
+                {selectedPaymentToken === 'cnon:card-nonce-ok'
+                  ? 'Square sandbox test payment is ready. No card fields need to be typed.'
+                  : 'Uses Square sandbox token cnon:card-nonce-ok.'}
+              </span>
               {testCardMessage ? <span className="form-help">{testCardMessage}</span> : null}
             </div>
           ) : null}
-          {config?.enableCardPayments !== false ? (
+          {config?.enableCardPayments !== false && selectedPaymentToken !== 'cnon:card-nonce-ok' ? (
             <>
               {(walletSupport.applePay || walletSupport.googlePay) ? (
                 <span className="form-help">Or enter a card:</span>
@@ -1679,6 +1685,11 @@ function RegistrationPaymentPanel({
                 id={cardContainerId.current}
               />
             </>
+          ) : null}
+          {selectedPaymentToken === 'cnon:card-nonce-ok' ? (
+            <p className="form-success">
+              Test payment selected. Click Submit Registration to complete the sandbox payment.
+            </p>
           ) : null}
           {config?.enableCardPayments === false && !walletSupport.applePay && !walletSupport.googlePay ? (
             <p className="form-error">
