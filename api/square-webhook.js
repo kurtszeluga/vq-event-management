@@ -143,6 +143,21 @@ async function buildPaymentReconciliation(db, squarePayment) {
   const paymentDoc = paymentDocs[0] || null;
   const payment = paymentDoc?.data() || null;
   const context = buildPaymentContext({ payment, registration, registrationId });
+  const refundSidePaymentUpdate = isRefundSidePaymentUpdate(squarePayment);
+
+  if (refundSidePaymentUpdate) {
+    return {
+      context,
+      status: 'No Action',
+      webhookOnly: {
+        message: 'Square payment update was related to a refund. Refund webhooks handle refund reconciliation.',
+        refundedAmount: getSquareAmount(squarePayment.refunded_money),
+        registrationId,
+        squarePaymentId,
+        squareStatus
+      }
+    };
+  }
 
   if (!registrationRef || !registrationSnap?.exists || !paymentDoc) {
     return {
@@ -274,6 +289,24 @@ async function buildRefundReconciliation(db, squareRefund) {
   return {
     context,
     paymentRef: paymentDoc.ref,
+    reviewUpdates: [
+      {
+        data: {
+          processedAt: FieldValue.serverTimestamp(),
+          reconciliationStatus: 'Refund Completed',
+          resolvedAt: FieldValue.serverTimestamp(),
+          resolutionNote: 'Square refund completion webhook confirmed this pending refund.',
+          reviewDetails: {
+            message: 'Square refund completed.',
+            squarePaymentId,
+            squareRefundId: cleanText(squareRefund.id || ''),
+            squareRefundStatus: refundStatus
+          },
+          status: 'Processed'
+        },
+        ref: db.collection('squareWebhookEvents').doc(`refund-pending-${cleanText(squareRefund.id || '')}`)
+      }
+    ],
     registrationRef,
     registrationUpdate: {
       amountPaid: 0,
@@ -332,6 +365,12 @@ function applyReconciliation(batch, reconciliation) {
   if (reconciliation.paymentRef && reconciliation.paymentUpdate) {
     batch.update(reconciliation.paymentRef, reconciliation.paymentUpdate);
   }
+
+  (reconciliation.reviewUpdates || []).forEach((reviewUpdate) => {
+    if (reviewUpdate.ref && reviewUpdate.data) {
+      batch.set(reviewUpdate.ref, reviewUpdate.data, { merge: true });
+    }
+  });
 }
 
 async function findPaymentDocs(db, { registrationId = '', squareTransactionId = '' }) {
@@ -436,6 +475,13 @@ function getNotificationUrl(request) {
 
 function getSquareAmount(amountMoney = {}) {
   return Number(amountMoney.amount || 0) / 100;
+}
+
+function isRefundSidePaymentUpdate(squarePayment = {}) {
+  const refundedAmount = getSquareAmount(squarePayment.refunded_money);
+  const refundIds = Array.isArray(squarePayment.refund_ids) ? squarePayment.refund_ids : [];
+
+  return refundedAmount > 0 || refundIds.length > 0;
 }
 
 function buildRefundNote(squareRefund) {

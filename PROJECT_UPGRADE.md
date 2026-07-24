@@ -125,3 +125,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-24 | Added the guarded online Square refund action to the existing admin payment endpoint. When enabled, Square must return a completed refund before the registration is marked refunded/cancelled. |
 | 2026-07-24 | Updated app-initiated refunds to handle Square PENDING responses without a second click. Refund Pending now cancels the registration immediately, returns the seat, and creates a Payment Review follow-up while Square completion remains pending. |
 | 2026-07-24 | Added registration cancellation/refund notification emails after admin refund actions, using the existing email toggle and coordinator reply-to contact. |
+| 2026-07-24 | Refined Square refund webhook reconciliation so refund-related `payment.updated` events no longer create Needs Review rows, and completed refund webhooks clear matching pending refund review items. |
