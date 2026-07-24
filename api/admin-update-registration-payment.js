@@ -157,6 +157,31 @@ export default async function handler(request, response) {
 
     await batch.commit();
 
+    if (shouldSendRefundNotification({
+      paymentUpdate: effectivePaymentUpdate,
+      registration: before,
+      statusUpdate: effectiveStatusUpdate
+    })) {
+      const updatedRegistration = {
+        ...before,
+        ...effectivePaymentUpdate,
+        ...squareTransactionUpdate,
+        ...effectiveStatusUpdate
+      };
+
+      await withTimeout(
+        sendRefundNotificationEmail(db, {
+          actorProfile,
+          registration: updatedRegistration,
+          squareRefund
+        }),
+        4000,
+        'Refund notification email timed out'
+      ).catch((emailError) => {
+        console.error('Refund notification email failed', emailError);
+      });
+    }
+
     response.status(200).json({
       payment: effectivePaymentUpdate,
       squareRefund: squareRefund ? {
@@ -491,6 +516,294 @@ function getAuditAction(paymentUpdate, statusUpdate) {
   return 'Update';
 }
 
+function shouldSendRefundNotification({ paymentUpdate, registration, statusUpdate }) {
+  const nextStatus = statusUpdate.status || registration.status || '';
+
+  return ['Refunded', 'Refund Pending'].includes(paymentUpdate.paymentStatus)
+    && nextStatus === 'Cancelled'
+    && Boolean(cleanText(registration.email));
+}
+
+async function sendRefundNotificationEmail(db, {
+  actorProfile,
+  registration,
+  squareRefund
+}) {
+  const emailSettingsSnap = await db.collection('appSettings').doc('emailInstructions').get();
+  const emailSettings = emailSettingsSnap.exists ? emailSettingsSnap.data() : {};
+
+  if (emailSettings.sendRegistrationConfirmations !== true) {
+    return;
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY is not configured. Skipping refund notification email.');
+    return;
+  }
+
+  const area = getEmailInstructionArea(registration.eventType);
+  const coordinatorContact = await getCoordinatorContact(db, area.areaId);
+  const replyTo = coordinatorContact.email || actorProfile.email || '';
+  const subject = `Village Quilters Registration Cancelled: ${registration.eventTitle || registration.eventType || 'Event'}`;
+
+  await sendResendEmail({
+    html: buildRefundNotificationHtml({
+      coordinatorContact,
+      registration,
+      squareRefund
+    }),
+    replyTo,
+    subject,
+    text: buildRefundNotificationText({
+      coordinatorContact,
+      registration,
+      squareRefund
+    }),
+    to: registration.email
+  });
+}
+
+async function sendResendEmail({ html, replyTo, subject, text, to }) {
+  const from = process.env.RESEND_FROM_EMAIL || 'The Village Quilters <no-reply@villagequilters.com>';
+  const payload = {
+    from,
+    html,
+    subject,
+    text,
+    to: [to]
+  };
+
+  if (replyTo) {
+    payload.reply_to = replyTo;
+  }
+
+  const resendResponse = await fetch('https://api.resend.com/emails', {
+    body: JSON.stringify(payload),
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const textResponse = await resendResponse.text();
+  const result = textResponse ? safeJsonParse(textResponse) : {};
+
+  if (!resendResponse.ok) {
+    const message = result.message || result.error || 'Resend could not send the refund notification email.';
+    const error = new Error(message);
+
+    error.statusCode = resendResponse.status;
+    throw error;
+  }
+
+  return result;
+}
+
+function buildRefundNotificationHtml({ coordinatorContact, registration, squareRefund }) {
+  const logoUrl = `${getAppOrigin()}/assets/village-quilters-logo.png`;
+  const eventTitle = registration.eventTitle || registration.eventType || 'Event';
+  const refundStatus = getRefundStatusText(registration, squareRefund);
+  const contactHtml = buildCoordinatorContactHtml(coordinatorContact);
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f3eee8;color:#1d2927;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" style="width:100%;border-collapse:collapse;background:#f3eee8;padding:28px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" style="width:100%;max-width:680px;border-collapse:collapse;background:#fffdfa;border:1px solid #ded5ca;border-radius:8px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px;background:#225c56;color:#fffaf5;">
+                <table role="presentation" style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="width:58px;vertical-align:middle;">
+                      <img alt="Village Quilters" src="${escapeHtml(logoUrl)}" width="48" height="48" style="display:block;border-radius:10px;" />
+                    </td>
+                    <td style="vertical-align:middle;">
+                      <p style="margin:0 0 5px;color:#f3c6a8;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">The Village Quilters, Inc.</p>
+                      <h1 style="margin:0;color:#fffaf5;font-size:24px;line-height:1.25;">Registration Cancelled</h1>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 28px;">
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">Hello ${escapeHtml(registration.name || registration.email)},</p>
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">Your registration has been cancelled. The payment refund status is shown below.</p>
+                <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
+                  <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">${escapeHtml(eventTitle)}</h2>
+                  ${buildDetailRowHtml('Registration Status', registration.status || 'Cancelled')}
+                  ${buildDetailRowHtml('Refund Status', refundStatus)}
+                  ${buildDetailRowHtml('Event Date', formatEventDate(registration.eventDate))}
+                  ${buildDetailRowHtml('Amount', formatCurrency(registration.amountPaid || registration.amountDue || 0))}
+                  ${registration.squareRefundId ? buildDetailRowHtml('Square Refund ID', registration.squareRefundId) : ''}
+                </section>
+                ${contactHtml}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#225c56;color:#fffaf5;">
+                <p style="margin:0;color:#fffaf5;font-size:13px;line-height:1.5;">The Village Quilters, Inc.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function buildRefundNotificationText({ coordinatorContact, registration, squareRefund }) {
+  return [
+    'The Village Quilters, Inc. Registration Cancelled',
+    '',
+    `Hello ${registration.name || registration.email},`,
+    '',
+    'Your registration has been cancelled. The payment refund status is shown below.',
+    '',
+    `Event: ${registration.eventTitle || registration.eventType || 'Event'}`,
+    `Registration Status: ${registration.status || 'Cancelled'}`,
+    `Refund Status: ${getRefundStatusText(registration, squareRefund)}`,
+    `Event Date: ${formatEventDate(registration.eventDate)}`,
+    `Amount: ${formatCurrency(registration.amountPaid || registration.amountDue || 0)}`,
+    registration.squareRefundId ? `Square Refund ID: ${registration.squareRefundId}` : '',
+    ...buildCoordinatorContactText(coordinatorContact)
+  ].filter((line) => line !== '').join('\n');
+}
+
+function getRefundStatusText(registration, squareRefund) {
+  if (registration.paymentStatus === 'Refund Pending') {
+    return squareRefund?.status
+      ? `Refund submitted to Square. Square status: ${squareRefund.status}.`
+      : 'Refund submitted and pending completion.';
+  }
+
+  if (registration.paymentStatus === 'Refunded') {
+    return squareRefund?.status
+      ? `Refund completed. Square status: ${squareRefund.status}.`
+      : 'Refund recorded.';
+  }
+
+  return registration.paymentStatus || 'Refund status unavailable';
+}
+
+async function getCoordinatorContact(db, areaId) {
+  const snapshot = await db.collection('coordinatorAssignments').doc(areaId).get();
+
+  if (!snapshot.exists) {
+    return { email: '', name: '' };
+  }
+
+  const assignment = snapshot.data();
+
+  if (assignment.isActive === false) {
+    return { email: '', name: '' };
+  }
+
+  return {
+    email: cleanText(assignment.contactEmailOverride || assignment.assignedUserEmail),
+    name: cleanText(assignment.assignedUserName)
+  };
+}
+
+function buildCoordinatorContactHtml(contact = {}) {
+  const name = cleanText(contact.name);
+  const email = cleanText(contact.email);
+
+  if (!name && !email) {
+    return '';
+  }
+
+  return `
+                <section style="margin:0 0 18px;padding:16px;border:1px solid #d6e3df;background:#f2f8f6;">
+                  <h2 style="margin:0 0 8px;color:#225c56;font-size:17px;line-height:1.3;">For questions contact:</h2>
+                  ${name ? `<p style="margin:0 0 6px;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">Name:</strong> ${escapeHtml(name)}</p>` : ''}
+                  ${email ? `<p style="margin:0;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">Email:</strong> <a href="mailto:${escapeHtml(email)}" style="color:#225c56;font-weight:700;">${escapeHtml(email)}</a></p>` : ''}
+                </section>`;
+}
+
+function buildCoordinatorContactText(contact = {}) {
+  const name = cleanText(contact.name);
+  const email = cleanText(contact.email);
+
+  if (!name && !email) {
+    return [];
+  }
+
+  return [
+    '',
+    'For questions contact:',
+    name ? `Name: ${name}` : '',
+    email ? `Email: ${email}` : ''
+  ].filter(Boolean);
+}
+
+function getEmailInstructionArea(eventType) {
+  if (['Class (Half Day)', 'Class (Full Day)', 'Class (Half-Day)', 'Class (Full-Day)', 'Lecture', 'Retreat'].includes(eventType)) {
+    return { areaId: 'programs', areaLabel: 'Programs' };
+  }
+
+  if (eventType === 'Workshop') {
+    return { areaId: 'workshops', areaLabel: 'Workshops' };
+  }
+
+  if (eventType === 'Challenges') {
+    return { areaId: 'challenges', areaLabel: 'Challenges' };
+  }
+
+  return { areaId: 'programs', areaLabel: 'Programs' };
+}
+
+function buildDetailRowHtml(label, value) {
+  return `<p style="margin:0 0 8px;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">${escapeHtml(label)}:</strong> ${escapeHtml(value || '')}</p>`;
+}
+
+function formatEventDate(value) {
+  if (!value) {
+    return 'Date TBD';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-');
+    return `${month}/${day}/${year}`;
+  }
+
+  const parsed = new Date(value);
+
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : new Intl.DateTimeFormat('en-US', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(parsed);
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('en-US', {
+    currency: 'USD',
+    style: 'currency'
+  }).format(Number(value || 0));
+}
+
+function getAppOrigin() {
+  return process.env.APP_ORIGIN
+    || process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    || process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`
+    || 'https://vq-event-management.vercel.app';
+}
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    })
+  ]);
+}
+
 function getBearerToken(request) {
   const authHeader = request.headers.authorization || '';
   return authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : '';
@@ -663,7 +976,24 @@ function buildPaymentRecord({
 }
 
 function cleanText(value) {
-  return String(value || '').trim();
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function safeJsonParse(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
 }
 
 function parseServiceAccountJson(serviceAccountJson) {
