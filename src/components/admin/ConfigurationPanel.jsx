@@ -555,6 +555,24 @@ function ConfigurationPanel({ currentUserProfile }) {
           </label>
           <label className="checkbox-label registration-exception-checkbox">
             <input
+              checked={Boolean(paymentSettings.allowAppInitiatedRefunds)}
+              type="checkbox"
+              onChange={(event) =>
+                setPaymentSettings((current) => ({
+                  ...current,
+                  allowAppInitiatedRefunds: event.target.checked
+                }))
+              }
+            />
+            <span className="checkbox-label-copy">
+              <strong>Process Square Refunds From This App</strong>
+              <small>
+                Keep off while refunds are handled by the treasurer in Square and only recorded here afterward.
+              </small>
+            </span>
+          </label>
+          <label className="checkbox-label registration-exception-checkbox">
+            <input
               checked={paymentSettings.enableCardPayments !== false}
               type="checkbox"
               onChange={(event) =>

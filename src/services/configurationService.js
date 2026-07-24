@@ -80,6 +80,7 @@ export const DEFAULT_MEMBERSHIP_SETTINGS = {
 };
 
 export const DEFAULT_PAYMENT_SETTINGS = {
+  allowAppInitiatedRefunds: false,
   defaultServiceFee: 1,
   enableApplePay: false,
   enableCardPayments: true,
@@ -278,6 +279,7 @@ export async function saveMembershipSettings(settings, actorProfile) {
 export async function savePaymentSettings(settings, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
+    allowAppInitiatedRefunds: Boolean(settings.allowAppInitiatedRefunds),
     defaultServiceFee: Number(settings.defaultServiceFee || 0),
     enableApplePay: Boolean(settings.enableApplePay),
     enableCardPayments: Boolean(settings.enableCardPayments),
@@ -1162,15 +1164,6 @@ function getMembershipAllowedPermissions(profile, membershipStatus) {
     : normalizeUserPermissions();
 }
 
-async function getMembersMissingFromImport(importedMemberIds) {
-  const snapshot = await getDocs(membersCollection());
-
-  return snapshot.docs
-    .map((memberDoc) => ({ id: memberDoc.id, ...memberDoc.data() }))
-    .filter((member) => member.status !== 'Archived')
-    .filter((member) => !importedMemberIds.has(member.memberId || member.id));
-}
-
 async function addMembershipSyncWrites(batch, members) {
   const writes = await getMembershipSyncWrites(members);
 
@@ -1258,24 +1251,6 @@ function getMembershipStatusPriority(status) {
   }
 
   return 1;
-}
-
-function makeMemberDocumentId(member) {
-  const email = cleanText(member.email).toLowerCase();
-  const phone = normalizePhone(cleanText(member.phone));
-  const name = cleanText(
-    member.name || [member.firstName, member.lastName].filter(Boolean).join(' ')
-  ).toLowerCase();
-  const source = email || phone || name;
-
-  if (!source) {
-    return '';
-  }
-
-  return source
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 120);
 }
 
 function makeProfileDocumentId(profile) {

@@ -1,5 +1,9 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
+  DEFAULT_PAYMENT_SETTINGS,
+  subscribeToPaymentSettings
+} from '../../services/configurationService.js';
+import {
   subscribeToAdminEvents,
   subscribeToPublishedEvents
 } from '../../services/eventService.js';
@@ -32,6 +36,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [loading, setLoading] = useState(true);
   const [quarterFilter, setQuarterFilter] = useState(DEFAULT_QUARTER_FILTER);
   const [payments, setPayments] = useState([]);
+  const [paymentSettings, setPaymentSettings] = useState(DEFAULT_PAYMENT_SETTINGS);
   const [registrations, setRegistrations] = useState([]);
   const [registrationSortConfig, setRegistrationSortConfig] = useState({
     direction: 'asc',
@@ -50,7 +55,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [yearFilter, setYearFilter] = useState(DEFAULT_YEAR_FILTER);
 
   useEffect(() => {
-    let pendingLoads = 4;
+    let pendingLoads = 5;
     const markLoaded = () => {
       pendingLoads -= 1;
 
@@ -99,9 +104,17 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       handleError,
       { includeAdminProfiles: false }
     );
+    const unsubscribePaymentSettings = subscribeToPaymentSettings(
+      (settings) => {
+        setPaymentSettings(settings);
+        markLoaded();
+      },
+      handleError
+    );
 
     return () => {
       unsubscribeEvents();
+      unsubscribePaymentSettings();
       unsubscribePayments();
       unsubscribeRegistrations();
       unsubscribeUsers();
@@ -998,7 +1011,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                   />
                 </label>
                 <p className="form-help registration-payment-help">
-                  {getPaymentHelpText(selectedRegistration, selectedPaymentStatus)}
+                  {getPaymentHelpText(selectedRegistration, selectedPaymentStatus, paymentSettings)}
                 </p>
               </div>
             </div>
@@ -1456,10 +1469,12 @@ function normalizePaymentEdit(registration, paymentEdit) {
   };
 }
 
-function getPaymentHelpText(registration, paymentStatus) {
+function getPaymentHelpText(registration, paymentStatus, paymentSettings = DEFAULT_PAYMENT_SETTINGS) {
   if (isPaidRegistration(registration)) {
     if (isOnlinePayment(registration)) {
-      return 'Online Square payments are locked. Use Refunded only after the refund is handled in Square.';
+      return paymentSettings.allowAppInitiatedRefunds
+        ? 'Online Square payments are locked. App-initiated Square refunds are enabled for the next refund workflow step.'
+        : 'Online Square payments are locked. Use Refunded only after the treasurer handles the refund in Square.';
     }
 
     return 'Paid registrations are locked. Use Refunded after the refund has been handled.';
