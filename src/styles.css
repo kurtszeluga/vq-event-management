@@ -2153,6 +2153,15 @@ body.popup-mode .page-content {
   gap: 16px;
 }
 
+.payment-service-fee-field {
+  max-width: 220px;
+}
+
+.payment-service-fee-field .form-help {
+  max-width: 520px;
+  width: max-content;
+}
+
 .configuration-card-actions {
   display: flex;
   flex-wrap: wrap;

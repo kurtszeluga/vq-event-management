@@ -535,7 +535,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           <p>Set payment defaults used when creating paid programs, workshops, retreats, and other paid activities.</p>
         </div>
         <form className="configuration-card-body" onSubmit={handleSavePaymentSettings}>
-          <label>
+          <label className="payment-service-fee-field">
             <span>Default Service Fee</span>
             <input
               min="0"

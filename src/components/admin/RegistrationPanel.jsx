@@ -432,6 +432,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     () => getPaymentHistoryForRegistration(selectedRegistration, payments),
     [payments, selectedRegistration]
   );
+  const appInitiatedSquareRefund = shouldInitiateSquareRefund(
+    selectedRegistration,
+    selectedPaymentStatus,
+    paymentSettings
+  );
   const paymentEditState = getPaymentEditState(selectedRegistration, selectedPaymentStatus);
   const paymentMethodOptions = getPaymentMethodOptions(selectedRegistration, selectedPaymentStatus);
   const paymentStatusOptions = getPaymentStatusOptions(selectedRegistration);
@@ -571,6 +576,17 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
     setError('');
     setSuccessMessage('');
+
+    if (appInitiatedSquareRefund) {
+      const confirmed = window.confirm(
+        'Process this refund through Square now? If Square completes the refund, this registration will be cancelled.'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setSavingRegistrationId(selectedRegistration.id);
 
     try {
@@ -580,7 +596,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         currentUserProfile
       );
 
-      setSuccessMessage('Registration changes saved.');
+      setSuccessMessage(appInitiatedSquareRefund
+        ? 'Square refund processed and registration cancelled.'
+        : 'Registration changes saved.');
       setSelectedRegistrationId('');
       setSelectedPaymentAmount('');
       setSelectedPaymentMethod('');
@@ -1034,7 +1052,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 type="button"
                 onClick={handleSaveChanges}
               >
-                {savingRegistrationId === selectedRegistration.id ? 'Saving...' : 'Save Changes'}
+                {savingRegistrationId === selectedRegistration.id
+                  ? 'Saving...'
+                  : appInitiatedSquareRefund
+                    ? 'Process Square Refund'
+                    : 'Save Changes'}
               </button>
               <button
                 className="button-link button-reset secondary-action"
@@ -1473,7 +1495,7 @@ function getPaymentHelpText(registration, paymentStatus, paymentSettings = DEFAU
   if (isPaidRegistration(registration)) {
     if (isOnlinePayment(registration)) {
       return paymentSettings.allowAppInitiatedRefunds
-        ? 'Online Square payments are locked. App-initiated Square refunds are enabled for the next refund workflow step.'
+        ? 'Online Square payments are locked. Choosing Refunded will process the refund through Square immediately.'
         : 'Online Square payments are locked. Use Refunded only after the treasurer handles the refund in Square.';
     }
 
@@ -1501,6 +1523,12 @@ function getPaymentHelpText(registration, paymentStatus, paymentSettings = DEFAU
   }
 
   return 'Failed payments usually come from an online processor and should be reviewed before changing.';
+}
+
+function shouldInitiateSquareRefund(registration, paymentStatus, paymentSettings) {
+  return Boolean(paymentSettings?.allowAppInitiatedRefunds)
+    && isOnlinePayment(registration)
+    && paymentStatus === 'Refunded';
 }
 
 function normalizePaymentMethod(method) {

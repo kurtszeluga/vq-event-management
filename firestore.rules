@@ -449,6 +449,7 @@ service cloud.firestore {
           'processor',
           'registrationId',
           'registrationStatus',
+          'squareRefundId',
           'squareTransactionId',
           'status',
           'updatedMembershipSnapshot',
@@ -470,6 +471,7 @@ service cloud.firestore {
         && validStatus(request.resource.data.processor, ['Manual', 'Square'])
         && (!('registrationId' in request.resource.data) || request.resource.data.registrationId is string)
         && (!('registrationStatus' in request.resource.data) || request.resource.data.registrationStatus is string)
+        && (!('squareRefundId' in request.resource.data) || request.resource.data.squareRefundId is string)
         && request.resource.data.squareTransactionId is string
         && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Failed', 'Refunded', 'Waived', 'No Charge'])
         && (!('updatedMembershipSnapshot' in request.resource.data)

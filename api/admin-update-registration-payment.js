@@ -94,6 +94,12 @@ export default async function handler(request, response) {
     const before = registrationSnap.data();
     const paymentUpdate = sanitizePaymentUpdate(request.body || {}, before);
     const statusUpdate = getStatusUpdateForPayment({ before, paymentUpdate });
+    const squareRefund = await processSquareRefundIfNeeded(db, {
+      actorProfile,
+      before,
+      paymentUpdate,
+      registrationId
+    });
     const now = FieldValue.serverTimestamp();
     const updatePayload = {
       ...paymentUpdate,
@@ -111,6 +117,7 @@ export default async function handler(request, response) {
       paymentId: paymentRef.id,
       paymentUpdate,
       registrationId,
+      squareRefund,
       statusUpdate
     }));
     batch.set(db.collection('auditLogs').doc(), {
@@ -121,6 +128,7 @@ export default async function handler(request, response) {
       actorUserId: actorProfile.userId || actorUid,
       after: {
         ...paymentUpdate,
+        squareRefundId: squareRefund?.id || '',
         ...statusUpdate,
         paymentUpdatedDate: null
       },
@@ -135,6 +143,10 @@ export default async function handler(request, response) {
 
     response.status(200).json({
       payment: paymentUpdate,
+      squareRefund: squareRefund ? {
+        id: squareRefund.id || '',
+        status: squareRefund.status || ''
+      } : null,
       status: statusUpdate.status || before.status || '',
       registrationId
     });
@@ -143,6 +155,157 @@ export default async function handler(request, response) {
       error: error.message || 'Payment could not be updated.'
     });
   }
+}
+
+async function processSquareRefundIfNeeded(db, {
+  actorProfile,
+  before,
+  paymentUpdate,
+  registrationId
+}) {
+  const isOnlinePaidRefund = before.paymentStatus === 'Paid'
+    && before.paymentMethod === 'Online'
+    && paymentUpdate.paymentStatus === 'Refunded';
+
+  if (!isOnlinePaidRefund) {
+    return null;
+  }
+
+  const paymentSettings = await getPaymentSettings(db);
+
+  if (!paymentSettings.allowAppInitiatedRefunds) {
+    return null;
+  }
+
+  const squarePaymentId = cleanText(before.squareTransactionId);
+
+  if (!squarePaymentId) {
+    throw httpError(400, 'This registration does not have a Square payment id to refund.');
+  }
+
+  const refundAmount = Number(before.amountPaid || before.amountDue || 0);
+
+  if (refundAmount <= 0) {
+    throw httpError(400, 'This registration does not have a positive paid amount to refund.');
+  }
+
+  const refund = await createSquareRefund({
+    amount: refundAmount,
+    paymentId: squarePaymentId,
+    reason: buildSquareRefundReason(paymentUpdate.paymentNote, actorProfile),
+    registrationId
+  });
+
+  if (refund.status !== 'COMPLETED') {
+    await db.collection('squareWebhookEvents').doc(`refund-review-${refund.id || registrationId}`).set({
+      createdAt: '',
+      eventId: '',
+      eventTitle: before.eventTitle || '',
+      eventType: 'App Initiated Refund',
+      merchantId: '',
+      objectId: refund.id || '',
+      objectType: 'refund',
+      processedAt: FieldValue.serverTimestamp(),
+      receivedAt: FieldValue.serverTimestamp(),
+      reconciliationStatus: 'Refund Needs Review',
+      registrationEmail: before.email || '',
+      registrationId,
+      registrationName: before.name || '',
+      reviewDetails: {
+        message: 'Square accepted the refund request but did not return COMPLETED.',
+        squarePaymentId,
+        squareRefundId: refund.id || '',
+        squareRefundStatus: refund.status || 'Unknown'
+      },
+      squareEnvironment: getSquareEnvironment(),
+      status: 'Processed'
+    }, { merge: true });
+
+    throw httpError(
+      409,
+      `Square refund status is ${refund.status || 'not complete'}. The registration was not marked refunded.`
+    );
+  }
+
+  return refund;
+}
+
+async function getPaymentSettings(db) {
+  const snapshot = await db.collection('appSettings').doc('paymentSettings').get();
+
+  return {
+    allowAppInitiatedRefunds: snapshot.exists
+      && snapshot.data().allowAppInitiatedRefunds === true
+  };
+}
+
+async function createSquareRefund({
+  amount,
+  paymentId,
+  reason,
+  registrationId
+}) {
+  const accessToken = process.env.SQUARE_ACCESS_TOKEN || '';
+
+  if (!accessToken) {
+    throw httpError(500, 'Square access token is not configured.');
+  }
+
+  const endpoint = getSquareEnvironment() === 'production'
+    ? 'https://connect.squareup.com/v2/refunds'
+    : 'https://connect.squareupsandbox.com/v2/refunds';
+  const response = await fetch(endpoint, {
+    body: JSON.stringify({
+      amount_money: {
+        amount: Math.round(Number(amount || 0) * 100),
+        currency: 'USD'
+      },
+      idempotency_key: `registration-refund-${registrationId}-${paymentId}`,
+      payment_id: paymentId,
+      reason
+    }),
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'Square-Version': '2026-05-20'
+    },
+    method: 'POST'
+  });
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw httpError(response.status, getSquareRefundError(result));
+  }
+
+  return result.refund || {};
+}
+
+function getSquareEnvironment() {
+  return process.env.SQUARE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+}
+
+function buildSquareRefundReason(paymentNote, actorProfile) {
+  const actorName = actorProfile.name || actorProfile.email || 'Admin';
+  const reason = `${cleanText(paymentNote)} Processed by ${actorName}.`.trim();
+
+  return reason.slice(0, 192);
+}
+
+function getSquareRefundError(result) {
+  const errors = result?.errors || [];
+  const message = errors
+    .map((error) => error.detail || error.message)
+    .filter(Boolean)
+    .join(' ');
+
+  return message || 'Square refund could not be completed.';
+}
+
+function httpError(statusCode, message) {
+  const error = new Error(message);
+
+  error.statusCode = statusCode;
+  return error;
 }
 
 async function resolvePaymentReview({
@@ -383,8 +546,11 @@ function buildPaymentRecord({
   paymentId,
   paymentUpdate,
   registrationId,
+  squareRefund,
   statusUpdate
 }) {
+  const squareRefundId = squareRefund?.id || '';
+
   return {
     amount: Number(paymentUpdate.amountPaid || 0),
     amountDue: Number(before.amountDue || 0),
@@ -396,11 +562,14 @@ function buildPaymentRecord({
     entityType: 'Registration',
     eventId: before.eventId || '',
     method: paymentUpdate.paymentMethod || '',
-    note: paymentUpdate.paymentNote || '',
+    note: squareRefundId
+      ? `${paymentUpdate.paymentNote || ''} Square refund id: ${squareRefundId}.`.trim()
+      : paymentUpdate.paymentNote || '',
     paymentId,
     processor: paymentUpdate.paymentMethod === 'Online' ? 'Square' : 'Manual',
     registrationId,
     registrationStatus: statusUpdate.status || before.status || '',
+    squareRefundId,
     squareTransactionId: before.squareTransactionId || '',
     status: paymentUpdate.paymentStatus || 'Pending',
     userId: before.userId || '',
