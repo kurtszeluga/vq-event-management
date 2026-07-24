@@ -94,6 +94,7 @@ function EventForm({
         ? current
         : { ...current, registrationCloseAt: defaultCloseAt }
     ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     form.date,
     form.eventType,

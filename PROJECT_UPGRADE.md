@@ -134,3 +134,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-24 | Aligned GoDaddy Programs filter with Spec/app grouping by including Retreat (and legacy hyphenated class types); corrected Spec embed category/filter wording. |
 | 2026-07-24 | Added directory-safe `memberDirectoryProfiles` collection, write-through sync, backfill script, and removed Active-member peer reads of full `users` documents. |
 | 2026-07-24 | Phase 3 progress: extended API rate limits, security headers, privacy/support pages, event-admin Storage rules, server-only event writes via `/api/admin-manage-event`, and folded password changes into `/api/admin-update-user-profile`. |
+| 2026-07-24 | Added admin Cancel Registration for free/unpaid registrations (`No Charge`, Pending, Waived, Failed) so seats can be returned without using the refund flow; updated Spec, App Overview, and Role Capabilities docs. |

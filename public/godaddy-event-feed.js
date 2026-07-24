@@ -44,7 +44,7 @@
       const payload = await response.json();
       const events = config.limit > 0 ? payload.events.slice(0, config.limit) : payload.events;
       renderFeed(container, payload, events, config);
-    } catch (error) {
+    } catch {
       root.innerHTML = '<div class="vq-feed-error">The event feed could not be loaded right now.</div>';
     }
   }
@@ -781,17 +781,6 @@
       || eventType === 'Class (Full Day)'
       || eventType === 'Class (Half-Day)'
       || eventType === 'Class (Full-Day)';
-  }
-
-  function buildFileProxyUrl(sourceUrl, fileUrl, fileName, disposition = 'inline') {
-    const origin = getSourceOrigin(sourceUrl);
-    const params = new URLSearchParams({
-      disposition,
-      filename: fileName || 'supply-list.pdf',
-      url: fileUrl
-    });
-
-    return `${origin}/api/file-proxy?${params.toString()}`;
   }
 
   function buildSupplyListViewerUrl(sourceUrl, eventId) {

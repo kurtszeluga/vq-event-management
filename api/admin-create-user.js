@@ -425,22 +425,18 @@ async function assertActorCanCreateOrUpdateProfile(db, actorProfile, email) {
     return;
   }
 
-  try {
-    const existingUser = await lookupAuthUserByEmail(email);
+  const existingUser = await lookupAuthUserByEmail(email);
 
-    if (!existingUser) {
-      return;
-    }
+  if (!existingUser) {
+    return;
+  }
 
-    const existingProfile = await db.collection('users').doc(existingUser.localId).get();
+  const existingProfile = await db.collection('users').doc(existingUser.localId).get();
 
-    if (existingProfile.exists && existingProfile.data().role !== 'General User') {
-      const permissionError = new Error('Admins can only add or update General User profiles.');
-      permissionError.statusCode = 403;
-      throw permissionError;
-    }
-  } catch (error) {
-    throw error;
+  if (existingProfile.exists && existingProfile.data().role !== 'General User') {
+    const permissionError = new Error('Admins can only add or update General User profiles.');
+    permissionError.statusCode = 403;
+    throw permissionError;
   }
 }
 

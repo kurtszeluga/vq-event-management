@@ -243,7 +243,7 @@ Card/wallet payment note:
 
 - The Village Quilters Network does not store card numbers, security codes, or wallet payment details. Square handles payment information.
 
-Refund behavior:
+Refund and cancellation behavior:
 
 - Paid online registrations are locked except for refund.
 - When app-initiated refunds are enabled, admins can process Square refunds from the registration edit card.
@@ -251,7 +251,8 @@ Refund behavior:
 - If Square returns `PENDING`, registration is still cancelled immediately, the seat is returned, and a Payment Review follow-up is created.
 - Square webhook completion updates/refines payment/refund records and clears matching pending refund review items.
 - If app-initiated refunds are disabled, the treasurer can process refunds in Square and admins can record the result manually.
-- Refund initiation sends a cancellation/refund status email to the registrant when confirmation emails are enabled.
+- Free (`No Charge`) and other unpaid active registrations can be cancelled directly from the registration edit card without a refund. Cancellation returns the seat immediately and keeps the existing payment status.
+- Refund and free-registration cancellation both send a cancellation status email to the registrant when confirmation emails are enabled.
 
 ## Payment Review
 

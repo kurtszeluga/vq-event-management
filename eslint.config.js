@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', '.vercel', 'public/godaddy-event-feed.js'] },
   {
     files: ['api/**/*.js', 'scripts/**/*.mjs'],
     languageOptions: {

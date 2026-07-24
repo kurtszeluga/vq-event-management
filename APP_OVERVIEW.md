@@ -48,6 +48,7 @@ Depending on permissions, admins can:
 - Review registrations by event, year, quarter, and activity type
 - View registration counts, capacity, waitlist counts, and payment status
 - Edit registration payment status where allowed
+- Cancel free or unpaid registrations directly from the registration edit card
 - Record cash, check, waived, no-charge, and refund information
 - Review Square webhook/payment reconciliation items
 - Create and update General User profiles
@@ -89,6 +90,8 @@ The app supports:
 
 Admins can record manual refund outcomes. If enabled in System Config, authorized admins can also initiate Square refunds from the app. When a refund is started, the registration is cancelled and the seat is returned. If Square reports a pending refund, the app creates a Payment Review item so the issue is visible to admins.
 
+Free (`No Charge`) and other unpaid active registrations can be cancelled directly from the registration edit card without using the refund flow. Cancellation returns the seat and notifies the registrant when confirmation emails are enabled.
+
 Square webhooks are signed and recorded. Completed payment and refund events are reconciled automatically when possible, and unmatched items are routed to Payment Review.
 
 ## Email And Communication
@@ -109,15 +112,18 @@ Security is handled through several layers:
 
 - Firebase Authentication for signed-in users
 - Firestore security rules for role, profile, membership, and permission checks
-- Server-side Firebase Admin routes for registration creation and sensitive payment/refund operations
+- Server-side Firebase Admin routes for registration creation, event writes, and sensitive payment/refund/cancellation operations
+- Directory-safe `memberDirectoryProfiles` projections for member directory reads
 - Hashed, expiring email verification codes
 - One-use registration verification tokens
-- Private seat reservation and registration attempt collections
+- Private seat reservation, registration attempt, and API rate-limit collections
 - Signed Square webhook verification
+- Production security headers (CSP, frame protection, referrer policy, and related policies)
+- Privacy and support pages for member/registrant information questions
 - Environment variables for Firebase, Square, and Resend secrets
 - Read-only audit log design for important actions
 
-The current system already protects direct browser registration creation. Future hardening priorities include broader rate limiting, production security headers, a directory-safe member collection, and more automated rules/workflow tests.
+The current system already protects direct browser registration and event creation. Remaining hardening includes finishing server-side membership/config writes, abuse monitoring/alerts, and broader automated rules/workflow tests.
 
 ## Current Direction
 

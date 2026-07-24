@@ -377,7 +377,7 @@ function UserControlPanel({
         setLastEditedUserId(result.user?.userId || form.userId || '');
         setSuccessMessage(`User added. Temporary password: ${result.temporaryPassword}`);
       } else {
-        await updateUserProfile(user.id, payload, currentUserProfile);
+        await updateUserProfile(user.id, payload);
         if (canManageAdminUsers && form.temporaryPassword) {
           await updateUserPasswordByAdmin(user.userId || user.id, form.temporaryPassword);
         }
@@ -1476,7 +1476,6 @@ function UserTable({
   users,
   onDetails,
   onEdit,
-  onArchive,
   onSort
 }) {
   if (!users.length) {

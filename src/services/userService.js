@@ -26,7 +26,7 @@ export function subscribeToUsers(onNext, onError, { includeAdminProfiles = false
   return onSnapshot(usersQuery, onNext, onError);
 }
 
-export async function updateUserProfile(userId, updates, actorProfile) {
+export async function updateUserProfile(userId, updates) {
   const idToken = await getAdminIdToken();
 
   if (!idToken) {

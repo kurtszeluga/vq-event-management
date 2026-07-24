@@ -48,6 +48,7 @@ Depending on permissions, admins may be able to:
 - Manage events and activities
 - View and manage registrations
 - Record payment status changes
+- Cancel free or unpaid registrations without a refund
 - Manage payments and refunds
 - Add or update General User profiles
 - Change membership status when allowed
@@ -108,6 +109,8 @@ If app-initiated refunds are enabled, authorized admins can start Square refunds
 
 Refunds cancel the registration and return the seat. If Square reports the refund as pending, the app creates a Payment Review item so it is visible for follow-up.
 
+Free (`No Charge`) and other unpaid active registrations can be cancelled directly from the registration edit card. That cancellation returns the seat without changing the registration into a refunded payment state.
+
 ## Member Directory Access
 
 The member directory is controlled by System Config. It is available only when enabled, and only to signed-in users with:
@@ -115,7 +118,7 @@ The member directory is controlled by System Config. It is available only when e
 - Active profile status
 - Active membership status
 
-Directory fields are configurable. The Guild can decide whether to show email, phone, city/state, and full address.
+Directory fields are configurable. The Guild can decide whether to show email, phone, city/state, and full address. Directory data is served from `memberDirectoryProfiles` projections so full profile, permission, and payment fields are not exposed to directory readers.
 
 ## Security And Privacy Notes
 
@@ -123,13 +126,16 @@ The app uses several protections to keep registration, membership, and payment w
 
 - Users must be signed in or verified before sensitive registration details are shown.
 - Registration records are created by server-side logic, not direct browser writes.
+- Event create/update/delete is server-controlled.
 - Payment card details are handled by Square and are not stored in the app.
 - Square webhooks are signature-verified.
 - Admin tools are shown only to authorized users.
+- Member directory readers use directory-safe projections rather than full user documents.
 - Firestore rules restrict who can read or write profiles, registrations, payments, settings, and audit records.
 - Verification codes and seat holds expire automatically.
+- Production responses include security headers; privacy and support pages are available in the app.
 
-Future privacy improvements should include a directory-safe member collection, a privacy policy, production security headers, and expanded automated tests.
+Remaining privacy/security work includes finishing server-side membership/config writes, abuse monitoring/alerts, and expanded automated tests.
 
 ## Practical Use Cases
 
@@ -147,7 +153,7 @@ Typical admin use:
 1. Open Admin Dashboard.
 2. Create or update events and listings.
 3. Review registrations by activity type, year, and quarter.
-4. Manage payment or refund status.
+4. Manage payment or refund status, or cancel free/unpaid registrations.
 5. Review pending memberships or payment review items.
 6. Use System Config for membership, payment, email, directory, and coordinator settings.
 
