@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 import {
   getTimestampMillis,
   generateRegistrationToken,
@@ -25,17 +26,32 @@ export default async function handler(request, response) {
     const db = getFirestore();
 
     if (request.body?.action === 'squareConfig') {
+      await enforceRateLimit(db, {
+        limit: 120,
+        message: 'Too many payment setup requests. Please wait and try again later.',
+        request,
+        scope: 'square-config-ip',
+        windowMs: 10 * 60 * 1000
+      });
       response.status(200).json(await getSquarePaymentConfig(db));
       return;
     }
 
     if (request.body?.action === 'sendMembershipConfirmation') {
+      await enforceRateLimit(db, {
+        limit: 6,
+        message: 'Too many membership confirmation email requests. Please wait and try again later.',
+        request,
+        scope: 'membership-confirmation-email-ip',
+        windowMs: 60 * 60 * 1000
+      });
       await handleMembershipConfirmationRequest(request, response, db, app.options.projectId);
       return;
     }
 
     if (request.body?.action === 'beginSquareReservation') {
       const payload = sanitizeRegistrationPayload(request.body || {});
+      await enforceRegistrationRateLimit(db, request, 'beginSquareReservation', payload);
       const authorization = await authorizeRegistrationRequest(
         request,
         payload,
@@ -48,6 +64,7 @@ export default async function handler(request, response) {
     }
 
     const payload = sanitizeRegistrationPayload(request.body || {});
+    await enforceRegistrationRateLimit(db, request, 'submitRegistration', payload);
 
     if (!payload.eventId) {
       response.status(400).json({ error: 'Select an event before registering.' });
@@ -98,6 +115,49 @@ export default async function handler(request, response) {
       error: error.message || 'Registration could not be completed.'
     });
   }
+}
+
+async function enforceRegistrationRateLimit(db, request, action, payload) {
+  const tenMinutes = 10 * 60 * 1000;
+  const oneHour = 60 * 60 * 1000;
+  const targetKey = [
+    payload.email,
+    payload.eventId,
+    payload.profileUserId
+  ].filter(Boolean);
+
+  if (action === 'beginSquareReservation') {
+    await enforceRateLimit(db, {
+      limit: 40,
+      message: 'Too many payment seat hold requests. Please wait and try again later.',
+      request,
+      scope: 'square-seat-reservation-ip',
+      windowMs: tenMinutes
+    });
+    await enforceRateLimit(db, {
+      keyParts: targetKey,
+      limit: 8,
+      message: 'Too many payment seat hold requests for this registration. Please wait and try again later.',
+      scope: 'square-seat-reservation-target',
+      windowMs: tenMinutes
+    });
+    return;
+  }
+
+  await enforceRateLimit(db, {
+    limit: 30,
+    message: 'Too many registration submissions. Please wait and try again later.',
+    request,
+    scope: 'registration-submit-ip',
+    windowMs: tenMinutes
+  });
+  await enforceRateLimit(db, {
+    keyParts: targetKey,
+    limit: 6,
+    message: 'Too many registration submissions for this event. Please wait and try again later.',
+    scope: 'registration-submit-target',
+    windowMs: oneHour
+  });
 }
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {

@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 import {
   EMAIL_CODE_EXPIRATION_MS,
   EMAIL_CODE_MAX_ATTEMPTS,
@@ -51,6 +52,7 @@ export default async function handler(request, response) {
     const eventId = cleanText(request.body?.eventId);
 
     validateLookupInput(email, eventId);
+    await enforceLookupRateLimit(db, request, action, email, eventId);
 
     const context = await loadLookupContext(db, email, eventId);
     const identity = await getFirebaseIdentity(request, app.options.projectId, email);
@@ -74,6 +76,7 @@ async function startEmailVerification(request, response, db) {
   const eventId = cleanText(request.body?.eventId);
 
   validateLookupInput(email, eventId);
+  await enforceLookupRateLimit(db, request, 'startEmailVerification', email, eventId);
 
   const context = await loadLookupContext(db, email, eventId);
 
@@ -148,6 +151,7 @@ async function verifyEmailCode(request, response, db) {
   const code = cleanText(request.body?.code);
 
   validateLookupInput(email, eventId);
+  await enforceLookupRateLimit(db, request, 'verifyEmailCode', email, eventId);
 
   if (!challengeId || !/^\d{6}$/.test(code)) {
     throw httpError(400, 'Enter the six-digit verification code from your email.');
@@ -207,6 +211,62 @@ async function verifyEmailCode(request, response, db) {
     ...buildVerifiedLookupResponse(context),
     challengeId,
     registrationToken
+  });
+}
+
+async function enforceLookupRateLimit(db, request, action, email, eventId) {
+  const oneHour = 60 * 60 * 1000;
+  const tenMinutes = 10 * 60 * 1000;
+
+  if (action === 'startEmailVerification') {
+    await enforceRateLimit(db, {
+      limit: 10,
+      message: 'Too many verification code requests. Please wait and try again later.',
+      request,
+      scope: 'registration-email-code-send-ip',
+      windowMs: oneHour
+    });
+    await enforceRateLimit(db, {
+      keyParts: [email, eventId],
+      limit: 5,
+      message: 'Too many verification code requests for this email and event. Please wait and try again later.',
+      scope: 'registration-email-code-send-target',
+      windowMs: oneHour
+    });
+    return;
+  }
+
+  if (action === 'verifyEmailCode') {
+    await enforceRateLimit(db, {
+      limit: 40,
+      message: 'Too many verification attempts. Please wait and try again later.',
+      request,
+      scope: 'registration-email-code-verify-ip',
+      windowMs: tenMinutes
+    });
+    await enforceRateLimit(db, {
+      keyParts: [email, eventId],
+      limit: 10,
+      message: 'Too many verification attempts for this registration. Please request a new code later.',
+      scope: 'registration-email-code-verify-target',
+      windowMs: tenMinutes
+    });
+    return;
+  }
+
+  await enforceRateLimit(db, {
+    limit: 80,
+    message: 'Too many registration lookup requests. Please wait and try again later.',
+    request,
+    scope: 'registration-lookup-ip',
+    windowMs: tenMinutes
+  });
+  await enforceRateLimit(db, {
+    keyParts: [email, eventId],
+    limit: 20,
+    message: 'Too many registration lookup requests for this email and event. Please wait and try again later.',
+    scope: 'registration-lookup-target',
+    windowMs: tenMinutes
   });
 }
 

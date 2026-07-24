@@ -42,7 +42,7 @@ This document tracks the security, reliability, usability, and product improveme
 | Add Square webhook signature verification | Completed | Added `/api/square-webhook`, HMAC signature verification, private `squareWebhookEvents` logging, and conservative payment/refund reconciliation hooks. |
 | Add payment reconciliation tools | Completed | Added an admin Payment Review module and Needs Attention count for Square webhook events requiring review. |
 | Initiate Square refunds from the app | Completed | Added the System Config toggle and guarded online Square refund action. Pending Square refunds cancel the registration immediately, return the seat, create Payment Review follow-up, send a registrant notification, and reconcile when Square webhook completion arrives. |
-| Add payment and card-testing rate limits | Not Started | Include bot protection such as Cloudflare Turnstile or Firebase App Check. |
+| Add payment and card-testing rate limits | Completed | Added Firestore-backed API rate limits for registration lookup, email-code sends, code verification, Square seat holds, registration submits, membership confirmation sends, admin payment updates, and refund requests. `apiRateLimits.expiresAt` is TTL-managed. |
 | Enforce idempotency across registration retries | Completed | Registration submit attempts now carry a stable browser-generated attempt key, store a private `registrationAttempts` record, reuse existing results on retry, and send the same key to Square to avoid duplicate charges. |
 
 ## Phase 3 - Data Security And Permissions
@@ -128,3 +128,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-24 | Refined Square refund webhook reconciliation so refund-related `payment.updated` events no longer create Needs Review rows, and completed refund webhooks clear matching pending refund review items. |
 | 2026-07-24 | Fixed member-directory reads by aligning the active-member query with Firestore rule constraints. |
 | 2026-07-24 | Refreshed `PROJECT_SPEC.md` and this upgrade plan to match the current app configuration and upgrade status. |
+| 2026-07-24 | Completed the final Phase 2 item by adding Firestore-backed rate limits for payment, registration, verification, and refund-sensitive API flows. |

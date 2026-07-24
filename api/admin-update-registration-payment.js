@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 
 const PAYMENT_METHODS = ['', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -65,6 +66,7 @@ export default async function handler(request, response) {
     }
 
     if (request.body?.action === 'resolvePaymentReview') {
+      await enforceAdminPaymentRateLimit(db, request, actorUid, 'resolvePaymentReview');
       await resolvePaymentReview({
         actorProfile,
         actorUid,
@@ -75,6 +77,7 @@ export default async function handler(request, response) {
       });
       return;
     }
+    await enforceAdminPaymentRateLimit(db, request, actorUid, 'updateRegistrationPayment', request.body || {});
 
     const registrationId = cleanText(request.body?.registrationId);
 
@@ -194,6 +197,38 @@ export default async function handler(request, response) {
   } catch (error) {
     response.status(error.statusCode || 500).json({
       error: error.message || 'Payment could not be updated.'
+    });
+  }
+}
+
+async function enforceAdminPaymentRateLimit(db, request, actorUid, action, payload = {}) {
+  const tenMinutes = 10 * 60 * 1000;
+  const oneHour = 60 * 60 * 1000;
+  const registrationId = cleanText(payload.registrationId);
+
+  await enforceRateLimit(db, {
+    keyParts: [actorUid, action],
+    limit: action === 'resolvePaymentReview' ? 60 : 40,
+    message: 'Too many admin payment updates. Please wait and try again later.',
+    request,
+    scope: 'admin-payment-update-ip-user',
+    windowMs: tenMinutes
+  });
+
+  if (payload.paymentStatus === 'Refunded') {
+    await enforceRateLimit(db, {
+      keyParts: [actorUid],
+      limit: 8,
+      message: 'Too many refund requests. Please wait and try again later.',
+      scope: 'admin-square-refund-user',
+      windowMs: oneHour
+    });
+    await enforceRateLimit(db, {
+      keyParts: [registrationId],
+      limit: 3,
+      message: 'Too many refund requests for this registration. Please wait and review the payment history.',
+      scope: 'admin-square-refund-registration',
+      windowMs: oneHour
     });
   }
 }
