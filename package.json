@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "node --test tests/*.test.js",
     "setup:first-admin": "node scripts/setupFirstAdmin.mjs",
-    "backfill:member-directory": "node scripts/backfillMemberDirectoryProfiles.mjs"
+    "backfill:member-directory": "node scripts/backfillMemberDirectoryProfiles.mjs",
+    "audit:zero-capacity": "node scripts/auditZeroCapacityEvents.mjs"
   },
   "dependencies": {
     "firebase": "^12.1.0",
