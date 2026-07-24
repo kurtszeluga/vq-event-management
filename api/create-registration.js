@@ -971,6 +971,7 @@ async function finalizeSquareRegistrationPayment(db, result, squarePayment) {
     paymentPreference: 'online',
     paymentStatus: 'Paid',
     paymentUpdatedDate: FieldValue.serverTimestamp(),
+    squareTransactionId,
     status: 'Registered'
   };
 
@@ -992,6 +993,7 @@ async function finalizeSquareRegistrationPayment(db, result, squarePayment) {
         paymentMethod: 'Online',
         paymentPreference: 'online',
         paymentStatus: 'Paid',
+        squareTransactionId,
         status: 'Registered'
       }
     });

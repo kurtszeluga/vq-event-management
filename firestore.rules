@@ -167,6 +167,7 @@ service cloud.firestore {
           'paymentPreference',
           'paymentStatus',
           'paymentUpdatedDate',
+          'squareTransactionId',
           'status'
         ])
         && request.resource.data.eventId is string
@@ -198,6 +199,8 @@ service cloud.firestore {
         && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'])
         && (!('paymentUpdatedDate' in request.resource.data)
           || request.resource.data.paymentUpdatedDate is timestamp)
+        && (!('squareTransactionId' in request.resource.data)
+          || request.resource.data.squareTransactionId is string)
         && validStatus(request.resource.data.status, ['Pending Payment', 'Registered', 'Cancelled', 'Waitlisted'])
         && (!('userId' in request.resource.data) || request.resource.data.userId is string)
         && (hasPermission('viewRegistrations')

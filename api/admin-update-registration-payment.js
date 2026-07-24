@@ -101,8 +101,12 @@ export default async function handler(request, response) {
       registrationId
     });
     const now = FieldValue.serverTimestamp();
+    const squareTransactionUpdate = squareRefund?.payment_id
+      ? { squareTransactionId: squareRefund.payment_id }
+      : {};
     const updatePayload = {
       ...paymentUpdate,
+      ...squareTransactionUpdate,
       ...statusUpdate,
       paymentUpdatedDate: now
     };
@@ -129,6 +133,7 @@ export default async function handler(request, response) {
       after: {
         ...paymentUpdate,
         squareRefundId: squareRefund?.id || '',
+        ...squareTransactionUpdate,
         ...statusUpdate,
         paymentUpdatedDate: null
       },
@@ -177,7 +182,7 @@ async function processSquareRefundIfNeeded(db, {
     return null;
   }
 
-  const squarePaymentId = cleanText(before.squareTransactionId);
+  const squarePaymentId = await getSquarePaymentIdForRegistration(db, before, registrationId);
 
   if (!squarePaymentId) {
     throw httpError(400, 'This registration does not have a Square payment id to refund.');
@@ -227,7 +232,32 @@ async function processSquareRefundIfNeeded(db, {
     );
   }
 
-  return refund;
+  return {
+    ...refund,
+    payment_id: squarePaymentId
+  };
+}
+
+async function getSquarePaymentIdForRegistration(db, registration, registrationId) {
+  const squarePaymentId = cleanText(registration.squareTransactionId);
+
+  if (squarePaymentId) {
+    return squarePaymentId;
+  }
+
+  const paymentSnapshot = await db
+    .collection('payments')
+    .where('registrationId', '==', registrationId)
+    .where('processor', '==', 'Square')
+    .where('status', '==', 'Paid')
+    .limit(1)
+    .get();
+
+  if (paymentSnapshot.empty) {
+    return '';
+  }
+
+  return cleanText(paymentSnapshot.docs[0].data().squareTransactionId);
 }
 
 async function getPaymentSettings(db) {
@@ -570,7 +600,7 @@ function buildPaymentRecord({
     registrationId,
     registrationStatus: statusUpdate.status || before.status || '',
     squareRefundId,
-    squareTransactionId: before.squareTransactionId || '',
+    squareTransactionId: before.squareTransactionId || squareRefund?.payment_id || '',
     status: paymentUpdate.paymentStatus || 'Pending',
     userId: before.userId || '',
     updatedRegistrationSnapshot: {
