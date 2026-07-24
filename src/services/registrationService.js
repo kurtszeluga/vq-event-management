@@ -313,6 +313,34 @@ export async function updateRegistrationPayment(registrationId, paymentData) {
   return result;
 }
 
+export async function cancelRegistration(registrationId, { cancelNote = '' } = {}) {
+  const idToken = await auth?.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('You must be signed in to cancel registrations.');
+  }
+
+  const response = await fetch('/api/admin-update-registration-payment', {
+    body: JSON.stringify({
+      action: 'cancelRegistration',
+      cancelNote,
+      registrationId
+    }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Registration could not be cancelled.');
+  }
+
+  return result;
+}
+
 async function parseJsonResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   const bodyText = await response.text();

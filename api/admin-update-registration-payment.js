@@ -77,6 +77,19 @@ export default async function handler(request, response) {
       });
       return;
     }
+
+    if (request.body?.action === 'cancelRegistration') {
+      await enforceAdminPaymentRateLimit(db, request, actorUid, 'cancelRegistration', request.body || {});
+      await cancelRegistrationWithoutRefund({
+        actorProfile,
+        actorUid,
+        db,
+        request,
+        response
+      });
+      return;
+    }
+
     await enforceAdminPaymentRateLimit(db, request, actorUid, 'updateRegistrationPayment', request.body || {});
 
     const registrationId = cleanText(request.body?.registrationId);
@@ -482,6 +495,125 @@ async function resolvePaymentReview({
   response.status(200).json({ status: 'Reviewed' });
 }
 
+async function cancelRegistrationWithoutRefund({
+  actorProfile,
+  actorUid,
+  db,
+  request,
+  response
+}) {
+  const registrationId = cleanText(request.body?.registrationId);
+  const cancelNote = cleanText(request.body?.paymentNote || request.body?.cancelNote);
+
+  if (!registrationId) {
+    response.status(400).json({ error: 'Registration ID is required.' });
+    return;
+  }
+
+  const registrationRef = db.collection('registrations').doc(registrationId);
+  const registrationSnap = await registrationRef.get();
+
+  if (!registrationSnap.exists) {
+    response.status(404).json({ error: 'Registration record could not be found.' });
+    return;
+  }
+
+  const before = registrationSnap.data();
+  const currentStatus = before.status || 'Registered';
+  const paymentStatus = before.paymentStatus || 'Pending';
+
+  if (!['Registered', 'Waitlisted', 'Pending Payment'].includes(currentStatus)) {
+    response.status(400).json({ error: 'Only active registrations can be cancelled.' });
+    return;
+  }
+
+  if (['Paid', 'Refund Pending'].includes(paymentStatus) && before.paymentMethod === 'Online') {
+    response.status(400).json({
+      error: 'Paid online registrations must be cancelled through the refund flow.'
+    });
+    return;
+  }
+
+  if (paymentStatus === 'Paid') {
+    response.status(400).json({
+      error: 'Paid registrations must be marked Refunded to cancel and return the seat.'
+    });
+    return;
+  }
+
+  const now = FieldValue.serverTimestamp();
+  const paymentUpdate = {
+    amountPaid: Number(before.amountPaid || 0),
+    paymentMethod: before.paymentMethod || '',
+    paymentNote: cancelNote || before.paymentNote || '',
+    paymentStatus
+  };
+  const statusUpdate = { status: 'Cancelled' };
+  const batch = db.batch();
+  const paymentRef = db.collection('payments').doc();
+
+  batch.update(registrationRef, {
+    ...paymentUpdate,
+    ...statusUpdate,
+    paymentUpdatedDate: now
+  });
+  batch.set(paymentRef, buildPaymentRecord({
+    actorProfile,
+    actorUid,
+    before,
+    paymentId: paymentRef.id,
+    paymentUpdate,
+    registrationId,
+    squareRefund: null,
+    statusUpdate
+  }));
+  batch.set(db.collection('auditLogs').doc(), {
+    action: 'Cancel',
+    actorEmail: actorProfile.email || '',
+    actorName: actorProfile.name || actorProfile.email || 'Unknown Admin',
+    actorRole: actorProfile.role || '',
+    actorUserId: actorProfile.userId || actorUid,
+    after: {
+      ...paymentUpdate,
+      ...statusUpdate,
+      paymentUpdatedDate: null
+    },
+    before,
+    createdDate: now,
+    entityId: registrationId,
+    entityType: 'Registration',
+    summary: `Cancelled registration "${before.name || before.email || registrationId}"`
+  });
+
+  await batch.commit();
+
+  const updatedRegistration = {
+    ...before,
+    ...paymentUpdate,
+    ...statusUpdate
+  };
+
+  if (cleanText(updatedRegistration.email)) {
+    await withTimeout(
+      sendRefundNotificationEmail(db, {
+        actorProfile,
+        registration: updatedRegistration,
+        squareRefund: null
+      }),
+      4000,
+      'Cancellation notification email timed out'
+    ).catch((emailError) => {
+      console.error('Cancellation notification email failed', emailError);
+    });
+  }
+
+  response.status(200).json({
+    payment: paymentUpdate,
+    registrationId,
+    status: 'Cancelled'
+  });
+}
+
 function getStatusUpdateForPayment({ before, paymentUpdate }) {
   const nextStatus = getRegistrationStatusForPayment(before, paymentUpdate.paymentStatus);
 
@@ -639,6 +771,9 @@ function buildRefundNotificationHtml({ coordinatorContact, registration, squareR
   const eventTitle = registration.eventTitle || registration.eventType || 'Event';
   const refundStatus = getRefundStatusText(registration, squareRefund);
   const contactHtml = buildCoordinatorContactHtml(coordinatorContact);
+  const introText = ['Refunded', 'Refund Pending'].includes(registration.paymentStatus)
+    ? 'Your registration has been cancelled. The payment refund status is shown below.'
+    : 'Your registration has been cancelled. Current payment details are shown below.';
 
   return `<!doctype html>
 <html>
@@ -665,11 +800,14 @@ function buildRefundNotificationHtml({ coordinatorContact, registration, squareR
             <tr>
               <td style="padding:24px 28px;">
                 <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">Hello ${escapeHtml(registration.name || registration.email)},</p>
-                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">Your registration has been cancelled. The payment refund status is shown below.</p>
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">${escapeHtml(introText)}</p>
                 <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
                   <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">${escapeHtml(eventTitle)}</h2>
                   ${buildDetailRowHtml('Registration Status', registration.status || 'Cancelled')}
-                  ${buildDetailRowHtml('Refund Status', refundStatus)}
+                  ${buildDetailRowHtml(
+                    ['Refunded', 'Refund Pending'].includes(registration.paymentStatus) ? 'Refund Status' : 'Payment Status',
+                    refundStatus
+                  )}
                   ${buildDetailRowHtml('Event Date', formatEventDate(registration.eventDate))}
                   ${buildDetailRowHtml('Amount', formatCurrency(registration.amountPaid || registration.amountDue || 0))}
                   ${registration.squareRefundId ? buildDetailRowHtml('Square Refund ID', registration.squareRefundId) : ''}
@@ -691,16 +829,20 @@ function buildRefundNotificationHtml({ coordinatorContact, registration, squareR
 }
 
 function buildRefundNotificationText({ coordinatorContact, registration, squareRefund }) {
+  const isRefundCancellation = ['Refunded', 'Refund Pending'].includes(registration.paymentStatus);
+
   return [
     'The Village Quilters, Inc. Registration Cancelled',
     '',
     `Hello ${registration.name || registration.email},`,
     '',
-    'Your registration has been cancelled. The payment refund status is shown below.',
+    isRefundCancellation
+      ? 'Your registration has been cancelled. The payment refund status is shown below.'
+      : 'Your registration has been cancelled. Current payment details are shown below.',
     '',
     `Event: ${registration.eventTitle || registration.eventType || 'Event'}`,
     `Registration Status: ${registration.status || 'Cancelled'}`,
-    `Refund Status: ${getRefundStatusText(registration, squareRefund)}`,
+    `${isRefundCancellation ? 'Refund Status' : 'Payment Status'}: ${getRefundStatusText(registration, squareRefund)}`,
     `Event Date: ${formatEventDate(registration.eventDate)}`,
     `Amount: ${formatCurrency(registration.amountPaid || registration.amountDue || 0)}`,
     registration.squareRefundId ? `Square Refund ID: ${registration.squareRefundId}` : '',
@@ -719,6 +861,14 @@ function getRefundStatusText(registration, squareRefund) {
     return squareRefund?.status
       ? `Refund completed. Square status: ${squareRefund.status}.`
       : 'Refund recorded.';
+  }
+
+  if (registration.paymentStatus === 'No Charge') {
+    return 'No payment was charged for this registration.';
+  }
+
+  if (['Pending', 'Waived', 'Failed'].includes(registration.paymentStatus)) {
+    return `Payment status: ${registration.paymentStatus}.`;
   }
 
   return registration.paymentStatus || 'Refund status unavailable';

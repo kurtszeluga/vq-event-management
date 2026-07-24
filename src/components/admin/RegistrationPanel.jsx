@@ -8,6 +8,7 @@ import {
   subscribeToPublishedEvents
 } from '../../services/eventService.js';
 import {
+  cancelRegistration,
   subscribeToPayments,
   subscribeToRegistrations,
   updateRegistrationPayment
@@ -440,6 +441,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const paymentEditState = getPaymentEditState(selectedRegistration, selectedPaymentStatus);
   const paymentMethodOptions = getPaymentMethodOptions(selectedRegistration, selectedPaymentStatus);
   const paymentStatusOptions = getPaymentStatusOptions(selectedRegistration);
+  const canCancelFreeRegistration = canCancelRegistrationWithoutRefund(selectedRegistration);
 
   function handleResetFilters() {
     setActivityFilter('');
@@ -606,6 +608,40 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       setSelectedPaymentStatus('Pending');
     } catch (saveError) {
       setError(saveError.message || 'Registration changes could not be saved.');
+    } finally {
+      setSavingRegistrationId('');
+    }
+  }
+
+  async function handleCancelFreeRegistration() {
+    if (!selectedRegistration || !canCancelRegistrationWithoutRefund(selectedRegistration)) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Cancel this registration? The seat will be returned and the registrant will be notified if confirmation emails are enabled.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setSuccessMessage('');
+    setSavingRegistrationId(selectedRegistration.id);
+
+    try {
+      await cancelRegistration(selectedRegistration.id, {
+        cancelNote: selectedPaymentNote.trim()
+      });
+      setSuccessMessage('Registration cancelled and the seat was returned.');
+      setSelectedRegistrationId('');
+      setSelectedPaymentAmount('');
+      setSelectedPaymentMethod('');
+      setSelectedPaymentNote('');
+      setSelectedPaymentStatus('Pending');
+    } catch (cancelError) {
+      setError(cancelError.message || 'Registration could not be cancelled.');
     } finally {
       setSavingRegistrationId('');
     }
@@ -978,6 +1014,9 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
               <p className="form-help">
                 Registration status is controlled by payment status. Paid, pending, waived, and no-charge
                 registrations remain Registered. Refunded or failed payments cancel the registration.
+                {canCancelFreeRegistration
+                  ? ' Free and unpaid registrations can also be cancelled directly below.'
+                  : ''}
               </p>
             </div>
             <div className="registration-edit-section">
@@ -1064,13 +1103,25 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     ? 'Process Square Refund'
                     : 'Save Changes'}
               </button>
+              {canCancelFreeRegistration ? (
+                <button
+                  className="button-link button-reset archive-action"
+                  disabled={Boolean(savingRegistrationId)}
+                  type="button"
+                  onClick={handleCancelFreeRegistration}
+                >
+                  {savingRegistrationId === selectedRegistration.id
+                    ? 'Cancelling...'
+                    : 'Cancel Registration'}
+                </button>
+              ) : null}
               <button
                 className="button-link button-reset secondary-action"
                 disabled={Boolean(savingRegistrationId)}
                 type="button"
                 onClick={handleCloseDetails}
               >
-                Cancel
+                Close
               </button>
             </div>
           </div>
@@ -1366,6 +1417,27 @@ function isOnlinePayment(registration) {
 
 function isPaidRegistration(registration) {
   return ['Paid', 'Refund Pending'].includes(registration?.paymentStatus);
+}
+
+function canCancelRegistrationWithoutRefund(registration) {
+  if (!registration) {
+    return false;
+  }
+
+  const status = registration.status || 'Registered';
+  const paymentStatus = registration.paymentStatus || 'Pending';
+
+  if (!['Registered', 'Waitlisted', 'Pending Payment'].includes(status)) {
+    return false;
+  }
+
+  if (['Paid', 'Refund Pending'].includes(paymentStatus)) {
+    return false;
+  }
+
+  return paymentStatus === 'No Charge'
+    || Number(getAmountDue(registration) || 0) <= 0
+    || ['Pending', 'Waived', 'Failed'].includes(paymentStatus);
 }
 
 function getRegistrationStatusForPayment(registration, paymentStatus) {
