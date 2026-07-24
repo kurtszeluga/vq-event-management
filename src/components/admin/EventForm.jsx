@@ -1619,8 +1619,12 @@ function validateEventForm(form) {
     errors.isPaid = 'Select whether this event has a fee.';
   }
 
-  if (requiresCapacity && !form.capacityUnlimited && Number(form.capacity) < 0) {
-    errors.capacity = 'Maximum capacity cannot be negative.';
+  if (requiresCapacity && !form.capacityUnlimited && !Number.isInteger(Number(form.capacity))) {
+    errors.capacity = 'Maximum capacity must be a whole number.';
+  } else if (requiresCapacity && !form.capacityUnlimited && Number(form.capacity) < 1) {
+    // Capacity 0 waitlists every registrant while listings still advertise
+    // open seats, so require a real seat count or the unlimited option.
+    errors.capacity = 'Maximum capacity must be at least 1, or select unlimited capacity.';
   }
 
   if (!form.listingMode) {

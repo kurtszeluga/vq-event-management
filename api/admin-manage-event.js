@@ -2,6 +2,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
+import { getEventCapacityError } from './_lib/registration-capacity.js';
 
 let firebaseProjectId = '';
 
@@ -79,6 +80,15 @@ export default async function handler(request, response) {
     const eventData = request.body?.eventData && typeof request.body.eventData === 'object'
       ? request.body.eventData
       : {};
+
+    if (action === 'create' || action === 'update') {
+      const capacityError = getEventCapacityError(eventData);
+
+      if (capacityError) {
+        response.status(400).json({ error: capacityError });
+        return;
+      }
+    }
 
     if (action === 'create') {
       const eventRef = db.collection('events').doc();

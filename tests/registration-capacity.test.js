@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   PAYMENT_RESERVATION_EXPIRATION_MS,
+  getEventCapacityError,
   getInitialPaymentStatus,
   getInitialRegistrationStatus,
   getReservationExpiryMillis,
@@ -210,4 +211,43 @@ test('initial registration status covers the waitlist and payment paths', () => 
 test('free events are never left in a payable state', () => {
   assert.equal(getInitialPaymentStatus({ isPaidEvent: false }), 'No Charge');
   assert.equal(getInitialPaymentStatus({ isPaidEvent: true }), 'Pending');
+});
+
+test('a capped event cannot be saved with zero capacity', () => {
+  // The state that made listings advertise open seats while every registrant
+  // was silently waitlisted.
+  assert.notEqual(getEventCapacityError({ capacity: 0, capacityUnlimited: false }), '');
+  assert.notEqual(getEventCapacityError({ capacityUnlimited: false }), '');
+  assert.notEqual(getEventCapacityError({ capacity: -1, capacityUnlimited: false }), '');
+  assert.notEqual(getEventCapacityError({ capacity: 2.5, capacityUnlimited: false }), '');
+  assert.notEqual(getEventCapacityError({ capacity: 'lots', capacityUnlimited: false }), '');
+});
+
+test('capped events with real seat counts and unlimited events both save', () => {
+  assert.equal(getEventCapacityError({ capacity: 1, capacityUnlimited: false }), '');
+  assert.equal(getEventCapacityError({ capacity: 25, capacityUnlimited: false }), '');
+
+  // Event types that do not use capacity are saved with capacityUnlimited true
+  // and a capacity of 0, so they must stay exempt.
+  assert.equal(getEventCapacityError({ capacity: 0, capacityUnlimited: true }), '');
+  assert.equal(getEventCapacityError({ capacityUnlimited: true }), '');
+});
+
+test('a saved event always satisfies the capacity invariant registration relies on', () => {
+  // Any event that clears validation must leave at least one seat available
+  // when empty, so listings and registration cannot disagree.
+  const savable = [
+    { capacity: 1, capacityUnlimited: false },
+    { capacity: 25, capacityUnlimited: false },
+    { capacity: 0, capacityUnlimited: true }
+  ];
+
+  savable.forEach((event) => {
+    assert.equal(getEventCapacityError(event), '');
+    assert.equal(hasAvailableSeat({
+      activeReservationCount: 0,
+      activeSeatCount: 0,
+      event
+    }), true);
+  });
 });

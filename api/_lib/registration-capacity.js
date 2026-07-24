@@ -57,3 +57,22 @@ export function getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLate
 export function getInitialPaymentStatus({ isPaidEvent }) {
   return isPaidEvent ? 'Pending' : 'No Charge';
 }
+
+// A capped event must have room for at least one person. Capacity 0 with
+// capacityUnlimited unset waitlists every registrant while listing views still
+// advertise open seats, so the state is rejected at write time instead.
+// Event types that do not use capacity are saved with capacityUnlimited true
+// and are therefore exempt.
+export function getEventCapacityError(eventData = {}) {
+  if (eventData.capacityUnlimited) {
+    return '';
+  }
+
+  const capacity = Number(eventData.capacity);
+
+  if (!Number.isInteger(capacity) || capacity < 1) {
+    return 'Maximum capacity must be at least 1, or select unlimited capacity.';
+  }
+
+  return '';
+}

@@ -96,12 +96,12 @@ This document tracks the security, reliability, usability, and product improveme
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| Add automated Firestore rules and workflow tests | Not Started | Prioritize registration eligibility, membership, capacity, payments, imports, and permissions. |
-| Add continuous integration for build, lint, and tests | Not Started | Prevent broken deployments from reaching production. |
-| Fix current source lint errors and ignore generated `.vercel` files | Not Started | The July 2026 review found 15 source errors and 3 warnings. |
-| Resolve dependency audit findings | Not Started | Review one high and six moderate findings without forcing breaking downgrades. |
+| Add automated Firestore rules and workflow tests | In Progress | Capacity, seat holds, payment-hold validation, and Square refund-side webhook detection are covered by 19 tests in `tests/registration-capacity.test.js` and `tests/square-reconciliation.test.js`. Remaining: Firestore rules tests, membership eligibility, and CSV import. |
+| Add continuous integration for build, lint, and tests | Completed | `.github/workflows/ci.yml` runs lint, build, and tests on push to `main` and all pull requests, on Node 18 and 20. |
+| Fix current source lint errors and ignore generated `.vercel` files | Completed | Added `.vercel` to ESLint ignores, fixed the four real source errors, and resolved the `EventForm` exhaustive-deps warning. `npm run lint` is clean. |
+| Resolve dependency audit findings | Not Started | `npm audit fix` alone is safe, but do not run `npm audit fix --force`: it downgrades `firebase-admin` to 10.3.0, upgrades ESLint past the `eslint-plugin-react-hooks@5` peer range, and surfaces a new `protobufjs` chain. Needs a deliberate per-package upgrade instead. |
 | Split oversized components and services | Not Started | RegisterPage, EventForm, ConfigurationPanel, RegistrationPanel, UserControlPanel, and configurationService need smaller ownership boundaries. |
-| Centralize event display and registration availability logic | Not Started | Eliminate drift between app listings, GoDaddy feed, details, print, and email. |
+| Centralize event display and registration availability logic | In Progress | Server-side capacity math now lives in `api/_lib/registration-capacity.js` and is shared by both `create-registration.js` call sites. Remaining: `src/utils/registrationAvailability.js` and `api/_lib/public-event-feed.js` still compute availability separately. |
 | Add shared validation schemas | Not Started | Keep frontend, APIs, and Firestore data contracts aligned. |
 | Add route-level lazy loading | Not Started | Reduce initial JavaScript and PWA precache size. |
 | Add staging Firebase, Square sandbox, and test data | Not Started | Keep registration and payment testing out of production records. |
@@ -135,3 +135,6 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-24 | Added directory-safe `memberDirectoryProfiles` collection, write-through sync, backfill script, and removed Active-member peer reads of full `users` documents. |
 | 2026-07-24 | Phase 3 progress: extended API rate limits, security headers, privacy/support pages, event-admin Storage rules, server-only event writes via `/api/admin-manage-event`, and folded password changes into `/api/admin-update-user-profile`. |
 | 2026-07-24 | Added admin Cancel Registration for free/unpaid registrations (`No Charge`, Pending, Waived, Failed) so seats can be returned without using the refund flow; updated Spec, App Overview, and Role Capabilities docs. |
+| 2026-07-24 | Cleared the source lint backlog, scoped ESLint away from generated `.vercel` output, and added a GitHub Actions CI workflow running lint, build, and tests on Node 18 and 20. |
+| 2026-07-24 | Extracted registration capacity and Square reconciliation logic into `api/_lib/`, shared one capacity predicate across both `create-registration.js` call sites, and added 19 tests (suite total 9 to 28). Verified the tests catch regressions by mutation testing the capacity boundary and the payment-hold email binding. |
+| 2026-07-24 | Fixed a capacity/listing divergence: events saved with capacity 0 and unlimited unchecked advertised open seats on listings and the GoDaddy feed while registration silently waitlisted everyone. Capacity is now validated to at least 1 in `EventForm` and re-checked server-side in `/api/admin-manage-event`. Existing 0-capacity events still need a one-time cleanup. |
