@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
+import { getSquareAmount, isRefundSidePaymentUpdate } from './_lib/square-reconciliation.js';
 
 const REGISTRATION_PAID_UPDATE = {
   paymentMethod: 'Online',
@@ -471,17 +472,6 @@ function getNotificationUrl(request) {
   const protocol = request.headers['x-forwarded-proto'] || 'https';
 
   return `${protocol}://${host}/api/square-webhook`;
-}
-
-function getSquareAmount(amountMoney = {}) {
-  return Number(amountMoney.amount || 0) / 100;
-}
-
-function isRefundSidePaymentUpdate(squarePayment = {}) {
-  const refundedAmount = getSquareAmount(squarePayment.refunded_money);
-  const refundIds = Array.isArray(squarePayment.refund_ids) ? squarePayment.refund_ids : [];
-
-  return refundedAmount > 0 || refundIds.length > 0;
 }
 
 function buildRefundNote(squareRefund) {

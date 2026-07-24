@@ -10,8 +10,16 @@ import {
   verificationSecretsMatch
 } from './_lib/registration-verification.js';
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
-
-const PAYMENT_RESERVATION_EXPIRATION_MS = 5 * 60 * 1000;
+import {
+  PAYMENT_RESERVATION_EXPIRATION_MS,
+  getInitialPaymentStatus,
+  getInitialRegistrationStatus,
+  getReservationExpiryMillis,
+  hasAvailableSeat,
+  isActiveReservation,
+  isSeatHoldingRegistration,
+  reservationMatchesRequest
+} from './_lib/registration-capacity.js';
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
@@ -315,10 +323,9 @@ async function createRegistration(db, payload, authorization) {
       Date.now(),
       possiblePaymentReservation?.id || payload.paymentReservationId
     );
-    const hasCapacity = Boolean(event.capacityUnlimited)
-      || activeSeatCount + activeReservationCount < Number(event.capacity || 0);
+    const hasCapacity = hasAvailableSeat({ activeReservationCount, activeSeatCount, event });
     const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
-    const paymentStatus = getInitialPaymentStatus({ isPaidEvent, status });
+    const paymentStatus = getInitialPaymentStatus({ isPaidEvent });
     const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
     const paymentReservation = requiresSquarePayment ? possiblePaymentReservation : null;
 
@@ -650,8 +657,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       now,
       reservationRef.id
     );
-    const seatsAvailable = Boolean(event.capacityUnlimited)
-      || activeSeatCount + activeReservationCount < Number(event.capacity || 0);
+    const seatsAvailable = hasAvailableSeat({ activeReservationCount, activeSeatCount, event });
 
     if (!seatsAvailable) {
       return {
@@ -670,8 +676,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
 
     if (existingReservationSnap?.exists) {
       const existingReservation = existingReservationSnap.data();
-      const existingExpiresAtMillis = getTimestampMillis(existingReservation.expiresAt)
-        || getTimestampMillis(existingReservation.createdAt) + PAYMENT_RESERVATION_EXPIRATION_MS;
+      const existingExpiresAtMillis = getReservationExpiryMillis(existingReservation);
 
       if (
         existingReservation.status === 'Active'
@@ -974,18 +979,8 @@ async function validatePaymentReservation(transaction, db, payload, expected) {
   }
 
   const reservation = reservationSnap.data();
-  const expiresAtMillis = getTimestampMillis(reservation.expiresAt)
-    || getTimestampMillis(reservation.createdAt) + PAYMENT_RESERVATION_EXPIRATION_MS;
-  const reservationAmountCents = Math.round(Number(reservation.amountDue || 0) * 100);
-  const expectedAmountCents = Math.round(Number(expected.amountDue || 0) * 100);
 
-  if (
-    reservation.status !== 'Active'
-    || reservation.eventId !== expected.eventId
-    || reservation.email !== expected.email
-    || reservationAmountCents !== expectedAmountCents
-    || expiresAtMillis <= Date.now()
-  ) {
+  if (!reservationMatchesRequest(reservation, expected, Date.now())) {
     throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
   }
 
@@ -997,13 +992,10 @@ async function getActiveReservationCount(transaction, db, eventId, now, excluded
     db.collection('registrationReservations').where('eventId', '==', eventId)
   );
 
-  return snapshot.docs.filter((docSnapshot) => {
-    const reservation = docSnapshot.data();
-
-    return docSnapshot.id !== excludedReservationId
-      && reservation.status === 'Active'
-      && getTimestampMillis(reservation.expiresAt) > now;
-  }).length;
+  return snapshot.docs.filter((docSnapshot) => (
+    docSnapshot.id !== excludedReservationId
+      && isActiveReservation(docSnapshot.data(), now)
+  )).length;
 }
 
 async function createSquarePayment(paymentRequest) {
@@ -1160,30 +1152,6 @@ function getSquarePaymentError(result) {
     .join(' ');
 
   return message || 'Square card payment could not be completed.';
-}
-
-function getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck }) {
-  if (!hasCapacity) {
-    return 'Waitlisted';
-  }
-
-  if (isPaidEvent && !payLaterByCashCheck) {
-    return 'Pending Payment';
-  }
-
-  return 'Registered';
-}
-
-function isSeatHoldingRegistration(registration = {}) {
-  return ['Pending Payment', 'Registered'].includes(registration.status);
-}
-
-function getInitialPaymentStatus({ isPaidEvent, status }) {
-  if (!isPaidEvent) {
-    return 'No Charge';
-  }
-
-  return status === 'Waitlisted' ? 'Pending' : 'Pending';
 }
 
 function validateReactivationTerms(payload) {
