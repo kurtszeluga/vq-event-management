@@ -200,7 +200,8 @@ export function subscribeToMembershipProfiles(onNext, onError) {
 export function subscribeToActiveMemberDirectoryProfiles(onNext, onError) {
   const profilesQuery = query(
     usersCollection(),
-    where('membershipStatus', '==', 'Active')
+    where('membershipStatus', '==', 'Active'),
+    where('status', '==', 'Active')
   );
 
   return onSnapshot(
@@ -208,8 +209,7 @@ export function subscribeToActiveMemberDirectoryProfiles(onNext, onError) {
     (snapshot) => {
       onNext({
         docs: snapshot.docs.filter((profileDoc) =>
-          profileDoc.data().status === 'Active'
-          && profileDoc.data().role !== 'Super User')
+          profileDoc.data().role !== 'Super User')
       });
     },
     onError
