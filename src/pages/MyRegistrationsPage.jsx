@@ -89,9 +89,10 @@ function MyRegistrationsPage() {
   );
   const sortedRegistrations = useMemo(
     () => [...registrations].sort((first, second) =>
-      getTimestampValue(second.registrationDate) - getTimestampValue(first.registrationDate)
+      getRegistrationEventSortValue(second, eventMap) - getRegistrationEventSortValue(first, eventMap)
+      || getTimestampValue(second.registrationDate) - getTimestampValue(first.registrationDate)
     ),
-    [registrations]
+    [eventMap, registrations]
   );
 
   if (loading) {
@@ -471,6 +472,12 @@ function getTimestampValue(value) {
 
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function getRegistrationEventSortValue(registration, eventMap) {
+  const event = eventMap.get(registration.eventId);
+
+  return getTimestampValue(event?.date || registration.eventDate);
 }
 
 export default MyRegistrationsPage;

@@ -41,7 +41,7 @@ This document tracks the security, reliability, usability, and product improveme
 | Add temporary seat reservations during online checkout | Completed | Online Square checkout now creates a private 5-minute event/email-bound reservation before tokenizing the card, counts active holds against capacity, and consumes the hold when the registration is written. |
 | Add Square webhook signature verification | Completed | Added `/api/square-webhook`, HMAC signature verification, private `squareWebhookEvents` logging, and conservative payment/refund reconciliation hooks. |
 | Add payment reconciliation tools | Completed | Added an admin Payment Review module and Needs Attention count for Square webhook events requiring review. |
-| Initiate Square refunds from the app | In Progress | Added the System Config toggle and guarded online Square refund action. Pending Square refunds cancel the registration immediately, return the seat, and create Payment Review follow-up until the Square webhook finalizes payment status. |
+| Initiate Square refunds from the app | Completed | Added the System Config toggle and guarded online Square refund action. Pending Square refunds cancel the registration immediately, return the seat, create Payment Review follow-up, send a registrant notification, and reconcile when Square webhook completion arrives. |
 | Add payment and card-testing rate limits | Not Started | Include bot protection such as Cloudflare Turnstile or Firebase App Check. |
 | Enforce idempotency across registration retries | Completed | Registration submit attempts now carry a stable browser-generated attempt key, store a private `registrationAttempts` record, reuse existing results on retry, and send the same key to Square to avoid duplicate charges. |
 
@@ -50,7 +50,7 @@ This document tracks the security, reliability, usability, and product improveme
 | Item | Status | Notes |
 | --- | --- | --- |
 | Create a directory-safe member collection | Not Started | Do not expose complete user documents to directory users. |
-| Correct and test member-directory Firestore queries | Not Started | Query constraints must match all rule conditions. |
+| Correct and test member-directory Firestore queries | Completed | Member directory query now includes both `status == Active` and `membershipStatus == Active`, matching Firestore rule requirements. |
 | Restrict event file uploads to authorized event administrators | Not Started | Current Storage rules allow any signed-in user to upload to their own folder. |
 | Route sensitive writes through authenticated server endpoints | Not Started | Covers events, membership changes, permissions, payments, and authoritative audit records. |
 | Add API rate limiting and abuse monitoring | Not Started | Protect lookup, verification, registration, email, and file-proxy endpoints. |
@@ -107,7 +107,7 @@ This document tracks the security, reliability, usability, and product improveme
 | Add staging Firebase, Square sandbox, and test data | Not Started | Keep registration and payment testing out of production records. |
 | Add error monitoring and operational alerts | Not Started | Capture client errors, API failures, payment mismatches, and email failures. |
 | Consolidate Vercel APIs or move backend functions | Not Started | The Hobby plan was at the 12-function limit during the review. |
-| Update README and PROJECT_SPEC to match the current system | Not Started | Current documentation still describes Square-hosted checkout and several older workflows. |
+| Update project documentation to match the current system | Completed | `PROJECT_SPEC.md` now reflects the current app configuration, payment/refund model, membership/profile model, directory, coordinator setup, email configuration, and upgrade priorities. |
 
 ## Completion Log
 
@@ -126,3 +126,5 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-24 | Updated app-initiated refunds to handle Square PENDING responses without a second click. Refund Pending now cancels the registration immediately, returns the seat, and creates a Payment Review follow-up while Square completion remains pending. |
 | 2026-07-24 | Added registration cancellation/refund notification emails after admin refund actions, using the existing email toggle and coordinator reply-to contact. |
 | 2026-07-24 | Refined Square refund webhook reconciliation so refund-related `payment.updated` events no longer create Needs Review rows, and completed refund webhooks clear matching pending refund review items. |
+| 2026-07-24 | Fixed member-directory reads by aligning the active-member query with Firestore rule constraints. |
+| 2026-07-24 | Refreshed `PROJECT_SPEC.md` and this upgrade plan to match the current app configuration and upgrade status. |

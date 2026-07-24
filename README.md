@@ -1,8 +1,11 @@
 # VQ Event Management
 
-Event registration and payment management for Village Quilters programs and classes.
+Progressive Web App for The Village Quilters Network. The app manages programs, workshops, challenges, registrations, member profiles, membership status, payment tracking, confirmation emails, coordinator contacts, and member-only features.
 
-This project follows `PROJECT_SPEC.md` as the source of truth.
+Primary docs:
+
+- `PROJECT_SPEC.md` describes the current application configuration and operating model.
+- `PROJECT_UPGRADE.md` tracks completed upgrade work and remaining priorities.
 
 ## Stack
 
@@ -10,9 +13,10 @@ This project follows `PROJECT_SPEC.md` as the source of truth.
 - React Router
 - Progressive Web App
 - Firebase Authentication, Firestore, and Storage
-- Vercel deployment
-- Future Square-hosted Checkout payment
-
+- Firebase Admin SDK in Vercel API routes
+- Resend transactional email
+- Square Web Payments SDK and Square APIs
+- GitHub to Vercel deployment
 
 ## Local Setup
 
@@ -49,9 +53,33 @@ The repo includes:
 
 Event images and supply-list PDFs upload to Firebase Storage from the admin event form.
 
+Publish Firestore rules and indexes after changes to:
+
+- `firestore.rules`
+- `firestore.indexes.json`
+- `storage.rules`
+
 ### Event Files
 
 Event images should be JPG, PNG, or WebP. The app resizes images to a maximum of 1600 x 1200 pixels and compresses them to 1 MB or less before upload. Supply lists must be PDF files no larger than 10 MB.
+
+### Payments And Email
+
+Online card payments use embedded Square payment fields. The app does not store card numbers, security codes, or wallet payment details.
+
+Vercel production needs these server-side values when payments, webhooks, and emails are enabled:
+
+- `FIREBASE_SERVICE_ACCOUNT_JSON`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `SQUARE_ACCESS_TOKEN`
+- `SQUARE_APPLICATION_ID`
+- `SQUARE_LOCATION_ID`
+- `SQUARE_ENVIRONMENT`
+- `SQUARE_WEBHOOK_SIGNATURE_KEY`
+- `SQUARE_WEBHOOK_NOTIFICATION_URL`
+
+Use Square sandbox credentials while testing and production credentials only when ready to take live payments.
 
 ### GitHub
 
@@ -64,9 +92,10 @@ Vercel should use:
 - Build command: `npm run build`
 - Output directory: `dist`
 - Framework preset: Vite
-- Server-side API environment variable: `FIREBASE_SERVICE_ACCOUNT_JSON`
 
 `vercel.json` includes the SPA rewrite needed for React Router.
+
+The Vercel Hobby plan has a serverless function limit, so prefer extending existing API routes before adding new functions.
 
 ## Scripts
 
@@ -74,6 +103,7 @@ Vercel should use:
 - `npm run build` creates a production build.
 - `npm run preview` previews the production build.
 - `npm run lint` runs ESLint.
+- `npm test` runs the focused Node test suite.
 - `npm run setup:first-admin` creates or updates the first Firebase Auth Super User and matching Firestore profile.
 
 ## First Super User Setup
