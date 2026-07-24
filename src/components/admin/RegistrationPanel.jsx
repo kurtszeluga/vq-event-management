@@ -13,7 +13,7 @@ import {
   updateRegistrationPayment
 } from '../../services/registrationService.js';
 import { subscribeToUsers } from '../../services/userService.js';
-import { formatEventDate } from '../../utils/eventFormat.js';
+import { formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -690,12 +690,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
             const eventTitle = getEventDisplayTitle(group.event, group.eventId, group.snapshot);
 
             return (
-              <button
-                className="registration-event-card"
-                key={group.eventId}
-                type="button"
-                onClick={() => handleSelectEvent(group.eventId)}
-              >
+              <article className="registration-event-card" key={group.eventId}>
                 <div className="registration-event-card-main">
                   <div className="card-kicker">
                     <span>{group.event?.eventType || group.snapshot.eventType || 'Event / Activity'}</span>
@@ -707,29 +702,39 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     </strong>
                   </div>
                   <h3>{eventTitle}</h3>
-                  <p>
-                    {formatEventDate(group.event?.date || group.snapshot.eventDate)}
-                    {group.event?.location ? ` | ${group.event.location}` : ''}
-                  </p>
+                  <EventInfoPills
+                    event={group.event}
+                    registrationSnapshot={group.snapshot}
+                    registeredCount={group.displayCounts.registered}
+                  />
                 </div>
-                <div className="registration-event-stats">
-                  <span className={getStatPillClass(getCapacitySummaryCount(group.event, group.displayCounts.registered))}>
-                    {getCapacitySummary(group.event, group.displayCounts.registered)}
-                  </span>
-                  <span className={getStatPillClass(group.displayCounts.registered)}>
-                    {group.displayCounts.registered} Registered
-                  </span>
-                  <span className={getStatPillClass(group.displayCounts.pendingPayment)}>
-                    {group.displayCounts.pendingPayment} Pending Payment
-                  </span>
-                  <span className={getStatPillClass(group.displayCounts.waitlisted)}>
-                    {group.displayCounts.waitlisted} Waitlisted
-                  </span>
-                  <span className={getStatPillClass(group.displayCounts.cancelled)}>
-                    {group.displayCounts.cancelled} Cancelled
-                  </span>
+                <div className="registration-event-card-side">
+                  <div className="registration-event-stats">
+                    <span className={getStatPillClass(getCapacitySummaryCount(group.event, group.displayCounts.registered))}>
+                      {getCapacitySummary(group.event, group.displayCounts.registered)}
+                    </span>
+                    <span className={getStatPillClass(group.displayCounts.registered)}>
+                      {group.displayCounts.registered} Registered
+                    </span>
+                    <span className={getStatPillClass(group.displayCounts.pendingPayment)}>
+                      {group.displayCounts.pendingPayment} Pending Payment
+                    </span>
+                    <span className={getStatPillClass(group.displayCounts.waitlisted)}>
+                      {group.displayCounts.waitlisted} Waitlisted
+                    </span>
+                    <span className={getStatPillClass(group.displayCounts.cancelled)}>
+                      {group.displayCounts.cancelled} Cancelled
+                    </span>
+                  </div>
+                  <button
+                    className="button-link button-reset compact-action registration-event-edit-button"
+                    type="button"
+                    onClick={() => handleSelectEvent(group.eventId)}
+                  >
+                    View/Edit Registrations
+                  </button>
                 </div>
-              </button>
+              </article>
             );
           })
         ) : null}
@@ -750,10 +755,11 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     </strong>
                   </div>
                   <h3>{eventTitle}</h3>
-                  <p>
-                    {formatEventDate(group.event?.date || group.snapshot.eventDate)}
-                    {group.event?.location ? ` | ${group.event.location}` : ''}
-                  </p>
+                  <EventInfoPills
+                    event={group.event}
+                    registrationSnapshot={group.snapshot}
+                    registeredCount={group.displayCounts.registered}
+                  />
                 </div>
               </div>
               <div className="user-table-wrap">
@@ -1083,6 +1089,21 @@ function DetailItem({ label, value }) {
   );
 }
 
+function EventInfoPills({ event, registrationSnapshot = {}, registeredCount = 0 }) {
+  const infoItems = getEventInfoItems(event, registrationSnapshot, registeredCount);
+
+  return (
+    <dl className="registration-event-info">
+      {infoItems.map((item) => (
+        <div key={item.label}>
+          <dt>{item.label}</dt>
+          <dd>{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function PaymentHistoryList({ payments }) {
   if (!payments.length) {
     return (
@@ -1297,6 +1318,45 @@ function getAmountDue(registration) {
   }
 
   return Number(registration.eventCost || 0) + Number(registration.eventServiceFee || 0);
+}
+
+function getEventInfoItems(event, registrationSnapshot = {}, registeredCount = 0) {
+  const eventType = event?.eventType || registrationSnapshot.eventType || 'Event';
+  const eventDate = event?.date || registrationSnapshot.eventDate || '';
+  const location = event?.location || registrationSnapshot.eventLocation || registrationSnapshot.location || '';
+  const items = [
+    { label: 'Date', value: formatEventDate(eventDate) },
+    { label: 'Location', value: location || 'Not Set' },
+    { label: 'Cost', value: getEventCostSummary(event, registrationSnapshot) },
+    { label: 'Capacity', value: getCapacitySummary(event, registeredCount) }
+  ];
+
+  if (eventType !== 'Challenges') {
+    items.splice(1, 0, {
+      label: 'Time',
+      value: event?.startTime || event?.endTime
+        ? formatTimeRange(event.startTime, event.endTime)
+        : 'Time TBD'
+    });
+  }
+
+  return items;
+}
+
+function getEventCostSummary(event, registrationSnapshot = {}) {
+  const eventCost = Number(event?.cost ?? registrationSnapshot.eventCost ?? 0);
+  const serviceFee = Number(event?.serviceFee ?? registrationSnapshot.eventServiceFee ?? 0);
+  const total = eventCost + serviceFee;
+
+  if (!total) {
+    return 'No Charge';
+  }
+
+  if (!serviceFee) {
+    return formatCurrencyValue(eventCost);
+  }
+
+  return `${formatCurrencyValue(total)} (${formatCurrencyValue(eventCost)} + ${formatCurrencyValue(serviceFee)} fee)`;
 }
 
 function isOnlinePayment(registration) {
