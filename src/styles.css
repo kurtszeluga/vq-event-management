@@ -2783,6 +2783,30 @@ body.popup-mode .page-content {
   font-weight: 900;
 }
 
+.registration-status-summary {
+  align-items: center;
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+  max-width: 360px;
+  padding: 10px 12px;
+}
+
+.registration-status-summary span {
+  color: #5c6966;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.registration-status-summary strong {
+  color: #225c56;
+  font-weight: 900;
+}
+
 .registration-edit-section {
   border-top: 1px solid #e6ddd3;
   display: grid;

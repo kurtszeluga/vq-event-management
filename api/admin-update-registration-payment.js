@@ -4,7 +4,6 @@ import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 const PAYMENT_METHODS = ['', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'];
-const REGISTRATION_STATUSES = ['Pending Payment', 'Registered', 'Cancelled', 'Waitlisted'];
 
 let firebaseProjectId = '';
 
@@ -94,11 +93,7 @@ export default async function handler(request, response) {
 
     const before = registrationSnap.data();
     const paymentUpdate = sanitizePaymentUpdate(request.body || {}, before);
-    const statusUpdate = getStatusUpdateForPayment({
-      requestedStatus: request.body?.status,
-      before,
-      paymentUpdate
-    });
+    const statusUpdate = getStatusUpdateForPayment({ before, paymentUpdate });
     const now = FieldValue.serverTimestamp();
     const updatePayload = {
       ...paymentUpdate,
@@ -192,46 +187,30 @@ async function resolvePaymentReview({
   response.status(200).json({ status: 'Reviewed' });
 }
 
-function sanitizeRegistrationStatus(status, registration) {
-  const nextStatus = cleanText(status);
+function getStatusUpdateForPayment({ before, paymentUpdate }) {
+  const nextStatus = getRegistrationStatusForPayment(before, paymentUpdate.paymentStatus);
 
-  if (!nextStatus) {
-    return {};
-  }
-
-  if (!REGISTRATION_STATUSES.includes(nextStatus)) {
-    throw new Error('Choose a valid registration status.');
-  }
-
-  if (nextStatus === (registration.status || 'Registered')) {
+  if (!nextStatus || nextStatus === (before.status || 'Registered')) {
     return {};
   }
 
   return { status: nextStatus };
 }
 
-function getStatusUpdateForPayment({ requestedStatus, before, paymentUpdate }) {
-  const explicitStatusUpdate = sanitizeRegistrationStatus(requestedStatus, before);
-
-  if (explicitStatusUpdate.status) {
-    return explicitStatusUpdate;
+function getRegistrationStatusForPayment(registration, paymentStatus) {
+  if (paymentStatus === 'Refunded' || paymentStatus === 'Failed') {
+    return 'Cancelled';
   }
 
-  if (
-    ['Paid', 'Waived'].includes(paymentUpdate.paymentStatus)
-    && before.status === 'Pending Payment'
-  ) {
-    return { status: 'Registered' };
+  if (registration?.status === 'Waitlisted' && paymentStatus === 'Pending') {
+    return 'Waitlisted';
   }
 
-  if (
-    paymentUpdate.paymentStatus === 'Refunded'
-    && before.status === 'Registered'
-  ) {
-    return { status: 'Cancelled' };
+  if (['Pending', 'Paid', 'Waived', 'No Charge'].includes(paymentStatus)) {
+    return 'Registered';
   }
 
-  return {};
+  return '';
 }
 
 function buildAuditSummary(before, registrationId, paymentUpdate, statusUpdate) {
@@ -298,21 +277,20 @@ function sanitizePaymentUpdate(payload, registration) {
     ? payload.paymentStatus
     : 'Pending';
   const paymentNote = cleanText(payload.paymentNote);
-  const isOnlinePayment = registration?.paymentStatus === 'Paid'
-    && registration?.paymentMethod === 'Online';
+  const isPaidPayment = registration?.paymentStatus === 'Paid';
 
-  if (isOnlinePayment) {
+  if (isPaidPayment) {
     if (paymentStatus === 'Paid') {
       return {
         amountPaid: Number(registration.amountPaid || 0),
-        paymentMethod: 'Online',
-        paymentNote,
+        paymentMethod: registration.paymentMethod === 'None' ? '' : registration.paymentMethod || '',
+        paymentNote: registration.paymentNote || '',
         paymentStatus: 'Paid'
       };
     }
 
     if (paymentStatus !== 'Refunded') {
-      throw new Error('Online Square payments can only be marked refunded.');
+      throw new Error('Paid registrations can only be marked refunded.');
     }
 
     if (!paymentNote) {
@@ -321,7 +299,7 @@ function sanitizePaymentUpdate(payload, registration) {
 
     return {
       amountPaid: Number(registration.amountPaid || 0),
-      paymentMethod: 'Online',
+      paymentMethod: registration.paymentMethod === 'None' ? '' : registration.paymentMethod || '',
       paymentNote,
       paymentStatus: 'Refunded'
     };

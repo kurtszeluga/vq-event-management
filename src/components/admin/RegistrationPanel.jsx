@@ -45,7 +45,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [selectedPaymentNote, setSelectedPaymentNote] = useState('');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('Pending');
-  const [selectedStatus, setSelectedStatus] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [users, setUsers] = useState([]);
   const [yearFilter, setYearFilter] = useState(DEFAULT_YEAR_FILTER);
@@ -412,14 +411,14 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const selectedRegistrationEvent = selectedRegistration
     ? eventMap.get(selectedRegistration.eventId)
     : null;
+  const selectedDerivedRegistrationStatus = getRegistrationStatusForPayment(
+    selectedRegistration,
+    selectedPaymentStatus
+  );
   const selectedPaymentHistory = useMemo(
     () => getPaymentHistoryForRegistration(selectedRegistration, payments),
     [payments, selectedRegistration]
   );
-  const selectedRegistrationUser = selectedRegistration
-    ? userMap.byId.get(selectedRegistration.userId)
-      || userMap.byEmail.get(normalizeEmail(selectedRegistration.email))
-    : null;
   const paymentEditState = getPaymentEditState(selectedRegistration, selectedPaymentStatus);
   const paymentMethodOptions = getPaymentMethodOptions(selectedRegistration, selectedPaymentStatus);
   const paymentStatusOptions = getPaymentStatusOptions(selectedRegistration);
@@ -475,7 +474,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setError('');
     setSuccessMessage('');
     setSelectedRegistrationId(registration.id);
-    setSelectedStatus(registration.status || 'Registered');
     setSelectedPaymentAmount(String(registration.amountPaid ?? ''));
     setSelectedPaymentMethod(normalizePaymentMethod(registration.paymentMethod));
     setSelectedPaymentNote(registration.paymentNote || '');
@@ -492,9 +490,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     }
 
     if (nextStatus === 'Waived') {
-      if (selectedStatus === 'Pending Payment') {
-        setSelectedStatus('Registered');
-      }
       setSelectedPaymentMethod('Comped');
       setSelectedPaymentAmount('0');
       return;
@@ -507,19 +502,12 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     }
 
     if (nextStatus === 'Refunded') {
-      if (selectedStatus === 'Registered') {
-        setSelectedStatus('Cancelled');
-      }
       setSelectedPaymentMethod(normalizePaymentMethod(selectedRegistration?.paymentMethod));
       setSelectedPaymentAmount(String(selectedRegistration?.amountPaid ?? 0));
       return;
     }
 
     if (nextStatus === 'Paid') {
-      if (selectedStatus === 'Pending Payment') {
-        setSelectedStatus('Registered');
-      }
-
       if (isOnlinePayment(selectedRegistration)) {
         setSelectedPaymentMethod('Online');
       } else if (!MANUAL_PAYMENT_METHOD_OPTIONS.includes(selectedPaymentMethod)) {
@@ -542,7 +530,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSelectedPaymentMethod('');
     setSelectedPaymentNote('');
     setSelectedPaymentStatus('Pending');
-    setSelectedStatus('');
   }
 
   async function handleSaveChanges() {
@@ -550,7 +537,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       return;
     }
 
-    const statusChanged = selectedStatus !== selectedRegistration.status;
     const nextPayment = normalizePaymentEdit(selectedRegistration, {
       amountPaid: selectedPaymentAmount,
       paymentMethod: selectedPaymentMethod,
@@ -566,7 +552,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
 
     const paymentChanged = hasPaymentChanged(selectedRegistration, nextPayment.payment);
 
-    if (!statusChanged && !paymentChanged) {
+    if (!paymentChanged) {
       return;
     }
 
@@ -577,10 +563,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     try {
       await updateRegistrationPayment(
         selectedRegistration.id,
-        {
-          ...nextPayment.payment,
-          status: selectedStatus
-        },
+        nextPayment.payment,
         currentUserProfile
       );
 
@@ -590,7 +573,6 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       setSelectedPaymentMethod('');
       setSelectedPaymentNote('');
       setSelectedPaymentStatus('Pending');
-      setSelectedStatus('');
     } catch (saveError) {
       setError(saveError.message || 'Registration changes could not be saved.');
     } finally {
@@ -948,20 +930,18 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
             {error ? <p className="form-error">{error}</p> : null}
             <div className="registration-edit-section">
               <h3>Registration Status</h3>
-              <label className="registration-modal-status">
-                <span>Registration Status</span>
-                <select
-                  className="registration-status-select"
-                  value={selectedStatus}
-                  onChange={(event) => setSelectedStatus(event.target.value)}
-                >
-                  {REGISTRATION_STATUS_FILTERS.filter((status) => status !== 'All').map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="registration-status-summary">
+                <span>Current status</span>
+                <strong>{selectedRegistration.status || 'Registered'}</strong>
+              </div>
+              <div className="registration-status-summary">
+                <span>After saving</span>
+                <strong>{selectedDerivedRegistrationStatus}</strong>
+              </div>
+              <p className="form-help">
+                Registration status is controlled by payment status. Paid, pending, waived, and no-charge
+                registrations remain Registered. Refunded or failed payments cancel the registration.
+              </p>
             </div>
             <div className="registration-edit-section">
               <h3>Payment</h3>
@@ -1010,6 +990,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 <label className="registration-payment-note">
                   <span>Payment Note</span>
                   <textarea
+                    disabled={paymentEditState.noteLocked}
                     rows="3"
                     value={selectedPaymentNote}
                     onChange={(event) => setSelectedPaymentNote(event.target.value)}
@@ -1034,8 +1015,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     amountPaid: selectedPaymentAmount,
                     paymentMethod: selectedPaymentMethod,
                     paymentNote: selectedPaymentNote,
-                    paymentStatus: selectedPaymentStatus,
-                    status: selectedStatus
+                    paymentStatus: selectedPaymentStatus
                   })
                 }
                 type="button"
@@ -1288,8 +1268,28 @@ function isOnlinePayment(registration) {
   return registration?.paymentStatus === 'Paid' && registration?.paymentMethod === 'Online';
 }
 
+function isPaidRegistration(registration) {
+  return registration?.paymentStatus === 'Paid';
+}
+
+function getRegistrationStatusForPayment(registration, paymentStatus) {
+  if (paymentStatus === 'Refunded' || paymentStatus === 'Failed') {
+    return 'Cancelled';
+  }
+
+  if (registration?.status === 'Waitlisted' && paymentStatus === 'Pending') {
+    return 'Waitlisted';
+  }
+
+  if (['Pending', 'Paid', 'Waived', 'No Charge'].includes(paymentStatus)) {
+    return 'Registered';
+  }
+
+  return registration?.status || 'Registered';
+}
+
 function getPaymentStatusOptions(registration) {
-  if (isOnlinePayment(registration)) {
+  if (isPaidRegistration(registration)) {
     return ['Paid', 'Refunded'];
   }
 
@@ -1310,8 +1310,8 @@ function getPaymentStatusOptions(registration) {
 }
 
 function getPaymentMethodOptions(registration, paymentStatus) {
-  if (isOnlinePayment(registration)) {
-    return ['Online'];
+  if (isPaidRegistration(registration)) {
+    return [normalizePaymentMethod(registration?.paymentMethod)].filter(Boolean);
   }
 
   if (paymentStatus === 'Paid') {
@@ -1334,11 +1334,12 @@ function getPaymentMethodOptions(registration, paymentStatus) {
 }
 
 function getPaymentEditState(registration, paymentStatus) {
-  const onlinePayment = isOnlinePayment(registration);
+  const paidRegistration = isPaidRegistration(registration);
 
   return {
-    amountLocked: onlinePayment || !['Paid'].includes(paymentStatus),
-    methodLocked: onlinePayment || !['Paid'].includes(paymentStatus),
+    amountLocked: paidRegistration || !['Paid'].includes(paymentStatus),
+    methodLocked: paidRegistration || !['Paid'].includes(paymentStatus),
+    noteLocked: paidRegistration && paymentStatus === 'Paid',
     statusLocked: paymentStatus === 'No Charge'
   };
 }
@@ -1347,13 +1348,13 @@ function normalizePaymentEdit(registration, paymentEdit) {
   const paymentStatus = paymentEdit.paymentStatus || 'Pending';
   const paymentNote = paymentEdit.paymentNote.trim();
 
-  if (isOnlinePayment(registration)) {
+  if (isPaidRegistration(registration)) {
     if (paymentStatus === 'Paid') {
       return {
         payment: {
           amountPaid: Number(registration.amountPaid || 0),
-          paymentMethod: 'Online',
-          paymentNote,
+          paymentMethod: normalizePaymentMethod(registration.paymentMethod),
+          paymentNote: registration.paymentNote || '',
           paymentStatus: 'Paid'
         }
       };
@@ -1370,7 +1371,7 @@ function normalizePaymentEdit(registration, paymentEdit) {
     return {
       payment: {
         amountPaid: Number(registration.amountPaid || 0),
-        paymentMethod: 'Online',
+        paymentMethod: normalizePaymentMethod(registration.paymentMethod),
         paymentNote,
         paymentStatus: 'Refunded'
       }
@@ -1456,8 +1457,12 @@ function normalizePaymentEdit(registration, paymentEdit) {
 }
 
 function getPaymentHelpText(registration, paymentStatus) {
-  if (isOnlinePayment(registration)) {
-    return 'Online Square payments are locked. Use Refunded only after the refund is handled in Square.';
+  if (isPaidRegistration(registration)) {
+    if (isOnlinePayment(registration)) {
+      return 'Online Square payments are locked. Use Refunded only after the refund is handled in Square.';
+    }
+
+    return 'Paid registrations are locked. Use Refunded after the refund has been handled.';
   }
 
   if (paymentStatus === 'Pending') {
@@ -1575,8 +1580,7 @@ function hasPaymentChanged(registration, paymentEdit) {
 }
 
 function hasRegistrationChanges(registration, edit) {
-  return edit.status !== (registration.status || 'Registered')
-    || hasPaymentChanged(registration, edit);
+  return hasPaymentChanged(registration, edit);
 }
 
 function getEventSortValue(event, registrationSnapshot = {}) {
