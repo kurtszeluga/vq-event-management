@@ -3,7 +3,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 
 const PAYMENT_METHODS = ['', 'Online', 'Cash', 'Check', 'Comped'];
-const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'];
+const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
 
 let firebaseProjectId = '';
 
@@ -102,12 +102,23 @@ export default async function handler(request, response) {
     });
     const now = FieldValue.serverTimestamp();
     const squareTransactionUpdate = squareRefund?.payment_id
-      ? { squareTransactionId: squareRefund.payment_id }
+      ? { squareRefundId: squareRefund.id || '', squareTransactionId: squareRefund.payment_id }
       : {};
+    const effectivePaymentUpdate = squareRefund?.status === 'PENDING'
+      ? {
+          ...paymentUpdate,
+          paymentNote: `${paymentUpdate.paymentNote} Square refund id: ${squareRefund.id || 'Pending'}.`.trim(),
+          paymentStatus: 'Refund Pending'
+        }
+      : paymentUpdate;
+    const effectiveStatusUpdate = getStatusUpdateForPayment({
+      before,
+      paymentUpdate: effectivePaymentUpdate
+    });
     const updatePayload = {
-      ...paymentUpdate,
+      ...effectivePaymentUpdate,
       ...squareTransactionUpdate,
-      ...statusUpdate,
+      ...effectiveStatusUpdate,
       paymentUpdatedDate: now
     };
     const batch = db.batch();
@@ -119,10 +130,10 @@ export default async function handler(request, response) {
       actorUid,
       before,
       paymentId: paymentRef.id,
-      paymentUpdate,
+      paymentUpdate: effectivePaymentUpdate,
       registrationId,
       squareRefund,
-      statusUpdate
+      statusUpdate: effectiveStatusUpdate
     }));
     batch.set(db.collection('auditLogs').doc(), {
       action: getAuditAction(paymentUpdate, statusUpdate),
@@ -131,28 +142,28 @@ export default async function handler(request, response) {
       actorRole: actorProfile.role || '',
       actorUserId: actorProfile.userId || actorUid,
       after: {
-        ...paymentUpdate,
+        ...effectivePaymentUpdate,
         squareRefundId: squareRefund?.id || '',
         ...squareTransactionUpdate,
-        ...statusUpdate,
+        ...effectiveStatusUpdate,
         paymentUpdatedDate: null
       },
       before,
       createdDate: now,
       entityId: registrationId,
       entityType: 'Registration',
-      summary: buildAuditSummary(before, registrationId, paymentUpdate, statusUpdate)
+      summary: buildAuditSummary(before, registrationId, effectivePaymentUpdate, effectiveStatusUpdate)
     });
 
     await batch.commit();
 
     response.status(200).json({
-      payment: paymentUpdate,
+      payment: effectivePaymentUpdate,
       squareRefund: squareRefund ? {
         id: squareRefund.id || '',
         status: squareRefund.status || ''
       } : null,
-      status: statusUpdate.status || before.status || '',
+      status: effectiveStatusUpdate.status || before.status || '',
       registrationId
     });
   } catch (error) {
@@ -200,6 +211,37 @@ async function processSquareRefundIfNeeded(db, {
     reason: buildSquareRefundReason(paymentUpdate.paymentNote, actorProfile),
     registrationId
   });
+
+  if (refund.status === 'PENDING') {
+    await db.collection('squareWebhookEvents').doc(`refund-pending-${refund.id || registrationId}`).set({
+      createdAt: '',
+      eventId: '',
+      eventTitle: before.eventTitle || '',
+      eventType: 'App Initiated Refund',
+      merchantId: '',
+      objectId: refund.id || '',
+      objectType: 'refund',
+      processedAt: FieldValue.serverTimestamp(),
+      receivedAt: FieldValue.serverTimestamp(),
+      reconciliationStatus: 'Refund Pending Needs Review',
+      registrationEmail: before.email || '',
+      registrationId,
+      registrationName: before.name || '',
+      reviewDetails: {
+        message: 'Square accepted the refund request. Waiting for Square refund webhook completion.',
+        squarePaymentId,
+        squareRefundId: refund.id || '',
+        squareRefundStatus: refund.status
+      },
+      squareEnvironment: getSquareEnvironment(),
+      status: 'Processed'
+    }, { merge: true });
+
+    return {
+      ...refund,
+      payment_id: squarePaymentId
+    };
+  }
 
   if (refund.status !== 'COMPLETED') {
     await db.collection('squareWebhookEvents').doc(`refund-review-${refund.id || registrationId}`).set({
@@ -395,6 +437,10 @@ function getRegistrationStatusForPayment(registration, paymentStatus) {
     return 'Cancelled';
   }
 
+  if (paymentStatus === 'Refund Pending') {
+    return 'Cancelled';
+  }
+
   if (registration?.status === 'Waitlisted' && paymentStatus === 'Pending') {
     return 'Waitlisted';
   }
@@ -432,6 +478,10 @@ function getAuditAction(paymentUpdate, statusUpdate) {
 
   if (paymentUpdate.paymentStatus === 'Refunded') {
     return 'Refund';
+  }
+
+  if (paymentUpdate.paymentStatus === 'Refund Pending') {
+    return 'Update';
   }
 
   if (paymentUpdate.paymentStatus === 'Paid' || paymentUpdate.paymentStatus === 'Waived') {

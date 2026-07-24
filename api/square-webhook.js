@@ -281,6 +281,7 @@ async function buildRefundReconciliation(db, squareRefund) {
       paymentNote: buildRefundNote(squareRefund),
       paymentStatus: 'Refunded',
       paymentUpdatedDate: FieldValue.serverTimestamp(),
+      squareRefundId: cleanText(squareRefund.id || ''),
       status: 'Cancelled'
     },
     paymentUpdate: {
@@ -289,6 +290,7 @@ async function buildRefundReconciliation(db, squareRefund) {
       note: buildRefundNote(squareRefund),
       processor: 'Square',
       registrationStatus: 'Cancelled',
+      squareRefundId: cleanText(squareRefund.id || ''),
       status: 'Refunded',
       updatedRegistrationSnapshot: {
         amountPaid: 0,

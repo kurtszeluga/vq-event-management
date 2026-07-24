@@ -41,7 +41,7 @@ This document tracks the security, reliability, usability, and product improveme
 | Add temporary seat reservations during online checkout | Completed | Online Square checkout now creates a private 5-minute event/email-bound reservation before tokenizing the card, counts active holds against capacity, and consumes the hold when the registration is written. |
 | Add Square webhook signature verification | Completed | Added `/api/square-webhook`, HMAC signature verification, private `squareWebhookEvents` logging, and conservative payment/refund reconciliation hooks. |
 | Add payment reconciliation tools | Completed | Added an admin Payment Review module and Needs Attention count for Square webhook events requiring review. |
-| Initiate Square refunds from the app | In Progress | Added the System Config toggle and guarded online Square refund action. Default remains off so admins can record treasurer-processed Square refunds manually until app-initiated refunds are enabled and production-tested. |
+| Initiate Square refunds from the app | In Progress | Added the System Config toggle and guarded online Square refund action. Pending Square refunds cancel the registration immediately, return the seat, and create Payment Review follow-up until the Square webhook finalizes payment status. |
 | Add payment and card-testing rate limits | Not Started | Include bot protection such as Cloudflare Turnstile or Firebase App Check. |
 | Enforce idempotency across registration retries | Completed | Registration submit attempts now carry a stable browser-generated attempt key, store a private `registrationAttempts` record, reuse existing results on retry, and send the same key to Square to avoid duplicate charges. |
 
@@ -123,3 +123,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-23 | Added Payment Review dashboard module for Square webhook reconciliation records that need admin attention. |
 | 2026-07-24 | Started app-initiated refund controls by adding a Payment Settings toggle while preserving the current treasurer-in-Square manual refund recording workflow. |
 | 2026-07-24 | Added the guarded online Square refund action to the existing admin payment endpoint. When enabled, Square must return a completed refund before the registration is marked refunded/cancelled. |
+| 2026-07-24 | Updated app-initiated refunds to handle Square PENDING responses without a second click. Refund Pending now cancels the registration immediately, returns the seat, and creates a Payment Review follow-up while Square completion remains pending. |

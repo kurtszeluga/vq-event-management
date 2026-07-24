@@ -167,6 +167,7 @@ service cloud.firestore {
           'paymentPreference',
           'paymentStatus',
           'paymentUpdatedDate',
+          'squareRefundId',
           'squareTransactionId',
           'status'
         ])
@@ -196,9 +197,11 @@ service cloud.firestore {
         && (!('paymentNote' in request.resource.data) || request.resource.data.paymentNote is string)
         && (!('paymentPreference' in request.resource.data)
           || validStatus(request.resource.data.paymentPreference, ['', 'cash-check-later', 'online']))
-        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'])
+        && validStatus(request.resource.data.paymentStatus, ['Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'])
         && (!('paymentUpdatedDate' in request.resource.data)
           || request.resource.data.paymentUpdatedDate is timestamp)
+        && (!('squareRefundId' in request.resource.data)
+          || request.resource.data.squareRefundId is string)
         && (!('squareTransactionId' in request.resource.data)
           || request.resource.data.squareTransactionId is string)
         && validStatus(request.resource.data.status, ['Pending Payment', 'Registered', 'Cancelled', 'Waitlisted'])
@@ -476,7 +479,7 @@ service cloud.firestore {
         && (!('registrationStatus' in request.resource.data) || request.resource.data.registrationStatus is string)
         && (!('squareRefundId' in request.resource.data) || request.resource.data.squareRefundId is string)
         && request.resource.data.squareTransactionId is string
-        && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Failed', 'Refunded', 'Waived', 'No Charge'])
+        && validStatus(request.resource.data.status, ['Pending', 'Paid', 'Refund Pending', 'Failed', 'Refunded', 'Waived', 'No Charge'])
         && (!('updatedMembershipSnapshot' in request.resource.data)
           || request.resource.data.updatedMembershipSnapshot is map)
         && request.resource.data.updatedRegistrationSnapshot is map

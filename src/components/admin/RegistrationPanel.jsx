@@ -16,7 +16,7 @@ import { subscribeToUsers } from '../../services/userService.js';
 import { formatEventDate } from '../../utils/eventFormat.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
-const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refunded', 'Failed', 'Waived', 'No Charge'];
+const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
 const MANUAL_PAYMENT_METHOD_OPTIONS = ['Cash', 'Check'];
 const ACTIVITY_FILTERS = ['Programs', 'Workshops', 'Retreat', 'Challenges'];
 const QUARTER_FILTERS = [
@@ -597,7 +597,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       );
 
       setSuccessMessage(appInitiatedSquareRefund
-        ? 'Square refund processed and registration cancelled.'
+        ? 'Square refund submitted. The registration was cancelled and the seat was returned.'
         : 'Registration changes saved.');
       setSelectedRegistrationId('');
       setSelectedPaymentAmount('');
@@ -1300,15 +1300,20 @@ function getAmountDue(registration) {
 }
 
 function isOnlinePayment(registration) {
-  return registration?.paymentStatus === 'Paid' && registration?.paymentMethod === 'Online';
+  return ['Paid', 'Refund Pending'].includes(registration?.paymentStatus)
+    && registration?.paymentMethod === 'Online';
 }
 
 function isPaidRegistration(registration) {
-  return registration?.paymentStatus === 'Paid';
+  return ['Paid', 'Refund Pending'].includes(registration?.paymentStatus);
 }
 
 function getRegistrationStatusForPayment(registration, paymentStatus) {
   if (paymentStatus === 'Refunded' || paymentStatus === 'Failed') {
+    return 'Cancelled';
+  }
+
+  if (paymentStatus === 'Refund Pending') {
     return 'Cancelled';
   }
 
@@ -1325,7 +1330,9 @@ function getRegistrationStatusForPayment(registration, paymentStatus) {
 
 function getPaymentStatusOptions(registration) {
   if (isPaidRegistration(registration)) {
-    return ['Paid', 'Refunded'];
+    return registration.paymentStatus === 'Refund Pending'
+      ? ['Refund Pending']
+      : ['Paid', 'Refunded'];
   }
 
   if (registration?.paymentStatus === 'No Charge') {
@@ -1346,6 +1353,10 @@ function getPaymentStatusOptions(registration) {
 
 function getPaymentMethodOptions(registration, paymentStatus) {
   if (isPaidRegistration(registration)) {
+    if (paymentStatus === 'Refund Pending') {
+      return [normalizePaymentMethod(registration?.paymentMethod)].filter(Boolean);
+    }
+
     return [normalizePaymentMethod(registration?.paymentMethod)].filter(Boolean);
   }
 
@@ -1374,14 +1385,25 @@ function getPaymentEditState(registration, paymentStatus) {
   return {
     amountLocked: paidRegistration || !['Paid'].includes(paymentStatus),
     methodLocked: paidRegistration || !['Paid'].includes(paymentStatus),
-    noteLocked: paidRegistration && paymentStatus === 'Paid',
-    statusLocked: paymentStatus === 'No Charge'
+    noteLocked: paidRegistration && ['Paid', 'Refund Pending'].includes(paymentStatus),
+    statusLocked: ['No Charge', 'Refund Pending'].includes(paymentStatus)
   };
 }
 
 function normalizePaymentEdit(registration, paymentEdit) {
   const paymentStatus = paymentEdit.paymentStatus || 'Pending';
   const paymentNote = paymentEdit.paymentNote.trim();
+
+  if (paymentStatus === 'Refund Pending') {
+    return {
+      payment: {
+        amountPaid: Number(registration.amountPaid || 0),
+        paymentMethod: normalizePaymentMethod(registration.paymentMethod),
+        paymentNote: registration.paymentNote || '',
+        paymentStatus: 'Refund Pending'
+      }
+    };
+  }
 
   if (isPaidRegistration(registration)) {
     if (paymentStatus === 'Paid') {
@@ -1492,6 +1514,10 @@ function normalizePaymentEdit(registration, paymentEdit) {
 }
 
 function getPaymentHelpText(registration, paymentStatus, paymentSettings = DEFAULT_PAYMENT_SETTINGS) {
+  if (registration?.paymentStatus === 'Refund Pending') {
+    return 'Square refund has been submitted. The registration is cancelled and the seat has been returned.';
+  }
+
   if (isPaidRegistration(registration)) {
     if (isOnlinePayment(registration)) {
       return paymentSettings.allowAppInitiatedRefunds
