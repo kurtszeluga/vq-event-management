@@ -776,8 +776,11 @@
 
   function isProgramType(eventType) {
     return eventType === 'Lecture'
+      || eventType === 'Retreat'
       || eventType === 'Class (Half Day)'
-      || eventType === 'Class (Full Day)';
+      || eventType === 'Class (Full Day)'
+      || eventType === 'Class (Half-Day)'
+      || eventType === 'Class (Full-Day)';
   }
 
   function buildFileProxyUrl(sourceUrl, fileUrl, fileName, disposition = 'inline') {

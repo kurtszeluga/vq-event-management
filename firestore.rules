@@ -30,6 +30,55 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/appSettings/directorySettings).data.enableMemberDirectory == true;
     }
 
+    function userEligibleForDirectory(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId))
+        && get(/databases/$(database)/documents/users/$(userId)).data.status == 'Active'
+        && get(/databases/$(database)/documents/users/$(userId)).data.membershipStatus == 'Active'
+        && get(/databases/$(database)/documents/users/$(userId)).data.role != 'Super User';
+    }
+
+    function canWriteMemberDirectoryProfile(userId) {
+      return isOwner(userId)
+        || isSuperUser()
+        || hasPermission('manageMembershipStatus')
+        || hasPermission('addUsers');
+    }
+
+    function validMemberDirectoryProfile(userId) {
+      return userEligibleForDirectory(userId)
+        && request.resource.data.keys().hasOnly([
+          'billingAddress',
+          'email',
+          'firstName',
+          'lastName',
+          'name',
+          'phone',
+          'sortKey',
+          'updatedDate',
+          'userId'
+        ])
+        && request.resource.data.userId == userId
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && request.resource.data.sortKey is string
+        && request.resource.data.updatedDate is timestamp
+        && request.resource.data.billingAddress.keys().hasOnly([
+          'city',
+          'country',
+          'postalCode',
+          'state',
+          'street'
+        ])
+        && request.resource.data.billingAddress.city is string
+        && request.resource.data.billingAddress.country is string
+        && request.resource.data.billingAddress.postalCode is string
+        && request.resource.data.billingAddress.state is string
+        && request.resource.data.billingAddress.street is string;
+    }
+
     function isSuperUser() {
       return isActiveProfile() && currentUserData().role == 'Super User';
     }
@@ -760,14 +809,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /memberDirectoryProfiles/{userId} {
+      allow read: if isActiveMember() && directoryEnabled();
+      allow create, update: if canWriteMemberDirectoryProfile(userId)
+        && validMemberDirectoryProfile(userId);
+      allow delete: if canWriteMemberDirectoryProfile(userId);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId)
         || isSuperUser()
-        || isAdmin() && resource.data.role == 'General User'
-        || isActiveMember()
-          && directoryEnabled()
-          && resource.data.status == 'Active'
-          && resource.data.membershipStatus == 'Active';
+        || isAdmin() && resource.data.role == 'General User';
       allow create: if isSuperUser() && validUser() || validSelfUserCreate(userId) && validUser();
       allow update: if isSuperUser() && validUser()
         || hasPermission('addUsers')

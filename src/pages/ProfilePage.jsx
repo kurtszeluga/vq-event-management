@@ -4,12 +4,13 @@ import {
   updatePassword,
   updateProfile
 } from 'firebase/auth';
-import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles.js';
 import { US_STATES } from '../data/usStates.js';
 import { db, firebaseConfigured } from '../lib/firebase.js';
+import { applyMemberDirectorySync } from '../services/memberDirectoryProfile.js';
 import {
   buildDisplayName,
   buildBillingAddress,
@@ -95,8 +96,7 @@ function ProfilePage() {
       const formattedFirstName = toTitleCase(firstName);
       const formattedLastName = toTitleCase(lastName);
       const displayName = buildDisplayName(formattedFirstName, formattedLastName);
-      await updateProfile(currentUser, { displayName });
-      await updateDoc(doc(db, 'users', currentUser.uid), {
+      const profilePayload = {
         billingAddress: buildBillingAddress({
           city: billingCity,
           country: billingCountry,
@@ -110,7 +110,15 @@ function ProfilePage() {
         name: displayName,
         phone: formatPhoneNumber(phone),
         updatedDate: serverTimestamp()
+      };
+      await updateProfile(currentUser, { displayName });
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'users', currentUser.uid), profilePayload);
+      applyMemberDirectorySync(batch, currentUser.uid, {
+        ...userProfile,
+        ...profilePayload
       });
+      await batch.commit();
       setSuccessMessage('Profile saved.');
     } catch (error) {
       setFormError(error.message);

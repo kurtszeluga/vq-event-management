@@ -19,7 +19,7 @@ This document tracks the security, reliability, usability, and product improveme
 | Issue a short-lived, one-use registration verification token | Completed | Email verification issues a hashed, event-and-email-bound token that expires after 20 minutes and is consumed during registration. |
 | Require verified identity in the registration API | Completed | Both member and permitted non-member registrations now require Firebase authentication or a valid email-verification token. |
 | Deny direct browser creation of Firestore registration records | Completed | Firestore denies all client registration creates; the Firebase Admin API is the sole creation path. |
-| Remove the obsolete public phone-verification endpoint | Completed | Removed the endpoint and client calls, reducing the Vercel API count to 11. |
+| Remove the obsolete public phone-verification endpoint | Completed | Removed the endpoint and client calls. After Phase 2 added `/api/square-webhook`, the Vercel API count is 12 (Hobby plan limit). |
 | Add focused automated checks for registration verification | Completed | Five Node tests, changed-file lint, production build, rules compilation, and a direct-write denial smoke check pass. |
 
 ### Phase 1 Production Checklist
@@ -49,11 +49,11 @@ This document tracks the security, reliability, usability, and product improveme
 
 | Item | Status | Notes |
 | --- | --- | --- |
-| Create a directory-safe member collection | Not Started | Do not expose complete user documents to directory users. |
+| Create a directory-safe member collection | Completed | Added `memberDirectoryProfiles` projection with sync on profile/membership writes, directory query switched off `users`, and Firestore rules that remove peer reads of full user documents. Run `npm run backfill:member-directory` after deploying rules. |
 | Correct and test member-directory Firestore queries | Completed | Member directory query now includes both `status == Active` and `membershipStatus == Active`, matching Firestore rule requirements. |
 | Restrict event file uploads to authorized event administrators | Not Started | Current Storage rules allow any signed-in user to upload to their own folder. |
 | Route sensitive writes through authenticated server endpoints | Not Started | Covers events, membership changes, permissions, payments, and authoritative audit records. |
-| Add API rate limiting and abuse monitoring | Not Started | Protect lookup, verification, registration, email, and file-proxy endpoints. |
+| Add API rate limiting and abuse monitoring | In Progress | Phase 2 covered registration lookup, email-code sends, code verification, Square seat holds, registration submits, membership confirmation sends, admin payment updates, and refund requests. Remaining: extend limits to `file-proxy` and other public/admin routes, plus abuse monitoring/alerts. |
 | Add production security headers | Not Started | Add CSP, frame protection, referrer policy, content-type protection, and permissions policy. |
 | Add a privacy policy and support/contact page | Not Started | Particularly important for directory, billing, registration, and payment data. |
 
@@ -106,8 +106,8 @@ This document tracks the security, reliability, usability, and product improveme
 | Add route-level lazy loading | Not Started | Reduce initial JavaScript and PWA precache size. |
 | Add staging Firebase, Square sandbox, and test data | Not Started | Keep registration and payment testing out of production records. |
 | Add error monitoring and operational alerts | Not Started | Capture client errors, API failures, payment mismatches, and email failures. |
-| Consolidate Vercel APIs or move backend functions | Not Started | The Hobby plan was at the 12-function limit during the review. |
-| Update project documentation to match the current system | Completed | `PROJECT_SPEC.md` now reflects the current app configuration, payment/refund model, membership/profile model, directory, coordinator setup, email configuration, and upgrade priorities. |
+| Consolidate Vercel APIs or move backend functions | Not Started | Currently at the Hobby 12-function limit; prefer extending existing routes before adding new ones. |
+| Update project documentation to match the current system | Completed | Spec describes current behavior; this upgrade plan is the status source of truth; README covers setup, env, API surface, and production posture. |
 
 ## Completion Log
 
@@ -129,3 +129,7 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-24 | Fixed member-directory reads by aligning the active-member query with Firestore rule constraints. |
 | 2026-07-24 | Refreshed `PROJECT_SPEC.md` and this upgrade plan to match the current app configuration and upgrade status. |
 | 2026-07-24 | Completed the final Phase 2 item by adding Firestore-backed rate limits for payment, registration, verification, and refund-sensitive API flows. |
+| 2026-07-24 | Doc ownership pass: corrected API count to 12, marked Phase 3 rate limiting In Progress for remaining coverage/monitoring, pointed `PROJECT_SPEC.md` upgrade priorities at this plan, and documented `apiRateLimits`. |
+| 2026-07-24 | README pass: expanded `.env.example`, added Firebase deploy command, API surface, and production posture aligned with this plan. |
+| 2026-07-24 | Aligned GoDaddy Programs filter with Spec/app grouping by including Retreat (and legacy hyphenated class types); corrected Spec embed category/filter wording. |
+| 2026-07-24 | Added directory-safe `memberDirectoryProfiles` collection, write-through sync, backfill script, and removed Active-member peer reads of full `users` documents. |

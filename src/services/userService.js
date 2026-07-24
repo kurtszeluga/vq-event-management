@@ -13,6 +13,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
+import { applyMemberDirectorySync } from './memberDirectoryProfile.js';
 
 const usersCollection = () => collection(db, 'users');
 const auditLogsCollection = () => collection(db, 'auditLogs');
@@ -66,6 +67,10 @@ export async function archiveUserProfile(userId, actorProfile) {
   };
 
   batch.update(userRef, after);
+  applyMemberDirectorySync(batch, userId, {
+    ...before,
+    status: 'Inactive'
+  });
   addAuditLog(batch, {
     actorProfile,
     after,
@@ -90,6 +95,10 @@ export async function reactivateUserProfile(userId, actorProfile) {
   };
 
   batch.update(userRef, after);
+  applyMemberDirectorySync(batch, userId, {
+    ...before,
+    status: 'Active'
+  });
   addAuditLog(batch, {
     action: 'Reactivate',
     actorProfile,

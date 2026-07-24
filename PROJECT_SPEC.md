@@ -96,12 +96,11 @@ The member directory is a member-only feature controlled by System Config.
 Directory behavior:
 
 - Only active profiles with Active membership can open the directory.
-- Super User records are excluded.
-- Directory settings control whether email, phone, city/state, and full address are shown.
+- The directory reads from `memberDirectoryProfiles`, a projection that contains only display-safe contact fields.
+- Projection documents exist only for Active profiles with Active membership that are not Super Users.
+- Directory settings control whether email, phone, city/state, and full address are shown in the UI.
 - Directory has search and letter filters.
-- Directory queries must include both `status == Active` and `membershipStatus == Active` to satisfy Firestore rules.
-
-Future improvement: create a directory-safe public/member directory collection so full `users` profile documents are not exposed to directory readers.
+- Full `users` documents are not readable by directory peers; profile owners, Super Users, and permitted admins retain their existing user-document access.
 
 ## Event And Listing Types
 
@@ -159,15 +158,22 @@ Type-specific behavior:
 
 ## Public And GoDaddy Listings
 
-The app supports a GoDaddy embeddable listing feed.
+The app supports GoDaddy embeddable listing feeds via `data-category`:
 
-Current listing behavior:
+- `events` — programs, workshops, retreats, lectures, classes, and other non-listing activities
+- `challenges` — challenge listings
+- `business` — business listings
+- `forsale` — for-sale listings
 
-- Filters show Programs, Workshops, and Challenges.
-- Program filter includes class, lecture, and retreat program types.
+Current `events` feed behavior:
+
+- Type filters show Programs and Workshops.
+- The Programs filter includes Class (Half Day), Class (Full Day), Lecture, and Retreat, matching the in-app Programs grouping.
 - Cards are compact and include dates, payment details, capacity/registered/waitlisted/open-seat pills, coordinator contact, images, supply list links, and registration buttons when applicable.
 - Register opens the Vercel registration flow.
 - Supply list viewing/printing uses the working browser-compatible Vercel route behavior.
+
+Challenges, business listings, and for-sale listings use their own embed category rather than appearing as filters on the `events` feed.
 
 ## Registration Flow
 
@@ -333,6 +339,8 @@ Primary collections:
 - `registrationVerifications`: private hashed email-code verification records with TTL
 - `registrationReservations`: private temporary online-payment seat holds with TTL
 - `registrationAttempts`: private idempotency records
+- `apiRateLimits`: private Firestore-backed API rate-limit counters with TTL
+- `memberDirectoryProfiles`: directory-safe member contact projections synced from eligible `users` profiles
 - `squareWebhookEvents`: Square webhook logs and payment review records
 
 Legacy/transition:
@@ -344,20 +352,17 @@ Legacy/transition:
 - Firestore rules enforce role, permission, profile, directory, and membership constraints.
 - Registration creation is server-only.
 - Sensitive payment/refund and membership actions are handled through authenticated server endpoints or guarded admin flows.
-- Verification and reservation collections are not client-readable.
+- Verification, reservation, attempt, and rate-limit collections are not client-readable.
+- Member directory readers use `memberDirectoryProfiles` only; they cannot read peer `users` documents.
 - Audit logs are create-only/read-only for authorized admins.
 - Firebase, Square, and Resend secrets must remain in environment variables.
 - Vercel Hobby function count should be watched; prefer extending existing API routes over adding new functions.
 
 ## Current Upgrade Priorities
 
-1. Finish and test payment/refund reliability and webhook reconciliation.
-2. Add payment/card-testing rate limits or bot protection.
-3. Create a directory-safe member directory collection.
-4. Add privacy/support pages and production security headers.
-5. Improve operational reporting, attendance/rosters, waitlist promotion, and reminders.
-6. Add CI and broader Firestore rules/workflow tests.
-7. Split oversized React components and centralize event display/availability logic.
+Track completed work, remaining items, and phase status in `PROJECT_UPGRADE.md`. This spec describes current system behavior only; do not duplicate status tables here.
+
+Near-term focus after Phase 1–2 and the directory-safe projection: broader API abuse protection, production security headers, privacy/support pages, CI/tests, and operational tooling. See the upgrade plan for authoritative status.
 
 ## Long-Term Vision
 

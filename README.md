@@ -5,9 +5,17 @@ Progressive Web App for The Village Quilters Network. The app manages programs, 
 Primary docs:
 
 - `PROJECT_SPEC.md` describes the current application configuration and operating model.
-- `PROJECT_UPGRADE.md` tracks completed upgrade work and remaining priorities.
+- `PROJECT_UPGRADE.md` tracks completed upgrade work and remaining priorities (status source of truth).
 - `APP_OVERVIEW.md` provides a plain-language summary of the app and its major features.
 - `ROLE_CAPABILITIES_OVERVIEW.md` summarizes what visitors, members, admins, super users, and coordinators can do.
+
+## Current Production Posture
+
+- Phase 1 registration security and Phase 2 payment/capacity reliability are complete.
+- Directory-safe `memberDirectoryProfiles` projections are in place; remaining Phase 3 work includes broader API abuse protection, security headers, and privacy/support pages.
+- The Vercel Hobby plan is at the **12** serverless function limit; prefer extending existing API routes over adding new ones.
+
+See `PROJECT_UPGRADE.md` for authoritative status.
 
 ## Stack
 
@@ -40,11 +48,13 @@ Primary docs:
    npm run dev
    ```
 
+Node 20+ is recommended. `npm test` runs a focused Node test suite and does not require Firebase emulators.
+
 ## Deployment Setup
 
 ### Firebase
 
-Create or select a Firebase project for this app, enable Authentication, Firestore, and Storage, then add a web app. Copy the web app config values into Vercel environment variables using the names in `.env.example`.
+Create or select a Firebase project for this app, enable Authentication (Email/Password), Firestore, and Storage, then add a web app. Copy the web app config values into `.env.local` and Vercel using the `VITE_FIREBASE_*` names in `.env.example`.
 
 The repo includes:
 
@@ -55,11 +65,11 @@ The repo includes:
 
 Event images and supply-list PDFs upload to Firebase Storage from the admin event form.
 
-Publish Firestore rules and indexes after changes to:
+After changing rules or indexes, publish with:
 
-- `firestore.rules`
-- `firestore.indexes.json`
-- `storage.rules`
+```sh
+firebase deploy --only firestore:rules,firestore:indexes,storage
+```
 
 ### Event Files
 
@@ -69,7 +79,7 @@ Event images should be JPG, PNG, or WebP. The app resizes images to a maximum of
 
 Online card payments use embedded Square payment fields. The app does not store card numbers, security codes, or wallet payment details.
 
-Vercel production needs these server-side values when payments, webhooks, and emails are enabled:
+Vercel production needs these server-side values when payments, webhooks, and emails are enabled (also listed in `.env.example`):
 
 - `FIREBASE_SERVICE_ACCOUNT_JSON`
 - `RESEND_API_KEY`
@@ -77,9 +87,15 @@ Vercel production needs these server-side values when payments, webhooks, and em
 - `SQUARE_ACCESS_TOKEN`
 - `SQUARE_APPLICATION_ID`
 - `SQUARE_LOCATION_ID`
-- `SQUARE_ENVIRONMENT`
+- `SQUARE_ENVIRONMENT` (`sandbox` or `production`)
 - `SQUARE_WEBHOOK_SIGNATURE_KEY`
-- `SQUARE_WEBHOOK_NOTIFICATION_URL`
+- `SQUARE_WEBHOOK_NOTIFICATION_URL` (typically `https://<your-vercel-domain>/api/square-webhook`)
+
+Optional:
+
+- `APP_ORIGIN` — public site origin for email links
+- `DISABLE_API_RATE_LIMITS` — set `true` only for local/testing bypass
+- `FIREBASE_API_KEY` — fallback for some admin API routes
 
 Use Square sandbox credentials while testing and production credentials only when ready to take live payments.
 
@@ -97,7 +113,26 @@ Vercel should use:
 
 `vercel.json` includes the SPA rewrite needed for React Router.
 
-The Vercel Hobby plan has a serverless function limit, so prefer extending existing API routes before adding new functions.
+Set both the `VITE_FIREBASE_*` client variables and the server variables above in the Vercel project environment. The Hobby plan has a 12-function limit, so prefer extending existing API routes before adding new functions.
+
+## API Surface
+
+Top-level Vercel routes under `api/` (12):
+
+- `admin-create-user`
+- `admin-set-user-password`
+- `admin-update-registration-payment`
+- `admin-update-user-profile`
+- `create-registration`
+- `file-proxy`
+- `godaddy-event-feed`
+- `godaddy-supply-list-viewer`
+- `public-events`
+- `public-registration-counts`
+- `registration-lookup`
+- `square-webhook`
+
+Shared helpers live under `api/_lib/` and do not count as separate functions. Registration creates and Square webhook handling are server-only.
 
 ## Scripts
 
@@ -105,8 +140,9 @@ The Vercel Hobby plan has a serverless function limit, so prefer extending exist
 - `npm run build` creates a production build.
 - `npm run preview` previews the production build.
 - `npm run lint` runs ESLint.
-- `npm test` runs the focused Node test suite.
+- `npm test` runs the focused Node test suite (`tests/*.test.js`).
 - `npm run setup:first-admin` creates or updates the first Firebase Auth Super User and matching Firestore profile.
+- `npm run backfill:member-directory` rebuilds `memberDirectoryProfiles` from eligible `users` docs (requires `FIREBASE_SERVICE_ACCOUNT_PATH`).
 
 ## First Super User Setup
 

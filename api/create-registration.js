@@ -9,6 +9,7 @@ import {
   normalizeEmail,
   verificationSecretsMatch
 } from './_lib/registration-verification.js';
+import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
 
 const PAYMENT_RESERVATION_EXPIRATION_MS = 5 * 60 * 1000;
 
@@ -388,6 +389,13 @@ async function createRegistration(db, payload, authorization) {
       });
     }
 
+    let nextDirectoryProfile = profile
+      ? {
+          ...profile,
+          status: profileStatus
+        }
+      : null;
+
     if (profile && payload.reactivateProfile && profileStatus !== 'Active') {
       transaction.update(db.collection('users').doc(profile.id), {
         archivedBy: FieldValue.delete(),
@@ -398,6 +406,10 @@ async function createRegistration(db, payload, authorization) {
         termsVersion: payload.termsVersion || 'Reactivation Agreement',
         updatedDate: FieldValue.serverTimestamp()
       });
+      nextDirectoryProfile = {
+        ...nextDirectoryProfile,
+        status: 'Active'
+      };
     }
 
     if (profile && payload.profileUpdates) {
@@ -414,6 +426,23 @@ async function createRegistration(db, payload, authorization) {
       }
 
       transaction.update(db.collection('users').doc(profile.id), profileUpdatePayload);
+      nextDirectoryProfile = {
+        ...nextDirectoryProfile,
+        ...profileUpdatePayload
+      };
+    }
+
+    if (
+      nextDirectoryProfile
+      && (payload.reactivateProfile || payload.profileUpdates)
+    ) {
+      applyMemberDirectorySync(
+        db,
+        transaction,
+        profile.id,
+        nextDirectoryProfile,
+        FieldValue.serverTimestamp()
+      );
     }
 
     transaction.set(registrationRef, registration);

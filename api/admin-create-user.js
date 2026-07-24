@@ -3,6 +3,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getGoogleAccessToken } from './_lib/google-access-token.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
+import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
 
 let firebaseProjectId = '';
 
@@ -141,6 +142,7 @@ export default async function handler(request, response) {
     const batch = db.batch();
 
     batch.set(userRef, profile, { merge: true });
+    applyMemberDirectorySync(db, batch, userRecord.uid, profile, now);
     if (membershipPayment) {
       const paymentRef = db.collection('payments').doc();
 

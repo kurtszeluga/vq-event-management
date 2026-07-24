@@ -8,10 +8,10 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  where,
   writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase.js';
+import { applyMemberDirectorySync } from './memberDirectoryProfile.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const paymentSettingsRef = () => doc(db, 'appSettings', 'paymentSettings');
@@ -199,21 +199,11 @@ export function subscribeToMembershipProfiles(onNext, onError) {
 
 export function subscribeToActiveMemberDirectoryProfiles(onNext, onError) {
   const profilesQuery = query(
-    usersCollection(),
-    where('membershipStatus', '==', 'Active'),
-    where('status', '==', 'Active')
+    collection(db, 'memberDirectoryProfiles'),
+    orderBy('sortKey', 'asc')
   );
 
-  return onSnapshot(
-    profilesQuery,
-    (snapshot) => {
-      onNext({
-        docs: snapshot.docs.filter((profileDoc) =>
-          profileDoc.data().role !== 'Super User')
-      });
-    },
-    onError
-  );
+  return onSnapshot(profilesQuery, onNext, onError);
 }
 
 export function subscribeToEventLocationDefaults(onNext, onError) {
@@ -397,6 +387,7 @@ export async function saveMembershipProfile(profile, actorProfile) {
   const payload = buildManualMembershipProfile(profile, before, profileRef.id);
 
   batch.set(profileRef, payload, { merge: false });
+  applyMemberDirectorySync(batch, profileRef.id, payload);
   addConfigurationAuditLog(batch, {
     actorProfile,
     after: payload,
@@ -522,7 +513,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
   const profilesToInactivate = isAnnualRefresh
     ? getProfilesMissingFromImport(users, importedProfileIds)
     : [];
-  const chunkSize = 400;
+  const chunkSize = 200;
   const writes = [
     ...profileWrites,
     ...membershipPaymentWrites,
@@ -539,6 +530,10 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
 
     chunk.forEach((write) => {
       batch.set(write.ref, write.value, { merge: write.merge !== false });
+
+      if (write.ref.path.startsWith('users/')) {
+        applyMemberDirectorySync(batch, write.ref.id, write.value);
+      }
     });
 
     if (startIndex === 0) {
@@ -613,6 +608,7 @@ export async function archiveMembershipProfile(profile, actorProfile) {
   const payload = buildMembershipStatusProfile(profile, 'Archived');
 
   batch.set(profileRef, payload, { merge: false });
+  applyMemberDirectorySync(batch, profile.id, payload);
   addConfigurationAuditLog(batch, {
     action: 'Archive',
     actorProfile,
@@ -662,6 +658,7 @@ export async function reactivateMembershipProfile(profile, actorProfile) {
   const payload = buildMembershipStatusProfile(profile, 'Active');
 
   batch.set(profileRef, payload, { merge: false });
+  applyMemberDirectorySync(batch, profile.id, payload);
   addConfigurationAuditLog(batch, {
     action: 'Reactivate',
     actorProfile,
@@ -1169,6 +1166,7 @@ async function addMembershipSyncWrites(batch, members) {
 
   writes.forEach((write) => {
     batch.set(write.ref, write.value, { merge: true });
+    applyMemberDirectorySync(batch, write.ref.id, write.directorySource);
   });
 }
 
@@ -1210,6 +1208,12 @@ async function getMembershipSyncWrites(members) {
       }
 
       syncByUserId.set(userDoc.id, {
+        directorySource: {
+          ...user,
+          membershipMatchedBy: matchedBy,
+          membershipMemberId: member.memberId || member.id || '',
+          membershipStatus: nextStatus
+        },
         ref: doc(db, 'users', userDoc.id),
         type: 'set',
         value: {
