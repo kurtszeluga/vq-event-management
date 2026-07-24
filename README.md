@@ -6,6 +6,8 @@ Primary docs:
 
 - `PROJECT_SPEC.md` describes the current application configuration and operating model.
 - `PROJECT_UPGRADE.md` tracks completed upgrade work and remaining priorities.
+- `APP_OVERVIEW.md` provides a plain-language summary of the app and its major features.
+- `ROLE_CAPABILITIES_OVERVIEW.md` summarizes what visitors, members, admins, super users, and coordinators can do.
 
 ## Stack
 
