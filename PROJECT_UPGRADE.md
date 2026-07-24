@@ -51,11 +51,11 @@ This document tracks the security, reliability, usability, and product improveme
 | --- | --- | --- |
 | Create a directory-safe member collection | Completed | Added `memberDirectoryProfiles` projection with sync on profile/membership writes, directory query switched off `users`, and Firestore rules that remove peer reads of full user documents. Run `npm run backfill:member-directory` after deploying rules. |
 | Correct and test member-directory Firestore queries | Completed | Member directory query now includes both `status == Active` and `membershipStatus == Active`, matching Firestore rule requirements. |
-| Restrict event file uploads to authorized event administrators | Not Started | Current Storage rules allow any signed-in user to upload to their own folder. |
-| Route sensitive writes through authenticated server endpoints | Not Started | Covers events, membership changes, permissions, payments, and authoritative audit records. |
-| Add API rate limiting and abuse monitoring | In Progress | Phase 2 covered registration lookup, email-code sends, code verification, Square seat holds, registration submits, membership confirmation sends, admin payment updates, and refund requests. Remaining: extend limits to `file-proxy` and other public/admin routes, plus abuse monitoring/alerts. |
-| Add production security headers | Not Started | Add CSP, frame protection, referrer policy, content-type protection, and permissions policy. |
-| Add a privacy policy and support/contact page | Not Started | Particularly important for directory, billing, registration, and payment data. |
+| Restrict event file uploads to authorized event administrators | Completed | Storage rules now require an active Super User or Admin with `manageEvents`, and uploads remain limited to the signed-in user's own folder. |
+| Route sensitive writes through authenticated server endpoints | In Progress | Event create/update/archive/reactivate/delete and admin password changes now go through authenticated Admin APIs; client event writes are denied. Remaining: membership CSV/import and some configuration writes are still client-side. |
+| Add API rate limiting and abuse monitoring | Completed | Extended Firestore-backed rate limits to `file-proxy`, public feeds/counts, supply-list viewer, admin user create/update, and event management. Monitoring/alerts remain a later ops item. |
+| Add production security headers | Completed | Added CSP, frame protection, referrer policy, content-type protection, and permissions policy via `vercel.json`. |
+| Add a privacy policy and support/contact page | Completed | Added `/privacy` and `/support` pages plus footer links. |
 
 ## Phase 4 - Event And Registration Workflows
 
@@ -133,3 +133,4 @@ This document tracks the security, reliability, usability, and product improveme
 | 2026-07-24 | README pass: expanded `.env.example`, added Firebase deploy command, API surface, and production posture aligned with this plan. |
 | 2026-07-24 | Aligned GoDaddy Programs filter with Spec/app grouping by including Retreat (and legacy hyphenated class types); corrected Spec embed category/filter wording. |
 | 2026-07-24 | Added directory-safe `memberDirectoryProfiles` collection, write-through sync, backfill script, and removed Active-member peer reads of full `users` documents. |
+| 2026-07-24 | Phase 3 progress: extended API rate limits, security headers, privacy/support pages, event-admin Storage rules, server-only event writes via `/api/admin-manage-event`, and folded password changes into `/api/admin-update-user-profile`. |

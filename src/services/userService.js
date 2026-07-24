@@ -144,8 +144,8 @@ export async function updateUserPasswordByAdmin(userId, password) {
     throw new Error('You must be signed in to change user passwords.');
   }
 
-  const response = await fetch('/api/admin-set-user-password', {
-    body: JSON.stringify({ password, userId }),
+  const response = await fetch('/api/admin-update-user-profile', {
+    body: JSON.stringify({ action: 'setPassword', password, userId }),
     headers: {
       Authorization: `Bearer ${idToken}`,
       'Content-Type': 'application/json'

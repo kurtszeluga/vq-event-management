@@ -6,6 +6,26 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function currentUserDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function canManageEventFiles() {
+      return signedIn()
+        && currentUserDoc().data.status == 'Active'
+        && (
+          currentUserDoc().data.role == 'Super User'
+          || (
+            currentUserDoc().data.role == 'Admin'
+            && currentUserDoc().data.permissions.manageEvents == true
+          )
+        );
+    }
+
+    function ownsFolder(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
     function validImageUpload() {
       return request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
@@ -19,20 +39,20 @@ service firebase.storage {
         );
     }
 
-    function ownsFolder(userId) {
-      return signedIn() && request.auth.uid == userId;
-    }
-
     match /event-images/{userId}/{fileName} {
       allow read: if true;
-      allow create, update: if ownsFolder(userId) && validImageUpload();
-      allow delete: if ownsFolder(userId);
+      allow create, update: if canManageEventFiles()
+        && ownsFolder(userId)
+        && validImageUpload();
+      allow delete: if canManageEventFiles() && ownsFolder(userId);
     }
 
     match /event-documents/{userId}/{fileName} {
       allow read: if true;
-      allow create, update: if ownsFolder(userId) && validPdfUpload();
-      allow delete: if ownsFolder(userId);
+      allow create, update: if canManageEventFiles()
+        && ownsFolder(userId)
+        && validPdfUpload();
+      allow delete: if canManageEventFiles() && ownsFolder(userId);
     }
   }
 }

@@ -13,6 +13,8 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
 import TermsPage from './pages/TermsPage.jsx';
+import PrivacyPage from './pages/PrivacyPage.jsx';
+import SupportPage from './pages/SupportPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import MyRegistrationsPage from './pages/MyRegistrationsPage.jsx';
 import MemberDirectoryPage from './pages/MemberDirectoryPage.jsx';
@@ -43,6 +45,8 @@ const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
       { path: 'terms', element: <TermsPage /> },
+      { path: 'privacy', element: <PrivacyPage /> },
+      { path: 'support', element: <SupportPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'profile/edit', element: <ProfilePage /> },
       { path: 'admin/profile/edit', element: <ProfilePage /> },

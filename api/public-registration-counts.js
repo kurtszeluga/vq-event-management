@@ -3,6 +3,7 @@ import {
   initializeAdminApp,
   loadRegistrationCounts
 } from './_lib/public-event-feed.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 
 export default async function handler(request, response) {
   response.setHeader('Access-Control-Allow-Origin', '*');
@@ -23,16 +24,27 @@ export default async function handler(request, response) {
 
   try {
     initializeAdminApp();
+    const db = getFirestore();
+
+    await enforceRateLimit(db, {
+      limit: 120,
+      message: 'Too many requests. Please wait and try again later.',
+      request,
+      scope: 'public-registration-counts-ip',
+      windowMs: 10 * 60 * 1000
+    });
 
     const eventIds = String(request.query.eventIds || '')
       .split(',')
       .map((eventId) => eventId.trim())
       .filter(Boolean);
 
-    const counts = await loadRegistrationCounts(getFirestore(), eventIds);
+    const counts = await loadRegistrationCounts(db, eventIds);
 
     response.status(200).json({ counts });
   } catch (error) {
-    response.status(500).json({ error: error.message || 'Unable to load registration counts.' });
+    response.status(error.statusCode || 500).json({
+      error: error.message || 'Unable to load registration counts.'
+    });
   }
 }

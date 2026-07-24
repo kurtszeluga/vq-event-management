@@ -141,7 +141,9 @@ function App() {
         </div>
         <nav aria-label="Footer navigation">
           <span>&copy; {currentYear} The Village Quilters, Inc.</span>
-          <Link to="/terms">Terms And Conditions</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/support">Support</Link>
         </nav>
       </footer>
     </div>

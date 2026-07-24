@@ -1,4 +1,6 @@
-import { getFeedCategory, loadPublicFeed } from './_lib/public-event-feed.js';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getFeedCategory, initializeAdminApp, loadPublicFeed } from './_lib/public-event-feed.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 
 export default async function handler(request, response) {
   response.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,13 +20,24 @@ export default async function handler(request, response) {
   }
 
   try {
+    initializeAdminApp();
+    await enforceRateLimit(getFirestore(), {
+      limit: 120,
+      message: 'Too many requests. Please wait and try again later.',
+      request,
+      scope: 'public-events-ip',
+      windowMs: 10 * 60 * 1000
+    });
+
     const category = getFeedCategory(request.query.category);
     const origin = getRequestOrigin(request);
     const payload = await loadPublicFeed(category, origin);
 
     response.status(200).json(payload);
   } catch (error) {
-    response.status(500).json({ error: error.message || 'Unable to load public events.' });
+    response.status(error.statusCode || 500).json({
+      error: error.message || 'Unable to load public events.'
+    });
   }
 }
 

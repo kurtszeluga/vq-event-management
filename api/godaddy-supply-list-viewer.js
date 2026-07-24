@@ -1,5 +1,6 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 
 export default async function handler(request, response) {
   if (request.method !== 'GET') {
@@ -19,6 +20,15 @@ export default async function handler(request, response) {
     initializeAdminApp();
 
     const db = getFirestore();
+
+    await enforceRateLimit(db, {
+      limit: 60,
+      message: 'Too many supply list requests. Please wait and try again later.',
+      request,
+      scope: 'godaddy-supply-list-viewer-ip',
+      windowMs: 10 * 60 * 1000
+    });
+
     const eventSnapshot = await db.collection('events').doc(eventId).get();
 
     if (!eventSnapshot.exists) {
@@ -45,9 +55,13 @@ export default async function handler(request, response) {
     response.setHeader('Cache-Control', 'private, max-age=0, no-cache, no-store, must-revalidate');
     response.status(200).send(buildViewerHtml({ attachmentUrl, fileName, inlineUrl, title }));
   } catch (error) {
+    const statusCode = error.statusCode || 500;
     response
-      .status(500)
-      .send(buildMessageHtml('Supply list unavailable', error.message || 'The document could not be loaded.'));
+      .status(statusCode)
+      .send(buildMessageHtml(
+        statusCode === 429 ? 'Too many requests' : 'Supply list unavailable',
+        error.message || 'The document could not be loaded.'
+      ));
   }
 }
 

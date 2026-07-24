@@ -1,3 +1,7 @@
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeAdminApp } from './_lib/public-event-feed.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
+
 const ALLOWED_HOSTS = new Set([
   'firebasestorage.googleapis.com',
   'storage.googleapis.com'
@@ -18,6 +22,15 @@ export default async function handler(request, response) {
   }
 
   try {
+    initializeAdminApp();
+    await enforceRateLimit(getFirestore(), {
+      limit: 90,
+      message: 'Too many file requests. Please wait and try again later.',
+      request,
+      scope: 'file-proxy-ip',
+      windowMs: 10 * 60 * 1000
+    });
+
     const { url, disposition = 'inline', filename = 'download.pdf' } = request.query || {};
     const fileUrl = Array.isArray(url) ? url[0] : url;
 
@@ -73,7 +86,7 @@ export default async function handler(request, response) {
     const body = Buffer.from(await upstream.arrayBuffer());
     response.status(statusCode).send(body);
   } catch (error) {
-    response.status(500).json({ error: error.message });
+    response.status(error.statusCode || 500).json({ error: error.message });
   }
 }
 

@@ -351,18 +351,20 @@ Legacy/transition:
 
 - Firestore rules enforce role, permission, profile, directory, and membership constraints.
 - Registration creation is server-only.
-- Sensitive payment/refund and membership actions are handled through authenticated server endpoints or guarded admin flows.
+- Sensitive payment/refund, membership admin updates, event writes, and password changes are handled through authenticated server endpoints.
+- Event create/update/delete is server-only; clients cannot write the `events` collection directly.
 - Verification, reservation, attempt, and rate-limit collections are not client-readable.
 - Member directory readers use `memberDirectoryProfiles` only; they cannot read peer `users` documents.
 - Audit logs are create-only/read-only for authorized admins.
 - Firebase, Square, and Resend secrets must remain in environment variables.
 - Vercel Hobby function count should be watched; prefer extending existing API routes over adding new functions.
+- Production responses include CSP, frame protection, referrer policy, content-type protection, and permissions policy.
 
 ## Current Upgrade Priorities
 
 Track completed work, remaining items, and phase status in `PROJECT_UPGRADE.md`. This spec describes current system behavior only; do not duplicate status tables here.
 
-Near-term focus after Phase 1–2 and the directory-safe projection: broader API abuse protection, production security headers, privacy/support pages, CI/tests, and operational tooling. See the upgrade plan for authoritative status.
+Near-term focus: finish remaining server-side membership/config writes, abuse monitoring/alerts, CI/tests, and operational tooling. See the upgrade plan for authoritative status.
 
 ## Long-Term Vision
 

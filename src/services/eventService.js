@@ -5,14 +5,12 @@ import {
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
-  writeBatch,
   where
 } from 'firebase/firestore';
-import { db } from '../lib/firebase.js';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '../lib/firebase.js';
 
 const eventsCollection = () => collection(db, 'events');
-const auditLogsCollection = () => collection(db, 'auditLogs');
 
 export function subscribeToAdminEvents(onNext, onError) {
   const eventsQuery = query(eventsCollection(), orderBy('date', 'asc'));
@@ -28,116 +26,42 @@ export function subscribeToPublishedEvents(onNext, onError) {
   return onSnapshot(eventsQuery, onNext, onError);
 }
 
-export async function createEvent(eventData, actorProfile) {
-  const batch = writeBatch(db);
-  const docRef = doc(eventsCollection());
-  const eventPayload = {
-    ...eventData,
-    eventId: docRef.id,
-    createdDate: serverTimestamp(),
-    updatedDate: serverTimestamp()
-  };
-
-  batch.set(docRef, eventPayload);
-  addAuditLog(batch, {
-    action: 'Create',
-    actorProfile,
-    after: eventData,
-    before: {},
-    entityId: docRef.id,
-    summary: `Created event "${getEventAuditTitle(eventData)}"`
+export async function createEvent(eventData) {
+  const result = await postEventAction({
+    action: 'create',
+    eventData
   });
 
-  await batch.commit();
-
-  return docRef.id;
+  return result.eventId;
 }
 
-export async function updateEvent(eventId, eventData, actorProfile) {
-  const eventRef = doc(db, 'events', eventId);
-  const eventSnap = await getDoc(eventRef);
-  const batch = writeBatch(db);
-
-  batch.update(eventRef, {
-    ...eventData,
-    updatedDate: serverTimestamp()
+export async function updateEvent(eventId, eventData) {
+  await postEventAction({
+    action: 'update',
+    eventData,
+    eventId
   });
-
-  addAuditLog(batch, {
-    action: 'Update',
-    actorProfile,
-    after: eventData,
-    before: eventSnap.exists() ? eventSnap.data() : {},
-    entityId: eventId,
-    summary: `Updated event "${getEventAuditTitle(eventData)}"`
-  });
-
-  return batch.commit();
 }
 
-export async function deleteEvent(eventId, actorProfile) {
-  const eventRef = doc(db, 'events', eventId);
-  const eventSnap = await getDoc(eventRef);
-  const eventData = eventSnap.exists() ? eventSnap.data() : {};
-  const batch = writeBatch(db);
-
-  batch.delete(eventRef);
-  addAuditLog(batch, {
-    action: 'Delete',
-    actorProfile,
-    after: {},
-    before: eventData,
-    entityId: eventId,
-    summary: `Deleted event "${eventData.title || eventId}"`
+export async function deleteEvent(eventId) {
+  await postEventAction({
+    action: 'delete',
+    eventId
   });
-
-  return batch.commit();
 }
 
-export async function archiveEvent(eventId, actorProfile) {
-  const eventRef = doc(db, 'events', eventId);
-  const eventSnap = await getDoc(eventRef);
-  const eventData = eventSnap.exists() ? eventSnap.data() : {};
-  const batch = writeBatch(db);
-
-  batch.update(eventRef, {
-    status: 'Archived',
-    updatedDate: serverTimestamp()
+export async function archiveEvent(eventId) {
+  await postEventAction({
+    action: 'archive',
+    eventId
   });
-
-  addAuditLog(batch, {
-    action: 'Archive',
-    actorProfile,
-    after: { status: 'Archived' },
-    before: eventData,
-    entityId: eventId,
-    summary: `Archived event "${eventData.title || eventId}"`
-  });
-
-  return batch.commit();
 }
 
-export async function reactivateEvent(eventId, actorProfile) {
-  const eventRef = doc(db, 'events', eventId);
-  const eventSnap = await getDoc(eventRef);
-  const eventData = eventSnap.exists() ? eventSnap.data() : {};
-  const batch = writeBatch(db);
-
-  batch.update(eventRef, {
-    status: 'Published',
-    updatedDate: serverTimestamp()
+export async function reactivateEvent(eventId) {
+  await postEventAction({
+    action: 'reactivate',
+    eventId
   });
-
-  addAuditLog(batch, {
-    action: 'Reactivate',
-    actorProfile,
-    after: { status: 'Published' },
-    before: eventData,
-    entityId: eventId,
-    summary: `Reactivated event "${eventData.title || eventId}"`
-  });
-
-  return batch.commit();
 }
 
 export async function getEvent(eventId) {
@@ -150,34 +74,79 @@ export async function getEvent(eventId) {
   return { id: eventSnap.id, ...eventSnap.data() };
 }
 
-function addAuditLog(batch, { action, actorProfile, after, before, entityId, summary }) {
-  const auditRef = doc(auditLogsCollection());
-  const actor = getAuditActor(actorProfile);
+async function postEventAction(body) {
+  const idToken = await getAdminIdToken();
 
-  batch.set(auditRef, {
-    action,
-    actorEmail: actor.email,
-    actorName: actor.name,
-    actorRole: actor.role,
-    actorUserId: actor.userId,
-    after,
-    before,
-    createdDate: serverTimestamp(),
-    entityId,
-    entityType: 'Event',
-    summary
+  if (!idToken) {
+    throw new Error('You must be signed in to manage events.');
+  }
+
+  const response = await fetch('/api/admin-manage-event', {
+    body: JSON.stringify(body),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
   });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Event could not be saved.');
+  }
+
+  return result;
 }
 
-function getAuditActor(actorProfile) {
-  return {
-    email: actorProfile?.email || '',
-    name: actorProfile?.name || actorProfile?.email || 'Unknown Admin',
-    role: actorProfile?.role || '',
-    userId: actorProfile?.userId || actorProfile?.id || ''
-  };
+async function parseJsonResponse(response) {
+  const contentType = response.headers.get('content-type') || '';
+  const bodyText = await response.text();
+
+  if (contentType.includes('application/json')) {
+    try {
+      return bodyText ? JSON.parse(bodyText) : {};
+    } catch {
+      return { error: bodyText || 'Unexpected server response.' };
+    }
+  }
+
+  if (!bodyText) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    return { error: bodyText };
+  }
 }
 
-function getEventAuditTitle(eventData) {
-  return eventData.title || eventData.eventType || 'Untitled Draft';
+async function getAdminIdToken() {
+  if (!auth) {
+    return '';
+  }
+
+  const currentUser = auth.currentUser || (await waitForCurrentUser());
+
+  if (!currentUser) {
+    return '';
+  }
+
+  return currentUser.getIdToken();
+}
+
+function waitForCurrentUser() {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (firebaseUser) => {
+        unsubscribe();
+        resolve(firebaseUser);
+      },
+      () => {
+        unsubscribe();
+        resolve(null);
+      }
+    );
+  });
 }

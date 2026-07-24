@@ -12,7 +12,8 @@ Primary docs:
 ## Current Production Posture
 
 - Phase 1 registration security and Phase 2 payment/capacity reliability are complete.
-- Directory-safe `memberDirectoryProfiles` projections are in place; remaining Phase 3 work includes broader API abuse protection, security headers, and privacy/support pages.
+- Directory-safe projections, broader API rate limits, security headers, privacy/support pages, and server-only event writes are in place.
+- Remaining Phase 3 work is mainly membership CSV/config write centralization and abuse monitoring/alerts.
 - The Vercel Hobby plan is at the **12** serverless function limit; prefer extending existing API routes over adding new ones.
 
 See `PROJECT_UPGRADE.md` for authoritative status.
@@ -120,7 +121,7 @@ Set both the `VITE_FIREBASE_*` client variables and the server variables above i
 Top-level Vercel routes under `api/` (12):
 
 - `admin-create-user`
-- `admin-set-user-password`
+- `admin-manage-event`
 - `admin-update-registration-payment`
 - `admin-update-user-profile`
 - `create-registration`

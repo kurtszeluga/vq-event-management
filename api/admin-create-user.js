@@ -4,6 +4,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getGoogleAccessToken } from './_lib/google-access-token.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 
 let firebaseProjectId = '';
 
@@ -61,6 +62,15 @@ export default async function handler(request, response) {
 
     const actorSnap = await db.collection('users').doc(actorUid).get();
     const actorProfile = actorSnap.exists ? actorSnap.data() : {};
+
+    await enforceRateLimit(db, {
+      keyParts: [actorUid],
+      limit: 30,
+      message: 'Too many admin user-create requests. Please wait and try again later.',
+      request,
+      scope: 'admin-create-user',
+      windowMs: 10 * 60 * 1000
+    });
 
     if (!canAddUsers(actorProfile)) {
       response.status(403).json({ error: 'This account cannot add users.' });

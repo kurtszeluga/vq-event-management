@@ -768,8 +768,8 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow read: if resource.data.status == 'Published' || hasPermission('manageEvents');
-      allow create, update: if hasPermission('manageEvents') && validEvent();
-      allow delete: if hasPermission('manageEvents');
+      // Event writes are server-only through /api/admin-manage-event.
+      allow create, update, delete: if false;
     }
 
     match /registrations/{registrationId} {

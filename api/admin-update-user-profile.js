@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getGoogleAccessToken } from './_lib/google-access-token.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
+import { enforceRateLimit } from './_lib/rate-limit.js';
 
 let firebaseProjectId = '';
 
@@ -61,8 +62,22 @@ export default async function handler(request, response) {
     const actorSnap = await db.collection('users').doc(actorUid).get();
     const actorProfile = actorSnap.exists ? actorSnap.data() : {};
 
+    await enforceRateLimit(db, {
+      keyParts: [actorUid, request.body?.action || 'update'],
+      limit: 60,
+      message: 'Too many admin profile update requests. Please wait and try again later.',
+      request,
+      scope: 'admin-update-user-profile',
+      windowMs: 10 * 60 * 1000
+    });
+
     if (request.body?.action === 'sendEmailInstructionsTest') {
       await handleSendEmailInstructionsTest(request, response, actorProfile);
+      return;
+    }
+
+    if (request.body?.action === 'setPassword') {
+      await handleSetPassword(request, response, db, actorUid, actorProfile);
       return;
     }
 
@@ -404,6 +419,88 @@ function buildMembershipPaymentRecord({
       userId: profile.userId || targetProfileId
     }
   };
+}
+
+async function handleSetPassword(request, response, db, actorUid, actorProfile) {
+  if (actorProfile.role !== 'Super User' || actorProfile.status !== 'Active') {
+    response.status(403).json({ error: 'Only active Super Users can change user passwords.' });
+    return;
+  }
+
+  const userId = cleanText(request.body?.userId || request.body?.profileId);
+  const password = request.body?.password;
+
+  if (!userId) {
+    response.status(400).json({ error: 'User ID is required.' });
+    return;
+  }
+
+  if (!password || typeof password !== 'string' || password.length < 8) {
+    response.status(400).json({ error: 'Password must be at least 8 characters.' });
+    return;
+  }
+
+  const userRef = db.collection('users').doc(userId);
+  const userSnap = await userRef.get();
+
+  if (!userSnap.exists) {
+    response.status(404).json({ error: 'User profile was not found.' });
+    return;
+  }
+
+  const userProfile = userSnap.data();
+  await updateAuthUserPassword(userProfile.userId || userId, password);
+
+  await db.collection('auditLogs').doc().set({
+    action: 'Update',
+    actorEmail: actorProfile.email || '',
+    actorName: actorProfile.name || actorProfile.email || 'Unknown Admin',
+    actorRole: actorProfile.role || '',
+    actorUserId: actorProfile.userId || actorUid,
+    after: {
+      passwordChanged: true,
+      userEmail: userProfile.email || '',
+      userName: userProfile.name || ''
+    },
+    before: {},
+    createdDate: FieldValue.serverTimestamp(),
+    entityId: userId,
+    entityType: 'User',
+    summary: `Changed password for user "${userProfile.name || userProfile.email || userId}"`
+  });
+
+  response.status(200).json({ ok: true });
+}
+
+async function updateAuthUserPassword(localId, password) {
+  const accessToken = await getGoogleAccessToken(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/projects/${firebaseProjectId}/accounts:update`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        localId,
+        password,
+        returnSecureToken: false
+      })
+    }
+  );
+
+  const text = await response.text();
+  const data = text ? safeJsonParse(text) : {};
+
+  if (!response.ok) {
+    const message = data.error?.message || data.error || 'Firebase Auth request failed.';
+    const error = new Error(message);
+    error.statusCode = response.status;
+    throw error;
+  }
+
+  return data;
 }
 
 function canUpdateUsers(actorProfile) {
