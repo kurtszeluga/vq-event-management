@@ -59,6 +59,39 @@ describe('starting and cancelling an edit', () => {
     expect(props.applyProfile).not.toHaveBeenCalled();
     expect(result.current.needsProfileEdits).toBe(false);
   });
+
+  // Cancelling has to undo the validation state as well as the values. The
+  // form error renders far above the edit block, so leaving it set means the
+  // editor closes while "Please fix the highlighted profile fields before
+  // saving." stays on screen and the fields stay marked invalid - which reads
+  // as the Cancel button having done nothing at all.
+  it('clears the form error and field errors on cancel', () => {
+    const { props, result } = setup({
+      registrant: { ...VALID_REGISTRANT, firstName: '', phone: '' }
+    });
+
+    act(() => {
+      result.current.handleStartProfileEdit();
+      result.current.handleSaveProfileEdit();
+    });
+
+    // Save refused and populated both, as it should.
+    expect(props.setFormError).toHaveBeenLastCalledWith(
+      'Please fix the highlighted profile fields before saving.'
+    );
+    expect(props.setFieldErrors).toHaveBeenLastCalledWith(
+      expect.objectContaining({ firstName: expect.any(String), phone: expect.any(String) })
+    );
+    expect(result.current.needsProfileEdits).toBe(true);
+
+    act(() => {
+      result.current.handleCancelProfileEdit();
+    });
+
+    expect(props.setFieldErrors).toHaveBeenLastCalledWith({});
+    expect(props.setFormError).toHaveBeenLastCalledWith('');
+    expect(result.current.needsProfileEdits).toBe(false);
+  });
 });
 
 describe('saving an edit', () => {

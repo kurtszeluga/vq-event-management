@@ -23,6 +23,15 @@ export function useProfileEditing({
     if (matchedProfile) {
       applyProfile(matchedProfile);
     }
+
+    // Cancelling has to clear the validation state too, not just the values.
+    // Save populates fieldErrors and formError, and formError renders well above
+    // the edit block - so without this, cancelling closed the editor but left
+    // "Please fix the highlighted profile fields before saving." on screen with
+    // the fields still marked invalid, which reads as the button having done
+    // nothing.
+    setFieldErrors({});
+    setFormError('');
     setNeedsProfileEdits(false);
   }
 
