@@ -12,6 +12,7 @@ import {
   getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
+import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
@@ -94,7 +95,7 @@ function buildEventPrintHtml(event) {
   const location = escapeHtml(event.location || 'To be announced');
   const presenter = escapeHtml(event.presenter || 'To be announced');
   const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'No Charge');
-  const registration = event.registrationOpen ? 'Registration open' : 'Registration closed';
+  const registration = isRegistrationWindowOpen(event) ? 'Registration open' : 'Registration closed';
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
   const registrationWindow = registrationStartDate || registrationEndDate
@@ -458,9 +459,12 @@ function EventsPage() {
           const registrationStats = getEventRegistrationStats(event, counts);
           const statsExpanded = Boolean(expandedStats[event.id]);
           const heldCount = Number(counts.held || 0);
+          // Derived from the configured dates, not the stored registrationOpen
+          // flag, so a passed close date actually reads as closed here.
+          const registrationOpen = isRegistrationWindowOpen(event);
           const availabilityTone = availability.label === 'Unlimited'
             ? availability.tone
-            : event.registrationOpen
+            : registrationOpen
               ? availability.tone
               : 'closed';
           const coordinatorContact = coordinatorContacts[event.id];
@@ -474,8 +478,8 @@ function EventsPage() {
                 <strong className={`event-availability-pill ${availabilityTone}`}>
                   {availability.label}
                 </strong>
-                <strong className={`event-availability-pill ${event.registrationOpen ? 'open' : 'closed'}`}>
-                  {event.registrationOpen ? 'Registration open' : 'Registration closed'}
+                <strong className={`event-availability-pill ${registrationOpen ? 'open' : 'closed'}`}>
+                  {registrationOpen ? 'Registration open' : 'Registration closed'}
                 </strong>
               </div>
               <div className="public-event-card-main">
@@ -587,7 +591,7 @@ function EventsPage() {
                 >
                   Print the {getEventTypeLabel(event)}
                 </button>
-                {event.registrationOpen ? (
+                {registrationOpen ? (
                   <Link
                     className="button-link public-event-register-action"
                     to={`/register?eventId=${event.id}`}

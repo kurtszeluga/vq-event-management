@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getEvent } from '../services/eventService.js';
 import {
   formatCurrency,
@@ -139,7 +140,9 @@ function EventListingPrintPage() {
       <article className="public-event-card public-event-card--print">
         <div className="card-kicker">
           <span className="event-type-pill">{event.eventType || 'Other'}</span>
-          <strong>{event.registrationOpen ? 'Registration open' : 'Registration closed'}</strong>
+          <strong>
+            {isRegistrationWindowOpen(event) ? 'Registration open' : 'Registration closed'}
+          </strong>
         </div>
         <div className="public-event-card-main">
           <h2>{event.title}</h2>

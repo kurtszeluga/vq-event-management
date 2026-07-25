@@ -1,8 +1,7 @@
-import { isEventVisible } from './eventFormat.js';
+import { getRegistrationWindowState } from '../../shared/registrationWindow.js';
+import { formatDateOnly, isEventVisible } from './eventFormat.js';
 
 export const CASH_CHECK_LATER = 'cash-check-later';
-
-const NON_REGISTRABLE_EVENT_TYPES = ['Business Listing', 'For Sale'];
 
 const MEMBERSHIP_BLOCKED_STATUSES = [
   'already-registered',
@@ -46,6 +45,11 @@ export function isPaymentRequiredForSeat({ event, paymentPreference, paymentRese
     && paymentReservation?.paymentRequired !== false;
 }
 
+// Availability is derived from the configured window rather than from the
+// stored `registrationOpen` flag, so a scheduled opening actually arrives and a
+// close date actually closes. The server applies the same rule in
+// api/create-registration.js via the same shared module; this gate only decides
+// what the member sees.
 export function getRegistrationUnavailableReason(event) {
   if (!event) {
     return '';
@@ -55,12 +59,23 @@ export function getRegistrationUnavailableReason(event) {
     return 'This event is not currently available.';
   }
 
-  if (!event.registrationOpen) {
-    return 'Registration is not currently open for this event.';
+  const { state } = getRegistrationWindowState(event);
+
+  if (state === 'not-registrable') {
+    return 'This listing does not accept registrations.';
   }
 
-  if (NON_REGISTRABLE_EVENT_TYPES.includes(event.eventType)) {
-    return 'This listing does not accept registrations.';
+  // Naming the date is the difference between "come back later" and a dead end.
+  if (state === 'not-yet-open') {
+    return `Registration for this event opens ${formatDateOnly(event.registrationOpenAt)}.`;
+  }
+
+  if (state === 'closed') {
+    return `Registration for this event closed ${formatDateOnly(event.registrationCloseAt)}.`;
+  }
+
+  if (state === 'disabled') {
+    return 'Registration is not currently open for this event.';
   }
 
   return '';

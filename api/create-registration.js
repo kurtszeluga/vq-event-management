@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getRegistrationWindowState } from '../shared/registrationWindow.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
@@ -812,12 +813,28 @@ function validateRegistrationEligibility(
     throw httpError(404, 'This event is not currently available.');
   }
 
-  if (!event.registrationOpen) {
-    throw httpError(400, 'Registration is not currently open for this event.');
+  // The registration window is enforced here, not just in the browser: the
+  // client gate only hides the form. Both sides call the same shared module so a
+  // closed event cannot be registered for by replaying a request. Note the
+  // window is resolved in guild-local time deliberately - this runtime is UTC,
+  // and reading the admin's naive datetime strings as UTC would shut
+  // registration hours early.
+  const { state } = getRegistrationWindowState(event);
+
+  if (state === 'not-registrable') {
+    throw httpError(400, 'This listing does not accept registrations.');
   }
 
-  if (['Business Listing', 'For Sale'].includes(event.eventType)) {
-    throw httpError(400, 'This listing does not accept registrations.');
+  if (state === 'not-yet-open') {
+    throw httpError(400, 'Registration for this event has not opened yet.');
+  }
+
+  if (state === 'closed') {
+    throw httpError(400, 'Registration for this event has closed.');
+  }
+
+  if (state !== 'open') {
+    throw httpError(400, 'Registration is not currently open for this event.');
   }
 
   if (profile && profileStatus !== 'Active' && !reactivateProfile) {

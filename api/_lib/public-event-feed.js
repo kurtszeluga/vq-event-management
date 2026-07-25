@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 
 const EVENT_CATEGORY_CONFIG = {
   business: {
@@ -202,6 +203,19 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
     ? event.registrationCloseAt || event.date || ''
     : '';
 
+  // Derived from the same two values this payload publishes, so the feed can
+  // never advertise a close date it does not honour. Those two carry the
+  // display fallbacks above (visibleFrom/createdDate, and the event date as an
+  // implicit close), which is a slightly wider window than the raw configured
+  // one the server gate enforces; they agree for any event saved through
+  // EventForm, which requires both dates explicitly.
+  const registrationOpen = isRegistrationWindowOpen({
+    eventType: event.eventType,
+    registrationMode: event.registrationMode,
+    registrationOpenAt,
+    registrationCloseAt
+  });
+
   return {
     id: event.id,
     eventType,
@@ -228,7 +242,7 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
     serviceFee: Number(event.serviceFee || 0),
     capacity: Number(event.capacity || 0),
     capacityUnlimited: Boolean(event.capacityUnlimited),
-    registrationOpen: Boolean(event.registrationOpen),
+    registrationOpen,
     registrationOpenAt,
     registrationCloseAt,
     registeredCount: registrationCounts.registered || 0,

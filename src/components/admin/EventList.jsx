@@ -8,6 +8,7 @@ import {
   getRegistrationEndDate,
   getRegistrationStartDate
 } from '../../utils/eventFormat.js';
+import { isRegistrationWindowOpen } from '../../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
 
 const ALL_TYPES = 'All';
@@ -423,9 +424,9 @@ function getEventPaymentTotal(event) {
 }
 
 function canRegisterEvent(event) {
-  return event.status !== 'Archived'
-    && event.registrationOpen
-    && !['Business Listing', 'For Sale'].includes(event.eventType);
+  // Derived rather than reading the stored flag, so the admin list shows the
+  // same open/closed state a member would actually get.
+  return event.status !== 'Archived' && isRegistrationWindowOpen(event);
 }
 
 function getEventRegistrationStats(event, counts = {}) {

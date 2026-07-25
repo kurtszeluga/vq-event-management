@@ -12,6 +12,7 @@ import {
   getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
+import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 
 function EventDetailsPage() {
@@ -179,7 +180,7 @@ function EventDetailsPage() {
               View, print, or save {event.supplyListTitle || event.supplyListFileName || 'supply list'}
             </button>
           ) : null}
-          {!event.registrationOpen ? (
+          {!isRegistrationWindowOpen(event) ? (
             <p className="form-error">Registration is not currently open.</p>
           ) : null}
           <div className="detail-actions">
@@ -192,7 +193,7 @@ function EventDetailsPage() {
                 Return To My Registrations
               </button>
             ) : null}
-            {event.registrationOpen && !alreadyRegisteredView ? (
+            {isRegistrationWindowOpen(event) && !alreadyRegisteredView ? (
               <Link className="button-link" to={`/register?eventId=${event.id}`}>
                 {availability.isFull ? 'Join Waitlist' : 'Register'}
               </Link>

@@ -87,12 +87,25 @@ test('waitlist status is read from the reservation', () => {
   assert.equal(isJoiningWaitlist(null), false);
 });
 
-test('registration is refused for hidden, closed, and non-registrable listings', () => {
-  const open = {
+// Availability now comes from the configured date window rather than the stored
+// `registrationOpen` flag, so these fixtures carry a real window.
+function openEvent(overrides = {}) {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const asLocalInput = (offsetMs) =>
+    new Date(Date.now() + offsetMs).toISOString().slice(0, 16);
+
+  return {
     eventType: 'Workshop',
-    registrationOpen: true,
-    status: 'Published'
+    registrationMode: 'now',
+    registrationOpenAt: asLocalInput(-7 * dayMs),
+    registrationCloseAt: asLocalInput(7 * dayMs),
+    status: 'Published',
+    ...overrides
   };
+}
+
+test('registration is refused for hidden, closed, and non-registrable listings', () => {
+  const open = openEvent();
 
   assert.equal(getRegistrationUnavailableReason(open), '');
 
@@ -104,7 +117,7 @@ test('registration is refused for hidden, closed, and non-registrable listings',
     /not currently available/
   );
   assert.match(
-    getRegistrationUnavailableReason({ ...open, registrationOpen: false }),
+    getRegistrationUnavailableReason({ ...open, registrationMode: 'none' }),
     /not currently open/
   );
   assert.match(
@@ -115,6 +128,44 @@ test('registration is refused for hidden, closed, and non-registrable listings',
     getRegistrationUnavailableReason({ ...open, eventType: 'For Sale' }),
     /does not accept registrations/
   );
+});
+
+test('the stored registrationOpen flag no longer decides availability', () => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const asLocalInput = (offsetMs) =>
+    new Date(Date.now() + offsetMs).toISOString().slice(0, 16);
+
+  // What EventForm writes for mode 'now': the flag stays true forever, so the
+  // old gate kept registration open past the close date.
+  assert.match(getRegistrationUnavailableReason(openEvent({
+    registrationOpen: true,
+    registrationCloseAt: asLocalInput(-dayMs)
+  })), /closed/);
+
+  // What EventForm writes for mode 'future': the flag stays false forever, so
+  // the old gate never let a scheduled opening arrive.
+  assert.equal(getRegistrationUnavailableReason(openEvent({
+    registrationMode: 'future',
+    registrationOpen: false
+  })), '');
+});
+
+test('a member is told when registration opens or closed, not just that it is shut', () => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const asLocalInput = (offsetMs) =>
+    new Date(Date.now() + offsetMs).toISOString().slice(0, 16);
+
+  const notYet = getRegistrationUnavailableReason(openEvent({
+    registrationOpenAt: asLocalInput(7 * dayMs)
+  }));
+  const closed = getRegistrationUnavailableReason(openEvent({
+    registrationCloseAt: asLocalInput(-dayMs)
+  }));
+
+  assert.match(notYet, /opens/);
+  assert.match(notYet, /\d{2}\/\d{2}\/\d{4}/);
+  assert.match(closed, /closed/);
+  assert.match(closed, /\d{2}\/\d{2}\/\d{4}/);
 });
 
 test('a listing hidden by its visibility window refuses registration', () => {

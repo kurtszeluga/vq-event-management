@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isRegistrationWindowInverted } from '../../../shared/registrationWindow.js';
 import {
   DEFAULT_EVENT_FORM,
   EVENT_LOCATIONS,
@@ -1422,6 +1423,9 @@ function EventForm({
                       )
                     }
                   />
+                  {fieldErrors.registrationOpenAt ? (
+                    <small>{fieldErrors.registrationOpenAt}</small>
+                  ) : null}
                 </label>
                 <label>
                   <span>Registration Ends</span>
@@ -1439,6 +1443,9 @@ function EventForm({
                       )
                     }
                   />
+                  {fieldErrors.registrationCloseAt ? (
+                    <small>{fieldErrors.registrationCloseAt}</small>
+                  ) : null}
                 </label>
               </div>
             ) : null}
@@ -1659,6 +1666,16 @@ function validateEventForm(form) {
 
     if (!form.registrationCloseAt) {
       errors.registrationCloseAt = 'Registration end date is required.';
+    }
+
+    // Without this an inverted range saves cleanly and members are shown
+    // "Opens 07/19/2026 - Closes 07/13/2026", a window that never opens.
+    if (
+      form.registrationOpenAt
+      && form.registrationCloseAt
+      && isRegistrationWindowInverted(form)
+    ) {
+      errors.registrationCloseAt = 'Registration must end after it starts.';
     }
   }
 
