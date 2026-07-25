@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
 import { useEventRegistration } from '../hooks/useEventRegistration.js';
+import { useRegistrantForm } from '../hooks/useRegistrantForm.js';
 import {
   beginSquareReservation,
   createRegistration,
@@ -40,8 +41,6 @@ import {
   buildBillingAddress,
   buildDisplayName,
   formatPhoneNumber,
-  getProfileFirstName,
-  getProfileLastName,
   toTitleCase
 } from '../utils/profileFormat.js';
 
@@ -63,11 +62,28 @@ function RegisterPage() {
     loadingEvent,
     membershipSettings
   } = useEventRegistration(eventId);
-  const [billingCity, setBillingCity] = useState('');
-  const [billingCountry, setBillingCountry] = useState('United States');
-  const [billingPostalCode, setBillingPostalCode] = useState('');
-  const [billingState, setBillingState] = useState('');
-  const [billingStreet, setBillingStreet] = useState('');
+  const {
+    applyProfile: applyProfileToForm,
+    billingCity,
+    billingCountry,
+    billingPostalCode,
+    billingState,
+    billingStreet,
+    fieldErrors,
+    firstName,
+    lastName,
+    phone,
+    reset: resetRegistrantFields,
+    setBillingCity,
+    setBillingCountry,
+    setBillingPostalCode,
+    setBillingState,
+    setBillingStreet,
+    setFieldErrors,
+    setFirstName,
+    setLastName,
+    setPhone
+  } = useRegistrantForm();
   const [accountVerified, setAccountVerified] = useState(false);
   const [authError, setAuthError] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -82,16 +98,12 @@ function RegisterPage() {
   const [emailVerificationSending, setEmailVerificationSending] = useState(false);
   const [emailVerificationVerifying, setEmailVerificationVerifying] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [firstName, setFirstName] = useState('');
   const [formError, setFormError] = useState('');
-  const [lastName, setLastName] = useState('');
   const [lookup, setLookup] = useState(null);
   const [lookupComplete, setLookupComplete] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [paymentPreference, setPaymentPreference] = useState('');
-  const [phone, setPhone] = useState('');
   const [reactivateProfile, setReactivateProfile] = useState(false);
   const [reactivationTermsAccepted, setReactivationTermsAccepted] = useState(false);
   const [registrationVerificationToken, setRegistrationVerificationToken] = useState('');
@@ -109,26 +121,6 @@ function RegisterPage() {
   const paymentReservationRequestActive = useRef(false);
   const registrationAttemptKey = useRef(createRegistrationAttemptKey());
 
-  const applyProfileToForm = useCallback((profile) => {
-    setFirstName(getProfileFirstName(profile));
-    setLastName(getProfileLastName(profile));
-    setPhone(profile.phone || '');
-    setBillingCity(profile.billingAddress?.city || '');
-    setBillingCountry(profile.billingAddress?.country || 'United States');
-    setBillingPostalCode(profile.billingAddress?.postalCode || '');
-    setBillingState(profile.billingAddress?.state || '');
-    setBillingStreet(profile.billingAddress?.street || '');
-  }, []);
-  const resetRegistrantFields = useCallback(() => {
-    setFirstName('');
-    setLastName('');
-    setPhone('');
-    setBillingCity('');
-    setBillingCountry('United States');
-    setBillingPostalCode('');
-    setBillingState('');
-    setBillingStreet('');
-  }, []);
   const runEmailLookup = useCallback(async (emailValue, options = {}) => {
     const normalizedEmail = String(emailValue || '').trim().toLowerCase();
     const alreadyVerified = Boolean(options.alreadyVerified);
@@ -187,7 +179,7 @@ function RegisterPage() {
     } finally {
       setLookupLoading(false);
     }
-  }, [applyProfileToForm, eventId, resetRegistrantFields]);
+  }, [applyProfileToForm, eventId, resetRegistrantFields, setFieldErrors]);
 
   useEffect(() => {
     setPaymentPreference('');
