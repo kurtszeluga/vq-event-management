@@ -10,8 +10,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      # Report every version's result instead of cancelling siblings on the
+      # first failure, so one broken version cannot hide another's status.
+      fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        # Match the Vercel runtime (see engines.node in package.json). This
+        # app deploys to one known runtime, so CI tests that runtime rather
+        # than a spread of versions nothing actually runs on.
+        node-version: [24.x]
     steps:
       - uses: actions/checkout@v4
 
