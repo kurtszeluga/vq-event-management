@@ -32,3 +32,6 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Client tests
+        run: npm run test:client
