@@ -183,6 +183,17 @@ function SupplyListViewerPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleClose]);
 
+  // Do not simplify this to `window.print()` or an in-page iframe - both were tried and
+  // broke printing in Safari (and, for the iframe version, in every browser). Two constraints
+  // drove this shape:
+  // 1. Safari only reliably shows the print dialog for a `document.write()`-populated popup
+  //    with a native `onclick="window.print()"`/`onload` handler - a React onClick handler,
+  //    a hidden iframe, or window.print() on the SPA page itself all failed silently there.
+  // 2. The iframe must point at `downloadUrl` (the blob: URL already fetched for Save), not
+  //    the `/api/file-proxy` HTTP URL - that response carries `X-Frame-Options: DENY`, which
+  //    blocks framing it anywhere, in any browser. CSP's `frame-src` in vercel.json allows
+  //    `blob:` specifically to make this work.
+  // `afterprint` closes the popup automatically so it doesn't linger once printing is done.
   function handlePrint() {
     if (!downloadUrl) {
       return;
