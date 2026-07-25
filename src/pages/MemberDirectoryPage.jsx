@@ -202,10 +202,10 @@ function MemberDirectoryPage() {
                     </div>
                     <dl>
                       {directorySettings.showEmail ? (
-                        <DirectoryItem label="Email" value={member.email || 'Not listed'} />
+                        <DirectoryItem label="Email" value={renderContactValue(member.email, 'email')} />
                       ) : null}
                       {directorySettings.showPhone ? (
-                        <DirectoryItem label="Phone" value={formatPhoneNumber(member.phone || '') || 'Not listed'} />
+                        <DirectoryItem label="Phone" value={renderContactValue(member.phone, 'phone')} />
                       ) : null}
                       {directorySettings.showFullAddress ? (
                         <DirectoryItem label="Address" value={formatAddress(member.billingAddress)} />
@@ -229,6 +229,24 @@ function DirectoryItem({ label, value }) {
       <dd>{value}</dd>
     </div>
   );
+}
+
+// Matches the mailto:/tel: pattern already used in PublicListingPage.jsx and
+// EventsPage.jsx's coordinator contact - plain anchors with no extra styling,
+// relying on the browser's default underline for affordance since this
+// codebase doesn't strip it from inline links.
+function renderContactValue(value, type) {
+  if (type === 'email') {
+    return value ? <a href={`mailto:${value}`}>{value}</a> : 'Not listed';
+  }
+
+  const formatted = formatPhoneNumber(value || '');
+
+  if (!formatted) {
+    return 'Not listed';
+  }
+
+  return <a href={`tel:${formatted.replace(/\D/g, '')}`}>{formatted}</a>;
 }
 
 function compareMembers(first, second) {
