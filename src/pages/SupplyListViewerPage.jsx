@@ -11,7 +11,6 @@ function SupplyListViewerPage() {
   const previewRef = useRef(null);
   const objectUrlRef = useRef('');
   const headingRef = useRef(null);
-  const printFrameRef = useRef(null);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
@@ -147,8 +146,6 @@ function SupplyListViewerPage() {
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
     }
-
-    printFrameRef.current?.remove();
   }, []);
 
   const canShowDocument = !loading && !error && event && isEventVisible(event) && event.supplyListUrl;
@@ -191,22 +188,50 @@ function SupplyListViewerPage() {
       return;
     }
 
-    const printFrame = printFrameRef.current || document.createElement('iframe');
-    printFrameRef.current = printFrame;
-    printFrame.className = 'print-helper-frame';
-    printFrame.src = downloadUrl;
-    printFrame.onload = () => {
-      const frameWindow = printFrame.contentWindow;
+    const printWindow = window.open('', 'vq-supply-list-print', 'popup,width=1100,height=900');
 
-      if (frameWindow) {
-        frameWindow.focus();
-        window.setTimeout(() => frameWindow.print(), 250);
-      }
-    };
-
-    if (!printFrame.isConnected) {
-      document.body.appendChild(printFrame);
+    if (!printWindow) {
+      return;
     }
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(fileName)}</title>
+          <style>
+            html, body { height: 100%; margin: 0; }
+            .actions { display: flex; gap: 8px; padding: 10px; }
+            button {
+              appearance: none;
+              background: #225c56;
+              border: 1px solid #225c56;
+              border-radius: 8px;
+              color: #fff;
+              cursor: pointer;
+              font: inherit;
+              font-weight: 700;
+              padding: 10px 14px;
+            }
+            button.secondary { background: #fff; color: #225c56; }
+            iframe { border: 0; display: block; height: calc(100% - 52px); width: 100%; }
+            @media print {
+              .actions { display: none; }
+              iframe { height: 100%; }
+            }
+          </style>
+        </head>
+        <body onload="window.setTimeout(function () { window.print(); }, 150)">
+          <div class="actions">
+            <button type="button" onclick="window.print()">Print</button>
+            <button type="button" class="secondary" onclick="window.close()">Close</button>
+          </div>
+          <iframe src="${escapeHtml(downloadUrl)}" title="${escapeHtml(fileName)}"></iframe>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   }
 
   if (loading) {
@@ -272,6 +297,15 @@ function SupplyListViewerPage() {
       <div ref={previewRef} className="viewer-pdf-preview" aria-label="Supply list preview" />
     </section>
   );
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function getPreviewScale() {
