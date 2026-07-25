@@ -187,16 +187,14 @@ function SupplyListViewerPage() {
   }, [handleClose]);
 
   function handlePrint() {
-    const pdfSource = downloadUrl || inlineProxyUrl;
-
-    if (!pdfSource) {
+    if (!inlineProxyUrl) {
       return;
     }
 
     const printFrame = printFrameRef.current || document.createElement('iframe');
     printFrameRef.current = printFrame;
     printFrame.className = 'print-helper-frame';
-    printFrame.src = pdfSource;
+    printFrame.src = inlineProxyUrl;
     printFrame.onload = () => {
       const frameWindow = printFrame.contentWindow;
 
