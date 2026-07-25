@@ -500,6 +500,216 @@ body.popup-mode .page-content {
   margin-top: 8px;
 }
 
+/* --- Mobile site menu -------------------------------------------------
+   The header's destinations move into a slide-over sheet below 760px. The
+   button is hidden above that width, where the flat nav row fits fine. The
+   sheet itself is styled for any width, because a sheet opened on a phone must
+   stay usable if the window is then widened. */
+
+.site-menu-button {
+  align-items: center;
+  background: #fffdfa;
+  border: 1px solid #c9bbb0;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  flex: 0 0 auto;
+  height: 46px;
+  justify-content: center;
+  padding: 0;
+  width: 46px;
+}
+
+/* Three bars drawn in CSS - the app carries no icon set, and a menu glyph is
+   not worth introducing one. */
+.site-menu-bars,
+.site-menu-bars::before,
+.site-menu-bars::after {
+  background: #263632;
+  border-radius: 2px;
+  content: '';
+  display: block;
+  height: 2px;
+  width: 20px;
+}
+
+.site-menu-bars {
+  position: relative;
+}
+
+.site-menu-bars::before {
+  position: absolute;
+  top: -6px;
+}
+
+.site-menu-bars::after {
+  position: absolute;
+  top: 6px;
+}
+
+body.nav-sheet-open {
+  overflow: hidden;
+}
+
+.nav-sheet-layer {
+  inset: 0;
+  position: fixed;
+  z-index: 60;
+}
+
+.nav-sheet-backdrop {
+  background: rgba(38, 54, 50, 0.42);
+  border: 0;
+  cursor: pointer;
+  display: block;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.nav-sheet {
+  background: #f2ece5;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  height: 100%;
+  margin-left: auto;
+  max-width: 420px;
+  overflow-y: auto;
+  padding: 14px 18px 32px;
+  position: relative;
+  width: 100%;
+}
+
+.nav-sheet-top {
+  display: flex;
+}
+
+.nav-sheet-close {
+  align-items: center;
+  background: #fffdfa;
+  border: 1px solid #ded5ca;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  height: 46px;
+  justify-content: center;
+  padding: 0;
+  width: 46px;
+}
+
+/* An X built from two rotated bars, same reasoning as the menu bars. */
+.nav-sheet-close-mark {
+  display: block;
+  height: 18px;
+  position: relative;
+  width: 18px;
+}
+
+.nav-sheet-close-mark::before,
+.nav-sheet-close-mark::after {
+  background: #263632;
+  border-radius: 2px;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  top: 8px;
+  width: 18px;
+}
+
+.nav-sheet-close-mark::before {
+  transform: rotate(45deg);
+}
+
+.nav-sheet-close-mark::after {
+  transform: rotate(-45deg);
+}
+
+/* One container per group, rather than a bordered box per item. This is what
+   reclaims the height: no inter-item gaps and no doubled borders. */
+.nav-sheet-card {
+  background: #fffdfa;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.nav-sheet-account {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 18px;
+}
+
+.nav-sheet-account-email {
+  color: #263632;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.nav-sheet-account-role {
+  color: #5c6966;
+  font-size: 16px;
+}
+
+.nav-sheet-row {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #263632;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-weight: 700;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 15px 18px;
+  position: relative;
+  text-align: left;
+  text-decoration: none;
+  width: 100%;
+}
+
+/* Inset hairline between rows, drawn on the row rather than as a border so it
+   starts level with the label instead of at the card edge. */
+.nav-sheet-row + .nav-sheet-row::before,
+.nav-sheet-row + .nav-sheet-row-button::before {
+  background: #e7ded3;
+  content: '';
+  height: 1px;
+  left: 18px;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.nav-sheet-row.active {
+  color: #225c56;
+}
+
+.nav-sheet-row.active::after {
+  background: #225c56;
+  border-radius: 0 2px 2px 0;
+  bottom: 8px;
+  content: '';
+  left: 0;
+  position: absolute;
+  top: 8px;
+  width: 3px;
+}
+
+.nav-sheet-chevron {
+  border-right: 2px solid #8d9a96;
+  border-top: 2px solid #8d9a96;
+  display: block;
+  flex: 0 0 auto;
+  height: 9px;
+  transform: rotate(45deg);
+  width: 9px;
+}
+
 .admin-public-nav + .admin-module-nav {
   margin-top: 16px;
 }
@@ -2998,24 +3208,32 @@ body.popup-mode .page-content {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Header stays a single row - brand on the left, menu button on the right -
+     instead of becoming a column that stacks every destination. */
   .site-header {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
   }
 
+  /* The destinations live in the sheet at this width. */
   .site-nav {
-    justify-content: flex-start;
-    width: 100%;
+    display: none;
+  }
+
+  .site-menu-button {
+    display: flex;
+  }
+
+  /* Email and role are shown at the top of the sheet instead, so the banner
+     does not take a second full-width strip under a sticky header. */
+  .auth-banner {
+    display: none;
   }
 
   .site-footer {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .nav-link {
-    justify-content: center;
-    flex: 1 1 auto;
   }
 
   .admin-manage-nav {

@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import MobileNavSheet from './components/MobileNavSheet.jsx';
 import { useAuth } from './context/useAuth.js';
 
 function App() {
   const location = useLocation();
   const { currentUser, hasPermission, isAdmin, isSuperUser, logOut, userProfile } = useAuth();
+  const [navSheetOpen, setNavSheetOpen] = useState(false);
+  const menuButtonRef = useRef(null);
   const normalizedPath = location.pathname.replace(/\/+$/, '');
   const isPopupMode =
     normalizedPath.endsWith('/supply-list') || normalizedPath.endsWith('/print');
@@ -20,6 +23,23 @@ function App() {
     currentUser
     && userHasActiveMembership(userProfile);
   const currentYear = new Date().getFullYear();
+  // One list feeding both the desktop nav row and the mobile sheet, so the two
+  // cannot drift apart as permissions change.
+  const navDestinations = [
+    { to: '/', label: 'Home', end: true, visible: true },
+    { to: '/my-registrations', label: 'My Registrations', visible: true },
+    { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink },
+    { to: '/login', label: 'Login', visible: !currentUser },
+    { to: '/events', label: 'Programs/Activities Signup', visible: showAdminSignupLink },
+    { to: '/profile', label: 'My Profile', visible: Boolean(currentUser) }
+  ].filter((destination) => destination.visible);
+
+  function closeNavSheet() {
+    setNavSheetOpen(false);
+    // Focus goes back to the control that opened the sheet, or it would land on
+    // document.body and a keyboard user would lose their place.
+    menuButtonRef.current?.focus();
+  }
 
   useEffect(() => {
     document.body.classList.toggle('popup-mode', isPopupMode);
@@ -67,64 +87,42 @@ function App() {
           </span>
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
-          <NavLink
-            to="/"
-            className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-            end
-          >
-            Home
-          </NavLink>
-          <NavLink
-            to="/my-registrations"
-            className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-          >
-            My Registrations
-          </NavLink>
-          {showMemberDirectoryLink ? (
+          {navDestinations.map((destination) => (
             <NavLink
-              to="/member-directory"
               className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              end={destination.end}
+              key={destination.to}
+              to={destination.to}
             >
-              Member Directory
+              {destination.label}
             </NavLink>
-          ) : null}
-          {!currentUser ? (
-            <NavLink
-              to="/login"
-              className={({ isActive }) =>
-                isActive ? 'nav-link active' : 'nav-link'
-              }
-            >
-              Login
-            </NavLink>
-          ) : null}
-          {showAdminSignupLink ? (
-            <NavLink
-              to="/events"
-              className={({ isActive }) =>
-                isActive ? 'nav-link active' : 'nav-link'
-              }
-            >
-              Programs/Activities Signup
-            </NavLink>
-          ) : null}
+          ))}
           {currentUser ? (
-            <>
-              <NavLink
-                to="/profile"
-                className={({ isActive }) =>
-                  isActive ? 'nav-link active' : 'nav-link'
-                }
-              >
-                My Profile
-              </NavLink>
-              <button className="nav-button" type="button" onClick={logOut}>
-                Sign out
-              </button>
-            </>
+            <button className="nav-button" type="button" onClick={logOut}>
+              Sign out
+            </button>
           ) : null}
         </nav>
+        <button
+          aria-expanded={navSheetOpen}
+          aria-haspopup="dialog"
+          aria-label="Open menu"
+          className="site-menu-button"
+          ref={menuButtonRef}
+          type="button"
+          onClick={() => setNavSheetOpen(true)}
+        >
+          <span aria-hidden="true" className="site-menu-bars" />
+        </button>
       </header>
+      <MobileNavSheet
+        currentUser={currentUser}
+        destinations={navDestinations}
+        isAdmin={isAdmin}
+        open={navSheetOpen}
+        onClose={closeNavSheet}
+        onSignOut={logOut}
+      />
       {currentUser ? (
         <div className="auth-banner">
           <span>{currentUser.email}</span>
