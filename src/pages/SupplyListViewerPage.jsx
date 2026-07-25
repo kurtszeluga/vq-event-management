@@ -11,6 +11,7 @@ function SupplyListViewerPage() {
   const previewRef = useRef(null);
   const objectUrlRef = useRef('');
   const headingRef = useRef(null);
+  const printFrameRef = useRef(null);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
@@ -146,6 +147,8 @@ function SupplyListViewerPage() {
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
     }
+
+    printFrameRef.current?.remove();
   }, []);
 
   const canShowDocument = !loading && !error && event && isEventVisible(event) && event.supplyListUrl;
@@ -184,8 +187,28 @@ function SupplyListViewerPage() {
   }, [handleClose]);
 
   function handlePrint() {
-    window.focus();
-    window.print();
+    const pdfSource = downloadUrl || inlineProxyUrl;
+
+    if (!pdfSource) {
+      return;
+    }
+
+    const printFrame = printFrameRef.current || document.createElement('iframe');
+    printFrameRef.current = printFrame;
+    printFrame.className = 'print-helper-frame';
+    printFrame.src = pdfSource;
+    printFrame.onload = () => {
+      const frameWindow = printFrame.contentWindow;
+
+      if (frameWindow) {
+        frameWindow.focus();
+        window.setTimeout(() => frameWindow.print(), 250);
+      }
+    };
+
+    if (!printFrame.isConnected) {
+      document.body.appendChild(printFrame);
+    }
   }
 
   if (loading) {
