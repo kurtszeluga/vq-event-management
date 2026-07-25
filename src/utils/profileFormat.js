@@ -28,6 +28,23 @@ export function buildBillingAddress({
   };
 }
 
+// One-line billing address for read-only display. Returns '' when nothing is
+// set, so callers choose their own empty-state wording.
+export function formatBillingSummary({
+  city = '',
+  country = '',
+  postalCode = '',
+  state = '',
+  street = ''
+} = {}) {
+  const cityAndState = [city, state].map((part) => String(part || '').trim()).filter(Boolean).join(', ');
+  const cityStateZip = [cityAndState, String(postalCode || '').trim()].filter(Boolean).join(' ');
+
+  return [String(street || '').trim(), cityStateZip, String(country || '').trim()]
+    .filter(Boolean)
+    .join(', ');
+}
+
 export function splitDisplayName(name = '') {
   // A null name is safe here without its own guard: toTitleCase coerces.
   const parts = toTitleCase(name).split(' ').filter(Boolean);

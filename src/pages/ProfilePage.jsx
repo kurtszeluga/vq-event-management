@@ -14,6 +14,7 @@ import { applyMemberDirectorySync } from '../services/memberDirectoryProfile.js'
 import {
   buildDisplayName,
   buildBillingAddress,
+  formatBillingSummary,
   formatPhoneNumber,
   getProfileFirstName,
   getProfileLastName,
@@ -38,6 +39,12 @@ function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  // The page opened straight into an always-editable form, which left Cancel
+  // with nothing to return to: with no edits made it was a no-op that changed
+  // nothing on screen, so it read as a dead button. Profile details are read by
+  // default and edited deliberately, matching how the admin UserControlPanel
+  // already works.
+  const [isEditing, setIsEditing] = useState(false);
 
   const resetProfileForm = useCallback(() => {
     const billingAddress = userProfile?.billingAddress || {};
@@ -120,6 +127,7 @@ function ProfilePage() {
       });
       await batch.commit();
       setSuccessMessage('Profile saved.');
+      setIsEditing(false);
     } catch (error) {
       setFormError(error.message);
     } finally {
@@ -184,6 +192,47 @@ function ProfilePage() {
               </span>
             </div>
           ) : null}
+          {!isEditing ? (
+            <div className="detail-panel">
+              <dl>
+                <div>
+                  <dt>Name</dt>
+                  <dd>{buildDisplayName(firstName, lastName) || 'Not provided'}</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{currentUser.email || userProfile?.email || 'Not provided'}</dd>
+                </div>
+                <div>
+                  <dt>Phone</dt>
+                  <dd>{phone || 'Not provided'}</dd>
+                </div>
+                <div>
+                  <dt>Billing Address</dt>
+                  <dd>{formatBillingSummary({
+                    city: billingCity,
+                    country: billingCountry,
+                    postalCode: billingPostalCode,
+                    state: billingState,
+                    street: billingStreet
+                  }) || 'Not provided'}</dd>
+                </div>
+              </dl>
+              {successMessage ? <p className="form-success">{successMessage}</p> : null}
+              <div className="form-actions">
+                <button
+                  className="button-link button-reset"
+                  type="button"
+                  onClick={() => {
+                    setSuccessMessage('');
+                    setIsEditing(true);
+                  }}
+                >
+                  Edit Profile
+                </button>
+              </div>
+            </div>
+          ) : (
           <form className="form-panel" onSubmit={handleSubmit}>
           <label>
             <span>First Name *</span>
@@ -290,12 +339,16 @@ function ProfilePage() {
               className="button-link button-reset secondary-action"
               disabled={saving}
               type="button"
-              onClick={resetProfileForm}
+              onClick={() => {
+                resetProfileForm();
+                setIsEditing(false);
+              }}
             >
               Cancel
             </button>
           </div>
           </form>
+          )}
           <form className="form-panel" onSubmit={handlePasswordSubmit}>
           <div className="form-section-header">
             <h2>Change Password</h2>

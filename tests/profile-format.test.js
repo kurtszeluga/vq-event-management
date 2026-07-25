@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildDisplayName,
+  formatBillingSummary,
   getProfileFirstName,
   getProfileLastName,
   splitDisplayName,
@@ -65,6 +66,41 @@ test('toTitleCase tolerates null and undefined instead of throwing on .trim()', 
 
 test('toTitleCase still title-cases and collapses whitespace', () => {
   assert.equal(toTitleCase('  ada   lovelace '), 'Ada Lovelace');
+});
+
+// Used by the profile page's read-only view, which replaced the always-open
+// form. It returns '' rather than a placeholder so the caller picks the wording.
+test('formatBillingSummary renders a full address on one line', () => {
+  assert.equal(
+    formatBillingSummary({
+      street: '12 Awohili Drive',
+      city: 'Loudon',
+      state: 'TN',
+      postalCode: '37774',
+      country: 'United States'
+    }),
+    '12 Awohili Drive, Loudon, TN 37774, United States'
+  );
+});
+
+test('formatBillingSummary drops missing pieces without leaving stray punctuation', () => {
+  assert.equal(formatBillingSummary({ city: 'Loudon', state: 'TN' }), 'Loudon, TN');
+  assert.equal(formatBillingSummary({ street: '12 Awohili Drive' }), '12 Awohili Drive');
+  assert.equal(formatBillingSummary({ postalCode: '37774' }), '37774');
+  assert.equal(formatBillingSummary({ city: 'Loudon', postalCode: '37774' }), 'Loudon 37774');
+});
+
+test('formatBillingSummary returns an empty string when nothing is set', () => {
+  assert.equal(formatBillingSummary({}), '');
+  assert.equal(formatBillingSummary(), '');
+  assert.equal(formatBillingSummary({ street: '   ', city: '' }), '');
+});
+
+test('formatBillingSummary tolerates null field values', () => {
+  assert.equal(
+    formatBillingSummary({ street: null, city: 'Loudon', state: null, postalCode: null, country: null }),
+    'Loudon'
+  );
 });
 
 test('buildDisplayName skips missing halves rather than leaving a stray space', () => {
