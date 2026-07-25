@@ -46,7 +46,9 @@ function ProfilePage() {
   // already works.
   const [isEditing, setIsEditing] = useState(false);
 
-  const resetProfileForm = useCallback(() => {
+  // Field values only. Clearing the messages belongs to whoever is ending the
+  // edit, not to a sync that fires whenever the auth context re-emits.
+  const syncFormFromProfile = useCallback(() => {
     const billingAddress = userProfile?.billingAddress || {};
 
     setBillingCity(billingAddress.city || '');
@@ -57,13 +59,25 @@ function ProfilePage() {
     setFirstName(getProfileFirstName(userProfile) || getProfileFirstName({ name: currentUser?.displayName || '' }));
     setLastName(getProfileLastName(userProfile) || getProfileLastName({ name: currentUser?.displayName || '' }));
     setPhone(userProfile?.phone || '');
-    setFormError('');
-    setSuccessMessage('');
   }, [currentUser, userProfile]);
 
+  // Only while not editing. `handleSubmit` calls Firebase Auth's updateProfile
+  // before writing to Firestore, and that success re-emits `currentUser` with a
+  // fresh identity - which re-created this callback and re-ran the sync
+  // mid-save. It used to overwrite the fields being submitted with the stale
+  // profile and wipe both the success and error messages, so a save that failed
+  // reported nothing at all and a save that worked showed no confirmation.
   useEffect(() => {
-    resetProfileForm();
-  }, [resetProfileForm]);
+    if (!isEditing) {
+      syncFormFromProfile();
+    }
+  }, [isEditing, syncFormFromProfile]);
+
+  function resetProfileForm() {
+    syncFormFromProfile();
+    setFormError('');
+    setSuccessMessage('');
+  }
 
   if (!firebaseConfigured) {
     return (
@@ -129,7 +143,7 @@ function ProfilePage() {
       setSuccessMessage('Profile saved.');
       setIsEditing(false);
     } catch (error) {
-      setFormError(error.message);
+      setFormError(getProfileSaveErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -390,6 +404,21 @@ function ProfilePage() {
       )}
     </section>
   );
+}
+
+function getProfileSaveErrorMessage(error) {
+  // Firestore raises this when the security rules reject the write, which the
+  // member can do nothing about and "Missing or insufficient permissions."
+  // does not explain. It points at a rules deployment, not at their input.
+  if (error.code === 'permission-denied') {
+    return 'Your profile could not be saved because this account is not permitted to change it. Please contact an administrator - nothing you entered was wrong.';
+  }
+
+  if (error.code === 'unavailable' || error.code === 'auth/network-request-failed') {
+    return 'Could not connect. Check your internet connection and try again.';
+  }
+
+  return error.message || 'Your profile could not be saved. Please try again.';
 }
 
 function getPasswordErrorMessage(error) {

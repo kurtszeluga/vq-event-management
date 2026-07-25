@@ -27,10 +27,19 @@ const authState = {
 vi.mock('../../src/context/useAuth.js', () => ({ useAuth: () => authState }));
 vi.mock('../../src/lib/firebase.js', () => ({ db: {}, firebaseConfigured: true }));
 vi.mock('firebase/auth', () => ({ updatePassword: vi.fn(), updateProfile: vi.fn() }));
+// Hoisted so the mock factory can reach it; tests swap `commit` to exercise the
+// success and permission-denied paths.
+const firestoreMocks = vi.hoisted(() => ({ commit: vi.fn(() => Promise.resolve()) }));
+
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   serverTimestamp: vi.fn(),
-  writeBatch: vi.fn(() => ({ update: vi.fn(), set: vi.fn(), commit: vi.fn() }))
+  writeBatch: vi.fn(() => ({
+    update: vi.fn(),
+    set: vi.fn(),
+    delete: vi.fn(),
+    commit: (...args) => firestoreMocks.commit(...args)
+  }))
 }));
 vi.mock('../../src/services/memberDirectoryProfile.js', () => ({
   applyMemberDirectorySync: vi.fn()
@@ -50,6 +59,7 @@ function firstNameInput() {
 beforeEach(() => {
   authState.loading = false;
   authState.profileError = '';
+  firestoreMocks.commit = vi.fn(() => Promise.resolve());
 });
 
 afterEach(cleanup);
@@ -164,6 +174,100 @@ describe('entering and leaving edit mode', () => {
 
     expect(screen.getByRole('button', { name: 'Edit Profile' })).toBeInTheDocument();
     expect(screen.queryByText('First name and last name are required.')).toBeNull();
+  });
+});
+
+describe('saving', () => {
+  it('confirms a successful save and returns to the read-only view', async () => {
+    const user = userEvent.setup();
+    render(<ProfilePage />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit Profile' }));
+    await user.clear(firstNameInput());
+    await user.type(firstNameInput(), 'Grace');
+    await user.click(screen.getByRole('button', { name: 'Save Profile' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit Profile' })).toBeInTheDocument();
+    });
+    // The confirmation has to survive the profile sync that runs on the way
+    // back to the view, or a save that worked looks like one that did nothing.
+    expect(screen.getByText('Profile saved.')).toBeInTheDocument();
+    expect(firestoreMocks.commit).toHaveBeenCalledTimes(1);
+  });
+
+  it('explains a rules rejection in plain language instead of Firebase wording', async () => {
+    const user = userEvent.setup();
+    const denied = Object.assign(new Error('Missing or insufficient permissions.'), {
+      code: 'permission-denied'
+    });
+    firestoreMocks.commit = vi.fn(() => Promise.reject(denied));
+    render(<ProfilePage />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit Profile' }));
+    await user.click(screen.getByRole('button', { name: 'Save Profile' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/not permitted to change it/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Missing or insufficient permissions.')).toBeNull();
+    // A rejected save keeps the form open so the input is not lost.
+    expect(screen.queryByRole('button', { name: 'Edit Profile' })).toBeNull();
+  });
+});
+
+describe('surviving an auth-context re-emit mid-save', () => {
+  // handleSubmit calls Firebase Auth's updateProfile before writing to
+  // Firestore. That success re-emits currentUser with a new identity, which
+  // used to re-run the profile sync: it wiped formError and successMessage and
+  // overwrote the fields being submitted. A failed save reported nothing at
+  // all, which is what made a broken save look like a dead button.
+  it('keeps a save error visible when currentUser changes identity', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ProfilePage />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit Profile' }));
+    await user.clear(firstNameInput());
+    fireEvent.submit(firstNameInput().closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getByText('First name and last name are required.')).toBeInTheDocument();
+    });
+
+    // Exactly what updateProfile's success does to the context.
+    authState.currentUser = { ...authState.currentUser };
+    rerender(<ProfilePage />);
+
+    expect(screen.getByText('First name and last name are required.')).toBeInTheDocument();
+  });
+
+  it('does not overwrite fields being edited when the profile re-emits', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ProfilePage />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit Profile' }));
+    await user.clear(firstNameInput());
+    await user.type(firstNameInput(), 'Grace');
+
+    authState.userProfile = { ...authState.userProfile };
+    rerender(<ProfilePage />);
+
+    expect(firstNameInput()).toHaveValue('Grace');
+  });
+
+  it('still syncs from the profile once editing has ended', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ProfilePage />);
+
+    await user.click(screen.getByRole('button', { name: 'Edit Profile' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    authState.userProfile = { ...authState.userProfile, firstName: 'Grace' };
+    rerender(<ProfilePage />);
+
+    expect(screen.getByText('Grace Lovelace')).toBeInTheDocument();
+
+    authState.userProfile = { ...authState.userProfile, firstName: 'Ada' };
   });
 });
 
