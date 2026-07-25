@@ -24,9 +24,22 @@ import {
   formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
-  getRegistrationStartDate,
-  isEventVisible
+  getRegistrationStartDate
 } from '../utils/eventFormat.js';
+import {
+  canPayLaterByCashCheck as getCanPayLaterByCashCheck,
+  canShowRegistrantFields as getCanShowRegistrantFields,
+  getProfileExists,
+  getRegistrationUnavailableReason,
+  isJoiningWaitlist,
+  isMembershipBlocked,
+  isPaidEvent as getIsPaidEvent,
+  isPaymentRequiredForSeat,
+  needsAccountPassword as getNeedsAccountPassword,
+  needsEmailVerification as getNeedsEmailVerification,
+  requiresBillingAddress as getRequiresBillingAddress,
+  requiresSquarePayment as getRequiresSquarePayment
+} from '../utils/registrationEligibility.js';
 import {
   buildBillingAddress,
   buildDisplayName,
@@ -239,16 +252,19 @@ function RegisterPage() {
     runEmailLookup(userProfile.email, { alreadyVerified: true });
   }, [currentUser, eventId, lookupComplete, lookupLoading, runEmailLookup, userProfile]);
 
-  const membershipBlocked = lookupComplete
-    && ['already-registered', 'profile-membership-blocked', 'membership-blocked', 'membership-not-found'].includes(lookup?.status);
+  const membershipBlocked = isMembershipBlocked({ lookup, lookupComplete });
   const matchedProfile = lookup?.profile || null;
-  const profileExists = Boolean(lookup?.profileExists);
-  const requiresBillingAddress = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
-  const isPaidEvent = Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
-  const canPayLaterByCashCheck = isPaidEvent && Boolean(event?.allowCashCheckPayment);
-  const requiresSquarePayment = isPaidEvent && paymentPreference !== 'cash-check-later';
-  const paymentRequiredForCurrentSeat = requiresSquarePayment && paymentReservation?.paymentRequired !== false;
-  const joiningWaitlist = paymentReservation?.status === 'Waitlisted';
+  const profileExists = getProfileExists(lookup);
+  const requiresBillingAddress = getRequiresBillingAddress(event);
+  const isPaidEvent = getIsPaidEvent(event);
+  const canPayLaterByCashCheck = getCanPayLaterByCashCheck(event);
+  const requiresSquarePayment = getRequiresSquarePayment(event, paymentPreference);
+  const paymentRequiredForCurrentSeat = isPaymentRequiredForSeat({
+    event,
+    paymentPreference,
+    paymentReservation
+  });
+  const joiningWaitlist = isJoiningWaitlist(paymentReservation);
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
 
   useEffect(() => {
@@ -358,40 +374,33 @@ function RegisterPage() {
     requiresBillingAddress
   ]);
 
-  const registrationUnavailable = useMemo(() => {
-    if (!event) {
-      return '';
-    }
+  const registrationUnavailable = useMemo(
+    () => getRegistrationUnavailableReason(event),
+    [event]
+  );
 
-    if (!isEventVisible(event)) {
-      return 'This event is not currently available.';
-    }
-
-    if (!event.registrationOpen) {
-      return 'Registration is not currently open for this event.';
-    }
-
-    if (['Business Listing', 'For Sale'].includes(event.eventType)) {
-      return 'This listing does not accept registrations.';
-    }
-
-    return '';
-  }, [event]);
-
-  const needsAccountPassword = lookupComplete
-    && profileExists
-    && !membershipBlocked
-    && !accountVerified
-    && !emailVerified
-    && !showEmailVerification;
-  const needsEmailVerification = lookupComplete
-    && !membershipBlocked
-    && Boolean(lookup?.verificationRequired)
-    && (!profileExists || showEmailVerification)
-    && !emailVerified;
-  const canShowRegistrantFields = lookupComplete
-    && !membershipBlocked
-    && (accountVerified || emailVerified);
+  const needsAccountPassword = getNeedsAccountPassword({
+    accountVerified,
+    emailVerified,
+    lookupComplete,
+    membershipBlocked,
+    profileExists,
+    showEmailVerification
+  });
+  const needsEmailVerification = getNeedsEmailVerification({
+    emailVerified,
+    lookup,
+    lookupComplete,
+    membershipBlocked,
+    profileExists,
+    showEmailVerification
+  });
+  const canShowRegistrantFields = getCanShowRegistrantFields({
+    accountVerified,
+    emailVerified,
+    lookupComplete,
+    membershipBlocked
+  });
   const usingSignedInProfile = Boolean(currentUser && userProfile?.email);
   const requiresReactivationTerms = Boolean(
     reactivateProfile
