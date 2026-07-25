@@ -228,6 +228,9 @@ function SupplyListViewerPage() {
             <button type="button" class="secondary" onclick="window.close()">Close</button>
           </div>
           <iframe src="${escapeHtml(downloadUrl)}" title="${escapeHtml(fileName)}"></iframe>
+          <script>
+            window.onafterprint = function () { window.close(); };
+          </script>
         </body>
       </html>
     `);
