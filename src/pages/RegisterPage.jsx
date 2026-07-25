@@ -5,12 +5,13 @@ import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
 import { useEventRegistration } from '../hooks/useEventRegistration.js';
 import { useIdentityVerification } from '../hooks/useIdentityVerification.js';
-import { useRegistrantForm } from '../hooks/useRegistrantForm.js';
 import {
-  beginSquareReservation,
-  createRegistration,
-  loadSquarePaymentConfig
-} from '../services/registrationService.js';
+  getSquareTokenizeError,
+  isPaymentReservationActive,
+  usePaymentReservation
+} from '../hooks/usePaymentReservation.js';
+import { useRegistrantForm } from '../hooks/useRegistrantForm.js';
+import { createRegistration } from '../services/registrationService.js';
 import {
   formatCurrency,
   formatEventDate,
@@ -22,16 +23,13 @@ import {
 import {
   canPayLaterByCashCheck as getCanPayLaterByCashCheck,
   canShowRegistrantFields as getCanShowRegistrantFields,
+  getEventPaymentTotal,
   getProfileExists,
   getRegistrationUnavailableReason,
-  isJoiningWaitlist,
   isMembershipBlocked,
-  isPaidEvent as getIsPaidEvent,
-  isPaymentRequiredForSeat,
   needsAccountPassword as getNeedsAccountPassword,
   needsEmailVerification as getNeedsEmailVerification,
-  requiresBillingAddress as getRequiresBillingAddress,
-  requiresSquarePayment as getRequiresSquarePayment
+  requiresBillingAddress as getRequiresBillingAddress
 } from '../utils/registrationEligibility.js';
 import {
   buildBillingAddress,
@@ -86,24 +84,18 @@ function RegisterPage() {
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [paymentPreference, setPaymentPreference] = useState('');
   const [registrationFinalizing, setRegistrationFinalizing] = useState(false);
-  const [squareCard, setSquareCard] = useState(null);
-  const [squareConfig, setSquareConfig] = useState(null);
-  const [squareError, setSquareError] = useState('');
-  const [squareWalletToken, setSquareWalletToken] = useState('');
-  const [paymentReservation, setPaymentReservation] = useState(null);
-  const [paymentReservationError, setPaymentReservationError] = useState('');
-  const [paymentReservationLoading, setPaymentReservationLoading] = useState(false);
-  const [paymentReservationExpired, setPaymentReservationExpired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const paymentReservationRequestActive = useRef(false);
   const registrationAttemptKey = useRef(createRegistrationAttemptKey());
 
+  // usePaymentReservation is declared below because it needs
+  // buildRegistrationRequest, which in turn needs identity state from
+  // useIdentityVerification. Identity lookups still have to drop any live
+  // seat hold, so the reset is reached through a ref. Lookups are always
+  // async, so the ref is populated long before it is called.
+  const resetPaymentReservationRef = useRef(() => {});
   const resetSubmissionAndPaymentReservation = useCallback(() => {
     setConfirmation(null);
-    setPaymentReservation(null);
-    setPaymentReservationError('');
-    setPaymentReservationExpired(false);
-    setPaymentReservationLoading(false);
+    resetPaymentReservationRef.current();
   }, []);
 
   const {
@@ -149,77 +141,14 @@ function RegisterPage() {
 
   useEffect(() => {
     setPaymentPreference('');
-    setPaymentReservation(null);
-    setPaymentReservationError('');
-    setPaymentReservationExpired(false);
   }, [eventId]);
 
   const membershipBlocked = isMembershipBlocked({ lookup, lookupComplete });
   const matchedProfile = lookup?.profile || null;
   const profileExists = getProfileExists(lookup);
   const requiresBillingAddress = getRequiresBillingAddress(event);
-  const isPaidEvent = getIsPaidEvent(event);
   const canPayLaterByCashCheck = getCanPayLaterByCashCheck(event);
-  const requiresSquarePayment = getRequiresSquarePayment(event, paymentPreference);
-  const paymentRequiredForCurrentSeat = isPaymentRequiredForSeat({
-    event,
-    paymentPreference,
-    paymentReservation
-  });
-  const joiningWaitlist = isJoiningWaitlist(paymentReservation);
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
-
-  useEffect(() => {
-    if (!isPaidEvent) {
-      setSquareCard(null);
-      setSquareConfig(null);
-      setSquareError('');
-      setSquareWalletToken('');
-      return;
-    }
-
-    let active = true;
-
-    loadSquarePaymentConfig()
-      .then((config) => {
-        if (!active) {
-          return;
-        }
-
-        setSquareConfig(config);
-        setSquareError(config.enabled ? '' : 'Online card payment is not configured yet.');
-      })
-      .catch((error) => {
-        if (active) {
-          setSquareCard(null);
-          setSquareConfig(null);
-          setSquareError(error.message);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isPaidEvent]);
-
-  useEffect(() => {
-    setSquareWalletToken('');
-    setPaymentReservation(null);
-    setPaymentReservationError('');
-    setPaymentReservationExpired(false);
-  }, [
-    billingCity,
-    billingCountry,
-    billingPostalCode,
-    billingState,
-    billingStreet,
-    email,
-    eventId,
-    firstName,
-    lastName,
-    paymentPreference,
-    phone
-  ]);
 
   const buildRegistrationRequest = useCallback(() => {
     const displayName = buildDisplayName(firstName, lastName);
@@ -311,69 +240,53 @@ function RegisterPage() {
       && !confirmation
   );
 
-  const ensurePaymentReservation = useCallback(async () => {
-    if (paymentReservationExpired) {
-      throw new Error('Your payment seat hold expired. Start registration again.');
-    }
+  // Collapses the caller-side half of the auto-reserve guard. The hook adds
+  // the payment-side conditions (a paid event needing Square, no live hold).
+  const readyToReserve = canShowRegistrantFields
+    && !needsProfileEdits
+    && !confirmation
+    && Boolean(email)
+    && (accountVerified || emailVerified);
 
-    if (isPaymentReservationActive(paymentReservation)) {
-      return paymentReservation;
-    }
-
-    if (!requiresSquarePayment) {
-      return null;
-    }
-
-    if (paymentReservationRequestActive.current) {
-      return null;
-    }
-
-    paymentReservationRequestActive.current = true;
-    setPaymentReservationLoading(true);
-    setPaymentReservationError('');
-
-    try {
-      const reservation = await beginSquareReservation(buildRegistrationRequest());
-
-      setPaymentReservation(reservation);
-      setPaymentReservationError('');
-      setPaymentReservationExpired(false);
-      return reservation;
-    } catch (error) {
-      setPaymentReservation(null);
-      setPaymentReservationError(error.message);
-      throw error;
-    } finally {
-      setPaymentReservationLoading(false);
-      paymentReservationRequestActive.current = false;
-    }
-  }, [buildRegistrationRequest, paymentReservation, paymentReservationExpired, requiresSquarePayment]);
-
-  useEffect(() => {
-    if (
-      !requiresSquarePayment
-      || !canShowRegistrantFields
-      || needsProfileEdits
-      || confirmation
-      || paymentReservation
-      || !email
-      || (!accountVerified && !emailVerified)
-    ) {
-      return;
-    }
-
-    ensurePaymentReservation().catch(() => {});
-  }, [
-    accountVerified,
-    canShowRegistrantFields,
-    confirmation,
-    email,
-    emailVerified,
+  const {
     ensurePaymentReservation,
-    needsProfileEdits,
+    isPaidEvent,
+    joiningWaitlist,
+    markReservationExpired,
+    paymentRequiredForCurrentSeat,
     paymentReservation,
-    requiresSquarePayment
-  ]);
+    paymentReservationError,
+    paymentReservationExpired,
+    paymentReservationLoading,
+    requiresSquarePayment,
+    resetPaymentReservation,
+    setSquareCard,
+    setSquareWalletToken,
+    squareCard,
+    squareConfig,
+    squareError,
+    squareWalletToken,
+    tokenizeSquarePayment
+  } = usePaymentReservation({
+    buildRegistrationRequest,
+    event,
+    eventId,
+    paymentPreference,
+    readyToReserve,
+    registrant: {
+      billingCity,
+      billingCountry,
+      billingPostalCode,
+      billingState,
+      billingStreet,
+      email,
+      firstName,
+      lastName,
+      phone
+    }
+  });
+
+  resetPaymentReservationRef.current = resetPaymentReservation;
 
   async function handleSubmit(formEvent) {
     formEvent.preventDefault();
@@ -438,41 +351,6 @@ function RegisterPage() {
     }
   }
 
-  async function tokenizeSquarePayment() {
-    if (squareWalletToken) {
-      return squareWalletToken;
-    }
-
-    if (!squareCard) {
-      throw new Error(squareError || 'Card payment is not ready yet.');
-    }
-
-    const tokenResult = await squareCard.tokenize({
-      amount: getEventPaymentTotal(event).toFixed(2),
-      billingContact: {
-        addressLines: [billingStreet].filter(Boolean),
-        city: billingCity,
-        countryCode: 'US',
-        email,
-        familyName: lastName,
-        givenName: firstName,
-        phone,
-        postalCode: billingPostalCode,
-        state: billingState
-      },
-      currencyCode: 'USD',
-      customerInitiated: true,
-      intent: 'CHARGE',
-      sellerKeyedIn: false
-    });
-
-    if (tokenResult.status !== 'OK') {
-      throw new Error(getSquareTokenizeError(tokenResult));
-    }
-
-    return tokenResult.token;
-  }
-
   const handleClose = useCallback(() => {
     window.close();
 
@@ -501,10 +379,7 @@ function RegisterPage() {
   }, [navigate, returnTarget]);
 
   const handlePaymentReservationExpired = useCallback(() => {
-    setPaymentReservationExpired(true);
-    setPaymentReservation(null);
-    setPaymentReservationError('Your payment seat hold expired. Start registration again.');
-    setSquareWalletToken('');
+    markReservationExpired();
     window.setTimeout(() => {
       if (returnTarget) {
         window.location.assign(returnTarget);
@@ -513,7 +388,7 @@ function RegisterPage() {
 
       navigate('/events');
     }, 1500);
-  }, [navigate, returnTarget]);
+  }, [markReservationExpired, navigate, returnTarget]);
 
   function handleStartProfileEdit() {
     setNeedsProfileEdits(true);
@@ -1666,28 +1541,6 @@ function buildSquarePaymentRequest(payments, amountDue) {
       label: 'The Village Quilters'
     }
   });
-}
-
-function getEventPaymentTotal(event) {
-  return Number(event?.cost || 0) + Number(event?.serviceFee || 0);
-}
-
-function getSquareTokenizeError(tokenResult) {
-  const errors = tokenResult?.errors || [];
-  const message = errors
-    .map((squareError) => squareError.message)
-    .filter(Boolean)
-    .join(' ');
-
-  return message || 'Card payment could not be verified. Please check the card details and try again.';
-}
-
-function isPaymentReservationActive(reservation) {
-  return Boolean(
-    reservation?.reservationId
-      && reservation?.expiresAt
-      && Date.parse(reservation.expiresAt) > Date.now()
-  );
 }
 
 function validateForm({ email, firstName, lastName, phone }) {

@@ -26,6 +26,11 @@ export function canPayLaterByCashCheck(event) {
   return isPaidEvent(event) && Boolean(event?.allowCashCheckPayment);
 }
 
+// What the registrant actually pays: the event cost plus the service fee.
+export function getEventPaymentTotal(event) {
+  return Number(event?.cost || 0) + Number(event?.serviceFee || 0);
+}
+
 export function requiresSquarePayment(event, paymentPreference) {
   return isPaidEvent(event) && paymentPreference !== CASH_CHECK_LATER;
 }
