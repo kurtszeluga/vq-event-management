@@ -30,10 +30,25 @@ function AdminDashboardPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
   const [paymentReviewCount, setPaymentReviewCount] = useState(0);
+  const [moduleNavOpen, setModuleNavOpen] = useState(false);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
   const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
   const canViewRegistrations = hasPermission('viewRegistrations');
+  // Single source of truth for the Manage/Edit row: the desktop buttons, the
+  // collapsed mobile toggle's label, and the mobile list all read from this.
+  const manageModules = [
+    { id: 'registrations', label: 'Registrations', visible: canViewRegistrations },
+    { id: 'payment-review', label: 'Payment Review', visible: canViewRegistrations },
+    { id: 'events-activities', label: 'Events/Activities', visible: canManageEvents },
+    { id: 'challenges', label: 'Challenges', visible: canManageEvents },
+    { id: 'business-listings', label: 'Business Listings', visible: canManageEvents },
+    { id: 'for-sale', label: 'For Sale', visible: canManageEvents },
+    { id: 'user-controls', label: 'User Controls', visible: isSuperUser || canAddUsers },
+    { id: 'configuration', label: 'Setup / System Config', visible: isSuperUser }
+  ].filter((module) => module.visible);
+  const activeManageLabel =
+    manageModules.find((module) => module.id === activeModule)?.label || 'Choose a section';
 
   useEffect(() => {
     if (location.state?.module) {
@@ -261,92 +276,35 @@ function AdminDashboardPage() {
           ) : null}
         </nav>
       ) : null}
-      <nav className="admin-module-nav" aria-label="Admin dashboard modules">
+      <nav className="admin-module-nav admin-manage-nav" aria-label="Admin dashboard modules">
         <span className="admin-row-label">Manage/Edit:</span>
-        {canViewRegistrations ? (
-          <button
-            className={`button-link button-reset ${
-              activeModule === 'registrations' ? '' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={() => setActiveModule('registrations')}
-          >
-            Registrations
-          </button>
-        ) : null}
-        {canViewRegistrations ? (
-          <button
-            className={`button-link button-reset ${
-              activeModule === 'payment-review' ? '' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={() => setActiveModule('payment-review')}
-          >
-            Payment Review
-          </button>
-        ) : null}
-        {canManageEvents ? (
-          <>
+        <button
+          className="admin-nav-toggle button-link button-reset"
+          type="button"
+          aria-controls="admin-module-list"
+          aria-expanded={moduleNavOpen}
+          onClick={() => setModuleNavOpen((open) => !open)}
+        >
+          <span>Manage/Edit: {activeManageLabel}</span>
+          <span aria-hidden="true">{moduleNavOpen ? '▲' : '▼'}</span>
+        </button>
+        <div className={`admin-module-list${moduleNavOpen ? ' is-open' : ''}`} id="admin-module-list">
+          {manageModules.map((module) => (
             <button
               className={`button-link button-reset ${
-                activeModule === 'events-activities' ? '' : 'secondary-action'
+                activeModule === module.id ? '' : 'secondary-action'
               }`}
+              key={module.id}
               type="button"
-              onClick={() => setActiveModule('events-activities')}
+              onClick={() => {
+                setActiveModule(module.id);
+                setModuleNavOpen(false);
+              }}
             >
-              Events/Activities
+              {module.label}
             </button>
-            <button
-              className={`button-link button-reset ${
-                activeModule === 'challenges' ? '' : 'secondary-action'
-              }`}
-              type="button"
-              onClick={() => setActiveModule('challenges')}
-            >
-              Challenges
-            </button>
-            <button
-              className={`button-link button-reset ${
-                activeModule === 'business-listings' ? '' : 'secondary-action'
-              }`}
-              type="button"
-              onClick={() => setActiveModule('business-listings')}
-            >
-              Business Listings
-            </button>
-            <button
-              className={`button-link button-reset ${
-                activeModule === 'for-sale' ? '' : 'secondary-action'
-              }`}
-              type="button"
-              onClick={() => setActiveModule('for-sale')}
-            >
-              For Sale
-            </button>
-          </>
-        ) : null}
-        {isSuperUser || canAddUsers ? (
-          <button
-            className={`button-link button-reset ${
-              activeModule === 'user-controls' ? '' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={() => setActiveModule('user-controls')}
-          >
-            User Controls
-          </button>
-        ) : null}
-        {isSuperUser ? (
-          <button
-            className={`button-link button-reset ${
-              activeModule === 'configuration' ? '' : 'secondary-action'
-            }`}
-            type="button"
-            onClick={() => setActiveModule('configuration')}
-          >
-            Setup / System Config
-          </button>
-        ) : null}
+          ))}
+        </div>
       </nav>
       {canReviewMemberships ? (
         <div className={`status-panel pending-review-panel${pendingMembershipCount ? ' pending-home-card' : ''}`}>
@@ -370,7 +328,7 @@ function AdminDashboardPage() {
         {!activeModule && (canManageEvents || isSuperUser || canAddUsers) ? (
           <div className="empty-state">
             <h2>Choose what you want to manage</h2>
-            <p>Use the Manage/Edit row above to open registrations, events, listings, user profiles, or setup tools.</p>
+            <p>Use Manage/Edit above to open registrations, events, listings, user profiles, or setup tools.</p>
           </div>
         ) : null}
         {canManageEvents && activeModule === 'event-details' ? (

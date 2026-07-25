@@ -504,6 +504,20 @@ body.popup-mode .page-content {
   margin-top: 16px;
 }
 
+/* Below 760px the Manage/Edit list collapses behind .admin-nav-toggle so up
+   to eight 44px buttons stop pushing the dashboard content off a phone
+   screen. `display: contents` keeps the wrapper out of the layout at wider
+   widths, so the buttons stay direct flex children of .admin-module-nav and
+   wrap inline with the "Manage/Edit:" label exactly as they did before the
+   wrapper existed. */
+.admin-module-list {
+  display: contents;
+}
+
+.admin-nav-toggle {
+  display: none;
+}
+
 .admin-row-label {
   align-items: center;
   color: #3b4b48;
@@ -3002,6 +3016,40 @@ body.popup-mode .page-content {
   .nav-link {
     justify-content: center;
     flex: 1 1 auto;
+  }
+
+  .admin-manage-nav {
+    display: block;
+  }
+
+  /* The toggle carries the "Manage/Edit:" text itself on mobile. */
+  .admin-manage-nav .admin-row-label {
+    display: none;
+  }
+
+  .admin-nav-toggle {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    text-align: left;
+    width: 100%;
+  }
+
+  .admin-module-list {
+    display: none;
+  }
+
+  .admin-module-list.is-open {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .admin-module-list.is-open > button {
+    justify-content: flex-start;
+    text-align: left;
+    width: 100%;
   }
 
   .feature-grid {
