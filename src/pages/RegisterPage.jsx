@@ -1,20 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
 import { useEventRegistration } from '../hooks/useEventRegistration.js';
+import { useIdentityVerification } from '../hooks/useIdentityVerification.js';
 import { useRegistrantForm } from '../hooks/useRegistrantForm.js';
 import {
   beginSquareReservation,
   createRegistration,
-  loadSquarePaymentConfig,
-  lookupRegistrationEmail,
-  startRegistrationEmailVerification,
-  verifyRegistrationEmailCode
+  loadSquarePaymentConfig
 } from '../services/registrationService.js';
-import { auth } from '../lib/firebase.js';
 import {
   formatCurrency,
   formatEventDate,
@@ -84,31 +80,12 @@ function RegisterPage() {
     setLastName,
     setPhone
   } = useRegistrantForm();
-  const [accountVerified, setAccountVerified] = useState(false);
-  const [authError, setAuthError] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authSubmitting, setAuthSubmitting] = useState(false);
   const [closeMessage, setCloseMessage] = useState('');
   const [confirmation, setConfirmation] = useState(null);
-  const [email, setEmail] = useState('');
-  const [emailVerificationChallengeId, setEmailVerificationChallengeId] = useState('');
-  const [emailVerificationCode, setEmailVerificationCode] = useState('');
-  const [emailVerificationError, setEmailVerificationError] = useState('');
-  const [emailVerificationMessage, setEmailVerificationMessage] = useState('');
-  const [emailVerificationSending, setEmailVerificationSending] = useState(false);
-  const [emailVerificationVerifying, setEmailVerificationVerifying] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
   const [formError, setFormError] = useState('');
-  const [lookup, setLookup] = useState(null);
-  const [lookupComplete, setLookupComplete] = useState(false);
-  const [lookupLoading, setLookupLoading] = useState(false);
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [paymentPreference, setPaymentPreference] = useState('');
-  const [reactivateProfile, setReactivateProfile] = useState(false);
-  const [reactivationTermsAccepted, setReactivationTermsAccepted] = useState(false);
-  const [registrationVerificationToken, setRegistrationVerificationToken] = useState('');
   const [registrationFinalizing, setRegistrationFinalizing] = useState(false);
-  const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [squareCard, setSquareCard] = useState(null);
   const [squareConfig, setSquareConfig] = useState(null);
   const [squareError, setSquareError] = useState('');
@@ -121,65 +98,54 @@ function RegisterPage() {
   const paymentReservationRequestActive = useRef(false);
   const registrationAttemptKey = useRef(createRegistrationAttemptKey());
 
-  const runEmailLookup = useCallback(async (emailValue, options = {}) => {
-    const normalizedEmail = String(emailValue || '').trim().toLowerCase();
-    const alreadyVerified = Boolean(options.alreadyVerified);
-
-    setFieldErrors({});
-    setAccountVerified(alreadyVerified);
-    setAuthError('');
-    setAuthPassword('');
-    setFormError('');
+  const resetSubmissionAndPaymentReservation = useCallback(() => {
     setConfirmation(null);
-    setEmailVerificationChallengeId('');
-    setEmailVerificationCode('');
-    setEmailVerificationError('');
-    setEmailVerificationMessage('');
-    setEmailVerified(false);
-    setRegistrationVerificationToken('');
     setPaymentReservation(null);
     setPaymentReservationError('');
     setPaymentReservationExpired(false);
     setPaymentReservationLoading(false);
-    setLookup(null);
-    setLookupComplete(false);
-    setReactivateProfile(false);
-    setReactivationTermsAccepted(false);
-    setShowEmailVerification(false);
+  }, []);
 
-    if (!normalizedEmail || !normalizedEmail.includes('@')) {
-      setFieldErrors({ email: 'Valid email is required.' });
-      setFormError('Enter a valid email address first.');
-      return;
-    }
-
-    setEmail(normalizedEmail);
-    setLookupLoading(true);
-
-    try {
-      const result = await lookupRegistrationEmail(normalizedEmail, eventId);
-      setLookup(result);
-      setLookupComplete(true);
-
-      if (result.profile) {
-        applyProfileToForm(result.profile);
-        setAccountVerified(Boolean(alreadyVerified && result.verified));
-        setReactivateProfile(Boolean(alreadyVerified && result.profile.status !== 'Active'));
-        setReactivationTermsAccepted(false);
-        setShowEmailVerification(false);
-      } else if (result.status === 'email-verification-required') {
-        resetRegistrantFields();
-        setShowEmailVerification(true);
-      } else {
-        resetRegistrantFields();
-        setShowEmailVerification(false);
-      }
-    } catch (error) {
-      setFormError(error.message);
-    } finally {
-      setLookupLoading(false);
-    }
-  }, [applyProfileToForm, eventId, resetRegistrantFields, setFieldErrors]);
+  const {
+    accountVerified,
+    authError,
+    authPassword,
+    authSubmitting,
+    email,
+    emailVerificationChallengeId,
+    emailVerificationCode,
+    emailVerificationError,
+    emailVerificationMessage,
+    emailVerificationSending,
+    emailVerificationVerifying,
+    emailVerified,
+    handleEmailChange,
+    handleEmailLookup,
+    handlePasswordSignIn,
+    handleStartEmailVerification,
+    handleVerifyEmailCode,
+    lookup,
+    lookupComplete,
+    lookupLoading,
+    reactivateProfile,
+    reactivationTermsAccepted,
+    registrationVerificationToken,
+    setAuthError,
+    setAuthPassword,
+    setEmailVerificationCode,
+    setEmailVerificationError,
+    setReactivationTermsAccepted,
+    showEmailVerification
+  } = useIdentityVerification({
+    applyProfile: applyProfileToForm,
+    currentUser,
+    eventId,
+    onBeforeLookup: resetSubmissionAndPaymentReservation,
+    reset: resetRegistrantFields,
+    setFieldErrors,
+    setFormError,
+    userProfile
+  });
 
   useEffect(() => {
     setPaymentPreference('');
@@ -187,14 +153,6 @@ function RegisterPage() {
     setPaymentReservationError('');
     setPaymentReservationExpired(false);
   }, [eventId]);
-
-  useEffect(() => {
-    if (!eventId || !currentUser || !userProfile?.email || lookupComplete || lookupLoading) {
-      return;
-    }
-
-    runEmailLookup(userProfile.email, { alreadyVerified: true });
-  }, [currentUser, eventId, lookupComplete, lookupLoading, runEmailLookup, userProfile]);
 
   const membershipBlocked = isMembershipBlocked({ lookup, lookupComplete });
   const matchedProfile = lookup?.profile || null;
@@ -417,10 +375,6 @@ function RegisterPage() {
     requiresSquarePayment
   ]);
 
-  async function handleEmailLookup() {
-    await runEmailLookup(email);
-  }
-
   async function handleSubmit(formEvent) {
     formEvent.preventDefault();
     const errors = validateForm({ email, firstName, lastName, phone });
@@ -517,100 +471,6 @@ function RegisterPage() {
     }
 
     return tokenResult.token;
-  }
-
-  async function handlePasswordSignIn() {
-    if (!profileExists) {
-      return;
-    }
-
-    if (!authPassword) {
-      setAuthError('Enter your password to continue.');
-      return;
-    }
-
-    setAuthSubmitting(true);
-    setAuthError('');
-    setEmailVerificationError('');
-
-    try {
-      await signInWithEmailAndPassword(auth, email, authPassword);
-      await runEmailLookup(email, { alreadyVerified: true });
-    } catch {
-      setAccountVerified(false);
-      setAuthPassword('');
-      setEmailVerificationCode('');
-      setEmailVerificationError('We could not sign you in. You can continue with a code sent to your email address.');
-      setShowEmailVerification(true);
-    } finally {
-      setAuthSubmitting(false);
-    }
-  }
-
-  async function handleStartEmailVerification() {
-    setEmailVerificationSending(true);
-    setEmailVerificationError('');
-    setEmailVerificationMessage('');
-
-    try {
-      const result = await startRegistrationEmailVerification(email, eventId);
-      setEmailVerificationChallengeId(result.challengeId || '');
-      setEmailVerificationCode('');
-      setEmailVerificationMessage(result.message || 'Check your email for a verification code.');
-      setShowEmailVerification(true);
-    } catch (error) {
-      setEmailVerificationError(error.message);
-    } finally {
-      setEmailVerificationSending(false);
-    }
-  }
-
-  async function handleVerifyEmailCode() {
-    const code = emailVerificationCode.replace(/\D/g, '').slice(0, 6);
-
-    setEmailVerificationCode(code);
-    setEmailVerificationError('');
-
-    if (!emailVerificationChallengeId || code.length !== 6) {
-      setEmailVerificationError('Enter the six-digit verification code from your email.');
-      return;
-    }
-
-    setEmailVerificationVerifying(true);
-
-    try {
-      const result = await verifyRegistrationEmailCode({
-        challengeId: emailVerificationChallengeId,
-        code,
-        email,
-        eventId
-      });
-
-      setLookup(result);
-      setLookupComplete(true);
-      setAccountVerified(false);
-      setEmailVerified(true);
-      setRegistrationVerificationToken(result.registrationToken || '');
-      setEmailVerificationError('');
-      setEmailVerificationMessage('Email verified. You can continue with registration.');
-      setShowEmailVerification(false);
-
-      if (result.profile) {
-        applyProfileToForm(result.profile);
-        setReactivateProfile(result.profile.status !== 'Active');
-      } else {
-        resetRegistrantFields();
-        setReactivateProfile(false);
-      }
-
-      setReactivationTermsAccepted(false);
-    } catch (error) {
-      setEmailVerified(false);
-      setRegistrationVerificationToken('');
-      setEmailVerificationError(error.message);
-    } finally {
-      setEmailVerificationVerifying(false);
-    }
   }
 
   const handleClose = useCallback(() => {
@@ -772,23 +632,8 @@ function RegisterPage() {
               className={fieldErrors.email ? 'field-invalid' : ''}
               disabled={usingSignedInProfile || submitting || Boolean(confirmation)}
               onChange={(inputEvent) => {
-                setEmail(inputEvent.target.value);
-                setLookupComplete(false);
-                setLookup(null);
-                setReactivateProfile(false);
-                setAccountVerified(false);
-                setAuthError('');
-                setAuthPassword('');
-                setEmailVerificationChallengeId('');
-                setEmailVerificationCode('');
-                setEmailVerificationError('');
-                setEmailVerificationMessage('');
-                setEmailVerified(false);
-                setRegistrationVerificationToken('');
-                setShowEmailVerification(false);
+                handleEmailChange(inputEvent.target.value);
                 setNeedsProfileEdits(false);
-                setReactivationTermsAccepted(false);
-                resetRegistrantFields();
               }}
               type="email"
               value={email}
