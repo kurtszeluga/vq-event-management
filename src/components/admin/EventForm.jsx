@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isRegistrationWindowInverted } from '../../../shared/registrationWindow.js';
+import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
   DEFAULT_EVENT_FORM,
   EVENT_LOCATIONS,
@@ -51,6 +52,7 @@ function EventForm({
   const [successMessage, setSuccessMessage] = useState('');
   const [configuredLocations, setConfiguredLocations] = useState([]);
   const [configuredTimeOptions, setConfiguredTimeOptions] = useState([]);
+  const [confirmNonMemberRegistrationOpen, setConfirmNonMemberRegistrationOpen] = useState(false);
   const [defaultServiceFee, setDefaultServiceFee] = useState('1.00');
   const isEditing = Boolean(editingEvent);
 
@@ -199,14 +201,16 @@ function EventForm({
 
   function handleAllowNonMemberRegistration(value) {
     if (value) {
-      const confirmed = window.confirm('Confirm NON member registration allowed');
-
-      if (!confirmed) {
-        return;
-      }
+      setConfirmNonMemberRegistrationOpen(true);
+      return;
     }
 
     updateField('allowNonMemberRegistration', value);
+  }
+
+  function handleConfirmNonMemberRegistration() {
+    updateField('allowNonMemberRegistration', true);
+    setConfirmNonMemberRegistrationOpen(false);
   }
 
   function handleRegistrationMode(value) {
@@ -575,7 +579,8 @@ function EventForm({
   }
 
   return (
-    <form className="admin-form" noValidate onSubmit={handleSubmit}>
+    <>
+      <form className="admin-form" noValidate onSubmit={handleSubmit}>
       <div className="form-section-header">
         <h2>{isEditing ? 'Edit Event' : 'Event/Activity Details'}</h2>
       </div>
@@ -1507,7 +1512,18 @@ function EventForm({
           </button>
         ) : null}
       </div>
-    </form>
+      </form>
+      <ConfirmDialog
+        cancelLabel="Keep Members Only"
+        confirmLabel="Allow Non-Members"
+        description="Confirm NON member registration allowed"
+        open={confirmNonMemberRegistrationOpen}
+        title="Allow Non-Member Registration"
+        tone="danger"
+        onCancel={() => setConfirmNonMemberRegistrationOpen(false)}
+        onConfirm={handleConfirmNonMemberRegistration}
+      />
+    </>
   );
 }
 

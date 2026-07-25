@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import ConfirmDialog from '../ConfirmDialog.jsx';
 import { PROFILE_TAG_OPTIONS, normalizeProfileTags } from '../../data/profileTags.js';
 import { US_STATES } from '../../data/usStates.js';
 import {
@@ -59,6 +60,7 @@ function UserControlPanel({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'lastName', direction: 'asc' });
   const [successMessage, setSuccessMessage] = useState('');
+  const [pendingArchiveUser, setPendingArchiveUser] = useState(null);
   const [users, setUsers] = useState([]);
   const canEditMembershipStatus =
     canManageAdminUsers || Boolean(currentUserProfile?.permissions?.manageMembershipStatus);
@@ -401,17 +403,16 @@ function UserControlPanel({
       return;
     }
 
-    const isArchived = isArchivedProfile(user);
-    const confirmed = window.confirm(
-      isArchived
-        ? `Reactivate "${user.name || user.email || 'this profile'}"?`
-        : `Archive "${user.name || user.email || 'this profile'}"?`
-    );
+    setPendingArchiveUser(user);
+  }
 
-    if (!confirmed) {
+  async function handleConfirmArchiveToggle() {
+    if (!pendingArchiveUser) {
       return;
     }
 
+    const user = pendingArchiveUser;
+    const isArchived = isArchivedProfile(user);
     setError('');
     setFormError('');
     setSuccessMessage('');
@@ -438,6 +439,7 @@ function UserControlPanel({
       setFormError(message);
     } finally {
       setSavingUserId('');
+      setPendingArchiveUser(null);
     }
   }
 
@@ -528,7 +530,8 @@ function UserControlPanel({
   const sortedFilteredUsers = sortUsers(searchedUsers, sortConfig);
 
   return (
-    <section className="admin-list-panel" id="user-controls-card">
+    <>
+      <section className="admin-list-panel" id="user-controls-card">
       <div className="form-section-header form-section-header-stacked">
         <h2>User Controls</h2>
         <div className="admin-list-panel-actions">
@@ -1140,7 +1143,29 @@ function UserControlPanel({
           );
         })}
       </div>
-    </section>
+      </section>
+      <ConfirmDialog
+        busy={savingUserId === pendingArchiveUser?.id}
+        cancelLabel={pendingArchiveUser && isArchivedProfile(pendingArchiveUser) ? 'Keep Archived' : 'Keep Active'}
+        confirmLabel={pendingArchiveUser && isArchivedProfile(pendingArchiveUser) ? 'Reactivate Profile' : 'Archive Profile'}
+        description={
+          pendingArchiveUser
+            ? isArchivedProfile(pendingArchiveUser)
+              ? `Reactivate "${pendingArchiveUser.name || pendingArchiveUser.email || 'this profile'}"?`
+              : `Archive "${pendingArchiveUser.name || pendingArchiveUser.email || 'this profile'}"?`
+            : ''
+        }
+        open={Boolean(pendingArchiveUser)}
+        title={pendingArchiveUser && isArchivedProfile(pendingArchiveUser) ? 'Reactivate Profile' : 'Archive Profile'}
+        tone="danger"
+        onCancel={() => {
+          if (!savingUserId) {
+            setPendingArchiveUser(null);
+          }
+        }}
+        onConfirm={handleConfirmArchiveToggle}
+      />
+    </>
   );
 }
 

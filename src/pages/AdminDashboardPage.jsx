@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import ConfigurationPanel from '../components/admin/ConfigurationPanel.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
@@ -30,6 +31,8 @@ function AdminDashboardPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
   const [paymentReviewCount, setPaymentReviewCount] = useState(0);
+  const [pendingArchiveEvent, setPendingArchiveEvent] = useState(null);
+  const [pendingArchiveEventId, setPendingArchiveEventId] = useState('');
   const [moduleNavOpen, setModuleNavOpen] = useState(false);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
@@ -194,17 +197,26 @@ function AdminDashboardPage() {
   }, [canViewRegistrations]);
 
   async function handleDelete(event) {
-    const isArchived = event.status === 'Archived';
-    const confirmed = window.confirm(
-      isArchived ? `Reactivate "${event.title}"?` : `Archive "${event.title}"?`
-    );
+    setPendingArchiveEvent(event);
+  }
 
-    if (confirmed) {
+  async function handleConfirmArchiveEvent() {
+    if (!pendingArchiveEvent) {
+      return;
+    }
+
+    const isArchived = pendingArchiveEvent.status === 'Archived';
+    setPendingArchiveEventId(pendingArchiveEvent.id);
+
+    try {
       if (isArchived) {
-        await reactivateEvent(event.id, userProfile);
+        await reactivateEvent(pendingArchiveEvent.id, userProfile);
       } else {
-        await archiveEvent(event.id, userProfile);
+        await archiveEvent(pendingArchiveEvent.id, userProfile);
       }
+      setPendingArchiveEvent(null);
+    } finally {
+      setPendingArchiveEventId('');
     }
   }
 
@@ -413,6 +425,27 @@ function AdminDashboardPage() {
           </div>
         ) : null}
       </div>
+      <ConfirmDialog
+        busy={pendingArchiveEventId === pendingArchiveEvent?.id}
+        cancelLabel="Keep Event"
+        confirmLabel={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
+        description={
+          pendingArchiveEvent
+            ? pendingArchiveEvent.status === 'Archived'
+              ? `Reactivate "${pendingArchiveEvent.title}"?`
+              : `Archive "${pendingArchiveEvent.title}"?`
+            : ''
+        }
+        open={Boolean(pendingArchiveEvent)}
+        title={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
+        tone="danger"
+        onCancel={() => {
+          if (!pendingArchiveEventId) {
+            setPendingArchiveEvent(null);
+          }
+        }}
+        onConfirm={handleConfirmArchiveEvent}
+      />
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
+import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
   COORDINATOR_ASSIGNMENT_AREAS,
   DEFAULT_DIRECTORY_SETTINGS,
@@ -1390,25 +1391,38 @@ function RowActions({
   onDelete,
   onEdit
 }) {
-  async function handleDelete() {
-    const confirmed = window.confirm(deleteConfirm);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-    if (confirmed) {
-      await onDelete();
-    }
+  async function handleDelete() {
+    setConfirmOpen(true);
   }
 
   return (
-    <div className="card-actions">
-      <button className="button-link button-reset" type="button" onClick={onEdit}>
-        Edit
-      </button>
-      {onDelete ? (
-        <button className="danger-button archive-action" type="button" onClick={handleDelete}>
-          {deleteLabel}
+    <>
+      <div className="card-actions">
+        <button className="button-link button-reset" type="button" onClick={onEdit}>
+          Edit
         </button>
-      ) : null}
-    </div>
+        {onDelete ? (
+          <button className="danger-button archive-action" type="button" onClick={handleDelete}>
+            {deleteLabel}
+          </button>
+        ) : null}
+      </div>
+      <ConfirmDialog
+        cancelLabel="Keep Item"
+        confirmLabel={deleteLabel}
+        description={deleteConfirm}
+        open={confirmOpen}
+        title={deleteLabel}
+        tone="danger"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={async () => {
+          await onDelete();
+          setConfirmOpen(false);
+        }}
+      />
+    </>
   );
 }
 

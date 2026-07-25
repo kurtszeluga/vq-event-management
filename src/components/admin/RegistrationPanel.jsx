@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import ConfirmDialog from '../ConfirmDialog.jsx';
+import ModalDialog from '../ModalDialog.jsx';
 import {
   DEFAULT_PAYMENT_SETTINGS,
   subscribeToPaymentSettings
@@ -52,6 +54,8 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
   const [selectedPaymentNote, setSelectedPaymentNote] = useState('');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('Pending');
   const [successMessage, setSuccessMessage] = useState('');
+  const [refundConfirmation, setRefundConfirmation] = useState(null);
+  const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [yearFilter, setYearFilter] = useState(DEFAULT_YEAR_FILTER);
 
@@ -552,6 +556,31 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSelectedPaymentStatus('Pending');
   }
 
+  async function saveRegistrationChanges(registration, nextPayment, { appInitiatedSquareRefund: processSquareRefund }) {
+    setSavingRegistrationId(registration.id);
+
+    try {
+      await updateRegistrationPayment(
+        registration.id,
+        nextPayment,
+        currentUserProfile
+      );
+
+      setSuccessMessage(processSquareRefund
+        ? 'Square refund submitted. The registration was cancelled and the seat was returned.'
+        : 'Registration changes saved.');
+      setSelectedRegistrationId('');
+      setSelectedPaymentAmount('');
+      setSelectedPaymentMethod('');
+      setSelectedPaymentNote('');
+      setSelectedPaymentStatus('Pending');
+    } catch (saveError) {
+      setError(saveError.message || 'Registration changes could not be saved.');
+    } finally {
+      setSavingRegistrationId('');
+    }
+  }
+
   async function handleSaveChanges() {
     if (!selectedRegistration) {
       return;
@@ -580,49 +609,27 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
     setSuccessMessage('');
 
     if (appInitiatedSquareRefund) {
-      const confirmed = window.confirm(
-        'Process this refund through Square now? If Square completes the refund, this registration will be cancelled.'
-      );
-
-      if (!confirmed) {
-        return;
-      }
+      setRefundConfirmation({
+        payment: nextPayment.payment,
+        registrationId: selectedRegistration.id
+      });
+      return;
     }
 
-    setSavingRegistrationId(selectedRegistration.id);
-
-    try {
-      await updateRegistrationPayment(
-        selectedRegistration.id,
-        nextPayment.payment,
-        currentUserProfile
-      );
-
-      setSuccessMessage(appInitiatedSquareRefund
-        ? 'Square refund submitted. The registration was cancelled and the seat was returned.'
-        : 'Registration changes saved.');
-      setSelectedRegistrationId('');
-      setSelectedPaymentAmount('');
-      setSelectedPaymentMethod('');
-      setSelectedPaymentNote('');
-      setSelectedPaymentStatus('Pending');
-    } catch (saveError) {
-      setError(saveError.message || 'Registration changes could not be saved.');
-    } finally {
-      setSavingRegistrationId('');
-    }
+    await saveRegistrationChanges(selectedRegistration, nextPayment.payment, {
+      appInitiatedSquareRefund: false
+    });
   }
 
   async function handleCancelFreeRegistration() {
     if (!selectedRegistration || !canCancelRegistrationWithoutRefund(selectedRegistration)) {
       return;
     }
+    setCancelConfirmationOpen(true);
+  }
 
-    const confirmed = window.confirm(
-      'Cancel this registration? The seat will be returned and the registrant will be notified if confirmation emails are enabled.'
-    );
-
-    if (!confirmed) {
+  async function handleConfirmCancelFreeRegistration() {
+    if (!selectedRegistration || !canCancelRegistrationWithoutRefund(selectedRegistration)) {
       return;
     }
 
@@ -644,6 +651,7 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
       setError(cancelError.message || 'Registration could not be cancelled.');
     } finally {
       setSavingRegistrationId('');
+      setCancelConfirmationOpen(false);
     }
   }
 
@@ -963,13 +971,13 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
         }) : null}
       </div>
       {selectedRegistration ? (
-        <div
-          aria-labelledby="registration-details-title"
-          aria-modal="true"
-          className="registration-modal-backdrop"
-          role="dialog"
+        <ModalDialog
+          ariaLabelledBy="registration-details-title"
+          backdropClassName="registration-modal-backdrop"
+          dialogClassName="registration-modal-card"
+          onClose={savingRegistrationId ? undefined : handleCloseDetails}
+          open
         >
-          <div className="registration-modal-card">
             <div className="form-section-header form-section-header-stacked">
               <div className="form-section-header-top">
                 <div>
@@ -1124,9 +1132,47 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                 Close
               </button>
             </div>
-          </div>
-        </div>
+        </ModalDialog>
       ) : null}
+      <ConfirmDialog
+        busy={savingRegistrationId === refundConfirmation?.registrationId}
+        cancelLabel="Keep Registration"
+        confirmLabel="Process Square Refund"
+        description="Process this refund through Square now? If Square completes the refund, this registration will be cancelled."
+        open={Boolean(refundConfirmation)}
+        title="Process Square Refund"
+        tone="danger"
+        onCancel={() => {
+          if (!savingRegistrationId) {
+            setRefundConfirmation(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!selectedRegistration || !refundConfirmation) {
+            return;
+          }
+
+          await saveRegistrationChanges(selectedRegistration, refundConfirmation.payment, {
+            appInitiatedSquareRefund: true
+          });
+          setRefundConfirmation(null);
+        }}
+      />
+      <ConfirmDialog
+        busy={Boolean(savingRegistrationId)}
+        cancelLabel="Keep Registration"
+        confirmLabel="Cancel Registration"
+        description="Cancel this registration? The seat will be returned and the registrant will be notified if confirmation emails are enabled."
+        open={cancelConfirmationOpen}
+        title="Cancel Registration"
+        tone="danger"
+        onCancel={() => {
+          if (!savingRegistrationId) {
+            setCancelConfirmationOpen(false);
+          }
+        }}
+        onConfirm={handleConfirmCancelFreeRegistration}
+      />
     </section>
   );
 }

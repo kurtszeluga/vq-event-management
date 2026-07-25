@@ -15,10 +15,21 @@ vi.mock('react-router-dom', () => ({
   useLocation: () => ({ state: null })
 }));
 
+const archiveEventMock = vi.fn();
+const reactivateEventMock = vi.fn();
+
 vi.mock('../../src/services/eventService.js', () => ({
-  archiveEvent: vi.fn(),
-  reactivateEvent: vi.fn(),
-  subscribeToAdminEvents: () => () => {}
+  archiveEvent: archiveEventMock,
+  reactivateEvent: reactivateEventMock,
+  subscribeToAdminEvents: (onSnapshot) => {
+    onSnapshot({
+      docs: [{
+        id: 'evt-1',
+        data: () => ({ title: 'Guild Retreat', status: 'Published' })
+      }]
+    });
+    return () => {};
+  }
 }));
 
 vi.mock('../../src/services/registrationService.js', () => ({
@@ -34,7 +45,14 @@ vi.mock('../../src/components/PageHeader.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/ConfigurationPanel.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/EventForm.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/EventList.jsx', () => ({
-  default: ({ title }) => <div data-testid="event-list">{title}</div>
+  default: ({ onDelete, title }) => (
+    <div data-testid="event-list">
+      <span>{title}</span>
+      <button type="button" onClick={() => onDelete({ id: 'evt-1', title: 'Guild Retreat', status: 'Published' })}>
+        Archive Guild Retreat
+      </button>
+    </div>
+  )
 }));
 vi.mock('../../src/components/admin/PaymentReconciliationPanel.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/RegistrationPanel.jsx', () => ({
@@ -62,6 +80,8 @@ function moduleToggle() {
 
 beforeEach(() => {
   signInAs({ permissions: [], isSuperUser: false });
+  archiveEventMock.mockReset();
+  reactivateEventMock.mockReset();
 });
 
 // vitest.config.js does not set `globals: true`, so Testing Library never
@@ -194,5 +214,23 @@ describe('selecting a module', () => {
 
     expect(active.map((button) => button.textContent)).toEqual(['Registrations']);
     expect(screen.getByTestId('registration-panel')).toBeInTheDocument();
+  });
+});
+
+describe('archive confirmation', () => {
+  it('waits for confirmation before archiving an event', async () => {
+    const user = userEvent.setup();
+    signInAs({ permissions: ['manageEvents'] });
+    render(<AdminDashboardPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Archive Guild Retreat' }));
+
+    expect(archiveEventMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Archive Event' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Archive Event' }));
+
+    expect(archiveEventMock).toHaveBeenCalledWith('evt-1', {});
   });
 });
