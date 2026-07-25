@@ -10,6 +10,7 @@ import {
   isPaymentReservationActive,
   usePaymentReservation
 } from '../hooks/usePaymentReservation.js';
+import { useProfileEditing } from '../hooks/useProfileEditing.js';
 import { useRegistrantForm } from '../hooks/useRegistrantForm.js';
 import { createRegistration } from '../services/registrationService.js';
 import {
@@ -79,7 +80,6 @@ function RegisterPage() {
   const [closeMessage, setCloseMessage] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [formError, setFormError] = useState('');
-  const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [paymentPreference, setPaymentPreference] = useState('');
   const [registrationFinalizing, setRegistrationFinalizing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -147,6 +147,29 @@ function RegisterPage() {
   const requiresBillingAddress = getRequiresBillingAddress(event);
   const canPayLaterByCashCheck = getCanPayLaterByCashCheck(event);
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
+
+  const {
+    handleCancelProfileEdit,
+    handleSaveProfileEdit,
+    handleStartProfileEdit,
+    needsProfileEdits,
+    setNeedsProfileEdits
+  } = useProfileEditing({
+    applyProfile: applyProfileToForm,
+    matchedProfile,
+    registrant: {
+      billingCity,
+      billingCountry,
+      billingPostalCode,
+      billingState,
+      billingStreet,
+      firstName,
+      lastName,
+      phone
+    },
+    setFieldErrors,
+    setFormError
+  });
 
   const buildRegistrationRequest = useCallback(() => {
     const displayName = buildDisplayName(firstName, lastName);
@@ -387,40 +410,6 @@ function RegisterPage() {
       navigate('/events');
     }, 1500);
   }, [markReservationExpired, navigate, returnTarget]);
-
-  function handleStartProfileEdit() {
-    setNeedsProfileEdits(true);
-  }
-
-  function handleCancelProfileEdit() {
-    if (matchedProfile) {
-      applyProfileToForm(matchedProfile);
-    }
-    setNeedsProfileEdits(false);
-  }
-
-  function handleSaveProfileEdit() {
-    const errors = validateProfileFields({
-      billingCity,
-      billingCountry,
-      billingPostalCode,
-      billingState,
-      billingStreet,
-      firstName,
-      lastName,
-      phone
-    });
-
-    setFieldErrors(errors);
-
-    if (Object.keys(errors).length) {
-      setFormError('Please fix the highlighted profile fields before saving.');
-      return;
-    }
-
-    setFormError('');
-    setNeedsProfileEdits(false);
-  }
 
   if (!eventId) {
     return (
@@ -1154,38 +1143,6 @@ function validateForm({ email, firstName, lastName, phone }) {
 
   if (phone.replace(/\D/g, '').length < 10) {
     errors.phone = 'Phone number is required.';
-  }
-
-  return errors;
-}
-
-function validateProfileFields({
-  billingPostalCode,
-  billingState,
-  firstName,
-  lastName,
-  phone
-}) {
-  const errors = {};
-
-  if (!firstName.trim()) {
-    errors.firstName = 'First name is required.';
-  }
-
-  if (!lastName.trim()) {
-    errors.lastName = 'Last name is required.';
-  }
-
-  if (phone.replace(/\D/g, '').length < 10) {
-    errors.phone = 'Phone number is required.';
-  }
-
-  if (billingState && billingState.length !== 2) {
-    errors.billingState = 'Use the two-letter state code.';
-  }
-
-  if (billingPostalCode && billingPostalCode.trim().length < 5) {
-    errors.billingPostalCode = 'ZIP code should be at least 5 characters.';
   }
 
   return errors;
