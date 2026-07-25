@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
-import { getEvent } from '../services/eventService.js';
+import { useEventRegistration } from '../hooks/useEventRegistration.js';
 import {
   beginSquareReservation,
   createRegistration,
@@ -13,10 +13,6 @@ import {
   startRegistrationEmailVerification,
   verifyRegistrationEmailCode
 } from '../services/registrationService.js';
-import {
-  DEFAULT_MEMBERSHIP_SETTINGS,
-  subscribeToMembershipSettings
-} from '../services/configurationService.js';
 import { auth } from '../lib/firebase.js';
 import {
   formatCurrency,
@@ -49,7 +45,6 @@ import {
   toTitleCase
 } from '../utils/profileFormat.js';
 
-const MEMBERSHIP_TERMS_VERSION = '2026-07-16';
 const squareScriptPromises = new Map();
 
 function RegisterPage() {
@@ -61,6 +56,13 @@ function RegisterPage() {
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const referrerUrl = getExternalReferrerUrl();
   const returnTarget = returnUrl || referrerUrl;
+  const {
+    displayedTermsVersion,
+    event,
+    eventError,
+    loadingEvent,
+    membershipSettings
+  } = useEventRegistration(eventId);
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
@@ -80,17 +82,13 @@ function RegisterPage() {
   const [emailVerificationSending, setEmailVerificationSending] = useState(false);
   const [emailVerificationVerifying, setEmailVerificationVerifying] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
-  const [event, setEvent] = useState(null);
-  const [eventError, setEventError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [firstName, setFirstName] = useState('');
   const [formError, setFormError] = useState('');
   const [lastName, setLastName] = useState('');
-  const [loadingEvent, setLoadingEvent] = useState(Boolean(eventId));
   const [lookup, setLookup] = useState(null);
   const [lookupComplete, setLookupComplete] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
-  const [membershipSettings, setMembershipSettings] = useState(DEFAULT_MEMBERSHIP_SETTINGS);
   const [needsProfileEdits, setNeedsProfileEdits] = useState(false);
   const [paymentPreference, setPaymentPreference] = useState('');
   const [phone, setPhone] = useState('');
@@ -111,7 +109,6 @@ function RegisterPage() {
   const paymentReservationRequestActive = useRef(false);
   const registrationAttemptKey = useRef(createRegistrationAttemptKey());
 
-  const displayedTermsVersion = membershipSettings.termsVersion || MEMBERSHIP_TERMS_VERSION;
   const applyProfileToForm = useCallback((profile) => {
     setFirstName(getProfileFirstName(profile));
     setLastName(getProfileLastName(profile));
@@ -193,56 +190,11 @@ function RegisterPage() {
   }, [applyProfileToForm, eventId, resetRegistrantFields]);
 
   useEffect(() => {
-    if (!eventId) {
-      setLoadingEvent(false);
-      setEvent(null);
-      return undefined;
-    }
-
-    let active = true;
-
-    async function loadEvent() {
-      setLoadingEvent(true);
-      try {
-        const eventRecord = await getEvent(eventId);
-
-        if (active) {
-          setEvent(eventRecord);
-          setEventError('');
-        }
-      } catch (error) {
-        if (active) {
-          setEventError(error.message);
-        }
-      } finally {
-        if (active) {
-          setLoadingEvent(false);
-        }
-      }
-    }
-
-    loadEvent();
-
-    return () => {
-      active = false;
-    };
-  }, [eventId]);
-
-  useEffect(() => {
     setPaymentPreference('');
     setPaymentReservation(null);
     setPaymentReservationError('');
     setPaymentReservationExpired(false);
   }, [eventId]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToMembershipSettings(
-      setMembershipSettings,
-      () => setMembershipSettings(DEFAULT_MEMBERSHIP_SETTINGS)
-    );
-
-    return unsubscribe;
-  }, []);
 
   useEffect(() => {
     if (!eventId || !currentUser || !userProfile?.email || lookupComplete || lookupLoading) {
