@@ -14,6 +14,7 @@ import {
 } from '../utils/eventFormat.js';
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
+import { openManagedPopup } from '../utils/popupWindow.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
@@ -56,12 +57,17 @@ function getDescriptionPreview(description) {
   return `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`;
 }
 
-function openSupplyListPopup(event) {
+function openSupplyListPopup(event, triggerElement) {
   if (!event?.supplyListUrl) {
     return;
   }
 
-  window.open(`/events/${event.id}/supply-list`, 'vq-supply-list', 'popup,width=1100,height=900');
+  openManagedPopup(
+    `/events/${event.id}/supply-list`,
+    'vq-supply-list',
+    'popup,width=1100,height=900',
+    triggerElement
+  );
 }
 
 function openEventPrintView(event) {
@@ -578,7 +584,7 @@ function EventsPage() {
                   <button
                     className="button-link secondary-action"
                     type="button"
-                    onClick={() => openSupplyListPopup(event)}
+                    onClick={(clickEvent) => openSupplyListPopup(event, clickEvent.currentTarget)}
                   >
                     View, print, or save{' '}
                     {event.supplyListTitle || event.supplyListFileName || 'supply list'}

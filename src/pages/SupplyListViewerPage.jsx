@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import PageHeader from '../components/PageHeader.jsx';
@@ -10,6 +10,7 @@ function SupplyListViewerPage() {
   const navigate = useNavigate();
   const previewRef = useRef(null);
   const objectUrlRef = useRef('');
+  const headingRef = useRef(null);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
@@ -147,7 +148,9 @@ function SupplyListViewerPage() {
     }
   }, []);
 
-  function handleClose() {
+  const canShowDocument = !loading && !error && event && isEventVisible(event) && event.supplyListUrl;
+
+  const handleClose = useCallback(() => {
     if (window.opener) {
       window.close();
       return;
@@ -159,7 +162,26 @@ function SupplyListViewerPage() {
     }
 
     navigate('/events');
-  }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (canShowDocument) {
+      headingRef.current?.focus();
+    }
+  }, [canShowDocument]);
+
+  useEffect(() => {
+    function handleKeyDown(keyboardEvent) {
+      if (keyboardEvent.key === 'Escape') {
+        keyboardEvent.preventDefault();
+        handleClose();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleClose]);
 
   function handlePrint() {
     window.focus();
@@ -194,7 +216,9 @@ function SupplyListViewerPage() {
       <div className="viewer-toolbar">
         <div>
           <p className="viewer-eyebrow">Supply List</p>
-          <h1>{event.supplyListTitle || event.supplyListFileName || event.title}</h1>
+          <h1 ref={headingRef} tabIndex={-1}>
+            {event.supplyListTitle || event.supplyListFileName || event.title}
+          </h1>
         </div>
         <div className="viewer-actions">
           <a

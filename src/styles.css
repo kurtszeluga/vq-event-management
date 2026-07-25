@@ -25,6 +25,11 @@ a {
   color: inherit;
 }
 
+:focus-visible {
+  outline: 3px solid #cfe3de;
+  outline-offset: 2px;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;

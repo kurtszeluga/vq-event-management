@@ -14,6 +14,7 @@ import {
 } from '../utils/eventFormat.js';
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
+import { openManagedPopup } from '../utils/popupWindow.js';
 
 function EventDetailsPage() {
   const navigate = useNavigate();
@@ -26,12 +27,17 @@ function EventDetailsPage() {
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
 
-  function openSupplyListPopup() {
+  function openSupplyListPopup(clickEvent) {
     if (!event?.supplyListUrl) {
       return;
     }
 
-    window.open(`/events/${eventId}/supply-list`, 'vq-supply-list', 'popup,width=1100,height=900');
+    openManagedPopup(
+      `/events/${eventId}/supply-list`,
+      'vq-supply-list',
+      'popup,width=1100,height=900',
+      clickEvent.currentTarget
+    );
   }
 
   useEffect(() => {
