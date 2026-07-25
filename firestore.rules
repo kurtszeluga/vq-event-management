@@ -395,6 +395,121 @@ service cloud.firestore {
         && request.resource.data.termsVersion is string;
     }
 
+    // Owner self-edit of a profile. Deliberately not validUser(): that
+    // re-validates all thirty fields of the document - membership, payment,
+    // terms, archive - on every write, and evaluating it blew Firestore's
+    // 1000-expression-per-request ceiling, so every update was rejected with
+    // "maximum of 1000 expressions to evaluate has been reached" no matter who
+    // made it. This checks only what a member is allowed to touch.
+    //
+    // It is also stricter than the checks it replaces. affectedKeys() pins the
+    // change to exactly these seven fields, so role, status, permissions,
+    // profileTags and every membership field are immutable here by
+    // construction, rather than by a separate comparison for each one.
+    function validSelfProfileEdit() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'firstName',
+          'lastName',
+          'name',
+          'email',
+          'phone',
+          'billingAddress',
+          'updatedDate'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && (!('firstName' in request.resource.data)
+          || request.resource.data.firstName is string)
+        && (!('lastName' in request.resource.data)
+          || request.resource.data.lastName is string)
+        && (!('updatedDate' in request.resource.data)
+          || request.resource.data.updatedDate is timestamp)
+        && (!('billingAddress' in request.resource.data)
+          || request.resource.data.billingAddress is map
+            && request.resource.data.billingAddress.keys().hasOnly([
+              'street',
+              'city',
+              'state',
+              'postalCode',
+              'country'
+            ])
+            && request.resource.data.billingAddress.street is string
+            && request.resource.data.billingAddress.city is string
+            && request.resource.data.billingAddress.state is string
+            && request.resource.data.billingAddress.postalCode is string
+            && request.resource.data.billingAddress.country is string);
+    }
+
+    // Admin/super-user updates. validUser() stays the gate for `create`, where
+    // the whole document is new and every field deserves checking; reusing it
+    // for `update` re-validated all thirty fields on every write, and the total
+    // cost of this rule set - which Firestore charges in full, since a refusal
+    // has to evaluate every branch before it can answer "no" - ran past the
+    // 1000-expression ceiling and turned every users update into a flat denial.
+    //
+    // What is kept is what an update can actually subvert: the key whitelist,
+    // and the role/status/permissions integrity that governs privilege. What is
+    // dropped is re-checking the types of fields this write is not touching -
+    // affectedKeys() already bounds which keys may change, membership fields are
+    // frozen separately by membershipFieldsUnchanged(), and the create path
+    // validated them when they were written. The trade is deliberate: an admin
+    // could still store, say, a numeric phone, which is a data-integrity risk,
+    // not a privilege one.
+    function validUserAdminUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'userId',
+          'billingAddress',
+          'archivedBy',
+          'archivedDate',
+          'firstName',
+          'lastName',
+          'name',
+          'email',
+          'membershipMatchedBy',
+          'membershipMemberId',
+          'membershipPaymentAmount',
+          'membershipPaymentMethod',
+          'membershipPaymentNote',
+          'membershipPaymentStatus',
+          'membershipPaymentUpdatedDate',
+          'membershipReviewNote',
+          'membershipReviewedBy',
+          'membershipReviewedDate',
+          'membershipStatus',
+          'membershipUpdatedDate',
+          'phone',
+          'permissions',
+          'profileTags',
+          'role',
+          'status',
+          'termsAccepted',
+          'termsAcceptedDate',
+          'termsVersion',
+          'createdDate',
+          'updatedDate'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
+        && validStatus(request.resource.data.status, ['Active', 'Inactive', 'Archived'])
+        && request.resource.data.permissions is map
+        && request.resource.data.permissions.keys().hasOnly([
+          'manageEvents',
+          'viewRegistrations',
+          'managePayments',
+          'addUsers',
+          'manageMembershipStatus'
+        ])
+        && (request.resource.data.role == 'Super User'
+          || request.resource.data.role == 'Admin'
+            && request.resource.data.status == 'Active'
+            && request.resource.data.membershipStatus == 'Active'
+          || request.resource.data.role == 'General User'
+            && hasNoAdminPermissions());
+    }
+
     function hasNoAdminPermissions() {
       return request.resource.data.permissions.manageEvents == false
         && request.resource.data.permissions.viewRegistrations == false
@@ -409,62 +524,27 @@ service cloud.firestore {
         && currentUserData().permissions.manageMembershipStatus == true;
     }
 
-    function profileTagsUnchanged() {
-      return !('profileTags' in resource.data) && !('profileTags' in request.resource.data)
-        || 'profileTags' in resource.data
-          && 'profileTags' in request.resource.data
-          && request.resource.data.profileTags == resource.data.profileTags;
-    }
-
+    // Rewritten from twelve three-clause comparisons to a single key diff.
+    // The old form was one of the two predicates that pushed this rule set past
+    // Firestore's 1000-expression evaluation ceiling, which made every users
+    // update fail regardless of who issued it. hasAny() over the changed keys is
+    // equivalent and also stricter: a field cannot be added or removed either,
+    // where per-field equality only compared fields present on both sides.
     function membershipFieldsUnchanged() {
-      return (!('membershipMatchedBy' in resource.data) && !('membershipMatchedBy' in request.resource.data)
-          || 'membershipMatchedBy' in resource.data
-            && 'membershipMatchedBy' in request.resource.data
-            && request.resource.data.membershipMatchedBy == resource.data.membershipMatchedBy)
-        && (!('membershipMemberId' in resource.data) && !('membershipMemberId' in request.resource.data)
-          || 'membershipMemberId' in resource.data
-            && 'membershipMemberId' in request.resource.data
-            && request.resource.data.membershipMemberId == resource.data.membershipMemberId)
-        && (!('membershipPaymentAmount' in resource.data) && !('membershipPaymentAmount' in request.resource.data)
-          || 'membershipPaymentAmount' in resource.data
-            && 'membershipPaymentAmount' in request.resource.data
-            && request.resource.data.membershipPaymentAmount == resource.data.membershipPaymentAmount)
-        && (!('membershipPaymentMethod' in resource.data) && !('membershipPaymentMethod' in request.resource.data)
-          || 'membershipPaymentMethod' in resource.data
-            && 'membershipPaymentMethod' in request.resource.data
-            && request.resource.data.membershipPaymentMethod == resource.data.membershipPaymentMethod)
-        && (!('membershipPaymentNote' in resource.data) && !('membershipPaymentNote' in request.resource.data)
-          || 'membershipPaymentNote' in resource.data
-            && 'membershipPaymentNote' in request.resource.data
-            && request.resource.data.membershipPaymentNote == resource.data.membershipPaymentNote)
-        && (!('membershipPaymentStatus' in resource.data) && !('membershipPaymentStatus' in request.resource.data)
-          || 'membershipPaymentStatus' in resource.data
-            && 'membershipPaymentStatus' in request.resource.data
-            && request.resource.data.membershipPaymentStatus == resource.data.membershipPaymentStatus)
-        && (!('membershipPaymentUpdatedDate' in resource.data) && !('membershipPaymentUpdatedDate' in request.resource.data)
-          || 'membershipPaymentUpdatedDate' in resource.data
-            && 'membershipPaymentUpdatedDate' in request.resource.data
-            && request.resource.data.membershipPaymentUpdatedDate == resource.data.membershipPaymentUpdatedDate)
-        && (!('membershipReviewNote' in resource.data) && !('membershipReviewNote' in request.resource.data)
-          || 'membershipReviewNote' in resource.data
-            && 'membershipReviewNote' in request.resource.data
-            && request.resource.data.membershipReviewNote == resource.data.membershipReviewNote)
-        && (!('membershipReviewedBy' in resource.data) && !('membershipReviewedBy' in request.resource.data)
-          || 'membershipReviewedBy' in resource.data
-            && 'membershipReviewedBy' in request.resource.data
-            && request.resource.data.membershipReviewedBy == resource.data.membershipReviewedBy)
-        && (!('membershipReviewedDate' in resource.data) && !('membershipReviewedDate' in request.resource.data)
-          || 'membershipReviewedDate' in resource.data
-            && 'membershipReviewedDate' in request.resource.data
-            && request.resource.data.membershipReviewedDate == resource.data.membershipReviewedDate)
-        && (!('membershipStatus' in resource.data) && !('membershipStatus' in request.resource.data)
-          || 'membershipStatus' in resource.data
-            && 'membershipStatus' in request.resource.data
-            && request.resource.data.membershipStatus == resource.data.membershipStatus)
-        && (!('membershipUpdatedDate' in resource.data) && !('membershipUpdatedDate' in request.resource.data)
-          || 'membershipUpdatedDate' in resource.data
-            && 'membershipUpdatedDate' in request.resource.data
-            && request.resource.data.membershipUpdatedDate == resource.data.membershipUpdatedDate);
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'membershipMatchedBy',
+        'membershipMemberId',
+        'membershipPaymentAmount',
+        'membershipPaymentMethod',
+        'membershipPaymentNote',
+        'membershipPaymentStatus',
+        'membershipPaymentUpdatedDate',
+        'membershipReviewNote',
+        'membershipReviewedBy',
+        'membershipReviewedDate',
+        'membershipStatus',
+        'membershipUpdatedDate'
+      ]);
     }
 
     function membershipStatusEditable() {
@@ -821,20 +901,29 @@ service cloud.firestore {
         || isSuperUser()
         || isAdmin() && resource.data.role == 'General User';
       allow create: if isSuperUser() && validUser() || validSelfUserCreate(userId) && validUser();
-      allow update: if isSuperUser() && validUser()
-        || hasPermission('addUsers')
-          && resource.data.role == 'General User'
-          && validUser()
-          && request.resource.data.role == 'General User'
-          && hasNoAdminPermissions()
-          && (membershipFieldsUnchanged() || membershipStatusEditable())
-        || isOwner(userId)
-          && validUser()
-          && request.resource.data.role == resource.data.role
-          && request.resource.data.status == resource.data.status
-          && request.resource.data.permissions == resource.data.permissions
-          && profileTagsUnchanged()
-          && membershipFieldsUnchanged();
+      // Firestore charges every expression this rule evaluates against a hard
+      // ceiling of 1000 per request, and a write that is going to be refused has
+      // to evaluate all three branches before it can answer "no" - so a refusal
+      // costs the sum of them, not the cheapest one. The original form called
+      // validUser() inside each branch, and rules do not memoise, so a single
+      // update evaluated that thirty-field sweep up to three times and blew the
+      // ceiling. Every users update then failed with "maximum of 1000
+      // expressions to evaluate has been reached", which surfaces as an ordinary
+      // permission denial - so a member saving their own profile, and an admin
+      // editing anyone, were both refused with no indication why.
+      //
+      // The owner path now uses validSelfProfileEdit(), which is small and
+      // diff-based, and the admin paths share one validUserAdminUpdate().
+      // tests/rules/users-self-update.test.js pins both the permissions and the
+      // fact that this rule can still be evaluated at all.
+      allow update: if isOwner(userId) && validSelfProfileEdit()
+        || (isSuperUser()
+            || hasPermission('addUsers')
+              && resource.data.role == 'General User'
+              && request.resource.data.role == 'General User'
+              && hasNoAdminPermissions()
+              && (membershipFieldsUnchanged() || membershipStatusEditable()))
+          && validUserAdminUpdate();
       allow delete: if isSuperUser();
     }
 
