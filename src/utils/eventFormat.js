@@ -80,7 +80,7 @@ export function formatRegistrationDateRange(event) {
     return formatDateOnly(startDate);
   }
 
-  return `${formatDateOnly(startDate)} - ${formatDateOnly(endDate)}`;
+  return `Opens ${formatDateOnly(startDate)} · Closes ${formatDateOnly(endDate)}`;
 }
 
 export function formatTimeRange(startTime, endTime) {

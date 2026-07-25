@@ -131,13 +131,12 @@ function SignupPage() {
         title="Become A Member"
         description="Create your Guild member profile and login. New membership requests stay pending until an administrator records payment or activates the membership."
       />
-      <div className="status-panel">
-        <span className={firebaseConfigured ? 'status-dot good' : 'status-dot'} />
-        <span>
-          Firebase environment configuration is{' '}
-          <strong>{firebaseConfigured ? 'present' : 'not set locally'}</strong>.
-        </span>
-      </div>
+      {!firebaseConfigured ? (
+        <div className="status-panel">
+          <span className="status-dot" />
+          <span>Signup isn&apos;t available right now. Please try again later or contact support.</span>
+        </div>
+      ) : null}
       <form className="form-panel" onSubmit={handleSubmit}>
         <label>
           <span>First Name *</span>

@@ -267,6 +267,7 @@ function EventsPage() {
   const [error, setError] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState(DEFAULT_EVENT_TYPE_FILTER);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  const [expandedStats, setExpandedStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [registrationCounts, setRegistrationCounts] = useState({});
 
@@ -398,6 +399,13 @@ function EventsPage() {
     };
   }, [registerableEvents]);
 
+  function toggleStats(eventId) {
+    setExpandedStats((current) => ({
+      ...current,
+      [eventId]: !current[eventId]
+    }));
+  }
+
   function toggleDescription(eventId) {
     setExpandedDescriptions((current) => ({
       ...current,
@@ -448,6 +456,8 @@ function EventsPage() {
           const counts = registrationCounts[event.id] || {};
           const availability = getRegistrationAvailability(event, counts);
           const registrationStats = getEventRegistrationStats(event, counts);
+          const statsExpanded = Boolean(expandedStats[event.id]);
+          const heldCount = Number(counts.held || 0);
           const availabilityTone = availability.label === 'Unlimited'
             ? availability.tone
             : event.registrationOpen
@@ -485,7 +495,26 @@ function EventsPage() {
                   </div>
                 ) : null}
                 <div className="event-registration-pill-row" aria-label="Registration statistics">
-                  {registrationStats.map((stat) => (
+                  <span
+                    className={`event-registration-pill${registrationStats.primary.tone ? ` ${registrationStats.primary.tone}` : ''}`}
+                  >
+                    <strong>{registrationStats.primary.value}</strong>
+                    {registrationStats.primary.label}
+                  </span>
+                  {heldCount ? (
+                    <span className="event-registration-pill hold">
+                      <strong>{heldCount}</strong>
+                      Held
+                    </span>
+                  ) : null}
+                  <button
+                    className="text-button event-description-toggle"
+                    onClick={() => toggleStats(event.id)}
+                    type="button"
+                  >
+                    {statsExpanded ? 'Hide Registration Details' : 'Show Registration Details'}
+                  </button>
+                  {statsExpanded ? registrationStats.secondary.map((stat) => (
                     <span
                       className={`event-registration-pill${stat.tone ? ` ${stat.tone}` : ''}`}
                       key={stat.label}
@@ -493,13 +522,7 @@ function EventsPage() {
                       <strong>{stat.value}</strong>
                       {stat.label}
                     </span>
-                  ))}
-                  {Number(counts.held || 0) ? (
-                    <span className="event-registration-pill hold">
-                      <strong>{Number(counts.held || 0)}</strong>
-                      Held
-                    </span>
-                  ) : null}
+                  )) : null}
                 </div>
                 <dl>
                   <div className="event-card-date">
@@ -581,36 +604,44 @@ function EventsPage() {
   );
 }
 
+// Members mainly need one number - is there a seat? The Capacity/Registered/
+// Pending Payment/Waitlisted breakdown is operational detail more useful to
+// an admin, so it's split out and shown only behind a "Registration details"
+// toggle instead of leading the card alongside the seat count.
 function getEventRegistrationStats(event, counts = {}) {
   const registered = Number(counts.registered || 0);
   const pendingPayment = Number(counts.pendingPayment || 0);
   const waitlisted = Number(counts.waitlisted || 0);
 
   if (event.capacityUnlimited) {
-    return [
-      { label: 'Capacity', value: 'Unlimited' },
-      { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
-      { label: 'Pending Payment', value: String(pendingPayment), tone: pendingPayment ? 'waitlist' : '' },
-      { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
-      { label: 'Open Seats', value: 'Unlimited', tone: 'open' }
-    ];
+    return {
+      primary: { label: 'Open Seats', value: 'Unlimited', tone: 'open' },
+      secondary: [
+        { label: 'Capacity', value: 'Unlimited' },
+        { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+        { label: 'Pending Payment', value: String(pendingPayment), tone: pendingPayment ? 'waitlist' : '' },
+        { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' }
+      ]
+    };
   }
 
   const capacity = Number(event.capacity || 0);
   const held = Number(counts.held || 0);
   const openSeats = capacity ? Math.max(capacity - registered - pendingPayment - held, 0) : null;
 
-  return [
-    { label: 'Capacity', value: capacity ? String(capacity) : 'Not Set' },
-    { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
-    { label: 'Pending Payment', value: String(pendingPayment), tone: pendingPayment ? 'waitlist' : '' },
-    { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
-    {
+  return {
+    primary: {
       label: 'Open Seats',
       value: openSeats === null ? 'N/A' : String(openSeats),
       tone: openSeats === 0 && capacity ? 'full' : 'open'
-    }
-  ];
+    },
+    secondary: [
+      { label: 'Capacity', value: capacity ? String(capacity) : 'Not Set' },
+      { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
+      { label: 'Pending Payment', value: String(pendingPayment), tone: pendingPayment ? 'waitlist' : '' },
+      { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' }
+    ]
+  };
 }
 
 export default EventsPage;

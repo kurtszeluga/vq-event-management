@@ -61,8 +61,8 @@ function ProfilePage() {
   if (!firebaseConfigured) {
     return (
       <div className="empty-state">
-        <h2>Firebase is not configured</h2>
-        <p>Add the Firebase environment variables before using profiles.</p>
+        <h2>Profiles aren&apos;t available right now</h2>
+        <p>Please try again later or contact support.</p>
       </div>
     );
   }

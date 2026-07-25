@@ -91,8 +91,8 @@ a {
 }
 
 .brand small {
-  color: #687572;
-  font-size: 0.86rem;
+  color: #5c6966;
+  font-size: 1rem;
   margin-top: 2px;
 }
 
@@ -114,7 +114,8 @@ a {
   display: inline-flex;
   font: inherit;
   font-weight: 700;
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 13px 16px;
   text-decoration: none;
 }
 
@@ -179,7 +180,7 @@ a {
   color: #5c6966;
   display: flex;
   flex-wrap: wrap;
-  font-size: 0.84rem;
+  font-size: 0.92rem;
   gap: 10px 24px;
   justify-content: space-between;
   padding: 14px clamp(18px, 4vw, 56px);
@@ -555,7 +556,7 @@ body.popup-mode .page-content {
 }
 
 .form-section-header span {
-  color: #687572;
+  color: #5c6966;
   font-weight: 800;
 }
 
@@ -642,7 +643,7 @@ body.popup-mode .page-content {
 
 .admin-form .form-help {
   color: #5c6966;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -754,7 +755,7 @@ body.popup-mode .page-content {
 }
 
 .terms-version-row span {
-  color: #687572;
+  color: #5c6966;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -886,7 +887,7 @@ body.popup-mode .page-content {
   background: #eee8e1;
   border: 1px dashed #c9bbb0;
   border-radius: 8px;
-  color: #687572;
+  color: #5c6966;
   display: flex;
   font-size: 0.92rem;
   font-weight: 800;
@@ -916,7 +917,7 @@ body.popup-mode .page-content {
 .uploaded-document-placeholder {
   background: #eee8e1;
   border: 1px dashed #c9bbb0;
-  color: #687572;
+  color: #5c6966;
   font-weight: 800;
   max-width: 240px;
 }
@@ -941,7 +942,7 @@ body.popup-mode .page-content {
 }
 
 .uploaded-document-card small {
-  color: #687572;
+  color: #5c6966;
   font-weight: 700;
   margin-top: 3px;
   overflow-wrap: anywhere;
@@ -970,7 +971,7 @@ body.popup-mode .page-content {
 
 .upload-inline-success {
   color: #225c3d;
-  font-size: 0.9rem;
+  font-size: 0.96rem;
   font-weight: 800;
 }
 
@@ -1038,7 +1039,8 @@ body.popup-mode .page-content {
   display: inline-flex;
   font: inherit;
   font-weight: 800;
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 13px 16px;
   text-decoration: none;
 }
 
@@ -1246,8 +1248,8 @@ body.popup-mode .page-content {
 .user-admin-card dt,
 .public-event-card dt,
 .detail-panel dt {
-  color: #687572;
-  font-size: 0.8rem;
+  color: #5c6966;
+  font-size: 0.92rem;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1269,7 +1271,7 @@ body.popup-mode .page-content {
 
 .event-coordinator-contact {
   color: #5c6966;
-  font-size: 0.94rem;
+  font-size: 1rem;
   margin-top: 4px;
 }
 
@@ -1465,7 +1467,7 @@ body.popup-mode .page-content {
 
 .registration-summary dt {
   color: #5a6b67;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   font-weight: 800;
 }
 
@@ -1594,7 +1596,7 @@ body.popup-mode .page-content {
 
 .registration-completion-card dt {
   color: #5a6b67;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   font-weight: 800;
 }
 
@@ -1624,7 +1626,7 @@ body.popup-mode .page-content {
 
 .registration-lookup-card dt {
   color: #5a6b67;
-  font-size: 0.8rem;
+  font-size: 0.92rem;
   font-weight: 800;
 }
 
@@ -1739,8 +1741,8 @@ body.popup-mode .page-content {
 }
 
 .user-detail-grid strong {
-  color: #687572;
-  font-size: 0.78rem;
+  color: #5c6966;
+  font-size: 0.9rem;
   text-transform: uppercase;
 }
 
@@ -1765,7 +1767,7 @@ body.popup-mode .page-content {
 
 .user-table th {
   color: #3b4b48;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   text-transform: uppercase;
 }
 
@@ -1787,8 +1789,8 @@ body.popup-mode .page-content {
 }
 
 .table-sort-button span {
-  color: #687572;
-  font-size: 0.68rem;
+  color: #5c6966;
+  font-size: 0.76rem;
   font-weight: 800;
   text-transform: none;
 }
@@ -1814,8 +1816,8 @@ body.popup-mode .page-content {
 }
 
 .user-table td span {
-  color: #687572;
-  font-size: 0.88rem;
+  color: #5c6966;
+  font-size: 1rem;
   font-weight: 800;
   margin-top: 3px;
 }
@@ -1892,7 +1894,7 @@ body.popup-mode .page-content {
 
 .payment-review-actions label {
   color: #263632;
-  font-size: 0.84rem;
+  font-size: 0.92rem;
   font-weight: 900;
 }
 
@@ -1917,8 +1919,8 @@ body.popup-mode .page-content {
 }
 
 .payment-review-reviewed span {
-  color: #687572;
-  font-size: 0.88rem;
+  color: #5c6966;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
@@ -1932,15 +1934,15 @@ body.popup-mode .page-content {
 .my-registrations-table .table-inline-link {
   color: #225c56;
   display: inline-block;
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   font-weight: 900;
   margin-top: 6px;
 }
 
 .my-registrations-table .table-subtext {
-  color: #687572;
+  color: #5c6966;
   display: block;
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   font-weight: 800;
   margin-top: 3px;
 }
@@ -2078,7 +2080,7 @@ body.popup-mode .page-content {
 
 .member-directory-card span {
   color: #5c6966;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
@@ -2095,7 +2097,7 @@ body.popup-mode .page-content {
 
 .member-directory-card dt {
   color: #6d5b50;
-  font-size: 0.76rem;
+  font-size: 0.88rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -2296,7 +2298,7 @@ body.popup-mode .page-content {
 
 .coordinator-area-heading p {
   color: #5c6966;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   margin-top: 4px;
 }
 
@@ -2336,7 +2338,7 @@ body.popup-mode .page-content {
 
 .configuration-review-item span {
   color: #5c6966;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .configuration-submit-button {
@@ -2380,7 +2382,7 @@ body.popup-mode .page-content {
   cursor: pointer;
   font: inherit;
   font-weight: 800;
-  padding: 8px 12px;
+  padding: 11px 16px;
 }
 
 .status-filter-button.active {
@@ -2453,7 +2455,7 @@ body.popup-mode .page-content {
 
 .profile-search-row label span {
   color: #3b4b48;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   font-weight: 900;
 }
 
@@ -2493,7 +2495,7 @@ body.popup-mode .page-content {
 
 .registration-year-filter span {
   color: #3b4b48;
-  font-size: 0.86rem;
+  font-size: 0.92rem;
   font-weight: 900;
 }
 
@@ -2562,7 +2564,7 @@ body.popup-mode .page-content {
 
 .registration-event-card-main p {
   color: #5c6966;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
 }
 
 .registration-event-info {
@@ -2578,7 +2580,7 @@ body.popup-mode .page-content {
 
 .registration-event-info dt {
   color: #66736f;
-  font-size: 0.72rem;
+  font-size: 0.84rem;
   font-weight: 900;
   letter-spacing: 0.04em;
   margin: 0 0 2px;
@@ -2587,7 +2589,7 @@ body.popup-mode .page-content {
 
 .registration-event-info dd {
   color: #243330;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 750;
   margin: 0;
 }
@@ -2624,7 +2626,7 @@ body.popup-mode .page-content {
 .registration-event-stats .no-count {
   background: transparent;
   border: 1px solid #ded5ca;
-  color: #687572;
+  color: #5c6966;
 }
 
 .registration-event-edit-button {
@@ -2649,7 +2651,7 @@ body.popup-mode .page-content {
 
 .registration-admin-card-header p {
   color: #5c6966;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
 }
 
 .registration-table {
@@ -2697,7 +2699,7 @@ body.popup-mode .page-content {
 
 .registration-history-item span {
   color: #3b4b48;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .payment-history-list {
@@ -2731,7 +2733,7 @@ body.popup-mode .page-content {
 .payment-history-item span,
 .payment-history-item p {
   color: #3b4b48;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .payment-history-item p {
@@ -2758,7 +2760,7 @@ body.popup-mode .page-content {
 
 .registration-edit-context span {
   color: #5c6966;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   font-weight: 800;
 }
 
@@ -2801,7 +2803,7 @@ body.popup-mode .page-content {
 
 .registration-detail-item dt {
   color: #5c6966;
-  font-size: 0.76rem;
+  font-size: 0.88rem;
   font-weight: 900;
   margin: 0 0 2px;
   text-transform: uppercase;
@@ -2809,7 +2811,7 @@ body.popup-mode .page-content {
 
 .registration-detail-item dd {
   color: #1d2927;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   font-weight: 700;
   margin: 0;
 }
@@ -2822,7 +2824,7 @@ body.popup-mode .page-content {
 
 .registration-modal-status span {
   color: #3b4b48;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   font-weight: 900;
 }
 
@@ -2841,7 +2843,7 @@ body.popup-mode .page-content {
 
 .registration-status-summary span {
   color: #5c6966;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   font-weight: 900;
 }
 
@@ -2875,7 +2877,7 @@ body.popup-mode .page-content {
 
 .registration-payment-grid label span {
   color: #3b4b48;
-  font-size: 0.92rem;
+  font-size: 0.96rem;
   font-weight: 900;
 }
 
@@ -3107,7 +3109,7 @@ body.popup-mode .page-content {
   }
 
   .user-table td::before {
-    color: #687572;
+    color: #5c6966;
     content: attr(data-label);
     font-size: 0.78rem;
     font-weight: 900;

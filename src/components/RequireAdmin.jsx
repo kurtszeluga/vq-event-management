@@ -9,8 +9,8 @@ function RequireAdmin({ children }) {
   if (!firebaseConfigured) {
     return (
       <div className="empty-state">
-        <h2>Firebase is not configured</h2>
-        <p>Add the Firebase environment variables before using the admin area.</p>
+        <h2>Admin tools aren&apos;t available right now</h2>
+        <p>Please try again later or contact support.</p>
       </div>
     );
   }

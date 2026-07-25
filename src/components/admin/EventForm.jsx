@@ -752,7 +752,7 @@ function EventForm({
                     ))}
                   </select>
                   <span className="form-help">
-                    Chose Other to enter a specific time.
+                    Choose Other to enter a specific time.
                   </span>
                 </label>
                 {form.timePreset === 'other' ? (
@@ -1403,6 +1403,9 @@ function EventForm({
             </label>
             {showRegistrationDateFields ? (
               <div className="form-row-pair nested-fields">
+                <span className="form-help form-span">
+                  Members can only register between these two times.
+                </span>
                 <label>
                   <span>Registration Starts</span>
                   <input

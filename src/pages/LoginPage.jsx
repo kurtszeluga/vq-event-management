@@ -30,7 +30,7 @@ function LoginPage() {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       navigate('/', { replace: true });
     } catch (error) {
-      setFormError(error.message);
+      setFormError(getSignInErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -67,13 +67,12 @@ function LoginPage() {
         title="Sign in"
         description="Sign in to access your account, member features, and any tools you are allowed to use."
       />
-      <div className="status-panel">
-        <span className={firebaseConfigured ? 'status-dot good' : 'status-dot'} />
-        <span>
-          Firebase environment configuration is{' '}
-          <strong>{firebaseConfigured ? 'present' : 'not set locally'}</strong>.
-        </span>
-      </div>
+      {!firebaseConfigured ? (
+        <div className="status-panel">
+          <span className="status-dot" />
+          <span>Sign-in isn&apos;t available right now. Please try again later or contact support.</span>
+        </div>
+      ) : null}
       <form className="form-panel" onSubmit={handleSubmit}>
           <label>
             <span>Email</span>
@@ -150,6 +149,32 @@ function LoginPage() {
       </form>
     </section>
   );
+}
+
+function getSignInErrorMessage(error) {
+  if (error.code === 'auth/invalid-credential'
+    || error.code === 'auth/wrong-password'
+    || error.code === 'auth/user-not-found') {
+    return 'That email and password combination is not correct. Try again, or use Forgot password or username below.';
+  }
+
+  if (error.code === 'auth/invalid-email') {
+    return 'Enter a valid email address.';
+  }
+
+  if (error.code === 'auth/user-disabled') {
+    return 'This account has been disabled. Contact an administrator for help.';
+  }
+
+  if (error.code === 'auth/too-many-requests') {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+
+  if (error.code === 'auth/network-request-failed') {
+    return 'Could not connect. Check your internet connection and try again.';
+  }
+
+  return 'Sign in could not be completed. Please try again.';
 }
 
 function getPasswordResetErrorMessage(error) {
