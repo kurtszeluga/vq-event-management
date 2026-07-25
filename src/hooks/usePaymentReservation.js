@@ -15,10 +15,11 @@ import {
 // silently consumes a seat. Two guards protect that, and both belong with
 // this state rather than the page:
 //
-//   1. requestActive - a ref-based re-entrancy lock. The auto-reserve effect
-//      and an explicit submit or test-card call can both reach
-//      ensurePaymentReservation while a request is in flight; without the
-//      lock each would create its own hold.
+//   1. inFlightRequest - a ref holding the in-flight reservation promise.
+//      The auto-reserve effect and an explicit submit or test-card call can
+//      both reach ensurePaymentReservation while a request is running;
+//      without this each would create its own hold. Concurrent callers get
+//      the same promise, so they all end up with the same reservation.
 //   2. The invalidation effect - any change to registrant identity, billing,
 //      the event, or the payment preference drops the current hold. A hold is
 //      bound server-side to an event, email, and exact amount, so reusing one
@@ -51,7 +52,7 @@ export function usePaymentReservation({
   const [paymentReservationError, setPaymentReservationError] = useState('');
   const [paymentReservationLoading, setPaymentReservationLoading] = useState(false);
   const [paymentReservationExpired, setPaymentReservationExpired] = useState(false);
-  const requestActive = useRef(false);
+  const inFlightRequest = useRef(null);
 
   const isPaidEvent = getIsPaidEvent(event);
   const requiresSquarePayment = getRequiresSquarePayment(event, paymentPreference);
@@ -134,29 +135,50 @@ export function usePaymentReservation({
       return null;
     }
 
-    if (requestActive.current) {
-      return null;
+    // Concurrent callers await the same request rather than being turned
+    // away. Returning null here instead would let submit proceed with no
+    // reservation id, which the server rejects as an expired hold - and that
+    // is reachable in normal use, since editing any billing field drops the
+    // hold and immediately triggers a new one.
+    if (inFlightRequest.current) {
+      return inFlightRequest.current;
     }
 
-    requestActive.current = true;
     setPaymentReservationLoading(true);
     setPaymentReservationError('');
 
-    try {
-      const reservation = await beginSquareReservation(buildRegistrationRequest());
+    const request = (async () => {
+      try {
+        const reservation = await beginSquareReservation(buildRegistrationRequest());
 
-      setPaymentReservation(reservation);
-      setPaymentReservationError('');
-      setPaymentReservationExpired(false);
-      return reservation;
-    } catch (error) {
-      setPaymentReservation(null);
-      setPaymentReservationError(error.message);
-      throw error;
-    } finally {
-      setPaymentReservationLoading(false);
-      requestActive.current = false;
-    }
+        setPaymentReservation(reservation);
+        setPaymentReservationError('');
+        setPaymentReservationExpired(false);
+        return reservation;
+      } catch (error) {
+        setPaymentReservation(null);
+        setPaymentReservationError(error.message);
+        throw error;
+      } finally {
+        setPaymentReservationLoading(false);
+      }
+    })();
+
+    inFlightRequest.current = request;
+
+    // Cleared out here rather than in the block above: a failure before the
+    // first await would run that finally synchronously, before the
+    // assignment, stranding a settled promise in the slot permanently. The
+    // identity check keeps a slow request from clearing a newer one.
+    request
+      .catch(() => {})
+      .finally(() => {
+        if (inFlightRequest.current === request) {
+          inFlightRequest.current = null;
+        }
+      });
+
+    return request;
   }, [buildRegistrationRequest, paymentReservation, paymentReservationExpired, requiresSquarePayment]);
 
   useEffect(() => {

@@ -63,11 +63,16 @@ beforeEach(() => {
   loadSquarePaymentConfig.mockResolvedValue({ enabled: true, environment: 'sandbox' });
 });
 
-describe('the re-entrancy lock', () => {
-  it('creates only one hold when called concurrently', async () => {
-    // Seat holds count against capacity server-side. Without the lock, the
+describe('the in-flight request guard', () => {
+  it('creates only one hold when called concurrently, and both callers get it', async () => {
+    // Seat holds count against capacity server-side. Without this guard, the
     // auto-reserve effect and an explicit submit could each create a hold and
     // silently consume two seats for one registrant.
+    //
+    // The second caller must receive the same reservation rather than null.
+    // Returning null let submit proceed with an empty reservationId, which the
+    // server rejects as an expired hold - reachable in normal use, since
+    // editing a billing field drops the hold and immediately starts a new one.
     let releaseRequest;
     beginSquareReservation.mockImplementation(
       () => new Promise((resolve) => { releaseRequest = resolve; })
@@ -85,10 +90,35 @@ describe('the re-entrancy lock', () => {
     });
 
     expect(beginSquareReservation).toHaveBeenCalledTimes(1);
-    await expect(second).resolves.toBe(null);
     await expect(first).resolves.toMatchObject({ reservationId: 'hold-1' });
+    await expect(second).resolves.toMatchObject({ reservationId: 'hold-1' });
   });
 
+  it('propagates a failure to every concurrent caller', async () => {
+    // Both callers wanted a hold and neither got one, so neither should be
+    // told it succeeded.
+    let rejectRequest;
+    beginSquareReservation.mockImplementation(
+      () => new Promise((resolve, reject) => { rejectRequest = reject; })
+    );
+
+    const { result } = setup();
+
+    await act(async () => {
+      const first = result.current.ensurePaymentReservation();
+      const second = result.current.ensurePaymentReservation();
+      rejectRequest(new Error('Seat hold failed.'));
+      await Promise.allSettled([first, second]);
+
+      await expect(first).rejects.toThrow('Seat hold failed.');
+      await expect(second).rejects.toThrow('Seat hold failed.');
+    });
+
+    expect(beginSquareReservation).toHaveBeenCalledTimes(1);
+  });
+
+  // Also covers freeing the in-flight slot: a stranded promise there would
+  // block every later attempt.
   it('releases the lock after a failure so a retry can still reserve', async () => {
     beginSquareReservation.mockRejectedValueOnce(new Error('Seat hold failed.'));
     const { result } = setup();
