@@ -72,7 +72,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('archiving an event blocked by pending payments', () => {
-  it('shows the server refusal message and keeps the event unarchived', async () => {
+  it('shows the server refusal message and leaves only a Cancel button', async () => {
     const user = userEvent.setup();
     archiveEventMock.mockRejectedValue(
       new Error('Cannot archive this event: 2 registrations still have a payment awaiting collection. Resolve them in Payment Review before archiving.')
@@ -87,12 +87,36 @@ describe('archiving an event blocked by pending payments', () => {
       expect(screen.getByText(/2 registrations still have a payment awaiting collection/)).toBeTruthy();
     });
 
-    // The confirm dialog itself is still open - archiving did not go through.
-    expect(screen.getByRole('button', { name: 'Archive Event' })).toBeTruthy();
+    // The blocked dialog only offers a way out - retrying without fixing
+    // anything can't succeed, so the Archive Event button is gone and Keep
+    // Event's label reads Cancel instead.
+    expect(screen.queryByRole('button', { name: 'Archive Event' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Keep Event' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
     expect(archiveEventMock).toHaveBeenCalledTimes(1);
   });
 
-  it('clears any prior error and archives normally once nothing is pending', async () => {
+  it('clears the error and closes the dialog when Cancel is clicked after a refusal', async () => {
+    const user = userEvent.setup();
+    archiveEventMock.mockRejectedValue(
+      new Error('Cannot archive this event: 1 registration still has a payment awaiting collection. Resolve them in Payment Review before archiving.')
+    );
+    render(<AdminDashboardPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Archive Witch Hat Wizardry' }));
+    await user.click(screen.getByRole('button', { name: 'Archive Event' }));
+    await waitFor(() => {
+      expect(screen.getByText(/1 registration still has a payment awaiting collection/)).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText(/payment awaiting collection/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+  });
+
+  it('archives normally on a fresh attempt once nothing is pending', async () => {
     const user = userEvent.setup();
     archiveEventMock
       .mockRejectedValueOnce(new Error('Cannot archive this event: 1 registration still has a payment awaiting collection. Resolve them in Payment Review before archiving.'))
@@ -106,6 +130,10 @@ describe('archiving an event blocked by pending payments', () => {
       expect(screen.getByText(/1 registration still has a payment awaiting collection/)).toBeTruthy();
     });
 
+    // Blocked archives can't be retried in place - close the dialog and
+    // start over, as the admin would after resolving the payments.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'Archive Witch Hat Wizardry' }));
     await user.click(screen.getByRole('button', { name: 'Archive Event' }));
 
     await waitFor(() => {

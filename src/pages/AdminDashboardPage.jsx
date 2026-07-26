@@ -503,7 +503,7 @@ function AdminDashboardPage() {
       </div>
       <ConfirmDialog
         busy={pendingArchiveEventId === pendingArchiveEvent?.id}
-        cancelLabel="Keep Event"
+        cancelLabel={archiveError ? 'Cancel' : 'Keep Event'}
         confirmLabel={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
         description={
           pendingArchiveEvent
@@ -514,6 +514,7 @@ function AdminDashboardPage() {
         }
         error={archiveError}
         open={Boolean(pendingArchiveEvent)}
+        showConfirm={!archiveError}
         title={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
         tone="danger"
         onCancel={() => {
