@@ -8,6 +8,7 @@ import { isEventVisible } from '../utils/eventFormat.js';
 function SupplyListViewerPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const headingRef = useRef(null);
   const previewRef = useRef(null);
   const printFrameRef = useRef(null);
   const objectUrlRef = useRef('');
@@ -149,6 +150,14 @@ function SupplyListViewerPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (loading || error || !event || !isEventVisible(event) || !event.supplyListUrl) {
+      return;
+    }
+
+    headingRef.current?.focus();
+  }, [error, event, loading]);
+
   // Safari finally prints reliably through this hidden same-page iframe.
   // Do not switch this back to window.print() on the live viewer, a popup,
   // or a PDF iframe print path without re-testing the full Safari workflow.
@@ -184,6 +193,21 @@ function SupplyListViewerPage() {
       frame.removeEventListener('load', handleLoad);
     };
   }, [printDocumentHtml]);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        navigate('/events');
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [navigate]);
 
   function handleClose() {
     if (window.opener) {
@@ -242,7 +266,9 @@ function SupplyListViewerPage() {
       <div className="viewer-toolbar">
         <div>
           <p className="viewer-eyebrow">Supply List</p>
-          <h1>{event.supplyListTitle || event.supplyListFileName || event.title}</h1>
+          <h1 ref={headingRef} tabIndex={-1}>
+            {event.supplyListTitle || event.supplyListFileName || event.title}
+          </h1>
         </div>
         <div className="viewer-actions">
           <a
@@ -266,7 +292,7 @@ function SupplyListViewerPage() {
         <div className="viewer-download-panel">
           <h2>Preview Unavailable</h2>
           <p>{previewError}</p>
-          <p>Use Save or Direct Download above to download the PDF file.</p>
+          <p>Use Save above to download the PDF file.</p>
         </div>
       ) : null}
       <div ref={previewRef} className="viewer-pdf-preview" aria-label="Supply list preview" />
