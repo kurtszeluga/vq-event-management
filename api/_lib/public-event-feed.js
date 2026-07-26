@@ -187,7 +187,7 @@ function matchesCategory(event, config) {
   return true;
 }
 
-function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssignments = []) {
+export function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssignments = []) {
   const eventType = getEventTypeLabel(event);
   const safeOrigin = origin.replace(/\/$/, '');
   const availability = getAvailability(event, registrationCounts);
@@ -255,6 +255,11 @@ function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssig
     visibleFrom: event.visibleFrom || '',
     visibleUntil: event.visibleUntil || '',
     imageUrl: Array.isArray(event.imageUrls) ? event.imageUrls.find(Boolean) || '' : '',
+    // GoDaddy's widget only ever rendered the single imageUrl above; these
+    // two are additive so its template can show a photo count or the full
+    // set later without a breaking change to the feed shape meanwhile.
+    imageUrls: Array.isArray(event.imageUrls) ? event.imageUrls.filter(Boolean) : [],
+    imageCount: Array.isArray(event.imageUrls) ? event.imageUrls.filter(Boolean).length : 0,
     supplyListFileName: event.supplyListFileName || '',
     supplyListTitle: event.supplyListTitle || event.supplyListFileName || '',
     supplyListUrl: event.supplyListUrl || '',

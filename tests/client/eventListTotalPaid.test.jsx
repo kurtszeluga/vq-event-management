@@ -63,3 +63,37 @@ describe('EventList Total Paid stat', () => {
     expect(screen.queryByText('Total Paid')).toBeNull();
   });
 });
+
+describe('EventList photo count caption', () => {
+  it('shows a singular caption for one photo', () => {
+    render(
+      <EventList
+        events={[{ ...PAID_EVENT, imageUrls: ['photo-1.jpg'] }]}
+        onDelete={() => {}}
+        onEdit={() => {}}
+      />
+    );
+
+    expect(screen.getByText('1 Photo')).toBeInTheDocument();
+  });
+
+  it('shows a plural caption and counts only real photos, ignoring blank slots', () => {
+    render(
+      <EventList
+        events={[{ ...PAID_EVENT, imageUrls: ['photo-1.jpg', '', 'photo-2.jpg', 'photo-3.jpg', ''] }]}
+        onDelete={() => {}}
+        onEdit={() => {}}
+      />
+    );
+
+    expect(screen.getByText('3 Photos')).toBeInTheDocument();
+  });
+
+  it('shows no caption at all when the event has no photos', () => {
+    render(
+      <EventList events={[{ ...PAID_EVENT, imageUrls: [] }]} onDelete={() => {}} onEdit={() => {}} />
+    );
+
+    expect(screen.queryByText(/Photo/)).toBeNull();
+  });
+});

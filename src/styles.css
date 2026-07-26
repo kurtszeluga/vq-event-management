@@ -1759,6 +1759,54 @@ body.nav-sheet-open {
   background: #ffffff;
 }
 
+.carousel-toggle {
+  align-items: center;
+  background: rgb(29 41 39 / 55%);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 26px;
+  z-index: 1;
+}
+
+.carousel-toggle:hover {
+  background: rgb(29 41 39 / 75%);
+}
+
+.carousel-pause-icon {
+  display: flex;
+  gap: 3px;
+}
+
+.carousel-pause-bar {
+  background: #ffffff;
+  height: 10px;
+  width: 3px;
+}
+
+.carousel-play-icon {
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid #ffffff;
+  border-top: 5px solid transparent;
+  height: 0;
+  margin-left: 2px;
+  width: 0;
+}
+
+.carousel-photo-count {
+  color: #5c6966;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin: 6px 0 0;
+  text-align: center;
+}
+
 .supply-list-view {
   background: #fffdfa;
   border: 1px solid #ded5ca;

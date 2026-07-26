@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatPhotoCount } from '../EventImageCarousel.jsx';
 import {
   formatCurrency,
   formatEventDate,
@@ -368,7 +369,12 @@ function EventList({
           </div>
           <div className="public-event-card-thumbnail event-admin-card-thumbnail">
             {event.imageUrls?.[0] ? (
-              <img alt={`${event.title || 'Event'} thumbnail`} src={event.imageUrls[0]} />
+              <>
+                <img alt={`${event.title || 'Event'} thumbnail`} src={event.imageUrls[0]} />
+                <p className="carousel-photo-count">
+                  {formatPhotoCount(event.imageUrls.filter(Boolean).length)}
+                </p>
+              </>
             ) : (
               <div className="image-placeholder" aria-label="No image uploaded" />
             )}

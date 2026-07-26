@@ -1,9 +1,15 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import EventImageCarousel from '../../src/components/EventImageCarousel.jsx';
 
-afterEach(cleanup);
+const AUTO_ROTATE_INTERVAL_MS = 4000;
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('EventImageCarousel', () => {
   it('renders the existing placeholder when there are no images', () => {
@@ -14,11 +20,12 @@ describe('EventImageCarousel', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('renders a bare image with no controls when there is exactly one', () => {
+  it('renders the image with no controls but a singular "1 Photo" caption when there is exactly one', () => {
     render(<EventImageCarousel altText="Guild Retreat thumbnail" imageUrls={['photo-1.jpg']} />);
 
     expect(screen.getByAltText('Guild Retreat thumbnail')).toHaveAttribute('src', 'photo-1.jpg');
     expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByText('1 Photo')).toBeInTheDocument();
   });
 
   it('ignores blank slots mixed in with real images', () => {
@@ -37,6 +44,7 @@ describe('EventImageCarousel', () => {
     );
 
     expect(screen.getByAltText(/photo 1 of 3/)).toHaveAttribute('src', 'photo-1.jpg');
+    expect(screen.getByText('3 Photos')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous photo' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next photo' })).toBeInTheDocument();
     expect(document.querySelectorAll('.carousel-dot')).toHaveLength(3);
@@ -92,5 +100,88 @@ describe('EventImageCarousel', () => {
 
     expect(dots()[0].className).not.toContain('active');
     expect(dots()[1].className).toContain('active');
+  });
+
+  it('does not show a pause toggle for 0 or 1 images', () => {
+    render(<EventImageCarousel altText="Guild Retreat thumbnail" imageUrls={['photo-1.jpg']} />);
+
+    expect(screen.queryByRole('button', { name: /automatic photo rotation/ })).toBeNull();
+  });
+
+  it('rotates to the next image automatically, and wraps around', () => {
+    vi.useFakeTimers();
+    render(
+      <EventImageCarousel
+        altText="Guild Retreat thumbnail"
+        imageUrls={['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg']}
+      />
+    );
+
+    expect(screen.getByAltText(/photo 1 of 3/)).toHaveAttribute('src', 'photo-1.jpg');
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_ROTATE_INTERVAL_MS);
+    });
+    expect(screen.getByAltText(/photo 2 of 3/)).toHaveAttribute('src', 'photo-2.jpg');
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_ROTATE_INTERVAL_MS * 2);
+    });
+    expect(screen.getByAltText(/photo 1 of 3/)).toHaveAttribute('src', 'photo-1.jpg');
+  });
+
+  it('stops rotating once paused, and resumes when unpaused', () => {
+    vi.useFakeTimers();
+    render(
+      <EventImageCarousel
+        altText="Guild Retreat thumbnail"
+        imageUrls={['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg']}
+      />
+    );
+
+    act(() => {
+      screen.getByRole('button', { name: 'Pause automatic photo rotation' }).click();
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_ROTATE_INTERVAL_MS * 3);
+    });
+    // Still on the first image - the timer never restarted while paused.
+    expect(screen.getByAltText(/photo 1 of 3/)).toHaveAttribute('src', 'photo-1.jpg');
+
+    act(() => {
+      screen.getByRole('button', { name: 'Resume automatic photo rotation' }).click();
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_ROTATE_INTERVAL_MS);
+    });
+    expect(screen.getByAltText(/photo 2 of 3/)).toHaveAttribute('src', 'photo-2.jpg');
+  });
+
+  it('gives a manual click a fresh full interval before the next auto-advance', () => {
+    vi.useFakeTimers();
+    render(
+      <EventImageCarousel
+        altText="Guild Retreat thumbnail"
+        imageUrls={['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg']}
+      />
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_ROTATE_INTERVAL_MS - 500);
+    });
+    expect(screen.getByAltText(/photo 1 of 3/)).toBeInTheDocument();
+
+    act(() => {
+      screen.getByRole('button', { name: 'Next photo' }).click();
+    });
+    expect(screen.getByAltText(/photo 2 of 3/)).toBeInTheDocument();
+
+    // If the old timer had survived, this would already be past photo 2.
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(screen.getByAltText(/photo 2 of 3/)).toBeInTheDocument();
   });
 });
