@@ -234,6 +234,9 @@ function AdminDashboardPage() {
     [registrations]
   );
   const paymentReviewCount = squareNeedsReviewCount + cashCheckAwaitingCount;
+  // A refusal (e.g. pending payments) can only fail again on retry, so the
+  // dialog offers no confirm action once one has occurred - only a way out.
+  const isArchiveBlocked = Boolean(archiveError);
   const registrationsByEventId = useMemo(() => {
     const grouped = {};
 
@@ -503,7 +506,7 @@ function AdminDashboardPage() {
       </div>
       <ConfirmDialog
         busy={pendingArchiveEventId === pendingArchiveEvent?.id}
-        cancelLabel={archiveError ? 'Cancel' : 'Keep Event'}
+        cancelLabel={isArchiveBlocked ? 'Cancel' : 'Keep Event'}
         confirmLabel={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
         description={
           pendingArchiveEvent
@@ -514,7 +517,7 @@ function AdminDashboardPage() {
         }
         error={archiveError}
         open={Boolean(pendingArchiveEvent)}
-        showConfirm={!archiveError}
+        showConfirm={!isArchiveBlocked}
         title={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
         tone="danger"
         onCancel={() => {
