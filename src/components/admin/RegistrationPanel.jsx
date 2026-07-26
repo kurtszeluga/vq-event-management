@@ -20,6 +20,7 @@ import { subscribeToUsers } from '../../services/userService.js';
 import { formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
 import { isPaymentPending } from '../../utils/registrationEligibility.js';
+import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
 import { getRegistrationWindowState } from '../../../shared/registrationWindow.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
@@ -257,7 +258,8 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
           eventId,
           rawRegistrationCount: eventRegistrations.length,
           snapshot: eventRegistrations[0] || {},
-          registrations: eventRegistrations.sort(compareRegistrationDates)
+          registrations: eventRegistrations.sort(compareRegistrationDates),
+          totalPaid: getTotalPaidAmount(eventRegistrations)
         };
       })
       .sort((first, second) => {
@@ -785,6 +787,11 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                   <span className={getStatPillClass(group.displayCounts.cancelled)}>
                     {group.displayCounts.cancelled} Cancelled
                   </span>
+                  {group.event?.isPaid ? (
+                    <span className={getStatPillClass(group.totalPaid)}>
+                      {formatCurrencyValue(group.totalPaid)} Total Paid
+                    </span>
+                  ) : null}
                 </div>
                 <div className="registration-event-card-main">
                   <div className="card-kicker">

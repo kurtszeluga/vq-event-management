@@ -30,6 +30,7 @@ function EventList({
   onDelete,
   onEdit,
   registrationCounts = {},
+  totalPaidByEventId = {},
   lastSavedEventId = '',
   defaultEventTypeFilter = ALL_TYPES,
   showTypeFilters = true,
@@ -202,7 +203,7 @@ function EventList({
         const wasLastSaved = lastSavedEventId && event.id === lastSavedEventId;
         const counts = registrationCounts[event.id] || {};
         const availability = getRegistrationAvailability(event, counts);
-        const registrationStats = getEventRegistrationStats(event, counts);
+        const registrationStats = getEventRegistrationStats(event, counts, totalPaidByEventId[event.id]);
         const holdTimeLeft = formatHoldTimeLeft(counts.heldExpiresAt, now);
 
         return (
@@ -429,10 +430,16 @@ function canRegisterEvent(event) {
   return event.status !== 'Archived' && isRegistrationWindowOpen(event);
 }
 
-function getEventRegistrationStats(event, counts = {}) {
+function getEventRegistrationStats(event, counts = {}, totalPaid) {
   const registered = Number(counts.registered || 0);
   const pendingPayment = Number(counts.pendingPayment || 0);
   const waitlisted = Number(counts.waitlisted || 0);
+  // Admin-only figure (the caller only ever passes it when the signed-in
+  // admin has viewRegistrations - see AdminDashboardPage.jsx) so it never
+  // appears on any public-facing event list.
+  const totalPaidStat = event.isPaid && totalPaid !== undefined
+    ? [{ label: 'Total Paid', value: formatCurrency(totalPaid), tone: totalPaid ? 'active' : '' }]
+    : [];
 
   if (event.capacityUnlimited) {
     return [
@@ -440,7 +447,8 @@ function getEventRegistrationStats(event, counts = {}) {
       { label: 'Registered', value: String(registered), tone: registered ? 'active' : '' },
       { label: 'Pending Payment', value: String(pendingPayment), tone: pendingPayment ? 'waitlist' : '' },
       { label: 'Waitlisted', value: String(waitlisted), tone: waitlisted ? 'waitlist' : '' },
-      { label: 'Open Seats', value: 'Unlimited', tone: 'open' }
+      { label: 'Open Seats', value: 'Unlimited', tone: 'open' },
+      ...totalPaidStat
     ];
   }
 
@@ -457,7 +465,8 @@ function getEventRegistrationStats(event, counts = {}) {
       label: 'Open Seats',
       value: openSeats === null ? 'N/A' : String(openSeats),
       tone: openSeats === 0 && capacity ? 'full' : 'open'
-    }
+    },
+    ...totalPaidStat
   ];
 }
 

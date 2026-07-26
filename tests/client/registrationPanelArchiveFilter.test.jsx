@@ -13,7 +13,7 @@ vi.mock('../../src/services/eventService.js', () => ({
       docs: [
         {
           id: 'evt-active',
-          data: () => ({ date: TODAY, eventType: 'Workshop', status: 'Published', title: 'Live Workshop' })
+          data: () => ({ cost: 25, date: TODAY, eventType: 'Workshop', isPaid: true, status: 'Published', title: 'Live Workshop' })
         },
         {
           id: 'evt-archived',
@@ -38,6 +38,7 @@ vi.mock('../../src/services/registrationService.js', () => ({
         {
           id: 'reg-active',
           data: () => ({
+            amountPaid: 25,
             eventId: 'evt-active',
             name: 'Ada Lovelace',
             paymentStatus: 'Paid',
@@ -110,5 +111,11 @@ describe('Registrations card archive filter', () => {
 
     expect(screen.getByText('Live Workshop')).toBeTruthy();
     expect(screen.queryByText('Past Workshop')).toBeNull();
+  });
+
+  it('shows a Total Paid figure on a paid event\'s summary card', () => {
+    render(<RegistrationPanel canManageEvents currentUserProfile={{}} />);
+
+    expect(screen.getByText(/\$25\.00 Total Paid/)).toBeTruthy();
   });
 });

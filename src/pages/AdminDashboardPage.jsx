@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import ArchivePanel from '../components/admin/ArchivePanel.jsx';
 import ConfigurationPanel from '../components/admin/ConfigurationPanel.jsx';
 import EventForm from '../components/admin/EventForm.jsx';
 import EventList from '../components/admin/EventList.jsx';
@@ -17,6 +18,7 @@ import {
 } from '../services/registrationService.js';
 import { subscribeToUsers } from '../services/userService.js';
 import { isCashCheckAwaitingCollection } from '../utils/registrationEligibility.js';
+import { getTotalPaidAmount } from '../utils/registrationFinancials.js';
 
 function AdminDashboardPage() {
   const location = useLocation();
@@ -33,7 +35,7 @@ function AdminDashboardPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
   const [squareNeedsReviewCount, setSquareNeedsReviewCount] = useState(0);
-  const [cashCheckAwaitingCount, setCashCheckAwaitingCount] = useState(0);
+  const [registrations, setRegistrations] = useState([]);
   const [pendingArchiveEvent, setPendingArchiveEvent] = useState(null);
   const [pendingArchiveEventId, setPendingArchiveEventId] = useState('');
   const [archiveError, setArchiveError] = useState('');
@@ -52,6 +54,7 @@ function AdminDashboardPage() {
     { id: 'challenges', label: 'Challenges', visible: canManageEvents },
     { id: 'business-listings', label: 'Business Listings', visible: canManageEvents },
     { id: 'for-sale', label: 'For Sale', visible: canManageEvents },
+    { id: 'archive', label: 'Archive', visible: canManageEvents },
     { id: 'user-controls', label: 'User Controls', visible: isSuperUser || canAddUsers },
     { id: 'configuration', label: 'Setup / System Config', visible: isSuperUser }
   ].filter((module) => module.visible);
@@ -201,31 +204,58 @@ function AdminDashboardPage() {
     return unsubscribe;
   }, [canViewRegistrations]);
 
-  // The other half of the Payment Review badge: cash/check registrations
-  // awaiting collection, matching the same list PaymentReconciliationPanel.jsx
-  // shows under "Cash/Check Awaiting Collection" - the badge should equal
-  // what an admin would actually see across both sections of that page.
+  // Single source for every registration-derived figure on this page: the
+  // Payment Review badge's cash/check half, the Archive tab's registrant
+  // lists, and each event card's Total Paid stat. One subscription instead of
+  // one per consumer, since they all read the same collection.
   useEffect(() => {
     if (!canViewRegistrations) {
-      setCashCheckAwaitingCount(0);
+      setRegistrations([]);
       return undefined;
     }
 
     const unsubscribe = subscribeToRegistrations(
       (snapshot) => {
-        setCashCheckAwaitingCount(snapshot.docs
-          .map((registrationDoc) => registrationDoc.data())
-          .filter(isCashCheckAwaitingCollection).length);
+        setRegistrations(snapshot.docs.map((registrationDoc) => ({
+          id: registrationDoc.id,
+          ...registrationDoc.data()
+        })));
       },
       () => {
-        setCashCheckAwaitingCount(0);
+        setRegistrations([]);
       }
     );
 
     return unsubscribe;
   }, [canViewRegistrations]);
 
+  const cashCheckAwaitingCount = useMemo(
+    () => registrations.filter(isCashCheckAwaitingCollection).length,
+    [registrations]
+  );
   const paymentReviewCount = squareNeedsReviewCount + cashCheckAwaitingCount;
+  const registrationsByEventId = useMemo(() => {
+    const grouped = {};
+
+    registrations.forEach((registration) => {
+      if (!registration.eventId) {
+        return;
+      }
+
+      (grouped[registration.eventId] ||= []).push(registration);
+    });
+
+    return grouped;
+  }, [registrations]);
+  const totalPaidByEventId = useMemo(() => {
+    const totals = {};
+
+    Object.entries(registrationsByEventId).forEach(([eventId, eventRegistrations]) => {
+      totals[eventId] = getTotalPaidAmount(eventRegistrations);
+    });
+
+    return totals;
+  }, [registrationsByEventId]);
 
   async function handleDelete(event) {
     setArchiveError('');
@@ -422,6 +452,7 @@ function AdminDashboardPage() {
             <EventList
               events={events}
               registrationCounts={eventRegistrationCounts}
+              totalPaidByEventId={canViewRegistrations ? totalPaidByEventId : {}}
               loading={loadingEvents}
               onDelete={handleDelete}
               onEdit={handleEditEvent}
@@ -432,6 +463,15 @@ function AdminDashboardPage() {
               excludedEventTypes={eventModuleConfig[activeModule].excludedEventTypes}
             />
           </section>
+        ) : null}
+        {canManageEvents && activeModule === 'archive' ? (
+          <ArchivePanel
+            canViewRegistrations={canViewRegistrations}
+            events={events}
+            loading={loadingEvents}
+            onReactivate={handleDelete}
+            registrationsByEventId={registrationsByEventId}
+          />
         ) : null}
         {(isSuperUser || canAddUsers) && activeModule === 'user-controls' ? (
           <UserControlPanel
