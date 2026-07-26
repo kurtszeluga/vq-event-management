@@ -34,6 +34,7 @@ vi.mock('../../src/services/eventService.js', () => ({
 
 vi.mock('../../src/services/registrationService.js', () => ({
   loadPublicRegistrationCounts: () => Promise.resolve({}),
+  subscribeToRegistrations: () => () => {},
   subscribeToSquareWebhookEvents: () => () => {}
 }));
 

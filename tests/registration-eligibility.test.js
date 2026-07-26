@@ -5,9 +5,11 @@ import {
   canPayLaterByCashCheck,
   canShowRegistrantFields,
   getRegistrationUnavailableReason,
+  isCashCheckAwaitingCollection,
   isJoiningWaitlist,
   isMembershipBlocked,
   isPaidEvent,
+  isPaymentPending,
   isPaymentRequiredForSeat,
   needsAccountPassword,
   needsEmailVerification,
@@ -291,4 +293,33 @@ test('the emailed code is requested for new registrants and as a password fallba
   assert.equal(needsEmailVerification({ ...base, emailVerified: true }), false);
   assert.equal(needsEmailVerification({ ...base, lookup: { verificationRequired: false } }), false);
   assert.equal(needsEmailVerification({ ...base, membershipBlocked: true }), false);
+});
+
+test('cash/check awaiting collection requires a held seat and an unpaid status', () => {
+  assert.equal(
+    isCashCheckAwaitingCollection({ paymentStatus: 'Pending', status: 'Registered' }),
+    true
+  );
+
+  // No seat held yet - nothing to collect payment for.
+  assert.equal(
+    isCashCheckAwaitingCollection({ paymentStatus: 'Pending', status: 'Waitlisted' }),
+    false
+  );
+
+  // Already collected.
+  assert.equal(
+    isCashCheckAwaitingCollection({ paymentStatus: 'Paid', status: 'Registered' }),
+    false
+  );
+
+  assert.equal(isCashCheckAwaitingCollection(null), false);
+});
+
+test('a registration whose status is still literally Pending Payment reads as payment pending too', () => {
+  assert.equal(isPaymentPending({ status: 'Pending Payment' }), true);
+  assert.equal(isPaymentPending({ paymentStatus: 'Pending', status: 'Registered' }), true);
+  assert.equal(isPaymentPending({ paymentStatus: 'Paid', status: 'Registered' }), false);
+  assert.equal(isPaymentPending({ status: 'Waitlisted' }), false);
+  assert.equal(isPaymentPending(null), false);
 });

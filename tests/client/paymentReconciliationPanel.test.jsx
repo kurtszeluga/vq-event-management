@@ -97,13 +97,38 @@ describe('cash/check awaiting collection', () => {
     expect(updateRegistrationPaymentMock).not.toHaveBeenCalled();
   });
 
-  it('marks a registration paid with the full amount due and the chosen method', async () => {
+  it('requires confirmation before actually marking the payment received', async () => {
+    const user = userEvent.setup();
+    renderPanel([AWAITING_COLLECTION]);
+
+    await user.click(screen.getByRole('radio', { name: 'Check' }));
+    await user.click(screen.getByRole('button', { name: 'Mark Paid' }));
+
+    expect(screen.getByRole('heading', { name: 'Mark Payment Received?' })).toBeInTheDocument();
+    expect(screen.getByText(/Mark \$20\.00 from Ada Lovelace/)).toBeInTheDocument();
+    expect(updateRegistrationPaymentMock).not.toHaveBeenCalled();
+  });
+
+  it('does not call the server when the confirmation is cancelled', async () => {
+    const user = userEvent.setup();
+    renderPanel([AWAITING_COLLECTION]);
+
+    await user.click(screen.getByRole('radio', { name: 'Check' }));
+    await user.click(screen.getByRole('button', { name: 'Mark Paid' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('heading', { name: 'Mark Payment Received?' })).toBeNull();
+    expect(updateRegistrationPaymentMock).not.toHaveBeenCalled();
+  });
+
+  it('marks a registration paid with the full amount due and the chosen method once confirmed', async () => {
     const user = userEvent.setup();
     updateRegistrationPaymentMock.mockResolvedValue({});
     renderPanel([AWAITING_COLLECTION]);
 
     await user.click(screen.getByRole('radio', { name: 'Check' }));
     await user.click(screen.getByRole('button', { name: 'Mark Paid' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm Payment Received' }));
 
     await waitFor(() => expect(updateRegistrationPaymentMock).toHaveBeenCalledTimes(1));
     expect(updateRegistrationPaymentMock).toHaveBeenCalledWith('reg-1', expect.objectContaining({
@@ -112,5 +137,6 @@ describe('cash/check awaiting collection', () => {
       paymentStatus: 'Paid'
     }));
     expect(await screen.findByText(/Marked Ada Lovelace paid/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Mark Payment Received?' })).toBeNull();
   });
 });

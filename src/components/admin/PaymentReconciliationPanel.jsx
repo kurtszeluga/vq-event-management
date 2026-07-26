@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
   resolvePaymentReviewItem,
   subscribeToRegistrations,
@@ -6,6 +7,7 @@ import {
   updateRegistrationPayment
 } from '../../services/registrationService.js';
 import { formatCurrency } from '../../utils/eventFormat.js';
+import { isCashCheckAwaitingCollection } from '../../utils/registrationEligibility.js';
 
 const FILTERS = [
   { label: 'Needs Review', value: 'needs-review' },
@@ -29,6 +31,7 @@ function PaymentReconciliationPanel() {
   const [collectingRegistrationId, setCollectingRegistrationId] = useState('');
   const [cashCheckError, setCashCheckError] = useState('');
   const [cashCheckSuccess, setCashCheckSuccess] = useState('');
+  const [cashCheckConfirmation, setCashCheckConfirmation] = useState(null);
 
   useEffect(() => {
     const unsubscribe = subscribeToSquareWebhookEvents(
@@ -69,7 +72,7 @@ function PaymentReconciliationPanel() {
     [registrations]
   );
 
-  const handleMarkCashCheckPaid = async (registration) => {
+  const handleMarkCashCheckPaid = (registration) => {
     const method = cashCheckMethods[registration.id];
 
     if (!['Cash', 'Check'].includes(method)) {
@@ -80,6 +83,16 @@ function PaymentReconciliationPanel() {
 
     setCashCheckError('');
     setCashCheckSuccess('');
+    setCashCheckConfirmation({ method, registration });
+  };
+
+  const confirmMarkCashCheckPaid = async () => {
+    if (!cashCheckConfirmation) {
+      return;
+    }
+
+    const { method, registration } = cashCheckConfirmation;
+
     setCollectingRegistrationId(registration.id);
 
     try {
@@ -90,8 +103,10 @@ function PaymentReconciliationPanel() {
         paymentStatus: 'Paid'
       });
       setCashCheckSuccess(`Marked ${registration.name || registration.email || 'this registration'} paid.`);
+      setCashCheckConfirmation(null);
     } catch (collectError) {
       setCashCheckError(collectError.message || 'Payment could not be marked received.');
+      setCashCheckConfirmation(null);
     } finally {
       setCollectingRegistrationId('');
     }
@@ -143,6 +158,7 @@ function PaymentReconciliationPanel() {
   };
 
   return (
+    <>
     <section className="admin-list-panel" id="payment-review-card">
       <div className="form-section-header form-section-header-stacked">
         <div className="form-section-header-top">
@@ -327,6 +343,26 @@ function PaymentReconciliationPanel() {
         ) : null}
       </div>
     </section>
+    <ConfirmDialog
+      busy={Boolean(collectingRegistrationId)}
+      cancelLabel="Cancel"
+      confirmLabel="Confirm Payment Received"
+      description={cashCheckConfirmation ? (
+        `Mark ${formatCurrency(cashCheckConfirmation.registration.amountDue || 0)} from `
+        + `${cashCheckConfirmation.registration.name || cashCheckConfirmation.registration.email || 'this registration'} `
+        + `(${cashCheckConfirmation.registration.eventTitle || 'this event'}) as received by `
+        + `${cashCheckConfirmation.method}? This cannot be undone from here.`
+      ) : ''}
+      open={Boolean(cashCheckConfirmation)}
+      title="Mark Payment Received?"
+      onCancel={() => {
+        if (!collectingRegistrationId) {
+          setCashCheckConfirmation(null);
+        }
+      }}
+      onConfirm={confirmMarkCashCheckPaid}
+    />
+    </>
   );
 }
 
@@ -368,22 +404,6 @@ function getFilterCount(filter, counts) {
   }
 
   return counts.needsReview;
-}
-
-// Deliberately does NOT also require paymentPreference === 'cash-check-later'.
-// A confirmed (Registered), still-unpaid (paymentStatus Pending) registration
-// for a paid event can only exist via the cash/check path in the current
-// code (getInitialRegistrationStatus only returns 'Registered' for a paid
-// event when payLaterByCashCheck is true), but older records created before
-// paymentPreference existed - or one an admin manually reset to Pending via
-// the Edit Registration payment form - would have paymentPreference blank or
-// stale. Requiring it here silently hid exactly those from this list, which
-// is the one bug report this section exists to prevent. A registration only
-// needs collecting once it actually holds a seat - a Waitlisted registrant
-// has nothing to collect payment for yet.
-function isCashCheckAwaitingCollection(registration = {}) {
-  return registration.status === 'Registered'
-    && registration.paymentStatus === 'Pending';
 }
 
 function getTimestampValue(value) {

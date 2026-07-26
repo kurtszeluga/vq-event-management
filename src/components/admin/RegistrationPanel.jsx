@@ -19,6 +19,7 @@ import {
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
+import { isPaymentPending } from '../../utils/registrationEligibility.js';
 import { getRegistrationWindowState } from '../../../shared/registrationWindow.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
@@ -732,9 +733,6 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                   <span className={getStatPillClass(group.displayCounts.pendingPayment)}>
                     {group.displayCounts.pendingPayment} Pending Payment
                   </span>
-                  <span className={getStatPillClass(group.displayCounts.awaitingPayment)}>
-                    {group.displayCounts.awaitingPayment} Cash/Check Due
-                  </span>
                   <span className={getStatPillClass(group.displayCounts.waitlisted)}>
                     {group.displayCounts.waitlisted} Waitlisted
                   </span>
@@ -1286,25 +1284,24 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
 }
 
 function createEmptyRegistrationCounts() {
-  return { awaitingPayment: 0, cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 };
+  return { cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 };
 }
 
 function reduceRegistrationCounts(summary, registration) {
-  if (registration.status === 'Pending Payment') {
+  // Not folded into the mutually-exclusive chain below: a Registered
+  // registration can still be counted here too if it is cash/check awaiting
+  // collection (isPaymentPending covers both that and the literal
+  // 'Pending Payment' status - an incomplete online card checkout).
+  if (isPaymentPending(registration)) {
     summary.pendingPayment += 1;
-  } else if (registration.status === 'Registered') {
+  }
+
+  if (registration.status === 'Registered') {
     summary.registered += 1;
   } else if (registration.status === 'Waitlisted') {
     summary.waitlisted += 1;
   } else if (registration.status === 'Cancelled') {
     summary.cancelled += 1;
-  }
-
-  // Not mutually exclusive with the branches above - a Registered
-  // registration can also still be unpaid (cash/check awaiting collection).
-  // Matches PaymentReconciliationPanel.jsx's isCashCheckAwaitingCollection().
-  if (registration.status === 'Registered' && registration.paymentStatus === 'Pending') {
-    summary.awaitingPayment += 1;
   }
 
   return summary;

@@ -12,9 +12,11 @@ import { useAuth } from '../context/useAuth.js';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
 import {
   loadPublicRegistrationCounts,
+  subscribeToRegistrations,
   subscribeToSquareWebhookEvents
 } from '../services/registrationService.js';
 import { subscribeToUsers } from '../services/userService.js';
+import { isCashCheckAwaitingCollection } from '../utils/registrationEligibility.js';
 
 function AdminDashboardPage() {
   const location = useLocation();
@@ -30,7 +32,8 @@ function AdminDashboardPage() {
   const [lastSavedEventId, setLastSavedEventId] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
-  const [paymentReviewCount, setPaymentReviewCount] = useState(0);
+  const [squareNeedsReviewCount, setSquareNeedsReviewCount] = useState(0);
+  const [cashCheckAwaitingCount, setCashCheckAwaitingCount] = useState(0);
   const [pendingArchiveEvent, setPendingArchiveEvent] = useState(null);
   const [pendingArchiveEventId, setPendingArchiveEventId] = useState('');
   const [moduleNavOpen, setModuleNavOpen] = useState(false);
@@ -179,23 +182,49 @@ function AdminDashboardPage() {
 
   useEffect(() => {
     if (!canViewRegistrations) {
-      setPaymentReviewCount(0);
+      setSquareNeedsReviewCount(0);
       return undefined;
     }
 
     const unsubscribe = subscribeToSquareWebhookEvents(
       (snapshot) => {
-        setPaymentReviewCount(snapshot.docs
+        setSquareNeedsReviewCount(snapshot.docs
           .map((eventDoc) => eventDoc.data())
           .filter((event) => String(event.reconciliationStatus || '').includes('Needs Review')).length);
       },
       () => {
-        setPaymentReviewCount(0);
+        setSquareNeedsReviewCount(0);
       }
     );
 
     return unsubscribe;
   }, [canViewRegistrations]);
+
+  // The other half of the Payment Review badge: cash/check registrations
+  // awaiting collection, matching the same list PaymentReconciliationPanel.jsx
+  // shows under "Cash/Check Awaiting Collection" - the badge should equal
+  // what an admin would actually see across both sections of that page.
+  useEffect(() => {
+    if (!canViewRegistrations) {
+      setCashCheckAwaitingCount(0);
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToRegistrations(
+      (snapshot) => {
+        setCashCheckAwaitingCount(snapshot.docs
+          .map((registrationDoc) => registrationDoc.data())
+          .filter(isCashCheckAwaitingCollection).length);
+      },
+      () => {
+        setCashCheckAwaitingCount(0);
+      }
+    );
+
+    return unsubscribe;
+  }, [canViewRegistrations]);
+
+  const paymentReviewCount = squareNeedsReviewCount + cashCheckAwaitingCount;
 
   async function handleDelete(event) {
     setPendingArchiveEvent(event);
