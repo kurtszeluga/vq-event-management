@@ -162,8 +162,29 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    window.focus();
-    window.print();
+    const popup = window.open('', 'vq-supply-list-print', 'popup,width=1100,height=900');
+
+    if (!popup) {
+      window.focus();
+      window.print();
+      return;
+    }
+
+    const pages = [...(previewRef.current?.querySelectorAll('.viewer-pdf-canvas') || [])]
+      .map((canvas, index) => buildPrintPage(canvas, index))
+      .filter(Boolean);
+
+    if (!pages.length) {
+      popup.close();
+      window.focus();
+      window.print();
+      return;
+    }
+
+    const title = event?.supplyListTitle || event?.supplyListFileName || event?.title || 'Supply List';
+    popup.document.open();
+    popup.document.write(buildSupplyListPrintHtml(title, pages));
+    popup.document.close();
   }
 
   if (loading) {
@@ -235,6 +256,137 @@ function getPreviewScale() {
   }
 
   return window.innerWidth < 720 ? 1 : 1.35;
+}
+
+function buildPrintPage(canvas, index) {
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return null;
+  }
+
+  const dataUrl = canvas.toDataURL('image/png');
+
+  if (!dataUrl) {
+    return null;
+  }
+
+  return {
+    alt: `Supply list page ${index + 1}`,
+    dataUrl,
+    height: canvas.height,
+    width: canvas.width
+  };
+}
+
+function buildSupplyListPrintHtml(title, pages) {
+  const safeTitle = escapeHtml(title);
+  const pageMarkup = pages
+    .map((page) => `
+      <figure class="print-page">
+        <img
+          alt="${escapeHtml(page.alt)}"
+          height="${page.height}"
+          src="${page.dataUrl}"
+          width="${page.width}"
+        />
+      </figure>
+    `)
+    .join('');
+
+  return `<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Print ${safeTitle}</title>
+      <style>
+        :root {
+          color: #1d2927;
+          background: #ffffff;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        html, body {
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          padding: 24px 0;
+        }
+        .actions {
+          display: flex;
+          gap: 10px;
+          justify-content: center;
+          margin: 0 24px 20px;
+        }
+        button {
+          appearance: none;
+          background: #225c56;
+          border: 1px solid #225c56;
+          border-radius: 999px;
+          color: #ffffff;
+          cursor: pointer;
+          font: inherit;
+          font-weight: 700;
+          padding: 10px 16px;
+        }
+        button.secondary {
+          background: #ffffff;
+          color: #225c56;
+        }
+        .print-shell {
+          margin: 0 auto;
+          max-width: 980px;
+        }
+        .print-page {
+          margin: 0 0 18px;
+          page-break-after: always;
+        }
+        .print-page:last-child {
+          page-break-after: auto;
+        }
+        img {
+          display: block;
+          height: auto;
+          max-width: 100%;
+          width: 100%;
+        }
+        @page {
+          margin: 0.5in;
+        }
+        @media print {
+          body {
+            padding: 0;
+          }
+          .actions {
+            display: none;
+          }
+          .print-page {
+            break-after: page;
+            margin: 0;
+          }
+          .print-page:last-child {
+            break-after: auto;
+          }
+        }
+      </style>
+    </head>
+    <body onload="window.setTimeout(function () { window.print(); }, 150)">
+      <div class="actions">
+        <button type="button" onclick="window.print()">Print</button>
+        <button type="button" class="secondary" onclick="window.close()">Close</button>
+      </div>
+      <main class="print-shell" aria-label="${safeTitle}">
+        ${pageMarkup}
+      </main>
+    </body>
+  </html>`;
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 function buildProxyUrl(event, disposition) {
