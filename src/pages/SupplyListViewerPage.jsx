@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import { isEventVisible } from '../utils/eventFormat.js';
@@ -8,14 +7,12 @@ import { isEventVisible } from '../utils/eventFormat.js';
 function SupplyListViewerPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const previewRef = useRef(null);
-  const objectUrlRef = useRef('');
-  const [downloadUrl, setDownloadUrl] = useState('');
+  const frameRef = useRef(null);
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [previewError, setPreviewError] = useState('');
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [viewerError, setViewerError] = useState('');
+  const [viewerLoading, setViewerLoading] = useState(true);
   const inlineProxyUrl = buildProxyUrl(event, 'inline');
   const attachmentProxyUrl = buildProxyUrl(event, 'attachment');
   const fileName = event?.supplyListFileName || `${event?.supplyListTitle || 'supply-list'}.pdf`;
@@ -50,102 +47,9 @@ function SupplyListViewerPage() {
   }, [eventId]);
 
   useEffect(() => {
-    let active = true;
-    let pdfDocument = null;
-
-    async function renderPdf() {
-      if (!inlineProxyUrl || !previewRef.current) {
-        return;
-      }
-
-      setPreviewLoading(true);
-      setPreviewError('');
-      previewRef.current.replaceChildren();
-
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = '';
-        setDownloadUrl('');
-      }
-
-      try {
-        const response = await fetch(inlineProxyUrl, {
-          headers: {
-            Accept: 'application/pdf'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('The supply list could not be loaded.');
-        }
-
-        const blob = await response.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-        const nextObjectUrl = URL.createObjectURL(blob);
-
-        if (!active) {
-          URL.revokeObjectURL(nextObjectUrl);
-          return;
-        }
-
-        objectUrlRef.current = nextObjectUrl;
-        setDownloadUrl(nextObjectUrl);
-
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-        pdfDocument = await loadingTask.promise;
-
-        for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
-          if (!active || !previewRef.current) {
-            return;
-          }
-
-          const page = await pdfDocument.getPage(pageNumber);
-          const viewport = page.getViewport({ scale: getPreviewScale() });
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          const wrapper = document.createElement('div');
-
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          canvas.className = 'viewer-pdf-canvas';
-          wrapper.className = 'viewer-pdf-page';
-          wrapper.appendChild(canvas);
-          previewRef.current.appendChild(wrapper);
-
-          await page.render({
-            canvasContext: context,
-            viewport
-          }).promise;
-        }
-      } catch (renderError) {
-        if (active) {
-          setPreviewError(renderError.message || 'The supply list preview could not be shown.');
-        }
-      } finally {
-        if (active) {
-          setPreviewLoading(false);
-        }
-      }
-    }
-
-    renderPdf();
-
-    return () => {
-      active = false;
-
-      if (pdfDocument) {
-        pdfDocument.destroy();
-      }
-    };
+    setViewerLoading(Boolean(inlineProxyUrl));
+    setViewerError('');
   }, [inlineProxyUrl]);
-
-  useEffect(() => () => {
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-    }
-  }, []);
 
   function handleClose() {
     if (window.opener) {
@@ -162,8 +66,30 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    window.focus();
-    window.print();
+    const frameWindow = frameRef.current?.contentWindow;
+
+    if (frameWindow) {
+      frameWindow.focus();
+      window.setTimeout(() => {
+        try {
+          frameWindow.print();
+        } catch {
+          openInlinePdf();
+        }
+      }, 150);
+      return;
+    }
+
+    openInlinePdf();
+  }
+
+  function openInlinePdf() {
+    if (!inlineProxyUrl) {
+      return;
+    }
+
+    const popup = window.open(inlineProxyUrl, '_blank', 'noopener,noreferrer');
+    popup?.focus();
   }
 
   if (loading) {
@@ -199,13 +125,25 @@ function SupplyListViewerPage() {
         <div className="viewer-actions">
           <a
             className="button-link secondary-action"
-            href={downloadUrl || attachmentProxyUrl}
+            href={attachmentProxyUrl}
             download={fileName}
           >
             Save
           </a>
-          <button className="button-link secondary-action" type="button" onClick={handlePrint}>
+          <button
+            className="button-link secondary-action"
+            disabled={viewerLoading || !inlineProxyUrl}
+            type="button"
+            onClick={handlePrint}
+          >
             Print
+          </button>
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={openInlinePdf}
+          >
+            Open PDF
           </button>
           <a className="button-link secondary-action" href={attachmentProxyUrl}>
             Direct Download
@@ -216,25 +154,31 @@ function SupplyListViewerPage() {
         </div>
       </div>
 
-      {previewLoading ? <p className="form-success">Loading supply list preview...</p> : null}
-      {previewError ? (
+      {viewerLoading ? <p className="form-success">Loading PDF viewer...</p> : null}
+      {viewerError ? (
         <div className="viewer-download-panel">
-          <h2>Preview Unavailable</h2>
-          <p>{previewError}</p>
-          <p>Use Save or Direct Download above to download the PDF file.</p>
+          <h2>Viewer Unavailable</h2>
+          <p>{viewerError}</p>
+          <p>Use Open PDF, Save, or Direct Download above to access the file.</p>
         </div>
-      ) : null}
-      <div ref={previewRef} className="viewer-pdf-preview" aria-label="Supply list preview" />
+      ) : (
+        <iframe
+          className="viewer-frame"
+          ref={frameRef}
+          src={inlineProxyUrl}
+          title={event.supplyListTitle || event.supplyListFileName || event.title || 'Supply list'}
+          onError={() => {
+            setViewerLoading(false);
+            setViewerError('The PDF viewer could not be loaded in this browser window.');
+          }}
+          onLoad={() => {
+            setViewerLoading(false);
+            setViewerError('');
+          }}
+        />
+      )}
     </section>
   );
-}
-
-function getPreviewScale() {
-  if (typeof window === 'undefined') {
-    return 1.25;
-  }
-
-  return window.innerWidth < 720 ? 1 : 1.35;
 }
 
 function buildProxyUrl(event, disposition) {
