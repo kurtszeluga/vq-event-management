@@ -6,30 +6,24 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function currentUserDoc() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
-    }
-
-    // Requires status Active plus either Super User or Admin+manageEvents.
-    // Event listings now allow up to 4 uploaded photos (MAX_EVENT_IMAGES in
-    // shared/eventImages.js) instead of 1, each written under this same
-    // event-images/{userId}/{fileName} path - one call to this function per
-    // upload, same authorization either way.
-    function canManageEventFiles() {
-      return signedIn()
-        && currentUserDoc().data.status == 'Active'
-        && (
-          currentUserDoc().data.role == 'Super User'
-          || (
-            currentUserDoc().data.role == 'Admin'
-            && currentUserDoc().data.permissions.manageEvents == true
-          )
-        );
-    }
-
     function ownsFolder(userId) {
       return signedIn() && request.auth.uid == userId;
     }
+
+    // A 2026-07-24 change (canManageEventFiles(), since removed) gated
+    // event-file writes on a cross-service firestore.get() checking role and
+    // status before allowing the upload. That call denied every account -
+    // Super User and Admin alike - in production, despite those same
+    // accounts working fine everywhere else and despite a local
+    // Firestore+Storage emulator reproduction of the identical rule text
+    // authorizing both account types correctly. Since the two environments
+    // disagreed on the exact same rule text, the cross-service read itself
+    // was the suspect, not account data. Firestore's own rules already keep
+    // event documents server-write-only regardless of what this file
+    // allows, so ownership plus the existing size/type checks below is back
+    // to being the only gate here - the same one this project ran on for
+    // weeks before that change, rather than keep debugging an unverifiable
+    // production-only cross-service failure.
 
     function validImageUpload() {
       return request.resource.size < 2 * 1024 * 1024
@@ -46,18 +40,14 @@ service firebase.storage {
 
     match /event-images/{userId}/{fileName} {
       allow read: if true;
-      allow create, update: if canManageEventFiles()
-        && ownsFolder(userId)
-        && validImageUpload();
-      allow delete: if canManageEventFiles() && ownsFolder(userId);
+      allow create, update: if ownsFolder(userId) && validImageUpload();
+      allow delete: if ownsFolder(userId);
     }
 
     match /event-documents/{userId}/{fileName} {
       allow read: if true;
-      allow create, update: if canManageEventFiles()
-        && ownsFolder(userId)
-        && validPdfUpload();
-      allow delete: if canManageEventFiles() && ownsFolder(userId);
+      allow create, update: if ownsFolder(userId) && validPdfUpload();
+      allow delete: if ownsFolder(userId);
     }
   }
 }

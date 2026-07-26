@@ -16,7 +16,7 @@
     "setup:first-admin": "node scripts/setupFirstAdmin.mjs",
     "backfill:member-directory": "node scripts/backfillMemberDirectoryProfiles.mjs",
     "audit:zero-capacity": "node scripts/auditZeroCapacityEvents.mjs",
-    "test:rules": "firebase emulators:exec --only firestore --project vq-rules-test \"node --test tests/rules/*.test.js\""
+    "test:rules": "firebase emulators:exec --only firestore,storage --project vq-rules-test \"node --test tests/rules/*.test.js\""
   },
   "dependencies": {
     "firebase": "^12.1.0",

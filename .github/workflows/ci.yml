@@ -42,13 +42,13 @@ jobs:
       - name: Client tests
         run: npm run test:client
 
-      # The Firestore emulator runs on the JVM, so the rules suite needs a JDK
-      # that the other steps do not.
-      - name: Set up Java for the Firestore emulator
+      # The Firestore and Storage emulators both run on the JVM, so the rules
+      # suite needs a JDK that the other steps do not.
+      - name: Set up Java for the Firestore/Storage emulators
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Firestore rules tests
+      - name: Rules tests
         run: npm run test:rules
