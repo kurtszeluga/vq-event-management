@@ -370,15 +370,20 @@ function getFilterCount(filter, counts) {
   return counts.needsReview;
 }
 
-// A registration only needs collecting once it actually holds a seat - a
-// Waitlisted cash/check preference has nothing to collect payment for yet -
-// and only while it is still genuinely unpaid, matching the same fields
-// create-registration.js sets at creation (or resolveAdminCollectedPayment
-// already marked it Paid there instead of reaching this list at all).
+// Deliberately does NOT also require paymentPreference === 'cash-check-later'.
+// A confirmed (Registered), still-unpaid (paymentStatus Pending) registration
+// for a paid event can only exist via the cash/check path in the current
+// code (getInitialRegistrationStatus only returns 'Registered' for a paid
+// event when payLaterByCashCheck is true), but older records created before
+// paymentPreference existed - or one an admin manually reset to Pending via
+// the Edit Registration payment form - would have paymentPreference blank or
+// stale. Requiring it here silently hid exactly those from this list, which
+// is the one bug report this section exists to prevent. A registration only
+// needs collecting once it actually holds a seat - a Waitlisted registrant
+// has nothing to collect payment for yet.
 function isCashCheckAwaitingCollection(registration = {}) {
   return registration.status === 'Registered'
-    && registration.paymentStatus === 'Pending'
-    && registration.paymentPreference === 'cash-check-later';
+    && registration.paymentStatus === 'Pending';
 }
 
 function getTimestampValue(value) {

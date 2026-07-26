@@ -274,7 +274,6 @@ function EventsPage() {
   const [error, setError] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState(DEFAULT_EVENT_TYPE_FILTER);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
-  const [expandedStats, setExpandedStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [registrationCounts, setRegistrationCounts] = useState({});
 
@@ -406,13 +405,6 @@ function EventsPage() {
     };
   }, [registerableEvents]);
 
-  function toggleStats(eventId) {
-    setExpandedStats((current) => ({
-      ...current,
-      [eventId]: !current[eventId]
-    }));
-  }
-
   function toggleDescription(eventId) {
     setExpandedDescriptions((current) => ({
       ...current,
@@ -463,7 +455,6 @@ function EventsPage() {
           const counts = registrationCounts[event.id] || {};
           const availability = getRegistrationAvailability(event, counts);
           const registrationStats = getEventRegistrationStats(event, counts);
-          const statsExpanded = Boolean(expandedStats[event.id]);
           const heldCount = Number(counts.held || 0);
           // Derived from the configured dates, not the stored registrationOpen
           // flag, so a passed close date actually reads as closed here.
@@ -517,14 +508,7 @@ function EventsPage() {
                       Held
                     </span>
                   ) : null}
-                  <button
-                    className="text-button event-description-toggle"
-                    onClick={() => toggleStats(event.id)}
-                    type="button"
-                  >
-                    {statsExpanded ? 'Hide Registration Details' : 'Show Registration Details'}
-                  </button>
-                  {statsExpanded ? registrationStats.secondary.map((stat) => (
+                  {registrationStats.secondary.map((stat) => (
                     <span
                       className={`event-registration-pill${stat.tone ? ` ${stat.tone}` : ''}`}
                       key={stat.label}
@@ -532,7 +516,7 @@ function EventsPage() {
                       <strong>{stat.value}</strong>
                       {stat.label}
                     </span>
-                  )) : null}
+                  ))}
                 </div>
                 <dl>
                   <div className="event-card-date">
@@ -614,10 +598,10 @@ function EventsPage() {
   );
 }
 
-// Members mainly need one number - is there a seat? The Capacity/Registered/
-// Pending Payment/Waitlisted breakdown is operational detail more useful to
-// an admin, so it's split out and shown only behind a "Registration details"
-// toggle instead of leading the card alongside the seat count.
+// primary is the one-glance "is there a seat?" number; secondary is the
+// Capacity/Registered/Pending Payment/Waitlisted breakdown - both are shown
+// together now, but kept as separate groups since primary alone still drives
+// the availability pill in the card header above.
 function getEventRegistrationStats(event, counts = {}) {
   const registered = Number(counts.registered || 0);
   const pendingPayment = Number(counts.pendingPayment || 0);

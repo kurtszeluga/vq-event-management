@@ -17,9 +17,9 @@ import {
   updateRegistrationPayment
 } from '../../services/registrationService.js';
 import { subscribeToUsers } from '../../services/userService.js';
-import { formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
+import { formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
-import { getRegistrationUnavailableReason } from '../../utils/registrationEligibility.js';
+import { getRegistrationWindowState } from '../../../shared/registrationWindow.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -230,39 +230,9 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
       .map((eventId) => {
         const event = eventMap.get(eventId);
         const eventRegistrations = groups.get(eventId) || [];
-        const counts = eventRegistrations.reduce(
-          (summary, registration) => {
-            if (registration.status === 'Pending Payment') {
-              summary.pendingPayment += 1;
-            } else if (registration.status === 'Registered') {
-              summary.registered += 1;
-            } else if (registration.status === 'Waitlisted') {
-              summary.waitlisted += 1;
-            } else if (registration.status === 'Cancelled') {
-              summary.cancelled += 1;
-            }
-
-            return summary;
-          },
-          { cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 }
-        );
+        const counts = eventRegistrations.reduce(reduceRegistrationCounts, createEmptyRegistrationCounts());
         const displayRegistrations = combineRegistrationsByRegistrant(eventRegistrations);
-        const displayCounts = displayRegistrations.reduce(
-          (summary, registration) => {
-            if (registration.status === 'Pending Payment') {
-              summary.pendingPayment += 1;
-            } else if (registration.status === 'Registered') {
-              summary.registered += 1;
-            } else if (registration.status === 'Waitlisted') {
-              summary.waitlisted += 1;
-            } else if (registration.status === 'Cancelled') {
-              summary.cancelled += 1;
-            }
-
-            return summary;
-          },
-          { cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 }
-        );
+        const displayCounts = displayRegistrations.reduce(reduceRegistrationCounts, createEmptyRegistrationCounts());
 
         return {
           counts,
@@ -761,6 +731,9 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                   </span>
                   <span className={getStatPillClass(group.displayCounts.pendingPayment)}>
                     {group.displayCounts.pendingPayment} Pending Payment
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.awaitingPayment)}>
+                    {group.displayCounts.awaitingPayment} Cash/Check Due
                   </span>
                   <span className={getStatPillClass(group.displayCounts.waitlisted)}>
                     {group.displayCounts.waitlisted} Waitlisted
@@ -1310,6 +1283,31 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
       </button>
     </th>
   );
+}
+
+function createEmptyRegistrationCounts() {
+  return { awaitingPayment: 0, cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 };
+}
+
+function reduceRegistrationCounts(summary, registration) {
+  if (registration.status === 'Pending Payment') {
+    summary.pendingPayment += 1;
+  } else if (registration.status === 'Registered') {
+    summary.registered += 1;
+  } else if (registration.status === 'Waitlisted') {
+    summary.waitlisted += 1;
+  } else if (registration.status === 'Cancelled') {
+    summary.cancelled += 1;
+  }
+
+  // Not mutually exclusive with the branches above - a Registered
+  // registration can also still be unpaid (cash/check awaiting collection).
+  // Matches PaymentReconciliationPanel.jsx's isCashCheckAwaitingCollection().
+  if (registration.status === 'Registered' && registration.paymentStatus === 'Pending') {
+    summary.awaitingPayment += 1;
+  }
+
+  return summary;
 }
 
 function combineRegistrationsByRegistrant(registrations = []) {
@@ -1948,11 +1946,32 @@ function getDateSortValue(dateValue) {
 // so an admin sees at a glance whether they can send someone to register (or
 // register them on their behalf) without opening the event.
 function getRegistrationStatusPill(event) {
-  const reason = getRegistrationUnavailableReason(event);
+  if (!event) {
+    return { className: 'status-pill neutral', label: 'Registration Unavailable' };
+  }
 
-  return reason
-    ? { className: 'status-pill warning', label: reason }
-    : { className: 'status-pill good', label: 'Registration Open' };
+  const { state } = getRegistrationWindowState(event);
+
+  if (state === 'open') {
+    return { className: 'status-pill good', label: 'Registration Open' };
+  }
+
+  if (state === 'not-yet-open') {
+    return { className: 'status-pill warning', label: `Opens ${formatDateOnly(event.registrationOpenAt)}` };
+  }
+
+  if (state === 'not-registrable') {
+    return { className: 'status-pill neutral', label: 'Not Registrable' };
+  }
+
+  // Covers 'closed' (past its close date) and 'disabled' (no registration
+  // window configured) alike - both mean the same thing to an admin deciding
+  // whether to register someone right now: they cannot. A short, consistent
+  // "Registration Closed" pill reads better than a full sentence, and better
+  // than the generic "Registration is not currently open for this event."
+  // disabled fallback - the close date is still visible in the drilled-in
+  // event's own details.
+  return { className: 'status-pill warning', label: 'Registration Closed' };
 }
 
 function getCapacitySummary(event, registeredCount) {

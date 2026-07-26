@@ -71,10 +71,20 @@ describe('cash/check awaiting collection', () => {
     expect(screen.queryByText('Ada Lovelace')).toBeNull();
   });
 
-  it('excludes a registration that never chose cash/check (e.g. an online Square payment)', () => {
+  it('includes a Registered, unpaid registration even when paymentPreference is blank or missing', () => {
+    // A confirmed (Registered) paid-event registration only ever lands in
+    // Pending payment status via the cash/check path - but older records
+    // (created before paymentPreference existed, or one an admin reset to
+    // Pending via the Edit Registration form) can have it blank. Requiring
+    // it here previously hid exactly these from review - the real bug
+    // report this section exists to catch.
     renderPanel([{ ...AWAITING_COLLECTION, paymentPreference: '' }]);
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
 
-    expect(screen.queryByText('Ada Lovelace')).toBeNull();
+    cleanup();
+    const { paymentPreference: _paymentPreference, ...withoutPreference } = AWAITING_COLLECTION;
+    renderPanel([withoutPreference]);
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
   });
 
   it('requires a Cash or Check choice before Mark Paid can be used', async () => {
