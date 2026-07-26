@@ -506,7 +506,7 @@ function AdminDashboardPage() {
       </div>
       <ConfirmDialog
         busy={pendingArchiveEventId === pendingArchiveEvent?.id}
-        cancelLabel={isArchiveBlocked ? 'Cancel' : 'Keep Event'}
+        cancelLabel="Cancel"
         confirmLabel={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
         description={
           pendingArchiveEvent
