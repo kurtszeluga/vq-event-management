@@ -2,7 +2,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
-import { getEventCapacityError } from './_lib/registration-capacity.js';
+import { getArchiveBlockError, getEventCapacityError } from './_lib/registration-capacity.js';
 
 let firebaseProjectId = '';
 
@@ -148,6 +148,18 @@ export default async function handler(request, response) {
     }
 
     if (action === 'archive') {
+      const registrationsSnapshot = await db.collection('registrations')
+        .where('eventId', '==', eventId)
+        .get();
+      const archiveBlockError = getArchiveBlockError(
+        registrationsSnapshot.docs.map((registrationDoc) => registrationDoc.data())
+      );
+
+      if (archiveBlockError) {
+        response.status(409).json({ error: archiveBlockError });
+        return;
+      }
+
       batch.update(eventRef, {
         status: 'Archived',
         updatedDate: FieldValue.serverTimestamp()

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   PAYMENT_RESERVATION_EXPIRATION_MS,
+  getArchiveBlockError,
   getEventCapacityError,
   getInitialPaymentStatus,
   getInitialRegistrationStatus,
@@ -360,4 +361,50 @@ test('an unrecognized payment method is never honored, even if paymentReceived i
     paymentReceived: true,
     payLaterByCashCheck: true
   }), null);
+});
+
+test('archiving is blocked while a registration still owes payment', () => {
+  const error = getArchiveBlockError([
+    { paymentStatus: 'Pending', status: 'Registered' }
+  ]);
+
+  assert.notEqual(error, '');
+  assert.match(error, /1 registration/);
+});
+
+test('an incomplete online checkout also blocks archiving', () => {
+  const error = getArchiveBlockError([
+    { status: 'Pending Payment' }
+  ]);
+
+  assert.notEqual(error, '');
+});
+
+test('a waitlisted registration never blocks archiving - nothing is owed yet', () => {
+  assert.equal(getArchiveBlockError([
+    { paymentStatus: 'Pending', status: 'Waitlisted' }
+  ]), '');
+});
+
+test('paid, refunded, and cancelled registrations do not block archiving', () => {
+  assert.equal(getArchiveBlockError([
+    { paymentStatus: 'Paid', status: 'Registered' },
+    { paymentStatus: 'Refunded', status: 'Cancelled' },
+    { paymentStatus: 'No Charge', status: 'Registered' }
+  ]), '');
+});
+
+test('archiving with no registrations at all is never blocked', () => {
+  assert.equal(getArchiveBlockError([]), '');
+  assert.equal(getArchiveBlockError(), '');
+});
+
+test('the archive-block message pluralizes correctly for more than one pending registration', () => {
+  const error = getArchiveBlockError([
+    { paymentStatus: 'Pending', status: 'Registered' },
+    { status: 'Pending Payment' }
+  ]);
+
+  assert.match(error, /2 registrations/);
+  assert.match(error, /have a payment/);
 });

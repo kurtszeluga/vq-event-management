@@ -5,6 +5,7 @@ function ConfirmDialog({
   cancelLabel = 'Cancel',
   confirmLabel = 'Confirm',
   description,
+  error,
   onCancel,
   onConfirm,
   open,
@@ -32,6 +33,7 @@ function ConfirmDialog({
           </div>
         </div>
         {description ? <p className="app-confirm-dialog-text">{description}</p> : null}
+        {error ? <p className="form-error">{error}</p> : null}
         <div className="form-actions">
           <button
             className={`button-link button-reset${tone === 'danger' ? ' archive-action' : ''}`}

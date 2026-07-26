@@ -36,6 +36,7 @@ function AdminDashboardPage() {
   const [cashCheckAwaitingCount, setCashCheckAwaitingCount] = useState(0);
   const [pendingArchiveEvent, setPendingArchiveEvent] = useState(null);
   const [pendingArchiveEventId, setPendingArchiveEventId] = useState('');
+  const [archiveError, setArchiveError] = useState('');
   const [moduleNavOpen, setModuleNavOpen] = useState(false);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
@@ -227,6 +228,7 @@ function AdminDashboardPage() {
   const paymentReviewCount = squareNeedsReviewCount + cashCheckAwaitingCount;
 
   async function handleDelete(event) {
+    setArchiveError('');
     setPendingArchiveEvent(event);
   }
 
@@ -236,6 +238,7 @@ function AdminDashboardPage() {
     }
 
     const isArchived = pendingArchiveEvent.status === 'Archived';
+    setArchiveError('');
     setPendingArchiveEventId(pendingArchiveEvent.id);
 
     try {
@@ -245,6 +248,8 @@ function AdminDashboardPage() {
         await archiveEvent(pendingArchiveEvent.id, userProfile);
       }
       setPendingArchiveEvent(null);
+    } catch (error) {
+      setArchiveError(error.message || 'This event could not be archived.');
     } finally {
       setPendingArchiveEventId('');
     }
@@ -467,11 +472,13 @@ function AdminDashboardPage() {
               : `Archive "${pendingArchiveEvent.title}"?`
             : ''
         }
+        error={archiveError}
         open={Boolean(pendingArchiveEvent)}
         title={pendingArchiveEvent?.status === 'Archived' ? 'Reactivate Event' : 'Archive Event'}
         tone="danger"
         onCancel={() => {
           if (!pendingArchiveEventId) {
+            setArchiveError('');
             setPendingArchiveEvent(null);
           }
         }}

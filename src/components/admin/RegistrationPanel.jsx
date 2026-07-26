@@ -24,6 +24,7 @@ import { getRegistrationWindowState } from '../../../shared/registrationWindow.j
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
+const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
 const MANUAL_PAYMENT_METHOD_OPTIONS = ['Cash', 'Check'];
 const ACTIVITY_FILTERS = ['Programs', 'Workshops', 'Retreat', 'Challenges'];
 const QUARTER_FILTERS = [
@@ -38,6 +39,7 @@ const DEFAULT_QUARTER_FILTER = getQuarterFilterValue(new Date());
 
 function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false, currentUserProfile }) {
   const [activityFilter, setActivityFilter] = useState('');
+  const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [registerMemberOpen, setRegisterMemberOpen] = useState(false);
   const [error, setError] = useState('');
   const [events, setEvents] = useState([]);
@@ -154,6 +156,10 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
   const filteredEvents = useMemo(
     () =>
       events.filter((event) => {
+        if (!matchesEventStatus(event, eventStatusFilter)) {
+          return false;
+        }
+
         if (
           activityFilter
           && getActivityFilterValue(event.eventType) !== activityFilter
@@ -177,7 +183,7 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
 
         return true;
       }),
-    [activityFilter, events, quarterFilter, yearFilter]
+    [activityFilter, eventStatusFilter, events, quarterFilter, yearFilter]
   );
   const groupedRegistrations = useMemo(() => {
     const groups = new Map();
@@ -200,6 +206,14 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
       }
 
       const event = eventMap.get(registration.eventId);
+
+      // Only enforced when the event doc still exists - a registration whose
+      // event was deleted (not archived) has no status to check and keeps
+      // showing under every filter, matching prior behavior.
+      if (event && !matchesEventStatus(event, eventStatusFilter)) {
+        return;
+      }
+
       const eventType = event?.eventType || registration.eventType || '';
       const eventDate = event?.date || registration.eventDate;
 
@@ -258,7 +272,20 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
           getEventDisplayTitle(second.event, second.eventId)
         );
       });
-  }, [activityFilter, eventMap, filteredEvents, quarterFilter, registrations, yearFilter]);
+  }, [activityFilter, eventMap, eventStatusFilter, filteredEvents, quarterFilter, registrations, yearFilter]);
+  const eventStatusCounts = useMemo(() => {
+    const counts = Object.fromEntries(EVENT_STATUS_FILTERS.map((filter) => [filter, 0]));
+
+    events.forEach((event) => {
+      EVENT_STATUS_FILTERS.forEach((filter) => {
+        if (matchesEventStatus(event, filter)) {
+          counts[filter] += 1;
+        }
+      });
+    });
+
+    return counts;
+  }, [events]);
   const activityCounts = useMemo(() => {
     const counts = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, 0]));
     const eventIdsByFilter = Object.fromEntries(ACTIVITY_FILTERS.map((filter) => [filter, new Set()]));
@@ -433,10 +460,17 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
 
   function handleResetFilters() {
     setActivityFilter('');
+    setEventStatusFilter('Active');
     setQuarterFilter(DEFAULT_QUARTER_FILTER);
     setSelectedEventId('');
     setExpandedRegistrationId('');
     setYearFilter(DEFAULT_YEAR_FILTER);
+  }
+
+  function handleEventStatusFilter(nextFilter) {
+    setEventStatusFilter(nextFilter);
+    setSelectedEventId('');
+    setExpandedRegistrationId('');
   }
 
   function handleActivityFilter(nextFilter) {
@@ -661,6 +695,18 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
               : `${groupedRegistrations.length} events shown`}
           </span>
         </div>
+      </div>
+      <div className="registration-activity-filters" aria-label="Registration event status filters">
+        {EVENT_STATUS_FILTERS.map((filter) => (
+          <button
+            className={`status-filter-button${eventStatusFilter === filter ? ' active' : ''}${filter === 'Archived' && eventStatusFilter === filter ? ' archive-active' : ''}`}
+            key={filter}
+            type="button"
+            onClick={() => handleEventStatusFilter(filter)}
+          >
+            {filter} ({eventStatusCounts[filter] || 0})
+          </button>
+        ))}
       </div>
       <div className="registration-activity-filters" aria-label="Registration activity filters">
         {ACTIVITY_FILTERS.map((filter) => (
@@ -1798,6 +1844,12 @@ function shouldInitiateSquareRefund(registration, paymentStatus, paymentSettings
 
 function normalizePaymentMethod(method) {
   return method === 'None' ? '' : method || '';
+}
+
+function matchesEventStatus(event, statusFilter) {
+  return statusFilter === 'Archived'
+    ? event.status === 'Archived'
+    : event.status !== 'Archived';
 }
 
 function getActivityFilterValue(eventType = '') {

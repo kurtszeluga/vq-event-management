@@ -1,3 +1,4 @@
+import { isPaymentPending } from '../../shared/registrationPayment.js';
 import { getTimestampMillis } from './registration-verification.js';
 
 export const PAYMENT_RESERVATION_EXPIRATION_MS = 5 * 60 * 1000;
@@ -120,4 +121,21 @@ export function getEventCapacityError(eventData = {}) {
   }
 
   return '';
+}
+
+// Archiving should carry an event's full registration history with it -
+// including Waitlisted registrants, who never held a seat or owed anything -
+// but must not let a registration with money still outstanding fall out of
+// view unresolved. Waitlisted registrants deliberately do not block: they
+// have nothing to collect.
+export function getArchiveBlockError(registrations = []) {
+  const pendingCount = registrations.filter(isPaymentPending).length;
+
+  if (!pendingCount) {
+    return '';
+  }
+
+  return `Cannot archive this event: ${pendingCount} registration${pendingCount === 1 ? '' : 's'} `
+    + `still ${pendingCount === 1 ? 'has' : 'have'} a payment awaiting collection. `
+    + 'Resolve them in Payment Review before archiving.';
 }
