@@ -46,7 +46,7 @@ vi.mock('../../src/services/memberDirectoryProfile.js', () => ({
 }));
 vi.mock('../../src/components/PageHeader.jsx', () => ({ default: () => null }));
 vi.mock('react-router-dom', () => ({
-  Link: ({ children }) => <span>{children}</span>,
+  Link: ({ children, to }) => <a href={to}>{children}</a>,
   Navigate: () => null
 }));
 
@@ -105,6 +105,76 @@ describe('the profile card', () => {
       phone: '(352) 653-8188',
       role: 'Member'
     };
+  });
+});
+
+describe('account and membership details', () => {
+  it('shows role, account status, membership status, and membership payment info', () => {
+    authState.userProfile = {
+      ...authState.userProfile,
+      membershipPaymentAmount: 45,
+      membershipPaymentMethod: 'Check',
+      membershipPaymentStatus: 'Paid',
+      membershipStatus: 'Active',
+      role: 'General User',
+      status: 'Active'
+    };
+    render(<ProfilePage />);
+
+    expect(screen.getByText('General User')).toBeInTheDocument();
+    expect(screen.getAllByText('Active').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Paid, $45.00 (Check)')).toBeInTheDocument();
+
+    authState.userProfile = {
+      billingAddress: {
+        city: 'Loudon',
+        country: 'United States',
+        postalCode: '37774',
+        state: 'TN',
+        street: '12 Awohili Drive'
+      },
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      phone: '(352) 653-8188',
+      role: 'Member'
+    };
+  });
+
+  it('falls back to sensible defaults when status and payment fields are unset', () => {
+    render(<ProfilePage />);
+
+    expect(screen.getAllByText('Unknown', { selector: 'dd' }).length).toBe(2);
+    expect(screen.getByText('Pending, $0.00')).toBeInTheDocument();
+    expect(screen.getAllByText('Not Set').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('treats a Super User as always-Active and not a tracked membership, even with no status set', () => {
+    authState.userProfile = { ...authState.userProfile, role: 'Super User' };
+    render(<ProfilePage />);
+
+    expect(screen.getByText('Super User', { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.getByText('N/A')).toBeInTheDocument();
+
+    authState.userProfile = {
+      billingAddress: {
+        city: 'Loudon',
+        country: 'United States',
+        postalCode: '37774',
+        state: 'TN',
+        street: '12 Awohili Drive'
+      },
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      phone: '(352) 653-8188',
+      role: 'Member'
+    };
+  });
+
+  it('links to My Registrations & Payments', () => {
+    render(<ProfilePage />);
+
+    const link = screen.getByRole('link', { name: /My Registrations/ });
+    expect(link).toHaveAttribute('href', '/my-registrations');
   });
 });
 

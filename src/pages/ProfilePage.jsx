@@ -11,6 +11,7 @@ import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles
 import { US_STATES } from '../data/usStates.js';
 import { db, firebaseConfigured } from '../lib/firebase.js';
 import { applyMemberDirectorySync } from '../services/memberDirectoryProfile.js';
+import { formatCurrency } from '../utils/eventFormat.js';
 import {
   buildDisplayName,
   buildBillingAddress,
@@ -231,6 +232,34 @@ function ProfilePage() {
                     street: billingStreet
                   }) || 'Not provided'}</dd>
                 </div>
+                <div>
+                  <dt>Role</dt>
+                  <dd>{userProfile?.role || 'General User'}</dd>
+                </div>
+                <div>
+                  <dt>Account Status</dt>
+                  <dd>{getDisplayAccountStatus(userProfile)}</dd>
+                </div>
+                <div>
+                  <dt>Membership Status</dt>
+                  <dd>{getDisplayMembershipStatus(userProfile)}</dd>
+                </div>
+                <div>
+                  <dt>Membership Payment</dt>
+                  <dd>{formatMembershipPaymentSummary(userProfile)}</dd>
+                </div>
+                <div>
+                  <dt>Membership Payment Updated</dt>
+                  <dd>{formatDateTime(userProfile?.membershipPaymentUpdatedDate)}</dd>
+                </div>
+                <div>
+                  <dt>Member Since</dt>
+                  <dd>{formatDateTime(userProfile?.createdDate)}</dd>
+                </div>
+                <div>
+                  <dt>Profile Last Updated</dt>
+                  <dd>{formatDateTime(userProfile?.updatedDate)}</dd>
+                </div>
               </dl>
               {successMessage ? <p className="form-success">{successMessage}</p> : null}
               <div className="form-actions">
@@ -244,6 +273,9 @@ function ProfilePage() {
                 >
                   Edit Profile
                 </button>
+                <Link className="button-link button-reset secondary-action" to="/my-registrations">
+                  My Registrations &amp; Payments
+                </Link>
               </div>
             </div>
           ) : (
@@ -439,6 +471,54 @@ function getPermissionSummary(permissions) {
     .map((permission) => permission.label);
 
   return selectedPermissions.length ? selectedPermissions.join(', ') : 'No Admin Permissions';
+}
+
+// Mirrors AdminRegisterMemberPanel.jsx's getDisplayAccountStatus(): Super User
+// accounts aren't managed through the ordinary status field at all, so
+// without this exception one bootstrapped outside the normal Add User flow
+// (never explicitly set to 'Active') would read as not Active here.
+function getDisplayAccountStatus(profile) {
+  if (!profile) {
+    return 'Unknown';
+  }
+
+  if (profile.role === 'Super User') {
+    return 'Active';
+  }
+
+  if (profile.archivedBy || profile.archivedDate || profile.status === 'Archived') {
+    return 'Archived';
+  }
+
+  return profile.status || 'Unknown';
+}
+
+// Mirrors UserControlPanel.jsx's getDisplayMembershipStatus(): Super Users
+// aren't tracked as Guild members, so their membershipStatus field (if any)
+// isn't meaningful here.
+function getDisplayMembershipStatus(profile) {
+  if (!profile) {
+    return 'Unknown';
+  }
+
+  return profile.role === 'Super User' ? 'N/A' : profile.membershipStatus || 'Unknown';
+}
+
+function formatMembershipPaymentSummary(profile) {
+  const status = profile?.membershipPaymentStatus || 'Pending';
+  const amount = formatCurrency(profile?.membershipPaymentAmount || 0);
+  const method = profile?.membershipPaymentMethod;
+
+  return method ? `${status}, ${amount} (${method})` : `${status}, ${amount}`;
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return 'Not Set';
+  }
+
+  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not Set' : date.toLocaleString();
 }
 
 export default ProfilePage;
