@@ -18,6 +18,7 @@ const MEMBERS = [
     id: 'user-1',
     lastName: 'Lovelace',
     phone: '3526538188',
+    status: 'Active',
     userId: 'user-1'
   },
   {
@@ -26,6 +27,7 @@ const MEMBERS = [
     id: 'user-2',
     lastName: 'Hopper',
     phone: '9195551234',
+    status: 'Active',
     userId: 'user-2'
   },
   {
@@ -34,7 +36,17 @@ const MEMBERS = [
     id: 'user-3',
     lastName: 'Phone',
     phone: '',
+    status: 'Active',
     userId: 'user-3'
+  },
+  {
+    email: 'inactive@example.com',
+    firstName: 'Ivy',
+    id: 'user-4',
+    lastName: 'Inactive',
+    phone: '9195551235',
+    status: 'Inactive',
+    userId: 'user-4'
   }
 ];
 
@@ -138,6 +150,40 @@ describe('incomplete member profiles', () => {
     expect(screen.getByText(/missing a valid phone number/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
     expect(createAdminRegistration).not.toHaveBeenCalled();
+  });
+
+  it('blocks submission with an admin-oriented message for an inactive account, instead of the server\'s reactivation error ever being reached', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await searchAndSelect(user, 'inactive', 'Ivy Inactive');
+
+    expect(screen.getByText(/account is Inactive, not Active/)).toBeInTheDocument();
+    expect(screen.getByText(/Reactivate them via User Controls/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
+    expect(createAdminRegistration).not.toHaveBeenCalled();
+  });
+
+  it('does not block an archived member with the generic "Unknown" status, and names it Archived specifically', async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      users: [
+        ...MEMBERS,
+        {
+          archivedDate: '2026-01-01',
+          email: 'archived@example.com',
+          firstName: 'Ann',
+          id: 'user-5',
+          lastName: 'Archived',
+          phone: '9195559999',
+          userId: 'user-5'
+        }
+      ]
+    });
+
+    await searchAndSelect(user, 'archived', 'Ann Archived');
+
+    expect(screen.getByText(/account is Archived, not Active/)).toBeInTheDocument();
   });
 });
 

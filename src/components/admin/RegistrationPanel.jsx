@@ -19,6 +19,7 @@ import {
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
+import { getRegistrationUnavailableReason } from '../../utils/registrationEligibility.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -45,8 +46,8 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
   const [paymentSettings, setPaymentSettings] = useState(DEFAULT_PAYMENT_SETTINGS);
   const [registrations, setRegistrations] = useState([]);
   const [registrationSortConfig, setRegistrationSortConfig] = useState({
-    direction: 'asc',
-    key: 'registrant'
+    direction: 'desc',
+    key: 'registeredDate'
   });
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
   const [expandedRegistrationId, setExpandedRegistrationId] = useState('');
@@ -744,6 +745,7 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
         {groupedRegistrations.length && !selectedEventGroup ? (
           groupedRegistrations.map((group) => {
             const eventTitle = getEventDisplayTitle(group.event, group.eventId, group.snapshot);
+            const registrationStatusPill = getRegistrationStatusPill(group.event);
 
             return (
               <article className="registration-event-card" key={group.eventId}>
@@ -766,6 +768,9 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                 </div>
                 <div className="registration-event-card-side">
                   <div className="registration-event-stats">
+                    <span className={registrationStatusPill.className}>
+                      {registrationStatusPill.label}
+                    </span>
                     <span className={getStatPillClass(getCapacitySummaryCount(group.event, group.displayCounts.registered))}>
                       {getCapacitySummary(group.event, group.displayCounts.registered)}
                     </span>
@@ -1931,6 +1936,17 @@ function getDateSortValue(dateValue) {
     : new Date(dateValue);
 
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+// Reuses the same registration-window reason the public register page shows,
+// so an admin sees at a glance whether they can send someone to register (or
+// register them on their behalf) without opening the event.
+function getRegistrationStatusPill(event) {
+  const reason = getRegistrationUnavailableReason(event);
+
+  return reason
+    ? { className: 'status-pill warning', label: reason }
+    : { className: 'status-pill good', label: 'Registration Open' };
 }
 
 function getCapacitySummary(event, registeredCount) {

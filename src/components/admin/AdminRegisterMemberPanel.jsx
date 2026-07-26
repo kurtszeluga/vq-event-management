@@ -425,10 +425,20 @@ function findActiveRegistration(registrations, member) {
 // The registrant name/phone shown here are read straight from the member's
 // stored profile (never edited in this form), so a stale or incomplete
 // profile has to be fixed at the source - via User Controls - rather than
-// patched inline as part of registering them for an event.
+// patched inline as part of registering them for an event. Also catches an
+// inactive/archived account before submit: the server refuses that with
+// "Please confirm whether you want to reactivate the matched profile." -
+// wording written for a self-registrant choosing to reactivate their own
+// profile, which reads as a non sequitur to an admin who never sees a
+// reactivation option in this form at all. Checking here, with wording aimed
+// at the admin, means that server message should never actually be seen.
 function getProfileIssue(member) {
   if (!member) {
     return '';
+  }
+
+  if (!isProfileActive(member)) {
+    return `This member's account is ${getDisplayAccountStatus(member)}, not Active. Reactivate them via User Controls before registering them for this event.`;
   }
 
   const firstName = getProfileFirstName(member);
@@ -443,6 +453,20 @@ function getProfileIssue(member) {
   }
 
   return '';
+}
+
+// Mirrors create-registration.js's getProfileStatus() exactly, so this
+// client-side gate blocks in precisely the same cases the server would.
+function isProfileActive(member) {
+  return !isArchivedProfile(member) && member.status === 'Active';
+}
+
+function getDisplayAccountStatus(member) {
+  return isArchivedProfile(member) ? 'Archived' : (member.status || 'Unknown');
+}
+
+function isArchivedProfile(member) {
+  return Boolean(member.archivedBy || member.archivedDate || member.status === 'Archived');
 }
 
 function normalizeEmail(value) {
