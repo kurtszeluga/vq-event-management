@@ -149,6 +149,9 @@ function SupplyListViewerPage() {
     }
   }, []);
 
+  // Safari finally prints reliably through this hidden same-page iframe.
+  // Do not switch this back to window.print() on the live viewer, a popup,
+  // or a PDF iframe print path without re-testing the full Safari workflow.
   useEffect(() => {
     if (!printDocumentHtml || !printFrameRef.current) {
       return;
@@ -252,9 +255,6 @@ function SupplyListViewerPage() {
           <button className="button-link secondary-action" type="button" onClick={handlePrint}>
             Print
           </button>
-          <a className="button-link secondary-action" href={attachmentProxyUrl}>
-            Direct Download
-          </a>
           <button className="button-link" type="button" onClick={handleClose}>
             Close
           </button>
@@ -308,6 +308,9 @@ function buildPrintPage(canvas, index) {
   };
 }
 
+// Keep this print document self-contained and same-origin. Safari now opens
+// the dialog from the hidden iframe that receives this HTML, and that exact
+// behavior is intentional.
 function buildSupplyListPrintHtml(title, pages) {
   const safeTitle = escapeHtml(title);
   const pageMarkup = pages
