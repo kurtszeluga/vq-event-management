@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import PageHeader from '../components/PageHeader.jsx';
@@ -194,11 +194,20 @@ function SupplyListViewerPage() {
     };
   }, [printDocumentHtml]);
 
+  const handleClose = useCallback(() => {
+    if (window.opener) {
+      window.close();
+      return;
+    }
+
+    navigate('/events');
+  }, [navigate]);
+
   useEffect(() => {
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         event.preventDefault();
-        navigate('/events');
+        handleClose();
       }
     }
 
@@ -207,21 +216,7 @@ function SupplyListViewerPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate]);
-
-  function handleClose() {
-    if (window.opener) {
-      window.close();
-      return;
-    }
-
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-
-    navigate('/events');
-  }
+  }, [handleClose]);
 
   function handlePrint() {
     const pages = [...(previewRef.current?.querySelectorAll('.viewer-pdf-canvas') || [])]
