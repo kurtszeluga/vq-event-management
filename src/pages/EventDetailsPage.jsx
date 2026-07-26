@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import EventImageCarousel from '../components/EventImageCarousel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
@@ -214,11 +215,7 @@ function EventDetailsPage() {
           </div>
         </div>
         <div className="event-image-grid">
-          {event.imageUrls?.[0] ? (
-            <img alt={`${event.title} image`} src={event.imageUrls[0]} />
-          ) : (
-            <div className="image-placeholder" />
-          )}
+          <EventImageCarousel altText={`${event.title} image`} imageUrls={event.imageUrls} />
         </div>
       </div>
     </section>

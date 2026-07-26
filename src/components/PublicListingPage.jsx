@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import EventImageCarousel from './EventImageCarousel.jsx';
 import PageHeader from './PageHeader.jsx';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { formatCurrency, isEventVisible } from '../utils/eventFormat.js';
@@ -108,11 +109,7 @@ function PublicListingPage({
                 </dl>
               </div>
               <div className="public-event-card-thumbnail">
-                {event.imageUrls?.[0] ? (
-                  <img alt={`${titleText} thumbnail`} src={event.imageUrls[0]} />
-                ) : (
-                  <div className="image-placeholder" aria-label="No image uploaded" />
-                )}
+                <EventImageCarousel altText={`${titleText} thumbnail`} imageUrls={event.imageUrls} />
               </div>
             </article>
           );

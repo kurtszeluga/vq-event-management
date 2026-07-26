@@ -1,3 +1,5 @@
+import { MAX_EVENT_IMAGES } from '../../shared/eventImages.js';
+
 export const EVENT_TYPES = [
   'Class (Half Day)',
   'Class (Full Day)',
@@ -69,7 +71,7 @@ export const DEFAULT_EVENT_FORM = {
   endTime: '',
   eventType: '',
   capacityUnlimited: false,
-  imageUrls: [''],
+  imageUrls: Array(MAX_EVENT_IMAGES).fill(''),
   isPaid: null,
   listingMode: '',
   location: '',

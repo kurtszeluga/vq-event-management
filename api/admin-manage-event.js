@@ -2,7 +2,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
-import { getArchiveBlockError, getEventCapacityError } from './_lib/registration-capacity.js';
+import { getArchiveBlockError, getEventCapacityError, getEventImagesError } from './_lib/registration-capacity.js';
 
 let firebaseProjectId = '';
 
@@ -86,6 +86,13 @@ export default async function handler(request, response) {
 
       if (capacityError) {
         response.status(400).json({ error: capacityError });
+        return;
+      }
+
+      const imagesError = getEventImagesError(eventData);
+
+      if (imagesError) {
+        response.status(400).json({ error: imagesError });
         return;
       }
     }

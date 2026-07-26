@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import EventImageCarousel from '../components/EventImageCarousel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
@@ -39,10 +40,6 @@ const DEFAULT_EVENT_TYPE_FILTER = EVENT_TYPE_FILTERS[0].value;
 
 function getEventTypeLabel(event) {
   return event.eventType || 'Other';
-}
-
-function getEventThumbnail(event) {
-  return event.imageUrls?.find(Boolean) || '';
 }
 
 function getEventFilter(type) {
@@ -451,7 +448,6 @@ function EventsPage() {
           const description = event.description || '';
           const descriptionIsLong = description.length > DESCRIPTION_PREVIEW_LENGTH;
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
-          const thumbnailUrl = getEventThumbnail(event);
           const counts = registrationCounts[event.id] || {};
           const availability = getRegistrationAvailability(event, counts);
           const registrationStats = getEventRegistrationStats(event, counts);
@@ -557,11 +553,7 @@ function EventsPage() {
                 ) : null}
               </div>
               <div className="public-event-card-thumbnail">
-                {thumbnailUrl ? (
-                  <img alt={`${event.title} thumbnail`} src={thumbnailUrl} />
-                ) : (
-                  <div className="image-placeholder" aria-label="No image uploaded" />
-                )}
+                <EventImageCarousel altText={`${event.title} thumbnail`} imageUrls={event.imageUrls} />
               </div>
               <div className="public-event-card-actions">
                 {event.supplyListUrl ? (

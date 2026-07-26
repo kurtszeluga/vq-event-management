@@ -1,3 +1,4 @@
+import { MAX_EVENT_IMAGES } from '../../shared/eventImages.js';
 import { isPaymentPending } from '../../shared/registrationPayment.js';
 import { getTimestampMillis } from './registration-verification.js';
 
@@ -118,6 +119,17 @@ export function getEventCapacityError(eventData = {}) {
 
   if (!Number.isInteger(capacity) || capacity < 1) {
     return 'Maximum capacity must be at least 1, or select unlimited capacity.';
+  }
+
+  return '';
+}
+
+// EventForm.jsx already caps uploads at MAX_EVENT_IMAGES and slices to it
+// before saving; this is defense in depth for this authenticated write path,
+// not a client-input trust boundary.
+export function getEventImagesError(eventData = {}) {
+  if (Array.isArray(eventData.imageUrls) && eventData.imageUrls.length > MAX_EVENT_IMAGES) {
+    return `An event can have at most ${MAX_EVENT_IMAGES} images.`;
   }
 
   return '';

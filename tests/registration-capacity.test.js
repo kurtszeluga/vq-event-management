@@ -4,6 +4,7 @@ import {
   PAYMENT_RESERVATION_EXPIRATION_MS,
   getArchiveBlockError,
   getEventCapacityError,
+  getEventImagesError,
   getInitialPaymentStatus,
   getInitialRegistrationStatus,
   getReservationExpiryMillis,
@@ -224,6 +225,20 @@ test('a capped event cannot be saved with zero capacity', () => {
   assert.notEqual(getEventCapacityError({ capacity: -1, capacityUnlimited: false }), '');
   assert.notEqual(getEventCapacityError({ capacity: 2.5, capacityUnlimited: false }), '');
   assert.notEqual(getEventCapacityError({ capacity: 'lots', capacityUnlimited: false }), '');
+});
+
+test('an event is refused when more than MAX_EVENT_IMAGES are supplied', () => {
+  assert.notEqual(
+    getEventImagesError({ imageUrls: ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg'] }),
+    ''
+  );
+});
+
+test('an event at or under the image cap, or with no imageUrls at all, saves cleanly', () => {
+  assert.equal(getEventImagesError({ imageUrls: ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg'] }), '');
+  assert.equal(getEventImagesError({ imageUrls: [] }), '');
+  assert.equal(getEventImagesError({}), '');
+  assert.equal(getEventImagesError({ imageUrls: 'not-an-array' }), '');
 });
 
 test('capped events with real seat counts and unlimited events both save', () => {

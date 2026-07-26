@@ -1688,6 +1688,77 @@ body.nav-sheet-open {
   border: 1px dashed #c9bbb0;
 }
 
+.event-image-carousel {
+  position: relative;
+}
+
+.carousel-arrow {
+  align-items: center;
+  background: rgb(29 41 39 / 55%);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  width: 32px;
+  z-index: 1;
+}
+
+.carousel-arrow:hover {
+  background: rgb(29 41 39 / 75%);
+}
+
+.carousel-arrow-prev {
+  left: 8px;
+}
+
+.carousel-arrow-next {
+  right: 8px;
+}
+
+.carousel-chevron {
+  border-right: 3px solid #ffffff;
+  border-top: 3px solid #ffffff;
+  display: block;
+  height: 9px;
+  width: 9px;
+}
+
+.carousel-chevron-prev {
+  margin-left: 3px;
+  transform: rotate(-135deg);
+}
+
+.carousel-chevron-next {
+  margin-right: 3px;
+  transform: rotate(45deg);
+}
+
+.carousel-dots {
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.carousel-dot {
+  background: rgb(255 255 255 / 55%);
+  border-radius: 999px;
+  height: 6px;
+  width: 6px;
+}
+
+.carousel-dot.active {
+  background: #ffffff;
+}
+
 .supply-list-view {
   background: #fffdfa;
   border: 1px solid #ded5ca;

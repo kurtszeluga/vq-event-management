@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { MAX_EVENT_IMAGES } from '../../../shared/eventImages.js';
 import { isRegistrationWindowInverted } from '../../../shared/registrationWindow.js';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
@@ -39,7 +40,7 @@ function EventForm({
   userProfile
 }) {
   const documentInputRef = useRef(null);
-  const imageInputRef = useRef(null);
+  const imageInputRefs = useRef([]);
   const pdfInputRef = useRef(null);
   const [form, setForm] = useState(DEFAULT_EVENT_FORM);
   const [error, setError] = useState('');
@@ -925,15 +926,20 @@ function EventForm({
 
       <div className="form-subsection">
         <h3>Images And Documents (Optional)</h3>
+        <p className="form-help">
+          Upload up to {MAX_EVENT_IMAGES} photos. Members browsing the listing can flip between them.
+        </p>
         <div className="form-grid">
-          {showImageUpload ? [0].map((index) => (
+          {showImageUpload ? Array.from({ length: MAX_EVENT_IMAGES }, (_, index) => index).map((index) => (
             <div className="image-upload-field" key={index}>
-              <span className="field-label">Photo/Image Upload</span>
+              <span className="field-label">Photo {index + 1} Of {MAX_EVENT_IMAGES}</span>
               <input
                 accept="image/*"
                 className="visually-hidden-file"
                 disabled={!eventTypeSelected || Boolean(uploadingField)}
-                ref={imageInputRef}
+                ref={(element) => {
+                  imageInputRefs.current[index] = element;
+                }}
                 type="file"
                 onChange={async (event) => {
                   await handleFileUpload(`image-${index}`, event.target.files?.[0], {
@@ -949,7 +955,7 @@ function EventForm({
                       className="button-link button-reset"
                       disabled={!eventTypeSelected || Boolean(uploadingField)}
                       type="button"
-                      onClick={() => imageInputRef.current?.click()}
+                      onClick={() => imageInputRefs.current[index]?.click()}
                     >
                       {form.imageUrls[index] ? 'Change Image' : 'Choose Image'}
                     </button>
@@ -1714,7 +1720,7 @@ function validateDraftEventForm(form) {
   return errors;
 }
 
-function buildEventPayload(form, showSupplyListUpload, asDraft) {
+export function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const isBusinessListing = form.eventType === 'Business Listing';
   const isForSale = form.eventType === 'For Sale';
   const isChallenge = form.eventType === 'Challenges';
@@ -1757,7 +1763,7 @@ function buildEventPayload(form, showSupplyListUpload, asDraft) {
     documentUrl: isChallenge ? form.documentUrl.trim() : '',
     endTime: isChallenge ? '00:00' : hasTime ? form.endTime : '',
     eventType: form.eventType,
-    imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, 1),
+    imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, MAX_EVENT_IMAGES),
     isPaid: form.isPaid === true && hasFees,
     listingMode: form.listingMode,
     location: hasSchedule ? toTitleCase(form.location.trim()) : '',
@@ -1876,7 +1882,7 @@ function getTimeOptionDisplay(option) {
   return timeRange ? `${option.label} (${timeRange})` : option.label;
 }
 
-function getInitialForm(editingEvent, initialEventType = '') {
+export function getInitialForm(editingEvent, initialEventType = '') {
   if (!editingEvent) {
     return {
       ...DEFAULT_EVENT_FORM,
@@ -1892,9 +1898,7 @@ function getInitialForm(editingEvent, initialEventType = '') {
     capacityUnlimited: Boolean(editingEvent.capacityUnlimited),
     cost: String(editingEvent.cost ?? 0),
     contactPhone: formatPhoneNumber(editingEvent.contactPhone || ''),
-    imageUrls: [
-      editingEvent.imageUrls?.[0] || ''
-    ],
+    imageUrls: Array.from({ length: MAX_EVENT_IMAGES }, (_, index) => editingEvent.imageUrls?.[index] || ''),
     serviceFee: String(editingEvent.serviceFee ?? '1.00')
   };
 }
