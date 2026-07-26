@@ -19,17 +19,22 @@ import {
 } from '../../utils/registrationEligibility.js';
 
 const MAX_VISIBLE_RESULTS = 8;
+const ACTIVE_REGISTRATION_STATUSES = ['Pending Payment', 'Registered', 'Waitlisted'];
 
 // Lets an admin with the registerOthers permission submit a registration on
 // behalf of a member who doesn't use or is afraid of online tools. The event
 // is fixed by which card the admin opened this from - only a member needs
-// picking, not an event too. Payment is cash/check only: this UI has no card
-// entry at all, matching createAdminRegistration/create-registration.js's
-// server-side guard, which refuses a paid event with no cash/check option
-// regardless of what this form does.
-function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users }) {
+// picking, not an event too. Payment defaults to cash/check only - this UI
+// has no card entry at all - but an event that doesn't otherwise offer
+// cash/check can be overridden case by case (cashCheckOverride below), for a
+// member who cannot pay online regardless of the event's own settings. The
+// server (create-registration.js) re-checks the same override independently
+// rather than trusting this component's disabled state.
+function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = false, onClose, onRegistered, open, users }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
+  const [duplicateRegistration, setDuplicateRegistration] = useState(null);
+  const [cashCheckOverride, setCashCheckOverride] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -38,10 +43,9 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
 
   const eventIsPaid = getIsPaidEvent(event || {});
   const eventAllowsCashCheck = canPayLaterByCashCheck(event || {});
-  // The trigger that opens this panel is already disabled for this case
-  // (see RegistrationPanel.jsx); this is the same check repeated here as a
-  // guard against stale event data, not the primary defense.
-  const unsupported = eventIsPaid && !eventAllowsCashCheck;
+  const canOverrideCashCheck = eventIsPaid && !eventAllowsCashCheck;
+  const cashCheckAccepted = eventAllowsCashCheck || (canOverrideCashCheck && cashCheckOverride);
+  const unsupported = eventIsPaid && !cashCheckAccepted;
 
   const filteredMembers = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
@@ -56,6 +60,8 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
   function resetForm() {
     setSearchTerm('');
     setSelectedMember(null);
+    setDuplicateRegistration(null);
+    setCashCheckOverride(false);
     setFieldErrors({});
     setFormError('');
     registrantForm.reset();
@@ -71,12 +77,16 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
     setSelectedMember(member);
     registrantForm.applyProfile(member);
     setSearchTerm('');
+    setDuplicateRegistration(findActiveRegistration(existingRegistrations, member));
+    setCashCheckOverride(false);
     setFieldErrors({});
     setFormError('');
   }
 
   function handleChangeMember() {
     setSelectedMember(null);
+    setDuplicateRegistration(null);
+    setCashCheckOverride(false);
     registrantForm.reset();
     setFieldErrors({});
   }
@@ -87,6 +97,11 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
 
     if (!selectedMember) {
       setFormError('Search for and select a member to register.');
+      return;
+    }
+
+    if (duplicateRegistration) {
+      setFormError('This member already has an active registration for this event.');
       return;
     }
 
@@ -115,11 +130,12 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
 
     try {
       const result = await createAdminRegistration({
+        allowCashCheckOverride: canOverrideCashCheck && cashCheckOverride,
         email: selectedMember.email || '',
         eventId: event.id,
         idempotencyKey: idempotencyKeyRef.current,
         name: buildDisplayName(registrantForm.firstName, registrantForm.lastName),
-        paymentPreference: eventAllowsCashCheck && eventIsPaid ? 'cash-check-later' : '',
+        paymentPreference: eventIsPaid && cashCheckAccepted ? 'cash-check-later' : '',
         phone: registrantForm.phone,
         profileUserId: selectedMember.userId || selectedMember.id,
         profileUpdates: {
@@ -233,6 +249,14 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
                 Change
               </button>
             </div>
+            {duplicateRegistration ? (
+              <p className="form-error">
+                {buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember))
+                  || selectedMember.email} already has an active registration for this event
+                (status: {duplicateRegistration.status}). Use Change to pick a different member,
+                or manage the existing registration from the table behind this dialog.
+              </p>
+            ) : null}
             <div className="registration-profile-edit-grid">
               <label>
                 <span>First Name *</span>
@@ -308,11 +332,26 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
                 />
               </label>
             </div>
+            {canOverrideCashCheck ? (
+              <label className="checkbox-label">
+                <input
+                  checked={cashCheckOverride}
+                  disabled={submitting}
+                  type="checkbox"
+                  onChange={(inputEvent) => setCashCheckOverride(inputEvent.target.checked)}
+                />
+                <span>
+                  Override: accept cash or check for this registration only, even though this
+                  event does not otherwise offer it. Use this only when the member cannot pay
+                  online.
+                </span>
+              </label>
+            ) : null}
             {unsupported ? (
               <p className="form-error">
                 This event requires online card payment, which admin-initiated registration does
-                not support. Enable cash or check payment for this event, or have the member
-                register themselves.
+                not support unless the override above is checked. Check it to accept cash or
+                check for this registration only, or have the member register themselves.
               </p>
             ) : eventIsPaid ? (
               <p className="form-help">
@@ -322,10 +361,25 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
             ) : (
               <p className="form-help">This event is free - no payment is required.</p>
             )}
+            {isFull && !unsupported ? (
+              <p className="form-help">
+                This event is full. {buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember))
+                  || 'This member'} will be added to the waitlist instead of an active
+                registration.
+              </p>
+            ) : null}
             {formError ? <p className="form-error">{formError}</p> : null}
             <div className="form-actions">
-              <button className="button-link button-reset" disabled={submitting || unsupported} type="submit">
-                {submitting ? 'Registering...' : 'Register Member'}
+              <button
+                className="button-link button-reset"
+                disabled={submitting || unsupported || Boolean(duplicateRegistration)}
+                type="submit"
+              >
+                {submitting
+                  ? 'Registering...'
+                  : isFull && !unsupported
+                    ? 'Add Member To Waitlist'
+                    : 'Register Member'}
               </button>
               <button
                 className="button-link button-reset secondary-action"
@@ -341,6 +395,27 @@ function AdminRegisterMemberPanel({ event, onClose, onRegistered, open, users })
       </form>
     </ModalDialog>
   );
+}
+
+// Mirrors create-registration.js's alreadyRegistered check (same status list,
+// same userId-or-email match) so the admin sees this before filling out the
+// rest of the form, not as a submit-time server error.
+function findActiveRegistration(registrations, member) {
+  const memberUserId = member?.userId || member?.id || '';
+  const memberEmail = normalizeEmail(member?.email);
+
+  return (registrations || []).find((registration) => {
+    if (!ACTIVE_REGISTRATION_STATUSES.includes(registration.status)) {
+      return false;
+    }
+
+    return (memberUserId && registration.userId === memberUserId)
+      || (memberEmail && normalizeEmail(registration.email) === memberEmail);
+  }) || null;
+}
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
 }
 
 function getMemberSearchText(member) {

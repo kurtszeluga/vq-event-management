@@ -19,6 +19,7 @@ import {
   getReservationExpiryMillis,
   hasAvailableSeat,
   isActiveReservation,
+  isCashCheckPaymentAllowed,
   isSeatHoldingRegistration,
   reservationMatchesRequest
 } from './_lib/registration-capacity.js';
@@ -326,18 +327,21 @@ async function createRegistration(db, payload, authorization) {
     }
 
     const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
-    const payLaterByCashCheck =
-      isPaidEvent
-      && Boolean(event.allowCashCheckPayment)
-      && payload.paymentPreference === 'cash-check-later';
+    const payLaterByCashCheck = isPaidEvent && isCashCheckPaymentAllowed({
+      allowCashCheckOverride: payload.allowCashCheckOverride,
+      authorizationKind: authorization.kind,
+      event,
+      paymentPreference: payload.paymentPreference
+    });
 
     // Defense in depth: the admin UI should never let this be reached (it
-    // only offers cash/check), but the server must not rely on the client to
-    // enforce that - admin-initiated registration has no card-entry path at
-    // all, so a paid event that does not accept cash/check cannot be
-    // completed this way.
+    // only offers cash/check, with or without the override above), but the
+    // server must not rely on the client to enforce that - admin-initiated
+    // registration has no card-entry path at all, so a paid event that ends
+    // up neither event-supported nor admin-overridden cannot be completed
+    // this way.
     if (authorization.kind === 'admin' && isPaidEvent && !payLaterByCashCheck) {
-      throw httpError(400, 'This event requires online card payment, which admin-initiated registration does not support. Enable cash or check payment for this event, or have the member register themselves.');
+      throw httpError(400, 'This event requires online card payment, which admin-initiated registration does not support. Enable cash or check payment for this event, use the cash/check override, or have the member register themselves.');
     }
 
     const eventCost = Number(event.cost || 0);
@@ -666,10 +670,15 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     });
 
     const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
-    const payLaterByCashCheck =
-      isPaidEvent
-      && Boolean(event.allowCashCheckPayment)
-      && payload.paymentPreference === 'cash-check-later';
+    // Only ever reached via the self-service Square reservation flow, so
+    // authorization.kind here is never 'admin' - the cash/check override has
+    // no effect on this path, same as isCashCheckPaymentAllowed intends.
+    const payLaterByCashCheck = isPaidEvent && isCashCheckPaymentAllowed({
+      allowCashCheckOverride: payload.allowCashCheckOverride,
+      authorizationKind: authorization.kind,
+      event,
+      paymentPreference: payload.paymentPreference
+    });
 
     if (!isPaidEvent || payLaterByCashCheck) {
       return {
@@ -942,6 +951,7 @@ function isEventVisible(event) {
 
 function sanitizeRegistrationPayload(payload) {
   return {
+    allowCashCheckOverride: Boolean(payload.allowCashCheckOverride),
     email: normalizeEmail(payload.email),
     eventId: String(payload.eventId || '').trim(),
     idempotencyKey: sanitizeIdempotencyKey(payload.idempotencyKey),

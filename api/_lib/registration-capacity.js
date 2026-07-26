@@ -42,6 +42,28 @@ export function reservationMatchesRequest(reservation = {}, expected = {}, now =
     && getReservationExpiryMillis(reservation) > now;
 }
 
+// An admin with registerOthers may register a member for cash/check on a
+// case-by-case basis even when the event itself does not otherwise offer it -
+// the override only ever widens what an already-permission-gated admin can
+// do, never a self-registrant's options, since it is ignored for every other
+// authorizationKind.
+export function isCashCheckPaymentAllowed({
+  allowCashCheckOverride = false,
+  authorizationKind = '',
+  event = {},
+  paymentPreference = ''
+} = {}) {
+  if (paymentPreference !== 'cash-check-later') {
+    return false;
+  }
+
+  if (event.allowCashCheckPayment) {
+    return true;
+  }
+
+  return authorizationKind === 'admin' && allowCashCheckOverride === true;
+}
+
 export function getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck }) {
   if (!hasCapacity) {
     return 'Waitlisted';

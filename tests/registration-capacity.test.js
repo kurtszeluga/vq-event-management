@@ -8,6 +8,7 @@ import {
   getReservationExpiryMillis,
   hasAvailableSeat,
   isActiveReservation,
+  isCashCheckPaymentAllowed,
   isSeatHoldingRegistration,
   reservationMatchesRequest,
   toAmountCents
@@ -250,4 +251,60 @@ test('a saved event always satisfies the capacity invariant registration relies 
       event
     }), true);
   });
+});
+
+test('an event that already allows cash/check accepts it for anyone requesting it', () => {
+  const event = { allowCashCheckPayment: true };
+
+  assert.equal(isCashCheckPaymentAllowed({
+    authorizationKind: 'firebase',
+    event,
+    paymentPreference: 'cash-check-later'
+  }), true);
+
+  assert.equal(isCashCheckPaymentAllowed({
+    authorizationKind: 'admin',
+    event,
+    paymentPreference: 'cash-check-later'
+  }), true);
+});
+
+test('a self-registrant cannot use the admin cash/check override', () => {
+  const event = { allowCashCheckPayment: false };
+
+  assert.equal(isCashCheckPaymentAllowed({
+    allowCashCheckOverride: true,
+    authorizationKind: 'firebase',
+    event,
+    paymentPreference: 'cash-check-later'
+  }), false);
+});
+
+test('an admin can override cash/check for an event that does not otherwise offer it', () => {
+  const event = { allowCashCheckPayment: false };
+
+  assert.equal(isCashCheckPaymentAllowed({
+    allowCashCheckOverride: true,
+    authorizationKind: 'admin',
+    event,
+    paymentPreference: 'cash-check-later'
+  }), true);
+
+  // The override only ever widens what an admin can do - it is not honored
+  // without being explicitly set.
+  assert.equal(isCashCheckPaymentAllowed({
+    allowCashCheckOverride: false,
+    authorizationKind: 'admin',
+    event,
+    paymentPreference: 'cash-check-later'
+  }), false);
+});
+
+test('cash/check is never allowed without the cash-check-later payment preference, override or not', () => {
+  assert.equal(isCashCheckPaymentAllowed({
+    allowCashCheckOverride: true,
+    authorizationKind: 'admin',
+    event: { allowCashCheckPayment: true },
+    paymentPreference: ''
+  }), false);
 });

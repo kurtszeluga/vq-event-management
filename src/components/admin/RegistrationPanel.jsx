@@ -18,6 +18,7 @@ import {
 } from '../../services/registrationService.js';
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
+import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -428,6 +429,15 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
     ),
     [registrationSortConfig, selectedEventGroup, userMap]
   );
+  // Uses raw (non-combined) counts, matching the server's seat-holding
+  // definition (Pending Payment + Registered), so a full event is detected
+  // before the admin ever picks a member, not after a submit-time refusal.
+  const selectedEventAvailability = useMemo(
+    () => (selectedEventGroup
+      ? getRegistrationAvailability(selectedEventGroup.event, selectedEventGroup.counts)
+      : null),
+    [selectedEventGroup]
+  );
   const selectedRegistrationEvent = selectedRegistration
     ? eventMap.get(selectedRegistration.eventId)
     : null;
@@ -807,18 +817,6 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                     registeredCount={group.displayCounts.registered}
                   />
                 </div>
-                {canRegisterOthers && group.event ? (
-                  <button
-                    className="button-link button-reset secondary-action compact-action"
-                    type="button"
-                    onClick={() => {
-                      setSuccessMessage('');
-                      setRegisterMemberOpen(true);
-                    }}
-                  >
-                    Register A Member
-                  </button>
-                ) : null}
               </div>
               <div className="user-table-wrap">
                 {selectedDisplayRegistrations.length ? (
@@ -972,6 +970,18 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                 )}
               </div>
               <div className="form-actions registration-detail-footer-actions">
+                {canRegisterOthers && group.event ? (
+                  <button
+                    className="button-link button-reset secondary-action"
+                    type="button"
+                    onClick={() => {
+                      setSuccessMessage('');
+                      setRegisterMemberOpen(true);
+                    }}
+                  >
+                    Register A Member
+                  </button>
+                ) : null}
                 <button
                   className="button-link button-reset"
                   type="button"
@@ -987,6 +997,8 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
       {canRegisterOthers ? (
         <AdminRegisterMemberPanel
           event={selectedEventGroup?.event}
+          existingRegistrations={selectedEventGroup?.registrations || []}
+          isFull={Boolean(selectedEventAvailability?.isFull)}
           onClose={() => setRegisterMemberOpen(false)}
           onRegistered={(result) => {
             setRegisterMemberOpen(false);

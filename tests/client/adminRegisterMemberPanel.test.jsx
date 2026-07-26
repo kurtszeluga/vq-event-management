@@ -153,6 +153,114 @@ describe('payment messaging by event type', () => {
   });
 });
 
+describe('admin cash/check override', () => {
+  it('disables submit until the override checkbox is checked for an unsupported paid event', async () => {
+    const user = userEvent.setup();
+    renderPanel({ event: PAID_UNSUPPORTED_EVENT });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
+
+    await user.click(screen.getByRole('checkbox'));
+
+    expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
+    expect(screen.getByText(/pay by cash or check later/)).toBeInTheDocument();
+  });
+
+  it('sends allowCashCheckOverride and cash-check-later once the override is checked', async () => {
+    const user = userEvent.setup();
+    createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Registered' });
+    renderPanel({ event: PAID_UNSUPPORTED_EVENT });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Register Member' }));
+
+    await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
+    expect(createAdminRegistration.mock.calls[0][0]).toMatchObject({
+      allowCashCheckOverride: true,
+      paymentPreference: 'cash-check-later'
+    });
+  });
+
+  it('does not offer the override for a free event or an already cash/check-supported paid event', async () => {
+    const user = userEvent.setup();
+    renderPanel({ event: PAID_CASH_CHECK_EVENT });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+});
+
+describe('duplicate registration detection', () => {
+  const EXISTING_REGISTRATION = { eventId: 'event-2', status: 'Registered', userId: 'user-1' };
+
+  it('warns as soon as a member with an active registration is selected, before any submit attempt', async () => {
+    const user = userEvent.setup();
+    renderPanel({ event: PAID_CASH_CHECK_EVENT, existingRegistrations: [EXISTING_REGISTRATION] });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.getByText(/already has an active registration/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
+    expect(createAdminRegistration).not.toHaveBeenCalled();
+  });
+
+  it('does not warn when the member\'s only registration for this event was cancelled', async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      event: PAID_CASH_CHECK_EVENT,
+      existingRegistrations: [{ ...EXISTING_REGISTRATION, status: 'Cancelled' }]
+    });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.queryByText(/already has an active registration/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
+  });
+
+  it('clears the warning once Change selects a different, unregistered member', async () => {
+    const user = userEvent.setup();
+    renderPanel({ event: PAID_CASH_CHECK_EVENT, existingRegistrations: [EXISTING_REGISTRATION] });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    expect(screen.getByText(/already has an active registration/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Change' }));
+    await searchAndSelect(user, 'grace', 'Grace Hopper');
+
+    expect(screen.queryByText(/already has an active registration/)).toBeNull();
+  });
+});
+
+describe('event at capacity', () => {
+  it('labels the submit action as adding to the waitlist and still allows it', async () => {
+    const user = userEvent.setup();
+    createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Waitlisted' });
+    renderPanel({ event: FREE_EVENT, isFull: true });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.getByText(/will be added to the waitlist/)).toBeInTheDocument();
+    const submitButton = screen.getByRole('button', { name: 'Add Member To Waitlist' });
+    expect(submitButton).not.toBeDisabled();
+
+    await user.click(submitButton);
+    await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the ordinary label and copy when the event is not full', async () => {
+    const user = userEvent.setup();
+    renderPanel({ event: FREE_EVENT, isFull: false });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.getByRole('button', { name: 'Register Member' })).toBeInTheDocument();
+    expect(screen.queryByText(/will be added to the waitlist/)).toBeNull();
+  });
+});
+
 describe('validation', () => {
   it('refuses to submit with an empty first name and does not call the server', async () => {
     const user = userEvent.setup();

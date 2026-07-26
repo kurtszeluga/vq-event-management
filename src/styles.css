@@ -111,6 +111,7 @@ a {
 .nav-link,
 .nav-button,
 .button-link {
+  align-items: center;
   background: transparent;
   border: 1px solid #c9bbb0;
   border-radius: 8px;
