@@ -162,7 +162,7 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    const popup = window.open('', 'vq-supply-list-print', 'popup,width=1100,height=900');
+    const popup = window.open('', '_blank');
 
     if (!popup) {
       window.focus();
