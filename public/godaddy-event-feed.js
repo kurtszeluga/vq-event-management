@@ -8,6 +8,7 @@
   };
   const DESCRIPTION_PREVIEW_LENGTH = 180;
   const STYLE_ID = 'vq-embed-feed-styles';
+  const AUTO_ROTATE_INTERVAL_MS = 4000;
 
   function initFeed(container) {
     const config = {
@@ -72,6 +73,7 @@
     }
 
     wireDescriptionToggles(root);
+    wireImageCarousels(root);
     wireImageViewerLinks(root);
     wireSupplyListLinks(root);
     wireEventDetailsLinks(root);
@@ -124,9 +126,7 @@
       : description;
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
     const paymentDetails = getPaymentDetails(event);
-    const thumbnail = event.imageUrl
-      ? `<div class="vq-feed-thumb-stack"><a class="vq-feed-thumb-link" href="${escapeAttribute(event.imageUrl)}" data-image-viewer-src="${escapeAttribute(event.imageUrl)}" data-image-viewer-title="${escapeAttribute(event.title)}" aria-label="Open larger image for ${escapeHtml(event.title)}"><img alt="${escapeHtml(event.title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(event.imageUrl)}" /></a><span class="vq-feed-thumb-hint">Click image for larger view</span></div>`
-      : '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
+    const thumbnail = buildThumbnailMarkup(getEventImages(event), event.title || 'Event');
     const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
     const supplyListViewerUrl =
       event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id);
@@ -197,6 +197,84 @@
           </div>
         </div>
       </article>
+    `;
+  }
+
+  // imageUrls (the full set) only started arriving in the feed once this
+  // feature shipped; imageUrl (singular, first photo) is the older field
+  // and stays as a fallback for a feed response that predates it.
+  function getEventImages(event) {
+    if (Array.isArray(event.imageUrls) && event.imageUrls.length) {
+      return event.imageUrls.filter(Boolean);
+    }
+
+    return event.imageUrl ? [event.imageUrl] : [];
+  }
+
+  function formatPhotoCountLabel(count) {
+    return count === 1 ? '1 Photo' : `${count} Photos`;
+  }
+
+  function buildThumbnailMarkup(images, title) {
+    if (!images.length) {
+      return '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
+    }
+
+    const countCaption = `<p class="vq-feed-thumb-count">${formatPhotoCountLabel(images.length)}</p>`;
+    const hint = '<span class="vq-feed-thumb-hint">Click image for larger view</span>';
+
+    if (images.length === 1) {
+      return `
+        <div class="vq-feed-thumb-stack">
+          <button
+            class="vq-feed-thumb-link"
+            type="button"
+            data-action="open-viewer"
+            data-images="${escapeAttribute(JSON.stringify(images))}"
+            data-title="${escapeAttribute(title)}"
+            data-start-index="0"
+            aria-label="Open larger image for ${escapeHtml(title)}"
+          >
+            <img alt="${escapeHtml(title)} thumbnail" class="vq-feed-thumb-image" src="${escapeAttribute(images[0])}" />
+          </button>
+          ${countCaption}
+          ${hint}
+        </div>
+      `;
+    }
+
+    const dots = images
+      .map((_, dotIndex) => `<span class="vq-feed-carousel-dot${dotIndex === 0 ? ' is-active' : ''}"></span>`)
+      .join('');
+
+    return `
+      <div class="vq-feed-thumb-stack">
+        <div class="vq-feed-carousel" data-images="${escapeAttribute(JSON.stringify(images))}" data-title="${escapeAttribute(title)}" data-index="0">
+          <button class="vq-feed-carousel-image-button" type="button" data-action="open-viewer" aria-label="Open larger view for ${escapeHtml(title)}">
+            <img
+              alt="${escapeHtml(title)} thumbnail - photo 1 of ${images.length}"
+              class="vq-feed-thumb-image"
+              data-role="carousel-image"
+              src="${escapeAttribute(images[0])}"
+            />
+          </button>
+          <button class="vq-feed-carousel-arrow vq-feed-carousel-arrow-prev" type="button" data-action="prev" aria-label="Previous photo">
+            <span class="vq-feed-carousel-chevron vq-feed-carousel-chevron-prev" aria-hidden="true"></span>
+          </button>
+          <button class="vq-feed-carousel-arrow vq-feed-carousel-arrow-next" type="button" data-action="next" aria-label="Next photo">
+            <span class="vq-feed-carousel-chevron vq-feed-carousel-chevron-next" aria-hidden="true"></span>
+          </button>
+          <button class="vq-feed-carousel-toggle" type="button" data-action="toggle-pause" aria-pressed="false" aria-label="Pause automatic photo rotation">
+            <span class="vq-feed-carousel-pause-icon" data-role="toggle-icon" aria-hidden="true">
+              <span class="vq-feed-carousel-pause-bar"></span>
+              <span class="vq-feed-carousel-pause-bar"></span>
+            </span>
+          </button>
+          <div class="vq-feed-carousel-dots" data-role="dots" aria-hidden="true">${dots}</div>
+        </div>
+        ${countCaption}
+        ${hint}
+      </div>
     `;
   }
 
@@ -376,11 +454,122 @@
     container.innerHTML = '<div class="vq-feed-root"></div>';
   }
 
-  function wireImageViewerLinks(root) {
-    root.querySelectorAll('[data-image-viewer-src]').forEach((link) => {
-      link.addEventListener('click', (event) => {
+  function wireImageCarousels(root) {
+    root.querySelectorAll('.vq-feed-carousel').forEach((carousel) => {
+      let images = [];
+
+      try {
+        images = JSON.parse(carousel.dataset.images || '[]');
+      } catch {
+        return;
+      }
+
+      if (!Array.isArray(images) || images.length < 2) {
+        return;
+      }
+
+      const image = carousel.querySelector('[data-role="carousel-image"]');
+      const dots = carousel.querySelectorAll('[data-role="dots"] .vq-feed-carousel-dot');
+      const toggleButton = carousel.querySelector('[data-action="toggle-pause"]');
+      const toggleIcon = carousel.querySelector('[data-role="toggle-icon"]');
+      const title = carousel.dataset.title || 'Event';
+      let isPaused = false;
+      let intervalId = null;
+
+      function render() {
+        const index = Number(carousel.dataset.index) || 0;
+
+        if (image) {
+          image.src = images[index];
+          image.alt = `${title} thumbnail - photo ${index + 1} of ${images.length}`;
+        }
+
+        dots.forEach((dot, dotIndex) => {
+          dot.classList.toggle('is-active', dotIndex === index);
+        });
+      }
+
+      function goTo(delta) {
+        const current = Number(carousel.dataset.index) || 0;
+        const next = (current + delta + images.length) % images.length;
+        carousel.dataset.index = String(next);
+        render();
+      }
+
+      function stopAutoRotate() {
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+
+      function startAutoRotate() {
+        stopAutoRotate();
+
+        if (isPaused) {
+          return;
+        }
+
+        intervalId = window.setInterval(() => goTo(1), AUTO_ROTATE_INTERVAL_MS);
+      }
+
+      carousel.querySelector('[data-action="prev"]')?.addEventListener('click', (event) => {
         event.preventDefault();
-        openImageViewer(link.dataset.imageViewerSrc || '', link.dataset.imageViewerTitle || 'Event image');
+        event.stopPropagation();
+        goTo(-1);
+        startAutoRotate();
+      });
+
+      carousel.querySelector('[data-action="next"]')?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        goTo(1);
+        startAutoRotate();
+      });
+
+      toggleButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        isPaused = !isPaused;
+        toggleButton.setAttribute('aria-pressed', String(isPaused));
+        toggleButton.setAttribute(
+          'aria-label',
+          isPaused ? 'Resume automatic photo rotation' : 'Pause automatic photo rotation'
+        );
+
+        if (toggleIcon) {
+          toggleIcon.className = isPaused ? 'vq-feed-carousel-play-icon' : 'vq-feed-carousel-pause-icon';
+          toggleIcon.innerHTML = isPaused
+            ? ''
+            : '<span class="vq-feed-carousel-pause-bar"></span><span class="vq-feed-carousel-pause-bar"></span>';
+        }
+
+        startAutoRotate();
+      });
+
+      startAutoRotate();
+    });
+  }
+
+  function wireImageViewerLinks(root) {
+    root.querySelectorAll('[data-action="open-viewer"]').forEach((trigger) => {
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+
+        const carousel = trigger.closest('.vq-feed-carousel');
+        const source = carousel || trigger;
+        let images = [];
+
+        try {
+          images = JSON.parse(source.dataset.images || '[]');
+        } catch {
+          images = [];
+        }
+
+        const title = source.dataset.title || 'Event image';
+        const startIndex = carousel ? Number(carousel.dataset.index) || 0 : Number(trigger.dataset.startIndex) || 0;
+
+        openImageViewer(images, title, startIndex);
       });
     });
   }
@@ -595,6 +784,110 @@
       }
       .vq-feed-thumb-placeholder {
         background: linear-gradient(135deg, #f6efe9, #ebe3da);
+      }
+      .vq-feed-thumb-count {
+        color: #5a6b67;
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin: 0;
+      }
+      .vq-feed-carousel {
+        border-radius: 8px;
+        height: 132px;
+        position: relative;
+        width: 172px;
+      }
+      .vq-feed-carousel-image-button {
+        appearance: none;
+        background: none;
+        border: 0;
+        cursor: pointer;
+        display: block;
+        padding: 0;
+      }
+      .vq-feed-carousel-arrow {
+        align-items: center;
+        appearance: none;
+        background: rgba(29, 41, 39, 0.55);
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        display: flex;
+        height: 26px;
+        justify-content: center;
+        position: absolute;
+        top: 53px;
+        width: 26px;
+      }
+      .vq-feed-carousel-arrow-prev {
+        left: 6px;
+      }
+      .vq-feed-carousel-arrow-next {
+        right: 6px;
+      }
+      .vq-feed-carousel-chevron {
+        border-right: 2px solid #ffffff;
+        border-top: 2px solid #ffffff;
+        height: 7px;
+        width: 7px;
+      }
+      .vq-feed-carousel-chevron-prev {
+        transform: rotate(-135deg);
+        margin-left: 2px;
+      }
+      .vq-feed-carousel-chevron-next {
+        transform: rotate(45deg);
+        margin-right: 2px;
+      }
+      .vq-feed-carousel-toggle {
+        align-items: center;
+        appearance: none;
+        background: rgba(29, 41, 39, 0.55);
+        border: 0;
+        border-radius: 999px;
+        bottom: 6px;
+        cursor: pointer;
+        display: flex;
+        height: 22px;
+        justify-content: center;
+        position: absolute;
+        right: 6px;
+        width: 22px;
+      }
+      .vq-feed-carousel-pause-icon {
+        display: flex;
+        gap: 3px;
+      }
+      .vq-feed-carousel-pause-bar {
+        background: #ffffff;
+        height: 10px;
+        width: 3px;
+      }
+      .vq-feed-carousel-play-icon {
+        border-bottom: 5px solid transparent;
+        border-left: 8px solid #ffffff;
+        border-top: 5px solid transparent;
+        height: 0;
+        margin-left: 2px;
+        width: 0;
+      }
+      .vq-feed-carousel-dots {
+        bottom: 6px;
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+        left: 6px;
+        position: absolute;
+      }
+      .vq-feed-carousel-dot {
+        background: rgba(255, 255, 255, 0.55);
+        border-radius: 999px;
+        display: inline-block;
+        height: 5px;
+        width: 5px;
+      }
+      .vq-feed-carousel-dot.is-active {
+        background: #ffffff;
       }
       .vq-feed-description {
         margin-top: 8px;
@@ -1066,20 +1359,25 @@
   </html>`;
   }
 
-  function openImageViewer(imageUrl, title) {
-    if (!imageUrl) {
+  function openImageViewer(images, title, startIndex) {
+    const gallery = Array.isArray(images) ? images.filter(Boolean) : [images].filter(Boolean);
+
+    if (!gallery.length) {
       return;
     }
 
     const popup = window.open('', 'vq-image-viewer', 'popup,width=1100,height=900');
 
     if (!popup) {
-      window.open(imageUrl, '_blank', 'noopener,noreferrer');
+      window.open(gallery[0], '_blank', 'noopener,noreferrer');
       return;
     }
 
     const safeTitle = escapeHtml(title || 'Event image');
-    const safeImageUrl = escapeAttribute(imageUrl);
+    const hasMultiple = gallery.length > 1;
+    const initialIndex = hasMultiple
+      ? ((Number(startIndex) || 0) % gallery.length + gallery.length) % gallery.length
+      : 0;
 
     popup.document.open();
     popup.document.write(`<!doctype html>
@@ -1135,12 +1433,107 @@
         border-radius: 12px;
         box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
         padding: 14px;
+        position: relative;
       }
       .viewer-image {
+        border-radius: 6px;
         display: block;
         height: auto;
         max-width: 100%;
         width: 100%;
+      }
+      .viewer-caption {
+        color: #5a6b67;
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin: 10px 0 0;
+        text-align: center;
+      }
+      .viewer-arrow {
+        align-items: center;
+        appearance: none;
+        background: rgba(29, 41, 39, 0.55);
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        display: flex;
+        height: 44px;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px;
+      }
+      .viewer-arrow-prev {
+        left: 24px;
+      }
+      .viewer-arrow-next {
+        right: 24px;
+      }
+      .viewer-chevron {
+        border-right: 3px solid #ffffff;
+        border-top: 3px solid #ffffff;
+        height: 12px;
+        width: 12px;
+      }
+      .viewer-chevron-prev {
+        margin-left: 4px;
+        transform: rotate(-135deg);
+      }
+      .viewer-chevron-next {
+        margin-right: 4px;
+        transform: rotate(45deg);
+      }
+      .viewer-toggle {
+        align-items: center;
+        appearance: none;
+        background: rgba(29, 41, 39, 0.55);
+        border: 0;
+        border-radius: 999px;
+        bottom: 24px;
+        cursor: pointer;
+        display: flex;
+        height: 36px;
+        justify-content: center;
+        position: absolute;
+        right: 24px;
+        width: 36px;
+      }
+      .viewer-pause-icon {
+        display: flex;
+        gap: 4px;
+      }
+      .viewer-pause-bar {
+        background: #ffffff;
+        height: 14px;
+        width: 4px;
+      }
+      .viewer-play-icon {
+        border-bottom: 7px solid transparent;
+        border-left: 11px solid #ffffff;
+        border-top: 7px solid transparent;
+        height: 0;
+        margin-left: 3px;
+        width: 0;
+      }
+      .viewer-dots {
+        bottom: 24px;
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        left: 0;
+        position: absolute;
+        right: 0;
+      }
+      .viewer-dot {
+        background: rgba(255, 255, 255, 0.55);
+        border-radius: 999px;
+        display: inline-block;
+        height: 8px;
+        width: 8px;
+      }
+      .viewer-dot.is-active {
+        background: #ffffff;
       }
     </style>
   </head>
@@ -1151,9 +1544,115 @@
         <button class="viewer-close" type="button" onclick="window.close()">Close</button>
       </div>
       <div class="viewer-card">
-        <img class="viewer-image" src="${safeImageUrl}" alt="${safeTitle}" />
+        <img class="viewer-image" id="viewer-image" src="" alt="${safeTitle}" />
+        ${hasMultiple ? `
+          <button class="viewer-arrow viewer-arrow-prev" type="button" id="viewer-prev" aria-label="Previous photo">
+            <span class="viewer-chevron viewer-chevron-prev" aria-hidden="true"></span>
+          </button>
+          <button class="viewer-arrow viewer-arrow-next" type="button" id="viewer-next" aria-label="Next photo">
+            <span class="viewer-chevron viewer-chevron-next" aria-hidden="true"></span>
+          </button>
+          <button class="viewer-toggle" type="button" id="viewer-toggle" aria-pressed="false" aria-label="Pause automatic photo rotation">
+            <span class="viewer-pause-icon" id="viewer-toggle-icon" aria-hidden="true">
+              <span class="viewer-pause-bar"></span>
+              <span class="viewer-pause-bar"></span>
+            </span>
+          </button>
+          <div class="viewer-dots" id="viewer-dots" aria-hidden="true">
+            ${gallery.map((_, dotIndex) => `<span class="viewer-dot" data-dot-index="${dotIndex}"></span>`).join('')}
+          </div>
+        ` : ''}
       </div>
+      ${hasMultiple ? '<p class="viewer-caption" id="viewer-caption"></p>' : ''}
     </main>
+    <script>
+      (function () {
+        var images = ${JSON.stringify(gallery)};
+        var title = ${JSON.stringify(title || 'Event image')};
+        var index = ${initialIndex};
+        var isPaused = false;
+        var intervalId = null;
+        var image = document.getElementById('viewer-image');
+        var caption = document.getElementById('viewer-caption');
+        var dots = document.querySelectorAll('#viewer-dots .viewer-dot');
+        var toggleButton = document.getElementById('viewer-toggle');
+        var toggleIcon = document.getElementById('viewer-toggle-icon');
+
+        function render() {
+          image.src = images[index];
+          image.alt = images.length > 1 ? title + ' - photo ' + (index + 1) + ' of ' + images.length : title;
+
+          if (caption) {
+            caption.textContent = 'Photo ' + (index + 1) + ' of ' + images.length;
+          }
+
+          for (var i = 0; i < dots.length; i++) {
+            dots[i].classList.toggle('is-active', i === index);
+          }
+        }
+
+        function goTo(delta) {
+          index = (index + delta + images.length) % images.length;
+          render();
+        }
+
+        function stopAutoRotate() {
+          if (intervalId !== null) {
+            window.clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+
+        function startAutoRotate() {
+          stopAutoRotate();
+
+          if (isPaused || images.length < 2) {
+            return;
+          }
+
+          intervalId = window.setInterval(function () {
+            goTo(1);
+          }, ${AUTO_ROTATE_INTERVAL_MS});
+        }
+
+        render();
+
+        var prevButton = document.getElementById('viewer-prev');
+        var nextButton = document.getElementById('viewer-next');
+
+        if (prevButton) {
+          prevButton.addEventListener('click', function () {
+            goTo(-1);
+            startAutoRotate();
+          });
+        }
+
+        if (nextButton) {
+          nextButton.addEventListener('click', function () {
+            goTo(1);
+            startAutoRotate();
+          });
+        }
+
+        if (toggleButton) {
+          toggleButton.addEventListener('click', function () {
+            isPaused = !isPaused;
+            toggleButton.setAttribute('aria-pressed', String(isPaused));
+            toggleButton.setAttribute(
+              'aria-label',
+              isPaused ? 'Resume automatic photo rotation' : 'Pause automatic photo rotation'
+            );
+            toggleIcon.className = isPaused ? 'viewer-play-icon' : 'viewer-pause-icon';
+            toggleIcon.innerHTML = isPaused
+              ? ''
+              : '<span class="viewer-pause-bar"></span><span class="viewer-pause-bar"></span>';
+            startAutoRotate();
+          });
+        }
+
+        startAutoRotate();
+      })();
+    </script>
   </body>
 </html>`);
     popup.document.close();
