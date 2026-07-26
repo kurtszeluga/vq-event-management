@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import PageHeader from '../components/PageHeader.jsx';
@@ -10,6 +10,7 @@ function SupplyListViewerPage() {
   const navigate = useNavigate();
   const previewRef = useRef(null);
   const objectUrlRef = useRef('');
+  const headingRef = useRef(null);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [event, setEvent] = useState(null);
   const [error, setError] = useState('');
@@ -147,7 +148,9 @@ function SupplyListViewerPage() {
     }
   }, []);
 
-  function handleClose() {
+  const canShowDocument = !loading && !error && event && isEventVisible(event) && event.supplyListUrl;
+
+  const handleClose = useCallback(() => {
     if (window.opener) {
       window.close();
       return;
@@ -159,11 +162,90 @@ function SupplyListViewerPage() {
     }
 
     navigate('/events');
-  }
+  }, [navigate]);
 
+  useEffect(() => {
+    if (canShowDocument) {
+      headingRef.current?.focus();
+    }
+  }, [canShowDocument]);
+
+  useEffect(() => {
+    function handleKeyDown(keyboardEvent) {
+      if (keyboardEvent.key === 'Escape') {
+        keyboardEvent.preventDefault();
+        handleClose();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleClose]);
+
+  // Do not simplify this to `window.print()` or an in-page iframe - both were tried and
+  // broke printing in Safari (and, for the iframe version, in every browser). Two constraints
+  // drove this shape:
+  // 1. Safari only reliably shows the print dialog for a `document.write()`-populated popup
+  //    with a native `onclick="window.print()"`/`onload` handler - a React onClick handler,
+  //    a hidden iframe, or window.print() on the SPA page itself all failed silently there.
+  // 2. The iframe must point at `downloadUrl` (the blob: URL already fetched for Save), not
+  //    the `/api/file-proxy` HTTP URL - that response carries `X-Frame-Options: DENY`, which
+  //    blocks framing it anywhere, in any browser. CSP's `frame-src` in vercel.json allows
+  //    `blob:` specifically to make this work.
+  // `afterprint` closes the popup automatically so it doesn't linger once printing is done.
   function handlePrint() {
-    window.focus();
-    window.print();
+    if (!downloadUrl) {
+      return;
+    }
+
+    const printWindow = window.open('', 'vq-supply-list-print', 'popup,width=1100,height=900');
+
+    if (!printWindow) {
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>${escapeHtml(fileName)}</title>
+          <style>
+            html, body { height: 100%; margin: 0; }
+            .actions { display: flex; gap: 8px; padding: 10px; }
+            button {
+              appearance: none;
+              background: #225c56;
+              border: 1px solid #225c56;
+              border-radius: 8px;
+              color: #fff;
+              cursor: pointer;
+              font: inherit;
+              font-weight: 700;
+              padding: 10px 14px;
+            }
+            button.secondary { background: #fff; color: #225c56; }
+            iframe { border: 0; display: block; height: calc(100% - 52px); width: 100%; }
+            @media print {
+              .actions { display: none; }
+              iframe { height: 100%; }
+            }
+          </style>
+        </head>
+        <body onload="window.setTimeout(function () { window.print(); }, 150)">
+          <div class="actions">
+            <button type="button" onclick="window.print()">Print</button>
+            <button type="button" class="secondary" onclick="window.close()">Close</button>
+          </div>
+          <iframe src="${escapeHtml(downloadUrl)}" title="${escapeHtml(fileName)}"></iframe>
+          <script>
+            window.onafterprint = function () { window.close(); };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   }
 
   if (loading) {
@@ -194,7 +276,9 @@ function SupplyListViewerPage() {
       <div className="viewer-toolbar">
         <div>
           <p className="viewer-eyebrow">Supply List</p>
-          <h1>{event.supplyListTitle || event.supplyListFileName || event.title}</h1>
+          <h1 ref={headingRef} tabIndex={-1}>
+            {event.supplyListTitle || event.supplyListFileName || event.title}
+          </h1>
         </div>
         <div className="viewer-actions">
           <a
@@ -227,6 +311,15 @@ function SupplyListViewerPage() {
       <div ref={previewRef} className="viewer-pdf-preview" aria-label="Supply list preview" />
     </section>
   );
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function getPreviewScale() {
