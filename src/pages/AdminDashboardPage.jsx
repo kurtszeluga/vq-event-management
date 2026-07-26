@@ -48,8 +48,14 @@ function AdminDashboardPage() {
   // Single source of truth for the Manage/Edit row: the desktop buttons, the
   // collapsed mobile toggle's label, and the mobile list all read from this.
   const manageModules = [
-    { id: 'registrations', label: 'Registrations', visible: canViewRegistrations },
-    { id: 'payment-review', label: 'Payment Review', visible: canViewRegistrations },
+    // Registrations moved into the Events/Activities card's action row
+    // (alongside Create New Event/Activity) for an admin who can reach it
+    // that way - this tab stays as the only entry point for one who has
+    // viewRegistrations without manageEvents and would otherwise have no way
+    // in at all. Payment Review has no such tab anymore: the "Needs
+    // Attention" alert chip is now its sole entry point, gated the same way
+    // (canViewRegistrations) regardless of manageEvents.
+    { id: 'registrations', label: 'Registrations', visible: canViewRegistrations && !canManageEvents },
     { id: 'events-activities', label: 'Events/Activities', visible: canManageEvents },
     { id: 'challenges', label: 'Challenges', visible: canManageEvents },
     { id: 'business-listings', label: 'Business Listings', visible: canManageEvents },
@@ -349,10 +355,10 @@ function AdminDashboardPage() {
               type="button"
               onClick={() => setActiveModule('payment-review')}
             >
-              <span className="admin-alert-dot" aria-hidden="true" />
+              {paymentReviewCount ? <span className="admin-alert-dot" aria-hidden="true" /> : null}
               {paymentReviewCount
                 ? `${paymentReviewCount} payment${paymentReviewCount === 1 ? ' needs' : 's need'} review`
-                : 'No payments need review'}
+                : 'Payment Review'}
             </button>
           ) : null}
         </nav>
@@ -394,7 +400,7 @@ function AdminDashboardPage() {
         {!activeModule && (canManageEvents || isSuperUser || canAddUsers) ? (
           <div className="empty-state">
             <h2>Choose what you want to manage</h2>
-            <p>Use Manage/Edit above to open registrations, events, listings, user profiles, or setup tools.</p>
+            <p>Use Manage/Edit above to open events, listings, user profiles, or setup tools - Registrations lives inside Events/Activities, and Payment Review is in the alert strip above.</p>
           </div>
         ) : null}
         {canManageEvents && activeModule === 'event-details' ? (
@@ -426,15 +432,26 @@ function AdminDashboardPage() {
               <div className="form-section-header-top">
                 <h2>{eventModuleConfig[activeModule].title}</h2>
               </div>
-              {eventModuleConfig[activeModule].createLabel ? (
+              {eventModuleConfig[activeModule].createLabel || (activeModule === 'events-activities' && canViewRegistrations) ? (
                 <div className="admin-list-panel-actions">
-                  <button
-                    className="button-link button-reset secondary-action"
-                    type="button"
-                    onClick={() => handleStartCreate(eventModuleConfig[activeModule].createType)}
-                  >
-                    {eventModuleConfig[activeModule].createLabel}
-                  </button>
+                  {activeModule === 'events-activities' && canViewRegistrations ? (
+                    <button
+                      className="button-link button-reset secondary-action"
+                      type="button"
+                      onClick={() => setActiveModule('registrations')}
+                    >
+                      Registrations
+                    </button>
+                  ) : null}
+                  {eventModuleConfig[activeModule].createLabel ? (
+                    <button
+                      className="button-link button-reset secondary-action"
+                      type="button"
+                      onClick={() => handleStartCreate(eventModuleConfig[activeModule].createType)}
+                    >
+                      {eventModuleConfig[activeModule].createLabel}
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>

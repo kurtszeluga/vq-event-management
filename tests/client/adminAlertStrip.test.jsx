@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const authState = { hasPermission: () => false, isSuperUser: false, userProfile: {} };
@@ -42,7 +43,9 @@ vi.mock('../../src/components/PageHeader.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/ConfigurationPanel.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/EventForm.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/EventList.jsx', () => ({ default: () => null }));
-vi.mock('../../src/components/admin/PaymentReconciliationPanel.jsx', () => ({ default: () => null }));
+vi.mock('../../src/components/admin/PaymentReconciliationPanel.jsx', () => ({
+  default: () => <div data-testid="payment-review-panel" />
+}));
 vi.mock('../../src/components/admin/RegistrationPanel.jsx', () => ({ default: () => null }));
 vi.mock('../../src/components/admin/UserControlPanel.jsx', () => ({ default: () => null }));
 
@@ -70,10 +73,13 @@ describe('the Needs Attention alert strip', () => {
     render(<AdminDashboardPage />);
 
     const membershipChip = screen.getByRole('button', { name: 'No membership reviews pending' });
-    const paymentChip = screen.getByRole('button', { name: 'No payments need review' });
+    const paymentChip = screen.getByRole('button', { name: 'Payment Review' });
 
     expect(membershipChip.className).not.toContain('pending');
     expect(paymentChip.className).not.toContain('pending');
+    // The payment chip drops its dot entirely at zero, so it reads as a
+    // plain entry point rather than an alert with nothing to report.
+    expect(paymentChip.querySelector('.admin-alert-dot')).toBeNull();
   });
 
   it('names the count and switches to the pending style once something needs attention', () => {
@@ -96,6 +102,7 @@ describe('the Needs Attention alert strip', () => {
 
     expect(membershipChip.className).toContain('pending');
     expect(paymentChip.className).toContain('pending');
+    expect(paymentChip.querySelector('.admin-alert-dot')).not.toBeNull();
   });
 
   it('does not render at all for an admin with neither permission', () => {
@@ -103,5 +110,15 @@ describe('the Needs Attention alert strip', () => {
     render(<AdminDashboardPage />);
 
     expect(screen.queryByRole('navigation', { name: 'Needs attention' })).toBeNull();
+  });
+
+  it('opens Payment Review when the chip is clicked, its only entry point now that the tab is gone', async () => {
+    const user = userEvent.setup();
+    signInAs({ permissions: ['viewRegistrations'] });
+    render(<AdminDashboardPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Payment Review' }));
+
+    expect(screen.getByTestId('payment-review-panel')).toBeInTheDocument();
   });
 });

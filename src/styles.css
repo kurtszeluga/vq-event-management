@@ -2778,6 +2778,8 @@ body.nav-sheet-open {
 
 .admin-list-panel-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: flex-start;
   margin-top: 8px;
 }

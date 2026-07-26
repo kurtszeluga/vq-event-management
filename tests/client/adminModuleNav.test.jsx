@@ -99,11 +99,27 @@ describe('Manage/Edit module list', () => {
       .getAllByRole('button')
       .map((button) => button.textContent);
 
+    // Registrations only appears as its own tab for someone who can view
+    // registrations but cannot manage events - otherwise it lives inside
+    // the Events/Activities card instead. Payment Review has no tab at
+    // all anymore; the Needs Attention alert chip is its only entry point.
     expect(labels).toContain('Registrations');
-    expect(labels).toContain('Payment Review');
+    expect(labels.join(' ')).not.toContain('Payment Review');
     expect(labels.join(' ')).not.toContain('Events/Activities');
     expect(labels.join(' ')).not.toContain('User Controls');
     expect(labels.join(' ')).not.toContain('Setup / System Config');
+  });
+
+  it('hides the Registrations tab once the admin can also manage events - it moves into the Events/Activities card instead', () => {
+    signInAs({ permissions: ['viewRegistrations', 'manageEvents'] });
+    render(<AdminDashboardPage />);
+
+    const labels = within(moduleNav())
+      .getAllByRole('button')
+      .map((button) => button.textContent);
+
+    expect(labels.join(' ')).not.toContain('Registrations');
+    expect(labels).toContain('Events/Activities');
   });
 
   it('gives a super user every module, in a stable order', () => {
@@ -112,8 +128,6 @@ describe('Manage/Edit module list', () => {
 
     const list = document.getElementById('admin-module-list');
     expect([...list.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
-      'Registrations',
-      'Payment Review',
       'Events/Activities',
       'Challenges',
       'Business Listings',
@@ -172,7 +186,7 @@ describe('the collapsible mobile toggle', () => {
     await user.click(moduleToggle());
     expect(document.getElementById('admin-module-list').className).toContain('is-open');
 
-    await user.click(screen.getByRole('button', { name: 'Registrations' }));
+    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
 
     expect(document.getElementById('admin-module-list').className).not.toContain('is-open');
     expect(moduleToggle()).toHaveAttribute('aria-expanded', 'false');
@@ -204,9 +218,9 @@ describe('the collapsible mobile toggle', () => {
 });
 
 describe('selecting a module', () => {
-  it('marks exactly one button active and opens that module', async () => {
+  it('marks exactly one tab active and opens that module', async () => {
     const user = userEvent.setup();
-    signInAs({ permissions: ['viewRegistrations', 'manageEvents'] });
+    signInAs({ permissions: ['viewRegistrations'] });
     render(<AdminDashboardPage />);
 
     await user.click(screen.getByRole('button', { name: 'Registrations' }));
@@ -215,6 +229,17 @@ describe('selecting a module', () => {
       .filter((button) => button.getAttribute('aria-current') === 'page');
 
     expect(active.map((button) => button.textContent)).toEqual(['Registrations']);
+    expect(screen.getByTestId('registration-panel')).toBeInTheDocument();
+  });
+
+  it('opens Registrations from inside the Events/Activities card for an admin who can also manage events', async () => {
+    const user = userEvent.setup();
+    signInAs({ permissions: ['viewRegistrations', 'manageEvents'] });
+    render(<AdminDashboardPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Registrations' }));
+
     expect(screen.getByTestId('registration-panel')).toBeInTheDocument();
   });
 });
