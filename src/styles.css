@@ -502,8 +502,57 @@ body.popup-mode .page-content {
   margin-top: 18px;
 }
 
-.admin-public-nav {
+.admin-alert-strip {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 8px;
+}
+
+.admin-alert-chip {
+  align-items: center;
+  background: transparent;
+  border: 1px solid #ded5ca;
+  border-radius: 999px;
+  color: #5c6966;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 14px 8px 10px;
+}
+
+.admin-alert-chip:hover {
+  border-color: #225c56;
+  color: #225c56;
+}
+
+.admin-alert-dot {
+  background: #7c8b87;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 8px;
+  width: 8px;
+}
+
+.admin-alert-chip.pending {
+  background: #fdf1de;
+  border-color: #f3d9a4;
+  color: #63380a;
+}
+
+.admin-alert-chip.pending:hover {
+  border-color: #d5a14a;
+  color: #63380a;
+}
+
+.admin-alert-chip.pending .admin-alert-dot {
+  background: #d5a14a;
 }
 
 /* --- Mobile site menu -------------------------------------------------
@@ -716,16 +765,15 @@ body.nav-sheet-open {
   width: 9px;
 }
 
-.admin-public-nav + .admin-module-nav {
+.admin-alert-strip + .admin-manage-nav {
   margin-top: 16px;
 }
 
 /* Below 760px the Manage/Edit list collapses behind .admin-nav-toggle so up
-   to eight 44px buttons stop pushing the dashboard content off a phone
+   to nine 44px buttons stop pushing the dashboard content off a phone
    screen. `display: contents` keeps the wrapper out of the layout at wider
    widths, so the buttons stay direct flex children of .admin-module-nav and
-   wrap inline with the "Manage/Edit:" label exactly as they did before the
-   wrapper existed. */
+   form the underline tab row below. */
 .admin-module-list {
   display: contents;
 }
@@ -734,12 +782,44 @@ body.nav-sheet-open {
   display: none;
 }
 
-.admin-row-label {
-  align-items: center;
-  color: #3b4b48;
-  display: inline-flex;
-  font-weight: 900;
-  min-height: 42px;
+/* An underline tab bar rather than a wall of equally-weighted buttons, so
+   the active section reads at a glance instead of blending into eight
+   identical-looking siblings. .admin-tab-nav supplies the track the active
+   tab's underline sits on; .admin-module-list's own box does not render
+   (display: contents above), so the border has to live on the actual nav
+   element instead. */
+.admin-tab-nav {
+  border-bottom: 1px solid #ded5ca;
+  gap: 2px;
+}
+
+.admin-tab-button {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #5c6966;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+  margin-bottom: -1px;
+  padding: 10px 12px;
+}
+
+.admin-tab-button:hover {
+  color: #225c56;
+}
+
+.admin-tab-button.active {
+  border-bottom-color: #225c56;
+  color: #225c56;
+  font-weight: 700;
+}
+
+.admin-tab-divider {
+  align-self: stretch;
+  background: #ded5ca;
+  margin: 6px 6px;
+  width: 1px;
 }
 
 .admin-form,
@@ -3304,9 +3384,10 @@ body.nav-sheet-open {
     display: block;
   }
 
-  /* The toggle carries the "Manage/Edit:" text itself on mobile. */
-  .admin-manage-nav .admin-row-label {
-    display: none;
+  /* The underline tab track only makes sense for the horizontal desktop row;
+     the toggle stands alone on mobile with nothing to underline. */
+  .admin-tab-nav {
+    border-bottom: none;
   }
 
   .admin-nav-toggle {
@@ -3332,6 +3413,29 @@ body.nav-sheet-open {
     justify-content: flex-start;
     text-align: left;
     width: 100%;
+  }
+
+  /* The desktop underline treatment doesn't work stacked vertically - each
+     tab reverts to a full pill button here, matching the alert chips above
+     it and every other button-link in the app. */
+  .admin-module-list.is-open > .admin-tab-button {
+    background: #fffdfa;
+    border: 1px solid #225c56;
+    border-radius: 8px;
+    color: #225c56;
+    font-weight: 700;
+    margin-bottom: 0;
+    min-height: 44px;
+    padding: 13px 16px;
+  }
+
+  .admin-module-list.is-open > .admin-tab-button.active {
+    background: #225c56;
+    color: #fff;
+  }
+
+  .admin-module-list.is-open .admin-tab-divider {
+    display: none;
   }
 
   .feature-grid {

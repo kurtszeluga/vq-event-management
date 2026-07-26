@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
@@ -330,34 +330,34 @@ function AdminDashboardPage() {
         description="Manage programs, workshops, challenges, business listings, and items for sale."
       />
       {canReviewMemberships || canViewRegistrations ? (
-        <nav className="admin-module-nav admin-public-nav" aria-label="Needs attention">
-          <span className="admin-row-label">Needs Attention:</span>
+        <nav className="admin-alert-strip" aria-label="Needs attention">
           {canReviewMemberships ? (
             <button
-              className={`button-link button-reset ${
-                pendingMembershipCount ? 'pending-review-button' : 'secondary-action'
-              }`}
+              className={`admin-alert-chip${pendingMembershipCount ? ' pending' : ''}`}
               type="button"
               onClick={openPendingMembershipReview}
             >
-              Pending Membership Reviews ({pendingMembershipCount})
+              <span className="admin-alert-dot" aria-hidden="true" />
+              {pendingMembershipCount
+                ? `${pendingMembershipCount} membership review${pendingMembershipCount === 1 ? '' : 's'} pending`
+                : 'No membership reviews pending'}
             </button>
           ) : null}
           {canViewRegistrations ? (
             <button
-              className={`button-link button-reset ${
-                paymentReviewCount ? 'pending-review-button' : 'secondary-action'
-              }`}
+              className={`admin-alert-chip${paymentReviewCount ? ' pending' : ''}`}
               type="button"
               onClick={() => setActiveModule('payment-review')}
             >
-              Payment Review ({paymentReviewCount})
+              <span className="admin-alert-dot" aria-hidden="true" />
+              {paymentReviewCount
+                ? `${paymentReviewCount} payment${paymentReviewCount === 1 ? ' needs' : 's need'} review`
+                : 'No payments need review'}
             </button>
           ) : null}
         </nav>
       ) : null}
-      <nav className="admin-module-nav admin-manage-nav" aria-label="Admin dashboard modules">
-        <span className="admin-row-label">Manage/Edit:</span>
+      <nav className="admin-module-nav admin-manage-nav admin-tab-nav" aria-label="Admin dashboard modules">
         <button
           className="admin-nav-toggle button-link button-reset"
           type="button"
@@ -370,39 +370,25 @@ function AdminDashboardPage() {
         </button>
         <div className={`admin-module-list${moduleNavOpen ? ' is-open' : ''}`} id="admin-module-list">
           {manageModules.map((module) => (
-            <button
-              className={`button-link button-reset ${
-                activeModule === module.id ? '' : 'secondary-action'
-              }`}
-              key={module.id}
-              type="button"
-              onClick={() => {
-                setActiveModule(module.id);
-                setModuleNavOpen(false);
-              }}
-            >
-              {module.label}
-            </button>
+            <Fragment key={module.id}>
+              {module.id === 'user-controls' ? (
+                <span className="admin-tab-divider" aria-hidden="true" />
+              ) : null}
+              <button
+                aria-current={activeModule === module.id ? 'page' : undefined}
+                className={`admin-tab-button${activeModule === module.id ? ' active' : ''}`}
+                type="button"
+                onClick={() => {
+                  setActiveModule(module.id);
+                  setModuleNavOpen(false);
+                }}
+              >
+                {module.label}
+              </button>
+            </Fragment>
           ))}
         </div>
       </nav>
-      {canReviewMemberships ? (
-        <div className={`status-panel pending-review-panel${pendingMembershipCount ? ' pending-home-card' : ''}`}>
-          <span className={`status-dot ${pendingMembershipCount ? 'pending' : 'good'}`} />
-          <span>
-            {pendingMembershipCount
-              ? `${pendingMembershipCount} membership ${pendingMembershipCount === 1 ? 'profile is' : 'profiles are'} waiting for review.`
-              : 'No membership profiles are waiting for review right now.'}
-          </span>
-          <button
-            className={`button-link button-reset ${pendingMembershipCount ? '' : 'secondary-action'} compact-action`}
-            type="button"
-            onClick={openPendingMembershipReview}
-          >
-            Open Pending Review
-          </button>
-        </div>
-      ) : null}
       {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
         {!activeModule && (canManageEvents || isSuperUser || canAddUsers) ? (

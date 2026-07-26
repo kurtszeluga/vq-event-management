@@ -111,7 +111,7 @@ describe('Manage/Edit module list', () => {
     render(<AdminDashboardPage />);
 
     const list = document.getElementById('admin-module-list');
-    expect([...list.children].map((button) => button.textContent)).toEqual([
+    expect([...list.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
       'Registrations',
       'Payment Review',
       'Events/Activities',
@@ -128,7 +128,7 @@ describe('Manage/Edit module list', () => {
     signInAs({ permissions: ['addUsers'], isSuperUser: false });
     render(<AdminDashboardPage />);
 
-    const labels = [...document.getElementById('admin-module-list').children]
+    const labels = [...document.getElementById('admin-module-list').querySelectorAll('button')]
       .map((button) => button.textContent);
 
     expect(labels).toContain('User Controls');
@@ -211,8 +211,8 @@ describe('selecting a module', () => {
 
     await user.click(screen.getByRole('button', { name: 'Registrations' }));
 
-    const active = [...document.getElementById('admin-module-list').children]
-      .filter((button) => !button.classList.contains('secondary-action'));
+    const active = [...document.getElementById('admin-module-list').querySelectorAll('button')]
+      .filter((button) => button.getAttribute('aria-current') === 'page');
 
     expect(active.map((button) => button.textContent)).toEqual(['Registrations']);
     expect(screen.getByTestId('registration-panel')).toBeInTheDocument();
