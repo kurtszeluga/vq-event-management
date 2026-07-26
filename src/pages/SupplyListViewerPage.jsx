@@ -9,6 +9,7 @@ function SupplyListViewerPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const previewRef = useRef(null);
+  const printFrameRef = useRef(null);
   const objectUrlRef = useRef('');
   const [downloadUrl, setDownloadUrl] = useState('');
   const [event, setEvent] = useState(null);
@@ -16,6 +17,7 @@ function SupplyListViewerPage() {
   const [loading, setLoading] = useState(true);
   const [previewError, setPreviewError] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [printDocumentHtml, setPrintDocumentHtml] = useState('');
   const inlineProxyUrl = buildProxyUrl(event, 'inline');
   const attachmentProxyUrl = buildProxyUrl(event, 'attachment');
   const fileName = event?.supplyListFileName || `${event?.supplyListTitle || 'supply-list'}.pdf`;
@@ -147,6 +149,39 @@ function SupplyListViewerPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!printDocumentHtml || !printFrameRef.current) {
+      return;
+    }
+
+    const frame = printFrameRef.current;
+
+    function handleLoad() {
+      const frameWindow = frame.contentWindow;
+
+      if (!frameWindow) {
+        setPrintDocumentHtml('');
+        return;
+      }
+
+      frameWindow.focus();
+      window.setTimeout(() => {
+        try {
+          frameWindow.print();
+        } finally {
+          setPrintDocumentHtml('');
+        }
+      }, 150);
+    }
+
+    frame.addEventListener('load', handleLoad, { once: true });
+    frame.srcdoc = printDocumentHtml;
+
+    return () => {
+      frame.removeEventListener('load', handleLoad);
+    };
+  }, [printDocumentHtml]);
+
   function handleClose() {
     if (window.opener) {
       window.close();
@@ -162,29 +197,18 @@ function SupplyListViewerPage() {
   }
 
   function handlePrint() {
-    const popup = window.open('', '_blank');
-
-    if (!popup) {
-      window.focus();
-      window.print();
-      return;
-    }
-
     const pages = [...(previewRef.current?.querySelectorAll('.viewer-pdf-canvas') || [])]
       .map((canvas, index) => buildPrintPage(canvas, index))
       .filter(Boolean);
 
     if (!pages.length) {
-      popup.close();
       window.focus();
       window.print();
       return;
     }
 
     const title = event?.supplyListTitle || event?.supplyListFileName || event?.title || 'Supply List';
-    popup.document.open();
-    popup.document.write(buildSupplyListPrintHtml(title, pages));
-    popup.document.close();
+    setPrintDocumentHtml(buildSupplyListPrintHtml(title, pages));
   }
 
   if (loading) {
@@ -246,6 +270,13 @@ function SupplyListViewerPage() {
         </div>
       ) : null}
       <div ref={previewRef} className="viewer-pdf-preview" aria-label="Supply list preview" />
+      <iframe
+        aria-hidden="true"
+        className="print-helper-frame"
+        ref={printFrameRef}
+        tabIndex={-1}
+        title="Supply list print helper"
+      />
     </section>
   );
 }
