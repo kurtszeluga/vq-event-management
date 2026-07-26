@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import HomePage from './pages/HomePage.jsx';
 import EventsPage from './pages/EventsPage.jsx';
@@ -23,6 +24,18 @@ import NotFoundPage from './pages/NotFoundPage.jsx';
 import RequireAdmin from './components/RequireAdmin.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import './styles.css';
+
+// Safari held onto a stale app shell on July 26, 2026, mixing old client
+// code with newer routes/data until website data was manually cleared. Keep
+// the service worker on an aggressive update path so fresh deployments replace
+// stale caches without needing that manual recovery.
+const updateServiceWorker = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    updateServiceWorker(true);
+  },
+  onOfflineReady() {}
+});
 
 const router = createBrowserRouter([
   {

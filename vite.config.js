@@ -18,7 +18,10 @@ export default defineConfig({
     react(),
     VitePWA({
       workbox: {
+        cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/api\//]
+      , skipWaiting: true,
+        clientsClaim: true
       },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
