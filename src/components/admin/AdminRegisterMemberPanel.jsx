@@ -267,10 +267,18 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
                   <dt>Phone</dt>
                   <dd>{formatPhoneNumber(selectedMember.phone || '') || 'Not set'}</dd>
                 </div>
+                <div className="registration-detail-item">
+                  <dt>Account Status</dt>
+                  <dd>{getDisplayAccountStatus(selectedMember)}</dd>
+                </div>
+                <div className="registration-detail-item">
+                  <dt>Membership Status</dt>
+                  <dd>{getDisplayMembershipStatus(selectedMember)}</dd>
+                </div>
               </dl>
               <p className="form-help">
-                Name and phone are pulled from {selectedMemberDisplayName || 'the member'}'s profile
-                and cannot be edited here. Update it via User Controls first if it needs to change.
+                This is pulled from {selectedMemberDisplayName || 'the member'}'s profile and cannot
+                be edited here. Update it via User Controls first if it needs to change.
               </p>
               {profileIssue && !duplicateRegistration ? (
                 <p className="form-error">{profileIssue}</p>
@@ -455,18 +463,36 @@ function getProfileIssue(member) {
   return '';
 }
 
-// Mirrors create-registration.js's getProfileStatus() exactly, so this
-// client-side gate blocks in precisely the same cases the server would.
+// Mirrors create-registration.js's getProfileStatus() exactly (including the
+// Super User exception - Super User accounts aren't managed through the
+// ordinary status field, so one whose status was never explicitly set should
+// not read as inactive), so this client-side gate blocks in precisely the
+// same cases the server would.
 function isProfileActive(member) {
-  return !isArchivedProfile(member) && member.status === 'Active';
+  return getDisplayAccountStatus(member) === 'Active';
 }
 
 function getDisplayAccountStatus(member) {
+  if (member.role === 'Super User') {
+    return 'Active';
+  }
+
   return isArchivedProfile(member) ? 'Archived' : (member.status || 'Unknown');
 }
 
 function isArchivedProfile(member) {
   return Boolean(member.archivedBy || member.archivedDate || member.status === 'Archived');
+}
+
+// Mirrors UserControlPanel.jsx's getDisplayMembershipStatus(): Super Users
+// aren't Guild members in the membership-tracking sense, so their
+// membershipStatus field (if any) isn't meaningful here.
+function getDisplayMembershipStatus(member) {
+  if (member.role === 'Super User') {
+    return 'N/A';
+  }
+
+  return member.membershipStatus || 'Unknown';
 }
 
 function normalizeEmail(value) {

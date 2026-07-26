@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { canRegisterOthers, validateRegistrationEligibility } from '../api/create-registration.js';
+import { canRegisterOthers, getProfileStatus, validateRegistrationEligibility } from '../api/create-registration.js';
 
 const OPEN_EVENT = {
   eventType: 'Workshop',
@@ -148,5 +148,32 @@ describe('canRegisterOthers', () => {
   test('a missing or empty profile cannot', () => {
     assert.equal(canRegisterOthers(null), false);
     assert.equal(canRegisterOthers({}), false);
+  });
+});
+
+describe('getProfileStatus', () => {
+  test('a Super User reads Active regardless of what their stored status field says', () => {
+    assert.equal(getProfileStatus({ role: 'Super User' }), 'Active');
+    assert.equal(getProfileStatus({ role: 'Super User', status: 'Inactive' }), 'Active');
+    assert.equal(getProfileStatus({ role: 'Super User', status: '' }), 'Active');
+  });
+
+  test('an ordinary profile passes its stored status through', () => {
+    assert.equal(getProfileStatus({ role: 'Admin', status: 'Active' }), 'Active');
+    assert.equal(getProfileStatus({ role: 'General User', status: 'Inactive' }), 'Inactive');
+  });
+
+  test('an ordinary profile with no stored status reads Unknown, not Active', () => {
+    assert.equal(getProfileStatus({ role: 'General User' }), 'Unknown');
+  });
+
+  test('archived fields win over a non-Super-User stored status', () => {
+    assert.equal(getProfileStatus({ archivedDate: '2026-01-01', role: 'Admin', status: 'Active' }), 'Archived');
+    assert.equal(getProfileStatus({ archivedBy: 'admin-1', role: 'Admin' }), 'Archived');
+    assert.equal(getProfileStatus({ role: 'Admin', status: 'Archived' }), 'Archived');
+  });
+
+  test('a missing profile returns an empty string', () => {
+    assert.equal(getProfileStatus(null), '');
   });
 });

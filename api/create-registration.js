@@ -930,9 +930,21 @@ function getMembershipStatus(profile) {
   return profile?.membershipStatus || 'Unknown';
 }
 
-function getProfileStatus(profile) {
+// Mirrors the Super User exception UserControlPanel.jsx and
+// configurationService.js already apply when displaying/saving a profile's
+// status (`role === 'Super User' ? 'Active' : ...`) - Super User accounts are
+// not managed through the ordinary status field at all, so without this a
+// Super User whose `status` was never explicitly set (e.g. the very first
+// admin account, bootstrapped outside the normal Add User flow) reads as not
+// Active here and gets refused with a reactivation prompt that makes no
+// sense for an account that was never deactivated in the first place.
+export function getProfileStatus(profile) {
   if (!profile) {
     return '';
+  }
+
+  if (profile.role === 'Super User') {
+    return 'Active';
   }
 
   if (profile.archivedBy || profile.archivedDate || profile.status === 'Archived') {

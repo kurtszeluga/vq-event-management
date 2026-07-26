@@ -17,6 +17,7 @@ const MEMBERS = [
     firstName: 'Ada',
     id: 'user-1',
     lastName: 'Lovelace',
+    membershipStatus: 'Active',
     phone: '3526538188',
     status: 'Active',
     userId: 'user-1'
@@ -128,6 +129,63 @@ describe('selecting a member', () => {
     expect(screen.getByText(/cannot be edited here/)).toBeInTheDocument();
   });
 
+  it('shows account status and membership status - useful context at the moment a member is picked', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.getByText('Account Status')).toBeInTheDocument();
+    expect(screen.getByText('Membership Status')).toBeInTheDocument();
+    expect(screen.getAllByText('Active')).toHaveLength(2);
+  });
+
+  it('shows a non-Active membership status as-is, distinct from account status', async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      users: [
+        ...MEMBERS,
+        {
+          email: 'lapsed@example.com',
+          firstName: 'Lex',
+          id: 'user-7',
+          lastName: 'Lapsed',
+          membershipStatus: 'Inactive',
+          phone: '9195557777',
+          status: 'Active',
+          userId: 'user-7'
+        }
+      ]
+    });
+
+    await searchAndSelect(user, 'lapsed', 'Lex Lapsed');
+
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
+  });
+
+  it('shows N/A for a Super User\'s membership status - they are not tracked as a Guild member', async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      users: [
+        ...MEMBERS,
+        {
+          email: 'owner@example.com',
+          firstName: 'Owen',
+          id: 'user-6',
+          lastName: 'Owner',
+          phone: '9195558888',
+          role: 'Super User',
+          userId: 'user-6'
+        }
+      ]
+    });
+
+    await searchAndSelect(user, 'owner', 'Owen Owner');
+
+    expect(screen.getByText('N/A')).toBeInTheDocument();
+  });
+
   it('returns to search when Change is clicked, clearing the selected member', async () => {
     const user = userEvent.setup();
     renderPanel();
@@ -184,6 +242,29 @@ describe('incomplete member profiles', () => {
     await searchAndSelect(user, 'archived', 'Ann Archived');
 
     expect(screen.getByText(/account is Archived, not Active/)).toBeInTheDocument();
+  });
+
+  it('never blocks a Super User, even one whose status field was never explicitly set', async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      users: [
+        ...MEMBERS,
+        {
+          email: 'owner@example.com',
+          firstName: 'Owen',
+          id: 'user-6',
+          lastName: 'Owner',
+          phone: '9195558888',
+          role: 'Super User',
+          userId: 'user-6'
+        }
+      ]
+    });
+
+    await searchAndSelect(user, 'owner', 'Owen Owner');
+
+    expect(screen.queryByText(/not Active/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
   });
 });
 

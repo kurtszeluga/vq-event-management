@@ -2803,7 +2803,6 @@ body.nav-sheet-open {
   color: #1d2927;
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(0, 1fr) auto;
   padding: 16px;
   width: 100%;
 }
@@ -2857,20 +2856,16 @@ body.nav-sheet-open {
   margin: 0;
 }
 
-.registration-event-card-side {
-  align-items: flex-end;
-  display: grid;
+.registration-event-card-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
-  justify-items: end;
 }
 
 .registration-event-stats {
-  align-content: start;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
-  max-width: 360px;
 }
 
 .registration-event-stats span {
@@ -3347,7 +3342,6 @@ body.nav-sheet-open {
   .user-admin-card,
   .public-event-card,
   .event-detail-layout,
-  .registration-event-card,
   .registration-layout,
   .registration-profile-edit-grid,
   .capacity-row,
@@ -3367,15 +3361,6 @@ body.nav-sheet-open {
 
   .public-listing-card {
     grid-template-columns: 1fr;
-  }
-
-  .registration-event-stats {
-    justify-content: flex-start;
-    max-width: none;
-  }
-
-  .registration-event-card-side {
-    justify-items: start;
   }
 
   .registration-event-info {

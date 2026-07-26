@@ -749,6 +749,26 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
 
             return (
               <article className="registration-event-card" key={group.eventId}>
+                <div className="registration-event-stats">
+                  <span className={registrationStatusPill.className}>
+                    {registrationStatusPill.label}
+                  </span>
+                  <span className={getStatPillClass(getCapacitySummaryCount(group.event, group.displayCounts.registered))}>
+                    {getCapacitySummary(group.event, group.displayCounts.registered)}
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.registered)}>
+                    {group.displayCounts.registered} Registered
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.pendingPayment)}>
+                    {group.displayCounts.pendingPayment} Pending Payment
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.waitlisted)}>
+                    {group.displayCounts.waitlisted} Waitlisted
+                  </span>
+                  <span className={getStatPillClass(group.displayCounts.cancelled)}>
+                    {group.displayCounts.cancelled} Cancelled
+                  </span>
+                </div>
                 <div className="registration-event-card-main">
                   <div className="card-kicker">
                     <span>{group.event?.eventType || group.snapshot.eventType || 'Event / Activity'}</span>
@@ -764,29 +784,10 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                     event={group.event}
                     registrationSnapshot={group.snapshot}
                     registeredCount={group.displayCounts.registered}
+                    showCapacity={false}
                   />
                 </div>
-                <div className="registration-event-card-side">
-                  <div className="registration-event-stats">
-                    <span className={registrationStatusPill.className}>
-                      {registrationStatusPill.label}
-                    </span>
-                    <span className={getStatPillClass(getCapacitySummaryCount(group.event, group.displayCounts.registered))}>
-                      {getCapacitySummary(group.event, group.displayCounts.registered)}
-                    </span>
-                    <span className={getStatPillClass(group.displayCounts.registered)}>
-                      {group.displayCounts.registered} Registered
-                    </span>
-                    <span className={getStatPillClass(group.displayCounts.pendingPayment)}>
-                      {group.displayCounts.pendingPayment} Pending Payment
-                    </span>
-                    <span className={getStatPillClass(group.displayCounts.waitlisted)}>
-                      {group.displayCounts.waitlisted} Waitlisted
-                    </span>
-                    <span className={getStatPillClass(group.displayCounts.cancelled)}>
-                      {group.displayCounts.cancelled} Cancelled
-                    </span>
-                  </div>
+                <div className="registration-event-card-actions">
                   <button
                     className="button-link button-reset compact-action registration-event-edit-button"
                     type="button"
@@ -1246,8 +1247,8 @@ function DetailItem({ label, value }) {
   );
 }
 
-function EventInfoPills({ event, registrationSnapshot = {}, registeredCount = 0 }) {
-  const infoItems = getEventInfoItems(event, registrationSnapshot, registeredCount);
+function EventInfoPills({ event, registrationSnapshot = {}, registeredCount = 0, showCapacity = true }) {
+  const infoItems = getEventInfoItems(event, registrationSnapshot, registeredCount, showCapacity);
 
   return (
     <dl className="registration-event-info">
@@ -1477,16 +1478,21 @@ function getAmountDue(registration) {
   return Number(registration.eventCost || 0) + Number(registration.eventServiceFee || 0);
 }
 
-function getEventInfoItems(event, registrationSnapshot = {}, registeredCount = 0) {
+function getEventInfoItems(event, registrationSnapshot = {}, registeredCount = 0, showCapacity = true) {
   const eventType = event?.eventType || registrationSnapshot.eventType || 'Event';
   const eventDate = event?.date || registrationSnapshot.eventDate || '';
   const location = event?.location || registrationSnapshot.eventLocation || registrationSnapshot.location || '';
   const items = [
     { label: 'Date', value: formatEventDate(eventDate) },
     { label: 'Location', value: location || 'Not Set' },
-    { label: 'Cost', value: getEventCostSummary(event, registrationSnapshot) },
-    { label: 'Capacity', value: getCapacitySummary(event, registeredCount) }
+    { label: 'Cost', value: getEventCostSummary(event, registrationSnapshot) }
   ];
+
+  // Shown as its own pill in the stats row instead - repeating it here (the
+  // list card's only use of showCapacity={false}) was the literal duplicate.
+  if (showCapacity) {
+    items.push({ label: 'Capacity', value: getCapacitySummary(event, registeredCount) });
+  }
 
   if (eventType !== 'Challenges') {
     items.splice(1, 0, {
