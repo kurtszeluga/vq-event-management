@@ -89,6 +89,24 @@ export function subscribeToRegistrationPayments(registrationId, userId, onNext, 
   return onSnapshot(paymentsQuery, onNext, onError);
 }
 
+// Membership-type payments carry no userId field - only entityId, set to the
+// member's own users/{uid} document ID at write time
+// (buildMembershipPaymentRecord() in admin-update-user-profile.js). Firestore
+// rules gate a self-read on entityId === auth uid to match.
+export function subscribeToMembershipPayments(userId, onNext, onError) {
+  if (!userId) {
+    return () => {};
+  }
+
+  const paymentsQuery = query(
+    paymentsCollection(),
+    where('entityType', '==', 'Membership'),
+    where('entityId', '==', userId)
+  );
+
+  return onSnapshot(paymentsQuery, onNext, onError);
+}
+
 export async function lookupRegistrationEmail(email, eventId = '') {
   const idToken = await getMatchingUserIdToken(email);
   const response = await fetch('/api/registration-lookup', {

@@ -11,6 +11,7 @@ import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles
 import { US_STATES } from '../data/usStates.js';
 import { db, firebaseConfigured } from '../lib/firebase.js';
 import { applyMemberDirectorySync } from '../services/memberDirectoryProfile.js';
+import { subscribeToMembershipPayments } from '../services/registrationService.js';
 import { formatCurrency } from '../utils/eventFormat.js';
 import {
   buildDisplayName,
@@ -46,6 +47,32 @@ function ProfilePage() {
   // default and edited deliberately, matching how the admin UserControlPanel
   // already works.
   const [isEditing, setIsEditing] = useState(false);
+  const [membershipPayments, setMembershipPayments] = useState([]);
+
+  // Membership-type payments (dues), not event registration payments -
+  // subscribeToMembershipPayments() queries entityId === the signed-in
+  // member's own uid, matching the Firestore rule that gates this read.
+  useEffect(() => {
+    const uid = currentUser?.uid;
+
+    if (!uid) {
+      setMembershipPayments([]);
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToMembershipPayments(
+      uid,
+      (snapshot) => {
+        setMembershipPayments(snapshot.docs.map((paymentDoc) => ({
+          id: paymentDoc.id,
+          ...paymentDoc.data()
+        })));
+      },
+      () => setMembershipPayments([])
+    );
+
+    return unsubscribe;
+  }, [currentUser?.uid]);
 
   // Field values only. Clearing the messages belongs to whoever is ending the
   // edit, not to a sync that fires whenever the auth context re-emits.
@@ -261,6 +288,7 @@ function ProfilePage() {
                   <dd>{formatDateTime(userProfile?.updatedDate)}</dd>
                 </div>
               </dl>
+              <MembershipPaymentHistoryList payments={membershipPayments} />
               {successMessage ? <p className="form-success">{successMessage}</p> : null}
               <div className="form-actions">
                 <button
@@ -519,6 +547,58 @@ function formatDateTime(value) {
 
   const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
   return Number.isNaN(date.getTime()) ? 'Not Set' : date.toLocaleString();
+}
+
+function getTimestampValue(value) {
+  if (!value) {
+    return 0;
+  }
+
+  if (typeof value.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+// Mirrors UserControlPanel.jsx's MembershipPaymentHistory(), the admin
+// equivalent of this same list.
+function MembershipPaymentHistoryList({ payments }) {
+  const sortedPayments = [...payments].sort(
+    (first, second) => getTimestampValue(second.createdDate) - getTimestampValue(first.createdDate)
+  );
+
+  if (!sortedPayments.length) {
+    return (
+      <div className="payment-history-list membership-payment-history">
+        <strong>Membership Payment History</strong>
+        <p className="form-help">No membership payment history has been recorded yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="payment-history-list membership-payment-history">
+      <strong>Membership Payment History</strong>
+      {sortedPayments.map((payment) => (
+        <div className="payment-history-item" key={payment.id}>
+          <div>
+            <strong>
+              {payment.status || 'Pending'}
+              {payment.method ? ` (${payment.method})` : ''}
+            </strong>
+            <span>{formatDateTime(payment.createdDate)}</span>
+          </div>
+          <div>
+            <span>{formatCurrency(payment.amount || 0)}</span>
+            <span>{payment.createdByName || payment.createdByEmail || 'Recorded by system'}</span>
+          </div>
+          {payment.note ? <p>{payment.note}</p> : null}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default ProfilePage;

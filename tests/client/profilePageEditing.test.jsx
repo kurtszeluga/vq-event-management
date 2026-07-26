@@ -24,9 +24,17 @@ const authState = {
   }
 };
 
+let membershipPaymentsSnapshot = { docs: [] };
+
 vi.mock('../../src/context/useAuth.js', () => ({ useAuth: () => authState }));
 vi.mock('../../src/lib/firebase.js', () => ({ db: {}, firebaseConfigured: true }));
 vi.mock('firebase/auth', () => ({ updatePassword: vi.fn(), updateProfile: vi.fn() }));
+vi.mock('../../src/services/registrationService.js', () => ({
+  subscribeToMembershipPayments: (userId, onNext) => {
+    onNext(membershipPaymentsSnapshot);
+    return () => {};
+  }
+}));
 // Hoisted so the mock factory can reach it; tests swap `commit` to exercise the
 // success and permission-denied paths.
 const firestoreMocks = vi.hoisted(() => ({ commit: vi.fn(() => Promise.resolve()) }));
@@ -60,6 +68,7 @@ beforeEach(() => {
   authState.loading = false;
   authState.profileError = '';
   firestoreMocks.commit = vi.fn(() => Promise.resolve());
+  membershipPaymentsSnapshot = { docs: [] };
 });
 
 afterEach(cleanup);
@@ -175,6 +184,50 @@ describe('account and membership details', () => {
 
     const link = screen.getByRole('link', { name: /My Registrations/ });
     expect(link).toHaveAttribute('href', '/my-registrations');
+  });
+});
+
+describe('membership payment history', () => {
+  it('says no history has been recorded yet when there is none', () => {
+    render(<ProfilePage />);
+
+    expect(screen.getByText('No membership payment history has been recorded yet.')).toBeInTheDocument();
+  });
+
+  it('lists each membership payment, newest first, with amount and recorded-by', () => {
+    membershipPaymentsSnapshot = {
+      docs: [
+        {
+          id: 'payment-1',
+          data: () => ({
+            amount: 45,
+            createdByName: 'Coordinator Name',
+            createdDate: new Date('2025-01-15T00:00:00Z'),
+            method: 'Check',
+            status: 'Paid'
+          })
+        },
+        {
+          id: 'payment-2',
+          data: () => ({
+            amount: 45,
+            createdByName: 'Coordinator Name',
+            createdDate: new Date('2026-01-15T00:00:00Z'),
+            method: 'Cash',
+            status: 'Paid'
+          })
+        }
+      ]
+    };
+    render(<ProfilePage />);
+
+    const historyItems = document.querySelectorAll('.membership-payment-history .payment-history-item');
+    expect(historyItems).toHaveLength(2);
+    // Newest (2026) first, even though it was supplied second.
+    expect(historyItems[0]).toHaveTextContent('Paid (Cash)');
+    expect(historyItems[1]).toHaveTextContent('Paid (Check)');
+    expect(screen.getAllByText('$45.00').length).toBe(2);
+    expect(screen.getAllByText('Coordinator Name').length).toBe(2);
   });
 });
 
