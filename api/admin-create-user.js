@@ -276,12 +276,13 @@ function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedR
   return 'General User';
 }
 
-function getPermissionsForRole(role, permissions = {}) {
+export function getPermissionsForRole(role, permissions = {}) {
   const normalized = {
     addUsers: Boolean(permissions.addUsers),
     manageEvents: Boolean(permissions.manageEvents),
     managePayments: Boolean(permissions.managePayments),
     manageMembershipStatus: Boolean(permissions.manageMembershipStatus),
+    registerOthers: Boolean(permissions.registerOthers),
     viewRegistrations: Boolean(permissions.viewRegistrations)
   };
 
@@ -289,6 +290,7 @@ function getPermissionsForRole(role, permissions = {}) {
     manageEvents: false,
     managePayments: false,
     manageMembershipStatus: false,
+    registerOthers: false,
     viewRegistrations: false,
     addUsers: false
   };

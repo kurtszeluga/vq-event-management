@@ -472,21 +472,10 @@ function ConfigurationPanel({ currentUserProfile }) {
             <span>Require Active Guild Membership For Registration</span>
           </label>
           <p className="form-help">
-            Email is used for automatic matching. Phone-only matches are held for review.
+            Turn this off temporarily to test registrations without a matching active-membership
+            profile. Leave it on for normal operation - registration already stays open to any
+            event that explicitly allows non-member registration, regardless of this setting.
           </p>
-          <label className="checkbox-label">
-            <input
-              checked={settings.allowAdminSkipMembershipCheck}
-              type="checkbox"
-              onChange={(event) =>
-                setSettings((current) => ({
-                  ...current,
-                  allowAdminSkipMembershipCheck: event.target.checked
-                }))
-              }
-            />
-            <span>Allow Admins To Skip Membership Check</span>
-          </label>
           <label>
             <span>Membership Terms Version</span>
             <input

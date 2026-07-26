@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
@@ -287,6 +288,7 @@ async function loadLookupContext(db, email, eventId) {
   );
   const membershipStatus = getMembershipStatus(profile);
   const profileStatus = getProfileStatus(profile);
+  const requireMembershipCheck = await getRequireMembershipCheck(db);
 
   return {
     allowNonMemberRegistration,
@@ -294,7 +296,8 @@ async function loadLookupContext(db, email, eventId) {
     hasExistingRegistration,
     membershipStatus,
     profile,
-    profileStatus
+    profileStatus,
+    requireMembershipCheck
   };
 }
 
@@ -452,12 +455,13 @@ async function findActiveRegistration(db, eventId, email, userId) {
   });
 }
 
-function getVerifiedLookupStatus({
+export function getVerifiedLookupStatus({
   allowNonMemberRegistration,
   hasExistingRegistration,
   membershipStatus,
   profile,
-  profileStatus
+  profileStatus,
+  requireMembershipCheck = true
 }) {
   if (hasExistingRegistration) {
     return 'already-registered';
@@ -471,11 +475,11 @@ function getVerifiedLookupStatus({
     return 'profile-reactivation-available';
   }
 
-  if (profile && membershipStatus !== 'Active' && !allowNonMemberRegistration) {
+  if (profile && membershipStatus !== 'Active' && !allowNonMemberRegistration && requireMembershipCheck) {
     return 'profile-membership-blocked';
   }
 
-  if (profile && membershipStatus !== 'Active' && allowNonMemberRegistration) {
+  if (profile && membershipStatus !== 'Active' && (allowNonMemberRegistration || !requireMembershipCheck)) {
     return profileStatus === 'Active' ? 'profile-active' : 'profile-reactivation-available';
   }
 

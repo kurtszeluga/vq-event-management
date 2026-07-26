@@ -36,6 +36,7 @@ function AdminDashboardPage() {
   const [moduleNavOpen, setModuleNavOpen] = useState(false);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
+  const canRegisterOthers = isSuperUser || hasPermission('registerOthers');
   const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
   const canViewRegistrations = hasPermission('viewRegistrations');
   // Single source of truth for the Manage/Edit row: the desktop buttons, the
@@ -409,6 +410,7 @@ function AdminDashboardPage() {
         {canViewRegistrations && activeModule === 'registrations' ? (
           <RegistrationPanel
             canManageEvents={canManageEvents}
+            canRegisterOthers={canRegisterOthers}
             currentUserProfile={userProfile}
           />
         ) : null}

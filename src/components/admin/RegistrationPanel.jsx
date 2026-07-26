@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import AdminRegisterMemberPanel from './AdminRegisterMemberPanel.jsx';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import ModalDialog from '../ModalDialog.jsx';
 import {
@@ -32,8 +33,9 @@ const QUARTER_FILTERS = [
 const DEFAULT_YEAR_FILTER = String(new Date().getFullYear());
 const DEFAULT_QUARTER_FILTER = getQuarterFilterValue(new Date());
 
-function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
+function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false, currentUserProfile }) {
   const [activityFilter, setActivityFilter] = useState('');
+  const [registerMemberOpen, setRegisterMemberOpen] = useState(false);
   const [error, setError] = useState('');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -805,6 +807,18 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
                     registeredCount={group.displayCounts.registered}
                   />
                 </div>
+                {canRegisterOthers && group.event ? (
+                  <button
+                    className="button-link button-reset secondary-action compact-action"
+                    type="button"
+                    onClick={() => {
+                      setSuccessMessage('');
+                      setRegisterMemberOpen(true);
+                    }}
+                  >
+                    Register A Member
+                  </button>
+                ) : null}
               </div>
               <div className="user-table-wrap">
                 {selectedDisplayRegistrations.length ? (
@@ -970,6 +984,22 @@ function RegistrationPanel({ canManageEvents = false, currentUserProfile }) {
           );
         }) : null}
       </div>
+      {canRegisterOthers ? (
+        <AdminRegisterMemberPanel
+          event={selectedEventGroup?.event}
+          onClose={() => setRegisterMemberOpen(false)}
+          onRegistered={(result) => {
+            setRegisterMemberOpen(false);
+            setSuccessMessage(
+              result?.status === 'Waitlisted'
+                ? 'Member added to the waitlist for this event.'
+                : 'Member registered successfully.'
+            );
+          }}
+          open={registerMemberOpen}
+          users={users}
+        />
+      ) : null}
       {selectedRegistration ? (
         <ModalDialog
           ariaLabelledBy="registration-details-title"

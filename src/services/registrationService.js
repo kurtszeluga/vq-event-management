@@ -127,6 +127,36 @@ export async function createRegistration(registrationData) {
   return result;
 }
 
+// Deliberately does not use getMatchingUserIdToken - that helper only
+// forwards a token when the signed-in user's own email equals the
+// registrant's, which is never true here (the admin is registering someone
+// else). This always sends the signed-in admin's own identity; the server
+// re-derives and re-checks their permission from their own stored profile,
+// never from anything this payload claims.
+export async function createAdminRegistration(registrationData) {
+  const idToken = await auth?.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('You must be signed in to register a member.');
+  }
+
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({ ...registrationData, action: 'adminRegister' }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Registration could not be completed.');
+  }
+
+  return result;
+}
+
 export async function loadSquarePaymentConfig() {
   const response = await fetch('/api/create-registration', {
     body: JSON.stringify({ action: 'squareConfig' }),

@@ -71,7 +71,6 @@ export const COORDINATOR_ASSIGNMENT_AREAS = [
 ];
 
 export const DEFAULT_MEMBERSHIP_SETTINGS = {
-  allowAdminSkipMembershipCheck: false,
   matchByEmail: true,
   matchByPhone: false,
   requireMembershipCheck: false,
@@ -246,7 +245,6 @@ export function subscribeToActiveEventTimeDefaults(onNext, onError) {
 export async function saveMembershipSettings(settings, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
-    allowAdminSkipMembershipCheck: Boolean(settings.allowAdminSkipMembershipCheck),
     matchByEmail: true,
     matchByPhone: false,
     requireMembershipCheck: Boolean(settings.requireMembershipCheck),
@@ -1133,12 +1131,17 @@ function getEmptyBillingAddress() {
   };
 }
 
-function normalizeUserPermissions(permissions = {}) {
+// This backs live archive/reactivate-membership writes (buildMembershipStatusProfile,
+// a full-document replace), not just CSV import - every permission key an
+// Admin can hold must be listed here, or the next archive/reactivate of their
+// profile silently deletes any key missing from this object.
+export function normalizeUserPermissions(permissions = {}) {
   return {
     addUsers: Boolean(permissions.addUsers),
     manageEvents: Boolean(permissions.manageEvents),
     manageMembershipStatus: Boolean(permissions.manageMembershipStatus),
     managePayments: Boolean(permissions.managePayments),
+    registerOthers: Boolean(permissions.registerOthers),
     viewRegistrations: Boolean(permissions.viewRegistrations)
   };
 }

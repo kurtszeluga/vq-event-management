@@ -23,6 +23,11 @@ function ModalDialog({
 }) {
   const dialogRef = useRef(null);
   const previousFocusRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -42,7 +47,7 @@ function ModalDialog({
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
 
@@ -77,7 +82,7 @@ function ModalDialog({
       document.body.classList.remove(bodyClassName);
       previousFocusRef.current?.focus?.();
     };
-  }, [bodyClassName, initialFocusRef, onClose, open]);
+  }, [bodyClassName, initialFocusRef, open]);
 
   if (!open) {
     return null;

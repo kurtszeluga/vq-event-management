@@ -1,5 +1,6 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getRegistrationWindowState } from '../shared/registrationWindow.js';
+import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
@@ -73,6 +74,7 @@ export default async function handler(request, response) {
       return;
     }
 
+    const isAdminRegister = request.body?.action === 'adminRegister';
     const payload = sanitizeRegistrationPayload(request.body || {});
     await enforceRegistrationRateLimit(db, request, 'submitRegistration', payload);
 
@@ -86,11 +88,34 @@ export default async function handler(request, response) {
       return;
     }
 
-    const authorization = await authorizeRegistrationRequest(
-      request,
-      payload,
-      app.options.projectId
-    );
+    // v1 scope: admin-initiated registration only ever targets an existing,
+    // already-matched member picked from the directory - never an unmatched
+    // walk-in. This also sidesteps whether an admin may accept membership
+    // terms on a stranger's behalf, since that path is never reached.
+    if (isAdminRegister && !payload.profileUserId) {
+      response.status(400).json({ error: 'Select a member profile before registering on their behalf.' });
+      return;
+    }
+
+    const authorization = isAdminRegister
+      ? await authorizeAdminRegistrationRequest(request, db, app.options.projectId)
+      : await authorizeRegistrationRequest(request, payload, app.options.projectId);
+
+    if (isAdminRegister) {
+      // Separate from the target-scoped limiter above, which is keyed on
+      // email/eventId/profileUserId: this one is keyed on the admin's own
+      // uid, so one admin session cannot loop through many different
+      // members quickly, regardless of which member or event each request
+      // targets.
+      await enforceRateLimit(db, {
+        keyParts: [authorization.actorUserId],
+        limit: 30,
+        message: 'Too many admin-initiated registrations. Please wait and try again later.',
+        scope: 'admin-register-actor',
+        windowMs: 10 * 60 * 1000
+      });
+    }
+
     const result = await createRegistration(db, payload, authorization);
     const confirmationContext = result.confirmationContext;
 
@@ -234,6 +259,7 @@ async function createRegistration(db, payload, authorization) {
   const attemptRef = payload.idempotencyKey
     ? db.collection('registrationAttempts').doc(payload.idempotencyKey)
     : null;
+  const requireMembershipCheck = await getRequireMembershipCheck(db);
 
   const result = await db.runTransaction(async (transaction) => {
     const existingAttempt = attemptRef
@@ -272,7 +298,8 @@ async function createRegistration(db, payload, authorization) {
       membershipStatus,
       profile,
       profileStatus,
-      reactivateProfile: payload.reactivateProfile
+      reactivateProfile: payload.reactivateProfile,
+      requireMembershipCheck
     });
 
     if (profile && payload.reactivateProfile && profileStatus !== 'Active') {
@@ -303,6 +330,16 @@ async function createRegistration(db, payload, authorization) {
       isPaidEvent
       && Boolean(event.allowCashCheckPayment)
       && payload.paymentPreference === 'cash-check-later';
+
+    // Defense in depth: the admin UI should never let this be reached (it
+    // only offers cash/check), but the server must not rely on the client to
+    // enforce that - admin-initiated registration has no card-entry path at
+    // all, so a paid event that does not accept cash/check cannot be
+    // completed this way.
+    if (authorization.kind === 'admin' && isPaidEvent && !payLaterByCashCheck) {
+      throw httpError(400, 'This event requires online card payment, which admin-initiated registration does not support. Enable cash or check payment for this event, or have the member register themselves.');
+    }
+
     const eventCost = Number(event.cost || 0);
     const eventServiceFee = Number(event.serviceFee || 0);
     const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
@@ -359,6 +396,10 @@ async function createRegistration(db, payload, authorization) {
       phone: payload.phone,
       profileMatchedAtRegistration: Boolean(profile),
       profileStatusAtRegistration: profileStatus || '',
+      registeredByAdmin: authorization.kind === 'admin',
+      registeredByAdminEmail: authorization.kind === 'admin' ? authorization.actorEmail : '',
+      registeredByAdminName: authorization.kind === 'admin' ? authorization.actorName : '',
+      registeredByAdminUserId: authorization.kind === 'admin' ? authorization.actorUserId : '',
       registrationDate: FieldValue.serverTimestamp(),
       registrationId: registrationRef.id,
       registrantFirstName,
@@ -457,9 +498,12 @@ async function createRegistration(db, payload, authorization) {
     transaction.set(paymentRef, {
       amount: registration.amountPaid,
       amountDue,
-      createdBy: userId,
-      createdByEmail: payload.email,
-      createdByName: payload.name,
+      // createdBy* names who acted, not the registrant, matching the existing
+      // convention in configurationService.js's CSV membership-payment
+      // records - for an admin-initiated registration, that is the admin.
+      createdBy: authorization.kind === 'admin' ? authorization.actorUserId : userId,
+      createdByEmail: authorization.kind === 'admin' ? authorization.actorEmail : payload.email,
+      createdByName: authorization.kind === 'admin' ? authorization.actorName : payload.name,
       createdDate: FieldValue.serverTimestamp(),
       entityId: registrationRef.id,
       entityType: 'Registration',
@@ -483,10 +527,10 @@ async function createRegistration(db, payload, authorization) {
     });
     transaction.set(auditRef, {
       action: 'Register',
-      actorEmail: payload.email,
-      actorName: payload.name,
-      actorRole: profile?.role || 'Guest',
-      actorUserId: userId,
+      actorEmail: authorization.kind === 'admin' ? authorization.actorEmail : payload.email,
+      actorName: authorization.kind === 'admin' ? authorization.actorName : payload.name,
+      actorRole: authorization.kind === 'admin' ? authorization.actorRole : (profile?.role || 'Guest'),
+      actorUserId: authorization.kind === 'admin' ? authorization.actorUserId : userId,
       after: {
         ...registration,
         registrationDate: null
@@ -495,7 +539,11 @@ async function createRegistration(db, payload, authorization) {
       createdDate: FieldValue.serverTimestamp(),
       entityId: registrationRef.id,
       entityType: 'Registration',
-      summary: `${payload.name} registered for "${event.title || event.eventType || payload.eventId}"`
+      // The registration itself (captured in `after`) already names the
+      // member; the summary only needs to disambiguate who acted.
+      summary: authorization.kind === 'admin'
+        ? `${authorization.actorName} registered ${payload.name} for "${event.title || event.eventType || payload.eventId}"`
+        : `${payload.name} registered for "${event.title || event.eventType || payload.eventId}"`
     });
 
     return {
@@ -581,6 +629,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     : db.collection('registrationReservations').doc();
   const now = Date.now();
   const expiresAtMillis = now + PAYMENT_RESERVATION_EXPIRATION_MS;
+  const requireMembershipCheck = await getRequireMembershipCheck(db);
 
   return db.runTransaction(async (transaction) => {
     if (authorization.kind === 'email-code') {
@@ -612,7 +661,8 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       membershipStatus,
       profile,
       profileStatus,
-      reactivateProfile: payload.reactivateProfile
+      reactivateProfile: payload.reactivateProfile,
+      requireMembershipCheck
     });
 
     const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
@@ -805,9 +855,9 @@ async function findUserProfileByEmail(db, email) {
   return { id: docSnapshot.id, ...docSnapshot.data() };
 }
 
-function validateRegistrationEligibility(
+export function validateRegistrationEligibility(
   event,
-  { membershipStatus, profile, profileStatus, reactivateProfile }
+  { membershipStatus, profile, profileStatus, reactivateProfile, requireMembershipCheck = true }
 ) {
   if (!isEventVisible(event)) {
     throw httpError(404, 'This event is not currently available.');
@@ -849,7 +899,7 @@ function validateRegistrationEligibility(
     throw httpError(403, 'We could not find a Guild membership record for this email address. Guild membership is required to register. Please contact an administrator for assistance.');
   }
 
-  if (!event.allowNonMemberRegistration && membershipStatus !== 'Active') {
+  if (!event.allowNonMemberRegistration && requireMembershipCheck && membershipStatus !== 'Active') {
     throw httpError(403, 'Your membership status is not currently active. Please contact an administrator for assistance.');
   }
 }
@@ -917,11 +967,16 @@ function sanitizeIdempotencyKey(value) {
   return /^[A-Za-z0-9_-]{16,80}$/.test(key) ? key : '';
 }
 
-async function authorizeRegistrationRequest(request, payload, projectId) {
+// Duplicated inline at three call sites before this extraction (here, the
+// membership-confirmation handler below, and the new admin-registration path)
+// - named once so a fourth doesn't repeat it again.
+function getBearerToken(request) {
   const authHeader = request.headers.authorization || '';
-  const idToken = authHeader.startsWith('Bearer ')
-    ? authHeader.slice('Bearer '.length)
-    : '';
+  return authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : '';
+}
+
+async function authorizeRegistrationRequest(request, payload, projectId) {
+  const idToken = getBearerToken(request);
 
   if (idToken) {
     let decodedToken;
@@ -949,6 +1004,63 @@ async function authorizeRegistrationRequest(request, payload, projectId) {
     challengeId: payload.verificationChallengeId,
     kind: 'email-code'
   };
+}
+
+// A distinct authorization kind, not a flag layered onto 'firebase'. The
+// userId-match check below (`authorization.kind === 'firebase' && profile`)
+// is gated on that literal string, so introducing 'admin' as a separate value
+// skips it structurally - there is no code path by which a self-registrant's
+// request can be interpreted as this kind, since it is only ever returned
+// here, only reachable via action:'adminRegister', and this function always
+// re-derives the actor's identity from their own verified token and their own
+// stored profile - never from anything the request body claims.
+export async function authorizeAdminRegistrationRequest(request, db, projectId) {
+  const idToken = getBearerToken(request);
+
+  if (!idToken) {
+    throw httpError(401, 'You must be signed in to register a member on their behalf.');
+  }
+
+  let decodedToken;
+
+  try {
+    decodedToken = await verifyFirebaseIdToken(idToken, projectId);
+  } catch {
+    throw httpError(401, 'Your sign-in has expired. Please sign in again.');
+  }
+
+  const actorUserId = decodedToken.user_id || decodedToken.sub || decodedToken.uid || '';
+
+  if (!actorUserId) {
+    throw httpError(401, 'Invalid authorization token.');
+  }
+
+  const actorSnap = await db.collection('users').doc(actorUserId).get();
+  const actorProfile = actorSnap.exists ? actorSnap.data() : {};
+
+  if (!canRegisterOthers(actorProfile)) {
+    throw httpError(403, 'This account cannot register members on their behalf.');
+  }
+
+  return {
+    actorEmail: normalizeEmail(actorProfile.email || decodedToken.email || ''),
+    actorName: actorProfile.name || decodedToken.email || 'Unknown Admin',
+    actorRole: actorProfile.role || '',
+    actorUserId,
+    kind: 'admin'
+  };
+}
+
+export function canRegisterOthers(actorProfile) {
+  if (!actorProfile || actorProfile.status !== 'Active') {
+    return false;
+  }
+
+  if (actorProfile.role === 'Super User') {
+    return true;
+  }
+
+  return actorProfile.role === 'Admin' && actorProfile.permissions?.registerOthers === true;
 }
 
 async function getVerificationChallenge(transaction, db, payload, authorization) {
@@ -1274,10 +1386,7 @@ async function sendRegistrationConfirmationEmail(db, { event, registration }) {
 }
 
 async function handleMembershipConfirmationRequest(request, response, db, projectId) {
-  const authHeader = request.headers.authorization || '';
-  const idToken = authHeader.startsWith('Bearer ')
-    ? authHeader.slice('Bearer '.length)
-    : '';
+  const idToken = getBearerToken(request);
 
   if (!idToken) {
     response.status(401).json({ error: 'Missing authorization token.' });

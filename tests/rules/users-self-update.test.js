@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, before, describe, test } from 'node:test';
 import { assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 // Exercises firestore.rules against the emulator. Written to answer one
 // question: does the repo's rule set actually permit a signed-in member to
@@ -40,6 +40,7 @@ function storedProfile(overrides = {}) {
       manageEvents: false,
       manageMembershipStatus: false,
       managePayments: false,
+      registerOthers: false,
       viewRegistrations: false
     },
     phone: '(352) 653-8188',
@@ -170,6 +171,7 @@ describe('users/{uid} self-update', () => {
           manageEvents: true,
           manageMembershipStatus: true,
           managePayments: true,
+          registerOthers: true,
           viewRegistrations: true
         }
       })
@@ -212,6 +214,7 @@ describe('admin edits of another member', () => {
           manageEvents: false,
           manageMembershipStatus: false,
           managePayments: false,
+          registerOthers: false,
           viewRegistrations: false
         },
         role: 'Admin',
@@ -240,6 +243,114 @@ describe('admin edits of another member', () => {
         doc(testEnv.authenticatedContext(ADMIN_UID).firestore(), 'users', OWNER_UID),
         { phone: '(352) 653-8191' }
       )
+    );
+  });
+});
+
+// registerOthers was added after go-live. validUser() only runs at create time
+// (updates go through validSelfProfileEdit()/validUserAdminUpdate() instead,
+// neither of which type-checks individual permission keys), but a create can
+// still arrive with a permissions object missing the new key - an old cached
+// client bundle mid-deploy, or a script that predates this change. The
+// bool-type check on registerOthers has to stay optional-if-present (the same
+// treatment addUsers already has), or that create is refused outright.
+describe('self sign-up predating the registerOthers permission', () => {
+  const NEW_SELF_SIGNUP_UID = 'signup-1';
+
+  test('a self-created profile with no registerOthers key at all is still accepted', async () => {
+    await testEnv.clearFirestore();
+
+    await assertSucceeds(
+      setDoc(doc(testEnv.authenticatedContext(NEW_SELF_SIGNUP_UID).firestore(), 'users', NEW_SELF_SIGNUP_UID), {
+        createdDate: new Date('2026-07-26T00:00:00Z'),
+        email: 'newmember@example.com',
+        name: 'New Member',
+        permissions: {
+          addUsers: false,
+          manageEvents: false,
+          manageMembershipStatus: false,
+          managePayments: false,
+          viewRegistrations: false
+        },
+        phone: '(555) 010-1000',
+        role: 'General User',
+        status: 'Active',
+        termsAccepted: true,
+        termsAcceptedDate: new Date('2026-07-26T00:00:00Z'),
+        termsVersion: '2026',
+        userId: NEW_SELF_SIGNUP_UID
+      })
+    );
+
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await deleteDoc(doc(context.firestore(), 'users', NEW_SELF_SIGNUP_UID));
+    });
+  });
+});
+
+// The concrete privilege-escalation path hasNoAdminPermissions()'s registerOthers
+// clause exists to close: demoting an Admin who holds it must not let them keep
+// it silently.
+describe('demoting an admin who holds registerOthers', () => {
+  const SUPER_UID = 'super-2';
+  const DEMOTED_ADMIN_UID = 'admin-2';
+
+  async function seedDemotionFixture() {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'users', SUPER_UID), storedProfile({
+        email: 'super2@example.com',
+        name: 'Super User Two',
+        role: 'Super User',
+        userId: SUPER_UID
+      }));
+      await setDoc(doc(db, 'users', DEMOTED_ADMIN_UID), storedProfile({
+        email: 'admin2@example.com',
+        membershipStatus: 'Active',
+        name: 'Admin To Demote',
+        permissions: {
+          addUsers: false,
+          manageEvents: false,
+          manageMembershipStatus: false,
+          managePayments: false,
+          registerOthers: true,
+          viewRegistrations: false
+        },
+        role: 'Admin',
+        status: 'Active',
+        userId: DEMOTED_ADMIN_UID
+      }));
+    });
+  }
+
+  function superDb() {
+    return testEnv.authenticatedContext(SUPER_UID).firestore();
+  }
+
+  test('the demotion is refused if registerOthers is left true', async () => {
+    await seedDemotionFixture();
+
+    await assertRefusedOnMerit(
+      updateDoc(doc(superDb(), 'users', DEMOTED_ADMIN_UID), { role: 'General User' })
+    );
+  });
+
+  test('the demotion succeeds once registerOthers is cleared alongside the role change', async () => {
+    await seedDemotionFixture();
+
+    await assertSucceeds(
+      updateDoc(doc(superDb(), 'users', DEMOTED_ADMIN_UID), {
+        permissions: {
+          addUsers: false,
+          manageEvents: false,
+          manageMembershipStatus: false,
+          managePayments: false,
+          registerOthers: false,
+          viewRegistrations: false
+        },
+        role: 'General User'
+      })
     );
   });
 });

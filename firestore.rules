@@ -218,7 +218,11 @@ service cloud.firestore {
           'paymentUpdatedDate',
           'squareRefundId',
           'squareTransactionId',
-          'status'
+          'status',
+          'registeredByAdmin',
+          'registeredByAdminEmail',
+          'registeredByAdminName',
+          'registeredByAdminUserId'
         ])
         && request.resource.data.eventId is string
         && (!('amountDue' in request.resource.data) || request.resource.data.amountDue is number)
@@ -255,6 +259,10 @@ service cloud.firestore {
           || request.resource.data.squareTransactionId is string)
         && validStatus(request.resource.data.status, ['Pending Payment', 'Registered', 'Cancelled', 'Waitlisted'])
         && (!('userId' in request.resource.data) || request.resource.data.userId is string)
+        && (!('registeredByAdmin' in request.resource.data) || request.resource.data.registeredByAdmin is bool)
+        && (!('registeredByAdminEmail' in request.resource.data) || request.resource.data.registeredByAdminEmail is string)
+        && (!('registeredByAdminName' in request.resource.data) || request.resource.data.registeredByAdminName is string)
+        && (!('registeredByAdminUserId' in request.resource.data) || request.resource.data.registeredByAdminUserId is string)
         && (hasPermission('viewRegistrations')
           || !signedIn()
           || !('userId' in request.resource.data)
@@ -359,7 +367,8 @@ service cloud.firestore {
           'viewRegistrations',
           'managePayments',
           'addUsers',
-          'manageMembershipStatus'
+          'manageMembershipStatus',
+          'registerOthers'
         ])
         && request.resource.data.permissions.manageEvents is bool
         && request.resource.data.permissions.viewRegistrations is bool
@@ -367,6 +376,8 @@ service cloud.firestore {
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers is bool)
         && request.resource.data.permissions.manageMembershipStatus is bool
+        && (!('registerOthers' in request.resource.data.permissions)
+          || request.resource.data.permissions.registerOthers is bool)
         && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
         && validStatus(request.resource.data.status, ['Active', 'Inactive', 'Archived'])
         && (!('termsAccepted' in request.resource.data)
@@ -500,7 +511,8 @@ service cloud.firestore {
           'viewRegistrations',
           'managePayments',
           'addUsers',
-          'manageMembershipStatus'
+          'manageMembershipStatus',
+          'registerOthers'
         ])
         && (request.resource.data.role == 'Super User'
           || request.resource.data.role == 'Admin'
@@ -516,7 +528,9 @@ service cloud.firestore {
         && request.resource.data.permissions.managePayments == false
         && request.resource.data.permissions.manageMembershipStatus == false
         && (!('addUsers' in request.resource.data.permissions)
-          || request.resource.data.permissions.addUsers == false);
+          || request.resource.data.permissions.addUsers == false)
+        && (!('registerOthers' in request.resource.data.permissions)
+          || request.resource.data.permissions.registerOthers == false);
     }
 
     function canManageMembershipStatus() {
@@ -655,7 +669,6 @@ service cloud.firestore {
 
     function validMembershipSettings() {
       return request.resource.data.keys().hasOnly([
-          'allowAdminSkipMembershipCheck',
           'matchByEmail',
           'matchByPhone',
           'requireMembershipCheck',
@@ -663,7 +676,6 @@ service cloud.firestore {
           'termsVersion',
           'updatedDate'
         ])
-        && request.resource.data.allowAdminSkipMembershipCheck is bool
         && request.resource.data.matchByEmail is bool
         && request.resource.data.matchByPhone is bool
         && request.resource.data.requireMembershipCheck is bool

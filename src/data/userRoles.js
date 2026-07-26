@@ -24,6 +24,10 @@ export const USER_PERMISSION_OPTIONS = [
   {
     key: 'manageMembershipStatus',
     label: 'Manage Membership Status'
+  },
+  {
+    key: 'registerOthers',
+    label: 'Register Members On Their Behalf'
   }
 ];
 
