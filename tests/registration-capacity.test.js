@@ -11,6 +11,7 @@ import {
   isCashCheckPaymentAllowed,
   isSeatHoldingRegistration,
   reservationMatchesRequest,
+  resolveAdminCollectedPayment,
   toAmountCents
 } from '../api/_lib/registration-capacity.js';
 
@@ -307,4 +308,56 @@ test('cash/check is never allowed without the cash-check-later payment preferenc
     event: { allowCashCheckPayment: true },
     paymentPreference: ''
   }), false);
+});
+
+test('an admin who confirms cash/check was collected marks the payment received', () => {
+  assert.deepEqual(resolveAdminCollectedPayment({
+    authorizationKind: 'admin',
+    paymentMethod: 'Cash',
+    paymentReceived: true,
+    payLaterByCashCheck: true
+  }), { method: 'Cash' });
+
+  assert.deepEqual(resolveAdminCollectedPayment({
+    authorizationKind: 'admin',
+    paymentMethod: 'Check',
+    paymentReceived: true,
+    payLaterByCashCheck: true
+  }), { method: 'Check' });
+});
+
+test('a self-registrant can never mark their own payment received', () => {
+  assert.equal(resolveAdminCollectedPayment({
+    authorizationKind: 'firebase',
+    paymentMethod: 'Cash',
+    paymentReceived: true,
+    payLaterByCashCheck: true
+  }), null);
+});
+
+test('payment is not treated as collected unless the admin actually confirmed it', () => {
+  assert.equal(resolveAdminCollectedPayment({
+    authorizationKind: 'admin',
+    paymentMethod: 'Cash',
+    paymentReceived: false,
+    payLaterByCashCheck: true
+  }), null);
+});
+
+test('payment collection requires the registration to actually be on the cash/check path', () => {
+  assert.equal(resolveAdminCollectedPayment({
+    authorizationKind: 'admin',
+    paymentMethod: 'Cash',
+    paymentReceived: true,
+    payLaterByCashCheck: false
+  }), null);
+});
+
+test('an unrecognized payment method is never honored, even if paymentReceived is true', () => {
+  assert.equal(resolveAdminCollectedPayment({
+    authorizationKind: 'admin',
+    paymentMethod: 'Bitcoin',
+    paymentReceived: true,
+    payLaterByCashCheck: true
+  }), null);
 });

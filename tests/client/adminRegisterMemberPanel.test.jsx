@@ -13,7 +13,6 @@ const { default: AdminRegisterMemberPanel } = await import(
 
 const MEMBERS = [
   {
-    billingAddress: { city: 'Loudon', country: 'United States', postalCode: '37774', state: 'TN', street: '12 Awohili Drive' },
     email: 'ada@example.com',
     firstName: 'Ada',
     id: 'user-1',
@@ -28,6 +27,14 @@ const MEMBERS = [
     lastName: 'Hopper',
     phone: '9195551234',
     userId: 'user-2'
+  },
+  {
+    email: 'nophone@example.com',
+    firstName: 'Nora',
+    id: 'user-3',
+    lastName: 'Phone',
+    phone: '',
+    userId: 'user-3'
   }
 ];
 
@@ -95,18 +102,21 @@ describe('rendering', () => {
 });
 
 describe('selecting a member', () => {
-  it('prefills the registrant fields from the selected profile', async () => {
+  it('shows the profile name and phone read-only, with no editable fields', async () => {
     const user = userEvent.setup();
     renderPanel();
 
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
 
-    expect(screen.getByLabelText('First Name *')).toHaveValue('Ada');
-    expect(screen.getByLabelText('Last Name *')).toHaveValue('Lovelace');
-    expect(screen.getByLabelText('Phone *')).toHaveValue('3526538188');
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('(352) 653-8188')).toBeInTheDocument();
+    expect(screen.queryByLabelText('First Name *')).toBeNull();
+    expect(screen.queryByLabelText('Last Name *')).toBeNull();
+    expect(screen.queryByLabelText('Phone *')).toBeNull();
+    expect(screen.getByText(/cannot be edited here/)).toBeInTheDocument();
   });
 
-  it('returns to search when Change is clicked, clearing the prefilled fields', async () => {
+  it('returns to search when Change is clicked, clearing the selected member', async () => {
     const user = userEvent.setup();
     renderPanel();
 
@@ -114,7 +124,20 @@ describe('selecting a member', () => {
     await user.click(screen.getByRole('button', { name: 'Change' }));
 
     expect(screen.getByLabelText('Search Members')).toBeInTheDocument();
-    expect(screen.queryByLabelText('First Name *')).toBeNull();
+    expect(screen.queryByText('(352) 653-8188')).toBeNull();
+  });
+});
+
+describe('incomplete member profiles', () => {
+  it('blocks submission and explains why for a member with no phone on file', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await searchAndSelect(user, 'nophone', 'Nora Phone');
+
+    expect(screen.getByText(/missing a valid phone number/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
+    expect(createAdminRegistration).not.toHaveBeenCalled();
   });
 });
 
@@ -161,7 +184,7 @@ describe('admin cash/check override', () => {
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
     expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
 
-    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('checkbox', { name: /Override/ }));
 
     expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
     expect(screen.getByText(/pay by cash or check later/)).toBeInTheDocument();
@@ -173,7 +196,7 @@ describe('admin cash/check override', () => {
     renderPanel({ event: PAID_UNSUPPORTED_EVENT });
 
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
-    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('checkbox', { name: /Override/ }));
     await user.click(screen.getByRole('button', { name: 'Register Member' }));
 
     await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
@@ -189,7 +212,7 @@ describe('admin cash/check override', () => {
 
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
 
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Override/ })).toBeNull();
   });
 });
 
@@ -235,61 +258,138 @@ describe('duplicate registration detection', () => {
 });
 
 describe('event at capacity', () => {
-  it('labels the submit action as adding to the waitlist and still allows it', async () => {
+  it('requires an explicit waitlist confirmation before submitting, not just inline copy', async () => {
     const user = userEvent.setup();
     createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Waitlisted' });
     renderPanel({ event: FREE_EVENT, isFull: true });
 
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    expect(screen.getByText(/cannot be given.*an active seat/)).toBeInTheDocument();
 
-    expect(screen.getByText(/will be added to the waitlist/)).toBeInTheDocument();
-    const submitButton = screen.getByRole('button', { name: 'Add Member To Waitlist' });
-    expect(submitButton).not.toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Register Member' }));
 
-    await user.click(submitButton);
+    // Blocked on a confirmation dialog - the server call has not happened yet.
+    expect(createAdminRegistration).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Event Full - Add To Waitlist Instead?' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add To Waitlist' }));
+
     await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
   });
 
-  it('keeps the ordinary label and copy when the event is not full', async () => {
+  it('going back from the waitlist confirmation does not submit', async () => {
     const user = userEvent.setup();
+    renderPanel({ event: FREE_EVENT, isFull: true });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    await user.click(screen.getByRole('button', { name: 'Register Member' }));
+    await user.click(screen.getByRole('button', { name: 'Go Back' }));
+
+    expect(createAdminRegistration).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { name: 'Event Full - Add To Waitlist Instead?' })).toBeNull();
+  });
+
+  it('does not show full-event copy or the confirmation dialog when the event is not full', async () => {
+    const user = userEvent.setup();
+    createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Registered' });
     renderPanel({ event: FREE_EVENT, isFull: false });
 
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    expect(screen.queryByText(/cannot be given.*an active seat/)).toBeNull();
 
-    expect(screen.getByRole('button', { name: 'Register Member' })).toBeInTheDocument();
-    expect(screen.queryByText(/will be added to the waitlist/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Register Member' }));
+
+    await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not offer the payment-received prompt when the event is full', async () => {
+    const user = userEvent.setup();
+    renderPanel({ event: PAID_CASH_CHECK_EVENT, isFull: true });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.queryByText(/Payment was already received/)).toBeNull();
   });
 });
 
-describe('validation', () => {
-  it('refuses to submit with an empty first name and does not call the server', async () => {
+describe('payment already received', () => {
+  it('is not offered for a free event', async () => {
     const user = userEvent.setup();
-    renderPanel();
+    renderPanel({ event: FREE_EVENT });
 
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
-    await user.clear(screen.getByLabelText('First Name *'));
-    await user.click(screen.getByRole('button', { name: 'Register Member' }));
 
-    expect(screen.getByText('Please fix the highlighted fields.')).toBeInTheDocument();
-    expect(createAdminRegistration).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Payment was already received/)).toBeNull();
   });
 
-  it('refuses a phone number with too few digits', async () => {
+  it('requires a method once checked, disabling submit until one is picked', async () => {
     const user = userEvent.setup();
-    renderPanel();
+    renderPanel({ event: PAID_CASH_CHECK_EVENT });
 
     await searchAndSelect(user, 'ada', 'Ada Lovelace');
-    await user.clear(screen.getByLabelText('Phone *'));
-    await user.type(screen.getByLabelText('Phone *'), '123');
+    await user.click(screen.getByRole('checkbox', { name: /Payment was already received/ }));
+
+    expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
+
+    await user.click(screen.getByRole('radio', { name: 'Cash' }));
+
+    expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
+  });
+
+  it('sends paymentReceived and the chosen method when checked', async () => {
+    const user = userEvent.setup();
+    createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Registered' });
+    renderPanel({ event: PAID_CASH_CHECK_EVENT });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    await user.click(screen.getByRole('checkbox', { name: /Payment was already received/ }));
+    await user.click(screen.getByRole('radio', { name: 'Check' }));
     await user.click(screen.getByRole('button', { name: 'Register Member' }));
 
-    expect(screen.getByText('Please fix the highlighted fields.')).toBeInTheDocument();
-    expect(createAdminRegistration).not.toHaveBeenCalled();
+    await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
+    expect(createAdminRegistration.mock.calls[0][0]).toMatchObject({
+      paymentReceived: true,
+      paymentReceivedMethod: 'Check'
+    });
+  });
+
+  it('does not send paymentReceived when left unchecked', async () => {
+    const user = userEvent.setup();
+    createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Registered' });
+    renderPanel({ event: PAID_CASH_CHECK_EVENT });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    await user.click(screen.getByRole('button', { name: 'Register Member' }));
+
+    await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
+    expect(createAdminRegistration.mock.calls[0][0]).toMatchObject({
+      paymentReceived: false,
+      paymentReceivedMethod: ''
+    });
+  });
+
+  it('unchecking the box clears a previously chosen method', async () => {
+    const user = userEvent.setup();
+    createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Registered' });
+    renderPanel({ event: PAID_CASH_CHECK_EVENT });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+    const checkbox = screen.getByRole('checkbox', { name: /Payment was already received/ });
+    await user.click(checkbox);
+    await user.click(screen.getByRole('radio', { name: 'Cash' }));
+    await user.click(checkbox);
+    await user.click(screen.getByRole('button', { name: 'Register Member' }));
+
+    await waitFor(() => expect(createAdminRegistration).toHaveBeenCalledTimes(1));
+    expect(createAdminRegistration.mock.calls[0][0]).toMatchObject({
+      paymentReceived: false,
+      paymentReceivedMethod: ''
+    });
   });
 });
 
 describe('submitting', () => {
-  it('sends the expected payload and reports success without calling onClose directly', async () => {
+  it('sends the expected payload and reports success without calling onClose directly, and never sends profileUpdates', async () => {
     const user = userEvent.setup();
     createAdminRegistration.mockResolvedValue({ registrationId: 'reg-1', status: 'Registered' });
     const { props } = renderPanel({ event: PAID_CASH_CHECK_EVENT });
@@ -308,7 +408,7 @@ describe('submitting', () => {
       phone: '3526538188',
       profileUserId: 'user-1'
     });
-    expect(payload.profileUpdates).toMatchObject({ firstName: 'Ada', lastName: 'Lovelace' });
+    expect(payload.profileUpdates).toBeUndefined();
 
     // The parent (RegistrationPanel), not this component, closes the modal -
     // it needs to show a success message first.
@@ -342,6 +442,6 @@ describe('submitting', () => {
       expect(screen.getByText('This account cannot register members on their behalf.')).toBeInTheDocument();
     });
     expect(props.onRegistered).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('First Name *')).toHaveValue('Ada');
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
   });
 });

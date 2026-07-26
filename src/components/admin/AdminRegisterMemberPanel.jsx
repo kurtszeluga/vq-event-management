@@ -1,16 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
+import ConfirmDialog from '../ConfirmDialog.jsx';
 import ModalDialog from '../ModalDialog.jsx';
-import { US_STATES } from '../../data/usStates.js';
-import { useRegistrantForm } from '../../hooks/useRegistrantForm.js';
 import { createAdminRegistration } from '../../services/registrationService.js';
 import { formatCurrency } from '../../utils/eventFormat.js';
 import {
-  buildBillingAddress,
   buildDisplayName,
   formatPhoneNumber,
   getProfileFirstName,
-  getProfileLastName,
-  toTitleCase
+  getProfileLastName
 } from '../../utils/profileFormat.js';
 import {
   canPayLaterByCashCheck,
@@ -30,15 +27,22 @@ const ACTIVE_REGISTRATION_STATUSES = ['Pending Payment', 'Registered', 'Waitlist
 // member who cannot pay online regardless of the event's own settings. The
 // server (create-registration.js) re-checks the same override independently
 // rather than trusting this component's disabled state.
+//
+// Contact/phone info is shown read-only, straight from the member's own
+// profile, and never sent back as profileUpdates - this form registers the
+// member for an event, it does not edit their profile. A stale phone or
+// missing name blocks submission with a pointer to User Controls instead of
+// letting the admin silently rewrite someone else's profile here.
 function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = false, onClose, onRegistered, open, users }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
   const [duplicateRegistration, setDuplicateRegistration] = useState(null);
   const [cashCheckOverride, setCashCheckOverride] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({});
+  const [paymentReceived, setPaymentReceived] = useState(false);
+  const [paymentReceivedMethod, setPaymentReceivedMethod] = useState('');
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const registrantForm = useRegistrantForm();
+  const [waitlistConfirmationOpen, setWaitlistConfirmationOpen] = useState(false);
   const idempotencyKeyRef = useRef(createAttemptKey());
 
   const eventIsPaid = getIsPaidEvent(event || {});
@@ -46,6 +50,11 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
   const canOverrideCashCheck = eventIsPaid && !eventAllowsCashCheck;
   const cashCheckAccepted = eventAllowsCashCheck || (canOverrideCashCheck && cashCheckOverride);
   const unsupported = eventIsPaid && !cashCheckAccepted;
+  const profileIssue = getProfileIssue(selectedMember);
+  // Only offered when the registration will actually hold a seat - a full
+  // event goes to the waitlist instead, and collecting payment for a spot
+  // that isn't secured yet doesn't make sense until the member is promoted.
+  const showPaymentReceivedPrompt = eventIsPaid && cashCheckAccepted && !isFull;
 
   const filteredMembers = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
@@ -62,9 +71,10 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
     setSelectedMember(null);
     setDuplicateRegistration(null);
     setCashCheckOverride(false);
-    setFieldErrors({});
+    setPaymentReceived(false);
+    setPaymentReceivedMethod('');
     setFormError('');
-    registrantForm.reset();
+    setWaitlistConfirmationOpen(false);
     idempotencyKeyRef.current = createAttemptKey();
   }
 
@@ -75,11 +85,9 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
 
   function handleSelectMember(member) {
     setSelectedMember(member);
-    registrantForm.applyProfile(member);
     setSearchTerm('');
     setDuplicateRegistration(findActiveRegistration(existingRegistrations, member));
     setCashCheckOverride(false);
-    setFieldErrors({});
     setFormError('');
   }
 
@@ -87,8 +95,10 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
     setSelectedMember(null);
     setDuplicateRegistration(null);
     setCashCheckOverride(false);
-    registrantForm.reset();
-    setFieldErrors({});
+    setPaymentReceived(false);
+    setPaymentReceivedMethod('');
+    setWaitlistConfirmationOpen(false);
+    setFormError('');
   }
 
   async function handleSubmit(event_) {
@@ -105,19 +115,8 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
       return;
     }
 
-    const errors = validateRegistrantFields({
-      billingPostalCode: registrantForm.billingPostalCode,
-      billingState: registrantForm.billingState,
-      firstName: registrantForm.firstName,
-      lastName: registrantForm.lastName,
-      phone: registrantForm.phone,
-      requiresBillingAddress: eventIsPaid
-    });
-
-    setFieldErrors(errors);
-
-    if (Object.keys(errors).length) {
-      setFormError('Please fix the highlighted fields.');
+    if (profileIssue) {
+      setFormError(profileIssue);
       return;
     }
 
@@ -126,6 +125,20 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
       return;
     }
 
+    if (showPaymentReceivedPrompt && paymentReceived && !paymentReceivedMethod) {
+      setFormError('Select whether the payment received was cash or check.');
+      return;
+    }
+
+    if (isFull) {
+      setWaitlistConfirmationOpen(true);
+      return;
+    }
+
+    await performSubmit();
+  }
+
+  async function performSubmit() {
     setSubmitting(true);
 
     try {
@@ -134,266 +147,261 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
         email: selectedMember.email || '',
         eventId: event.id,
         idempotencyKey: idempotencyKeyRef.current,
-        name: buildDisplayName(registrantForm.firstName, registrantForm.lastName),
+        name: buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember)),
         paymentPreference: eventIsPaid && cashCheckAccepted ? 'cash-check-later' : '',
-        phone: registrantForm.phone,
-        profileUserId: selectedMember.userId || selectedMember.id,
-        profileUpdates: {
-          billingAddress: buildBillingAddress({
-            city: registrantForm.billingCity,
-            country: registrantForm.billingCountry,
-            postalCode: registrantForm.billingPostalCode,
-            state: registrantForm.billingState,
-            street: registrantForm.billingStreet
-          }),
-          firstName: toTitleCase(registrantForm.firstName),
-          lastName: toTitleCase(registrantForm.lastName),
-          phone: formatPhoneNumber(registrantForm.phone)
-        }
+        paymentReceived: showPaymentReceivedPrompt && paymentReceived,
+        paymentReceivedMethod: showPaymentReceivedPrompt && paymentReceived ? paymentReceivedMethod : '',
+        phone: selectedMember.phone || '',
+        profileUserId: selectedMember.userId || selectedMember.id
       });
 
       resetForm();
       onRegistered(result);
     } catch (error) {
       setFormError(error.message);
+      setWaitlistConfirmationOpen(false);
     } finally {
       setSubmitting(false);
     }
   }
 
+  const selectedMemberDisplayName = selectedMember
+    ? buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember)) || selectedMember.email
+    : '';
+
   return (
-    <ModalDialog
-      ariaLabelledBy="admin-register-member-title"
-      backdropClassName="registration-modal-backdrop"
-      dialogClassName="registration-modal-card"
-      onClose={submitting ? undefined : handleClose}
-      open={open}
-    >
-      <div className="form-section-header form-section-header-stacked">
-        <div className="form-section-header-top">
-          <div>
-            <h2 id="admin-register-member-title">Register A Member</h2>
-            <p className="section-helper">
-              {event?.title || 'This event'} - cash or check payment only.
-            </p>
+    <>
+      <ModalDialog
+        ariaLabelledBy="admin-register-member-title"
+        backdropClassName="registration-modal-backdrop"
+        dialogClassName="registration-modal-card"
+        onClose={submitting ? undefined : handleClose}
+        open={open}
+      >
+        <div className="form-section-header form-section-header-stacked">
+          <div className="form-section-header-top">
+            <div>
+              <h2 id="admin-register-member-title">Register A Member</h2>
+              <p className="section-helper">
+                {event?.title || 'This event'} - cash or check payment only.
+              </p>
+            </div>
+            <button
+              className="button-link button-reset secondary-action compact-action"
+              disabled={submitting}
+              type="button"
+              onClick={handleClose}
+            >
+              Close
+            </button>
           </div>
-          <button
-            className="button-link button-reset secondary-action compact-action"
-            disabled={submitting}
-            type="button"
-            onClick={handleClose}
-          >
-            Close
-          </button>
         </div>
-      </div>
-      <form onSubmit={handleSubmit}>
-        {!selectedMember ? (
-          <>
-            <label>
-              <span>Search Members</span>
-              <input
-                autoFocus
-                onChange={(inputEvent) => setSearchTerm(inputEvent.target.value)}
-                placeholder="Search by name, email, or phone"
-                value={searchTerm}
-              />
-            </label>
-            {searchTerm.trim().length >= 2 ? (
-              <div className="admin-register-member-results">
-                {filteredMembers.length ? (
-                  <>
-                    {filteredMembers.slice(0, MAX_VISIBLE_RESULTS).map((member) => (
-                      <button
-                        className="button-link button-reset secondary-action compact-action admin-register-member-result"
-                        key={member.id}
-                        type="button"
-                        onClick={() => handleSelectMember(member)}
-                      >
-                        <strong>
-                          {buildDisplayName(getProfileFirstName(member), getProfileLastName(member))
-                            || member.email
-                            || 'Member'}
-                        </strong>
-                        <span>{member.email}</span>
-                      </button>
-                    ))}
-                    {filteredMembers.length > MAX_VISIBLE_RESULTS ? (
-                      <p className="form-help">
-                        Showing {MAX_VISIBLE_RESULTS} of {filteredMembers.length} matches - refine your search.
-                      </p>
-                    ) : null}
-                  </>
-                ) : (
-                  <p className="form-help">No members found.</p>
-                )}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <div className="admin-register-member-selected">
-              <div>
-                <strong>
-                  {buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember))
-                    || selectedMember.email}
-                </strong>
-                <span>{selectedMember.email}</span>
-              </div>
-              <button
-                className="button-link button-reset secondary-action compact-action"
-                disabled={submitting}
-                type="button"
-                onClick={handleChangeMember}
-              >
-                Change
-              </button>
-            </div>
-            {duplicateRegistration ? (
-              <p className="form-error">
-                {buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember))
-                  || selectedMember.email} already has an active registration for this event
-                (status: {duplicateRegistration.status}). Use Change to pick a different member,
-                or manage the existing registration from the table behind this dialog.
-              </p>
-            ) : null}
-            <div className="registration-profile-edit-grid">
+        <form onSubmit={handleSubmit}>
+          {!selectedMember ? (
+            <>
               <label>
-                <span>First Name *</span>
+                <span>Search Members</span>
                 <input
-                  className={fieldErrors.firstName ? 'field-invalid' : ''}
-                  disabled={submitting}
-                  onBlur={(inputEvent) => registrantForm.setFirstName(toTitleCase(inputEvent.target.value))}
-                  onChange={(inputEvent) => registrantForm.setFirstName(inputEvent.target.value)}
-                  value={registrantForm.firstName}
+                  autoFocus
+                  onChange={(inputEvent) => setSearchTerm(inputEvent.target.value)}
+                  placeholder="Search by name, email, or phone"
+                  value={searchTerm}
                 />
               </label>
-              <label>
-                <span>Last Name *</span>
-                <input
-                  className={fieldErrors.lastName ? 'field-invalid' : ''}
+              {searchTerm.trim().length >= 2 ? (
+                <div className="admin-register-member-results">
+                  {filteredMembers.length ? (
+                    <>
+                      {filteredMembers.slice(0, MAX_VISIBLE_RESULTS).map((member) => (
+                        <button
+                          className="button-link button-reset secondary-action compact-action admin-register-member-result"
+                          key={member.id}
+                          type="button"
+                          onClick={() => handleSelectMember(member)}
+                        >
+                          <strong>
+                            {buildDisplayName(getProfileFirstName(member), getProfileLastName(member))
+                              || member.email
+                              || 'Member'}
+                          </strong>
+                          <span>{member.email}</span>
+                        </button>
+                      ))}
+                      {filteredMembers.length > MAX_VISIBLE_RESULTS ? (
+                        <p className="form-help">
+                          Showing {MAX_VISIBLE_RESULTS} of {filteredMembers.length} matches - refine your search.
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="form-help">No members found.</p>
+                  )}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <div className="admin-register-member-selected">
+                <div>
+                  <strong>{selectedMemberDisplayName}</strong>
+                  <span>{selectedMember.email}</span>
+                </div>
+                <button
+                  className="button-link button-reset secondary-action compact-action"
                   disabled={submitting}
-                  onBlur={(inputEvent) => registrantForm.setLastName(toTitleCase(inputEvent.target.value))}
-                  onChange={(inputEvent) => registrantForm.setLastName(inputEvent.target.value)}
-                  value={registrantForm.lastName}
-                />
-              </label>
-              <label>
-                <span>Phone *</span>
-                <input
-                  className={fieldErrors.phone ? 'field-invalid' : ''}
-                  disabled={submitting}
-                  onChange={(inputEvent) => registrantForm.setPhone(formatPhoneNumber(inputEvent.target.value))}
-                  type="tel"
-                  value={registrantForm.phone}
-                />
-              </label>
-              <label>
-                <span>Street Address</span>
-                <input
-                  disabled={submitting}
-                  onBlur={(inputEvent) => registrantForm.setBillingStreet(toTitleCase(inputEvent.target.value))}
-                  onChange={(inputEvent) => registrantForm.setBillingStreet(inputEvent.target.value)}
-                  value={registrantForm.billingStreet}
-                />
-              </label>
-              <label>
-                <span>City</span>
-                <input
-                  disabled={submitting}
-                  onBlur={(inputEvent) => registrantForm.setBillingCity(toTitleCase(inputEvent.target.value))}
-                  onChange={(inputEvent) => registrantForm.setBillingCity(inputEvent.target.value)}
-                  value={registrantForm.billingCity}
-                />
-              </label>
-              <label>
-                <span>State</span>
-                <select
-                  className={fieldErrors.billingState ? 'field-invalid' : ''}
-                  disabled={submitting}
-                  onChange={(inputEvent) => registrantForm.setBillingState(inputEvent.target.value)}
-                  value={registrantForm.billingState}
+                  type="button"
+                  onClick={handleChangeMember}
                 >
-                  <option value="">Select State</option>
-                  {US_STATES.map((state) => (
-                    <option key={state.value} value={state.value}>
-                      {state.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>ZIP Code</span>
-                <input
-                  className={fieldErrors.billingPostalCode ? 'field-invalid' : ''}
-                  disabled={submitting}
-                  onChange={(inputEvent) => registrantForm.setBillingPostalCode(inputEvent.target.value)}
-                  value={registrantForm.billingPostalCode}
-                />
-              </label>
-            </div>
-            {canOverrideCashCheck ? (
-              <label className="checkbox-label">
-                <input
-                  checked={cashCheckOverride}
-                  disabled={submitting}
-                  type="checkbox"
-                  onChange={(inputEvent) => setCashCheckOverride(inputEvent.target.checked)}
-                />
-                <span>
-                  Override: accept cash or check for this registration only, even though this
-                  event does not otherwise offer it. Use this only when the member cannot pay
-                  online.
-                </span>
-              </label>
-            ) : null}
-            {unsupported ? (
-              <p className="form-error">
-                This event requires online card payment, which admin-initiated registration does
-                not support unless the override above is checked. Check it to accept cash or
-                check for this registration only, or have the member register themselves.
-              </p>
-            ) : eventIsPaid ? (
+                  Change
+                </button>
+              </div>
+              {duplicateRegistration ? (
+                <p className="form-error">
+                  {selectedMemberDisplayName} already has an active registration for this event
+                  (status: {duplicateRegistration.status}). Use Change to pick a different member,
+                  or manage the existing registration from the table behind this dialog.
+                </p>
+              ) : null}
+              <dl className="registration-detail-grid">
+                <div className="registration-detail-item">
+                  <dt>Phone</dt>
+                  <dd>{formatPhoneNumber(selectedMember.phone || '') || 'Not set'}</dd>
+                </div>
+              </dl>
               <p className="form-help">
-                This registration will be marked pay by cash or check later. Cost:{' '}
-                {formatCurrency(getEventPaymentTotal(event))}.
+                Name and phone are pulled from {selectedMemberDisplayName || 'the member'}'s profile
+                and cannot be edited here. Update it via User Controls first if it needs to change.
               </p>
-            ) : (
-              <p className="form-help">This event is free - no payment is required.</p>
-            )}
-            {isFull && !unsupported ? (
-              <p className="form-help">
-                This event is full. {buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember))
-                  || 'This member'} will be added to the waitlist instead of an active
-                registration.
-              </p>
-            ) : null}
-            {formError ? <p className="form-error">{formError}</p> : null}
-            <div className="form-actions">
-              <button
-                className="button-link button-reset"
-                disabled={submitting || unsupported || Boolean(duplicateRegistration)}
-                type="submit"
-              >
-                {submitting
-                  ? 'Registering...'
-                  : isFull && !unsupported
-                    ? 'Add Member To Waitlist'
-                    : 'Register Member'}
-              </button>
-              <button
-                className="button-link button-reset secondary-action"
-                disabled={submitting}
-                type="button"
-                onClick={handleClose}
-              >
-                Cancel
-              </button>
-            </div>
-          </>
-        )}
-      </form>
-    </ModalDialog>
+              {profileIssue && !duplicateRegistration ? (
+                <p className="form-error">{profileIssue}</p>
+              ) : null}
+              {canOverrideCashCheck ? (
+                <label className="checkbox-label">
+                  <input
+                    checked={cashCheckOverride}
+                    disabled={submitting}
+                    type="checkbox"
+                    onChange={(inputEvent) => setCashCheckOverride(inputEvent.target.checked)}
+                  />
+                  <span>
+                    Override: accept cash or check for this registration only, even though this
+                    event does not otherwise offer it. Use this only when the member cannot pay
+                    online.
+                  </span>
+                </label>
+              ) : null}
+              {unsupported ? (
+                <p className="form-error">
+                  This event requires online card payment, which admin-initiated registration does
+                  not support unless the override above is checked. Check it to accept cash or
+                  check for this registration only, or have the member register themselves.
+                </p>
+              ) : eventIsPaid ? (
+                <p className="form-help">
+                  This registration will be marked pay by cash or check later. Cost:{' '}
+                  {formatCurrency(getEventPaymentTotal(event))}.
+                </p>
+              ) : (
+                <p className="form-help">This event is free - no payment is required.</p>
+              )}
+              {isFull && !unsupported ? (
+                <p className="form-error">
+                  This event is full. {selectedMemberDisplayName || 'This member'} cannot be given
+                  an active seat - submitting will add them to the waitlist instead.
+                </p>
+              ) : null}
+              {showPaymentReceivedPrompt ? (
+                <>
+                  <label className="checkbox-label">
+                    <input
+                      checked={paymentReceived}
+                      disabled={submitting}
+                      type="checkbox"
+                      onChange={(inputEvent) => {
+                        setPaymentReceived(inputEvent.target.checked);
+
+                        if (!inputEvent.target.checked) {
+                          setPaymentReceivedMethod('');
+                        }
+                      }}
+                    />
+                    <span>
+                      Payment was already received (for example, handed to you in person) - mark
+                      it paid now instead of leaving it pending.
+                    </span>
+                  </label>
+                  {paymentReceived ? (
+                    <div className="radio-field">
+                      <span>How was payment received? *</span>
+                      <div className="radio-options">
+                        <label className="checkbox-label">
+                          <input
+                            checked={paymentReceivedMethod === 'Cash'}
+                            disabled={submitting}
+                            name="paymentReceivedMethod"
+                            type="radio"
+                            onChange={() => setPaymentReceivedMethod('Cash')}
+                          />
+                          <span>Cash</span>
+                        </label>
+                        <label className="checkbox-label">
+                          <input
+                            checked={paymentReceivedMethod === 'Check'}
+                            disabled={submitting}
+                            name="paymentReceivedMethod"
+                            type="radio"
+                            onChange={() => setPaymentReceivedMethod('Check')}
+                          />
+                          <span>Check</span>
+                        </label>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+              {formError ? <p className="form-error">{formError}</p> : null}
+              <div className="form-actions">
+                <button
+                  className="button-link button-reset"
+                  disabled={
+                    submitting
+                    || unsupported
+                    || Boolean(duplicateRegistration)
+                    || Boolean(profileIssue)
+                    || (showPaymentReceivedPrompt && paymentReceived && !paymentReceivedMethod)
+                  }
+                  type="submit"
+                >
+                  {submitting ? 'Registering...' : 'Register Member'}
+                </button>
+                <button
+                  className="button-link button-reset secondary-action"
+                  disabled={submitting}
+                  type="button"
+                  onClick={handleClose}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+        </form>
+      </ModalDialog>
+      <ConfirmDialog
+        busy={submitting}
+        cancelLabel="Go Back"
+        confirmLabel="Add To Waitlist"
+        description={`This event is full - ${selectedMemberDisplayName || 'this member'} cannot be given an active seat. They will be added to the waitlist instead of an active registration. Continue?`}
+        open={waitlistConfirmationOpen}
+        title="Event Full - Add To Waitlist Instead?"
+        onCancel={() => {
+          if (!submitting) {
+            setWaitlistConfirmationOpen(false);
+          }
+        }}
+        onConfirm={performSubmit}
+      />
+    </>
   );
 }
 
@@ -414,6 +422,29 @@ function findActiveRegistration(registrations, member) {
   }) || null;
 }
 
+// The registrant name/phone shown here are read straight from the member's
+// stored profile (never edited in this form), so a stale or incomplete
+// profile has to be fixed at the source - via User Controls - rather than
+// patched inline as part of registering them for an event.
+function getProfileIssue(member) {
+  if (!member) {
+    return '';
+  }
+
+  const firstName = getProfileFirstName(member);
+  const lastName = getProfileLastName(member);
+
+  if (!firstName?.trim() || !lastName?.trim()) {
+    return "This member's profile is missing a name. Update it via User Controls before registering them.";
+  }
+
+  if (String(member.phone || '').replace(/\D/g, '').length < 10) {
+    return "This member's profile is missing a valid phone number. Update it via User Controls before registering them.";
+  }
+
+  return '';
+}
+
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -426,41 +457,6 @@ function getMemberSearchText(member) {
     member.email,
     member.phone
   ].filter(Boolean).join(' ').toLowerCase();
-}
-
-function validateRegistrantFields({
-  billingPostalCode,
-  billingState,
-  firstName,
-  lastName,
-  phone,
-  requiresBillingAddress
-}) {
-  const errors = {};
-
-  if (!firstName.trim()) {
-    errors.firstName = 'First name is required.';
-  }
-
-  if (!lastName.trim()) {
-    errors.lastName = 'Last name is required.';
-  }
-
-  if (phone.replace(/\D/g, '').length < 10) {
-    errors.phone = 'A 10-digit phone number is required.';
-  }
-
-  if (requiresBillingAddress) {
-    if (billingState && billingState.length !== 2) {
-      errors.billingState = 'Use the two-letter state code.';
-    }
-
-    if (billingPostalCode && billingPostalCode.trim().length < 5) {
-      errors.billingPostalCode = 'ZIP code should be at least 5 characters.';
-    }
-  }
-
-  return errors;
 }
 
 function createAttemptKey() {

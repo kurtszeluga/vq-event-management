@@ -80,6 +80,29 @@ export function getInitialPaymentStatus({ isPaidEvent }) {
   return isPaidEvent ? 'Pending' : 'No Charge';
 }
 
+const MANUAL_CASH_CHECK_METHODS = ['Cash', 'Check'];
+
+// Admin-only shortcut: the member typically hands the admin cash/check at
+// the moment they ask to be registered, so an admin who confirms that can
+// mark the payment collected immediately instead of leaving every
+// admin-initiated cash/check registration in Pending for a separate payment
+// edit later. Never honored for a self-registrant's own request. The caller
+// is also responsible for only applying this when the registration actually
+// lands as 'Registered' - a waitlisted registrant has not secured a seat to
+// pay for yet, so a full event must not mark its payment collected.
+export function resolveAdminCollectedPayment({
+  authorizationKind = '',
+  payLaterByCashCheck = false,
+  paymentMethod = '',
+  paymentReceived = false
+} = {}) {
+  if (authorizationKind !== 'admin' || !payLaterByCashCheck || !paymentReceived) {
+    return null;
+  }
+
+  return MANUAL_CASH_CHECK_METHODS.includes(paymentMethod) ? { method: paymentMethod } : null;
+}
+
 // A capped event must have room for at least one person. Capacity 0 with
 // capacityUnlimited unset waitlists every registrant while listing views still
 // advertise open seats, so the state is rejected at write time instead.

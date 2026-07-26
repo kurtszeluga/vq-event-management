@@ -789,6 +789,19 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                   >
                     View/Edit Registrations
                   </button>
+                  {canRegisterOthers && group.event ? (
+                    <button
+                      className="button-link button-reset secondary-action compact-action"
+                      type="button"
+                      onClick={() => {
+                        handleSelectEvent(group.eventId);
+                        setSuccessMessage('');
+                        setRegisterMemberOpen(true);
+                      }}
+                    >
+                      Register A Member
+                    </button>
+                  ) : null}
                 </div>
               </article>
             );

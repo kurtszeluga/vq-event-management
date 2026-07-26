@@ -21,7 +21,8 @@ import {
   isActiveReservation,
   isCashCheckPaymentAllowed,
   isSeatHoldingRegistration,
-  reservationMatchesRequest
+  reservationMatchesRequest,
+  resolveAdminCollectedPayment
 } from './_lib/registration-capacity.js';
 
 export default async function handler(request, response) {
@@ -367,7 +368,17 @@ async function createRegistration(db, payload, authorization) {
     );
     const hasCapacity = hasAvailableSeat({ activeReservationCount, activeSeatCount, event });
     const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
-    const paymentStatus = getInitialPaymentStatus({ isPaidEvent });
+    // Only offered when the registration actually lands as 'Registered' - a
+    // waitlisted registrant has not secured a seat to collect payment for.
+    const adminCollectedPayment = status === 'Registered'
+      ? resolveAdminCollectedPayment({
+        authorizationKind: authorization.kind,
+        payLaterByCashCheck,
+        paymentMethod: payload.paymentReceivedMethod,
+        paymentReceived: payload.paymentReceived
+      })
+      : null;
+    const paymentStatus = adminCollectedPayment ? 'Paid' : getInitialPaymentStatus({ isPaidEvent });
     const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
     const paymentReservation = requiresSquarePayment ? possiblePaymentReservation : null;
 
@@ -383,7 +394,7 @@ async function createRegistration(db, payload, authorization) {
       email: payload.email,
       eventId: payload.eventId,
       amountDue,
-      amountPaid: isPaidEvent ? 0 : amountDue,
+      amountPaid: adminCollectedPayment ? amountDue : (isPaidEvent ? 0 : amountDue),
       eventCost,
       eventDate: event.date || '',
       eventPaymentRequired: isPaidEvent,
@@ -393,8 +404,10 @@ async function createRegistration(db, payload, authorization) {
       paymentPreference: payLaterByCashCheck ? 'cash-check-later' : '',
       name: payload.name,
       membershipStatusAtRegistration: membershipStatus,
-      paymentMethod: '',
-      paymentNote: payLaterByCashCheck ? 'Registrant chose to pay later by cash/check.' : '',
+      paymentMethod: adminCollectedPayment?.method || '',
+      paymentNote: adminCollectedPayment
+        ? `Cash/check payment collected by ${authorization.actorName} at the time of registration.`
+        : (payLaterByCashCheck ? 'Registrant chose to pay later by cash/check.' : ''),
       paymentStatus,
       paymentUpdatedDate: FieldValue.serverTimestamp(),
       phone: payload.phone,
@@ -957,6 +970,10 @@ function sanitizeRegistrationPayload(payload) {
     idempotencyKey: sanitizeIdempotencyKey(payload.idempotencyKey),
     name: normalizeName(payload.name || ''),
     paymentPreference: payload.paymentPreference === 'cash-check-later' ? 'cash-check-later' : '',
+    paymentReceived: Boolean(payload.paymentReceived),
+    paymentReceivedMethod: ['Cash', 'Check'].includes(payload.paymentReceivedMethod)
+      ? payload.paymentReceivedMethod
+      : '',
     paymentReservationId: cleanText(payload.paymentReservationId),
     paymentReservationToken: cleanText(payload.paymentReservationToken),
     phone: String(payload.phone || '').trim(),
