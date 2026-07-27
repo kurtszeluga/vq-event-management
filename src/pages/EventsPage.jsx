@@ -23,7 +23,7 @@ const EVENT_TYPE_FILTERS = [
   {
     label: 'Programs',
     value: 'Programs',
-    types: ['Class (Half Day)', 'Class (Full Day)', 'Lecture', 'Retreat']
+    types: ['Class (Half Day)', 'Class (Full Day)', 'Lecture', 'Retreat', 'Other']
   },
   {
     label: 'Workshops',
