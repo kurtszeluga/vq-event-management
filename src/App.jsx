@@ -30,7 +30,7 @@ function App() {
     { to: '/', label: 'Home', end: true, visible: true },
     { to: '/login', label: 'Login', visible: !currentUser },
     { to: '/events', label: 'Programs/Activities Signup', visible: showAdminSignupLink },
-    { to: '/my-registrations', label: 'My Registrations', visible: true },
+    { to: '/my-registrations', label: 'My Registrations', visible: Boolean(currentUser) },
     { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink }
     // My Profile lives in the identity chip/account card instead - see
     // .site-identity and MobileNavSheet.jsx's account card.
