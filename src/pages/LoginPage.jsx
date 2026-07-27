@@ -107,31 +107,35 @@ function LoginPage() {
         </div>
       ) : null}
       <form className="form-panel" onSubmit={handleSubmit}>
-          <label>
-            <span>Email</span>
-            <input
-              autoComplete="email"
-              disabled={!firebaseConfigured || submitting}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              type="email"
-              value={email}
-            />
-            <span className="form-help">
-              Your username is the email address used for your account.
-            </span>
-          </label>
-          <label>
-            <span>Password</span>
-            <input
-              autoComplete="current-password"
-              disabled={!firebaseConfigured || submitting}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
+          {!recoveryOpen ? (
+            <>
+              <label>
+                <span>Email</span>
+                <input
+                  autoComplete="email"
+                  disabled={!firebaseConfigured || submitting}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  type="email"
+                  value={email}
+                />
+                <span className="form-help">
+                  Your username is the email address used for your account.
+                </span>
+              </label>
+              <label>
+                <span>Password</span>
+                <input
+                  autoComplete="current-password"
+                  disabled={!firebaseConfigured || submitting}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  type="password"
+                  value={password}
+                />
+              </label>
+            </>
+          ) : null}
           <div className="login-recovery">
             <button
               className="text-button"
@@ -215,16 +219,20 @@ function LoginPage() {
               </div>
             ) : null}
           </div>
-          {formError ? <p className="form-error">{formError}</p> : null}
-          <button
-            className="button-link button-reset"
-            disabled={!firebaseConfigured || submitting}
-            type="submit"
-          >
-            {submitting ? 'Signing in...' : 'Sign in'}
-          </button>
+          {!recoveryOpen ? (
+            <>
+              {formError ? <p className="form-error">{formError}</p> : null}
+              <button
+                className="button-link button-reset"
+                disabled={!firebaseConfigured || submitting}
+                type="submit"
+              >
+                {submitting ? 'Signing in...' : 'Sign in'}
+              </button>
+            </>
+          ) : null}
           <span className="form-help">
-            Need to become a member? <Link to="/signup">Start here.</Link>
+            Not a Guild member? <Link to="/signup">Join the Village Quilters today →</Link>
           </span>
       </form>
     </section>
