@@ -5,6 +5,18 @@ import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { auth } from '../lib/firebase.js';
 import { startAccountRecovery, verifyAccountRecoveryCode } from '../services/accountRecoveryService.js';
+import { formatPhoneNumber } from '../utils/profileFormat.js';
+
+// The single recovery field takes either an email or a phone number, so it
+// can only live-format as a phone once the digits typed so far couldn't be
+// anything else - as soon as a letter or "@" shows up, formatting stops and
+// the raw text (email) passes through untouched.
+function formatRecoveryIdentifier(rawValue) {
+  const digitsOnly = rawValue.replace(/[\s().-]/g, '');
+  const looksLikePhone = digitsOnly.length > 0 && /^\d+$/.test(digitsOnly);
+
+  return looksLikePhone ? formatPhoneNumber(rawValue) : rawValue;
+}
 
 function LoginPage() {
   const { currentUser, firebaseConfigured, loading } = useAuth();
@@ -161,7 +173,7 @@ function LoginPage() {
                       <input
                         autoComplete="username"
                         disabled={!firebaseConfigured || sendingCode}
-                        onChange={(event) => setRecoveryIdentifier(event.target.value)}
+                        onChange={(event) => setRecoveryIdentifier(formatRecoveryIdentifier(event.target.value))}
                         type="text"
                         value={recoveryIdentifier}
                       />

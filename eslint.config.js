@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 export default [
   { ignores: ['dist', '.vercel', 'public/godaddy-event-feed.js'] },
   {
-    files: ['api/**/*.js', 'scripts/**/*.mjs'],
+    files: ['api/**/*.js', 'scripts/**/*.mjs', 'tests/*.test.js', 'tests/rules/**/*.js'],
     languageOptions: {
       globals: globals.node
     }

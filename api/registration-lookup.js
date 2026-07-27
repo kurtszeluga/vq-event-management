@@ -1,5 +1,4 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
 import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
@@ -28,6 +27,7 @@ import {
   ACCOUNT_RECOVERY_CODE_SEND_WINDOW_MS,
   buildAccountRecoveryDocumentId,
   classifyRecoveryIdentifier,
+  createFirebaseCustomToken,
   formatPhoneForStorage
 } from './_lib/account-recovery.js';
 
@@ -61,7 +61,7 @@ export default async function handler(request, response) {
     }
 
     if (action === 'verifyAccountRecoveryCode') {
-      await verifyAccountRecoveryCode(request, response, db, app);
+      await verifyAccountRecoveryCode(request, response, db);
       return;
     }
 
@@ -303,7 +303,7 @@ async function startAccountRecovery(request, response, db) {
   response.status(200).json({ challengeId, message: ACCOUNT_RECOVERY_GENERIC_MESSAGE });
 }
 
-async function verifyAccountRecoveryCode(request, response, db, app) {
+async function verifyAccountRecoveryCode(request, response, db) {
   const challengeId = cleanText(request.body?.challengeId);
   const code = cleanText(request.body?.code);
 
@@ -352,7 +352,7 @@ async function verifyAccountRecoveryCode(request, response, db, app) {
   let customToken;
 
   try {
-    customToken = await getAuth(app).createCustomToken(challenge.profileUserId);
+    customToken = createFirebaseCustomToken(challenge.profileUserId);
   } catch (error) {
     console.error('Account recovery custom token could not be created', error);
     throw httpError(500, 'Could not sign you in. Please try again.');

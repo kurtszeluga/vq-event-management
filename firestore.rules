@@ -884,6 +884,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /accountRecoveryVerifications/{verificationId} {
+      allow read, write: if false;
+    }
+
     match /registrationReservations/{reservationId} {
       allow read, write: if false;
     }

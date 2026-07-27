@@ -1,5 +1,8 @@
-import { createHash } from 'node:crypto';
+import { createHash, createSign } from 'node:crypto';
 import { cleanText, normalizeEmail } from './registration-verification.js';
+
+const FIREBASE_CUSTOM_TOKEN_AUDIENCE = 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit';
+const FIREBASE_CUSTOM_TOKEN_TTL_SECONDS = 60 * 60;
 
 export {
   generateEmailCode,
@@ -53,4 +56,37 @@ export function buildAccountRecoveryDocumentId(type, value) {
   return createHash('sha256')
     .update(`${cleanText(type)}:${cleanText(value)}`)
     .digest('hex');
+}
+
+// Hand-signed rather than firebase-admin/auth's getAuth().createCustomToken()
+// - that subpath pulls in dependencies this project's Vercel functions have
+// never needed (see firebase-token.js, which verifies ID tokens the same
+// way, with node:crypto only). A Firebase custom token is just a JWT in a
+// documented shape, signed with the service account's own private key.
+export function createFirebaseCustomToken(uid) {
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
+  if (!serviceAccountJson) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not configured.');
+  }
+
+  const { client_email: clientEmail, private_key: privateKey } = JSON.parse(serviceAccountJson);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    aud: FIREBASE_CUSTOM_TOKEN_AUDIENCE,
+    exp: nowSeconds + FIREBASE_CUSTOM_TOKEN_TTL_SECONDS,
+    iat: nowSeconds,
+    iss: clientEmail,
+    sub: clientEmail,
+    uid
+  };
+  const unsignedToken = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
+  const signature = createSign('RSA-SHA256').update(unsignedToken).sign(privateKey).toString('base64url');
+
+  return `${unsignedToken}.${signature}`;
+}
+
+function base64url(value) {
+  return Buffer.from(value).toString('base64url');
 }

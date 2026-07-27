@@ -55,7 +55,8 @@ vi.mock('../../src/services/memberDirectoryProfile.js', () => ({
 vi.mock('../../src/components/PageHeader.jsx', () => ({ default: () => null }));
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to }) => <a href={to}>{children}</a>,
-  Navigate: () => null
+  Navigate: () => null,
+  useSearchParams: () => [new URLSearchParams()]
 }));
 
 const { default: ProfilePage } = await import('../../src/pages/ProfilePage.jsx');
