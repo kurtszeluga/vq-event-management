@@ -1534,7 +1534,7 @@ function buildCoordinatorNotificationHtml({ event, printUrl, registration, summa
                   ${buildDetailRowHtml('Phone', registration.phone)}
                   ${buildDetailRowHtml('Status', registration.status)}
                   ${buildDetailRowHtml('Payment Status', registration.paymentStatus || 'Pending')}
-                  ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount Due', formatCurrency(registration.amountDue)) : ''}
+                  ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount', formatCurrency(registration.amountDue)) : ''}
                 </section>
                 <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#ffffff;">
                   <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">${escapeHtml(eventTitle)} - Current Status</h2>
@@ -1576,7 +1576,7 @@ function buildCoordinatorNotificationText({ event, printUrl, registration, summa
     `Phone: ${registration.phone}`,
     `Status: ${registration.status}`,
     `Payment Status: ${registration.paymentStatus || 'Pending'}`,
-    registration.eventPaymentRequired ? `Amount Due: ${formatCurrency(registration.amountDue)}` : '',
+    registration.eventPaymentRequired ? `Amount: ${formatCurrency(registration.amountDue)}` : '',
     '',
     `${eventTitle} - Current Status`,
     `Capacity: ${getCapacitySummaryText(summary)}`,
@@ -1742,7 +1742,7 @@ function buildRegistrationConfirmationHtml({ area, coordinatorContact, event, in
                   ${buildDetailRowHtml('Location', event.location || 'To be announced')}
                   ${buildDetailRowHtml('Presenter', event.presenter || 'To be announced')}
                   ${buildDetailRowHtml('Payment Status', registration.paymentStatus || 'Pending')}
-                  ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount Due', formatCurrency(registration.amountDue)) : ''}
+                  ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount', formatCurrency(registration.amountDue)) : ''}
                 </section>
                 ${contactHtml}
                 ${supplyListUrl ? `
@@ -1791,7 +1791,7 @@ function buildRegistrationConfirmationText({ area, coordinatorContact, event, in
     `Location: ${event.location || 'To be announced'}`,
     `Presenter: ${event.presenter || 'To be announced'}`,
     `Payment Status: ${registration.paymentStatus || 'Pending'}`,
-    registration.eventPaymentRequired ? `Amount Due: ${formatCurrency(registration.amountDue)}` : '',
+    registration.eventPaymentRequired ? `Amount: ${formatCurrency(registration.amountDue)}` : '',
     ...coordinatorLines,
     event.supplyListUrl ? `Supply List: ${event.supplyListUrl}` : '',
     '',

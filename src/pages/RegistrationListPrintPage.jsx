@@ -210,6 +210,7 @@ function RegistrationListPrintPage() {
               <thead>
                 <tr>
                   <th>Registrant</th>
+                  <th>Phone</th>
                   <th>Registered</th>
                   <th>Status</th>
                   <th>Payment</th>
@@ -222,6 +223,7 @@ function RegistrationListPrintPage() {
                       <strong>{registration.name || 'Registrant'}</strong>
                       <span>{registration.email || 'No email'}</span>
                     </td>
+                    <td data-label="Phone">{registration.phone || 'Not Set'}</td>
                     <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
                     <td data-label="Status">{registration.status || 'Registered'}</td>
                     <td data-label="Payment">{formatPaymentSummary(registration)}</td>
