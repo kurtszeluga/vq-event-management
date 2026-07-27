@@ -47,7 +47,8 @@ function RegistrationPanel({
   currentUserProfile,
   initialEventId = '',
   initialRegisterMemberOpen = false,
-  isSuperUser = false
+  isSuperUser = false,
+  onReturnToSource
 }) {
   const [activityFilter, setActivityFilter] = useState('');
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
@@ -553,7 +554,16 @@ function RegistrationPanel({
     setExpandedRegistrationId('');
   }
 
+  // Still viewing the event the Events/Activities shortcut jumped to (no
+  // filter change or manual reselection since) - "Return" should go back to
+  // that card list instead of this module's own event picker, since the
+  // admin never intended to browse the Registrations module itself.
   function handleBackToEvents() {
+    if (initialEventId && selectedEventId === initialEventId && onReturnToSource) {
+      onReturnToSource();
+      return;
+    }
+
     setSelectedEventId('');
     setExpandedRegistrationId('');
   }

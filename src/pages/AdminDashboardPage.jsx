@@ -306,13 +306,22 @@ function AdminDashboardPage() {
   }
 
   function handleViewEventRegistrations(eventId) {
-    setRegistrationsJump({ eventId, openRegisterMember: false });
+    setRegistrationsJump({ eventId, openRegisterMember: false, sourceModule: activeModule });
     setActiveModule('registrations');
   }
 
   function handleRegisterMemberForEvent(eventId) {
-    setRegistrationsJump({ eventId, openRegisterMember: true });
+    setRegistrationsJump({ eventId, openRegisterMember: true, sourceModule: activeModule });
     setActiveModule('registrations');
+  }
+
+  // "Return" inside the Registrations module should go back to wherever the
+  // admin actually came from (Events/Activities, Challenges, Business
+  // Listings, or For Sale all launch this same shortcut) rather than always
+  // landing on one hardcoded module.
+  function handleReturnFromRegistrationsJump() {
+    setActiveModule(registrationsJump?.sourceModule || 'events-activities');
+    setRegistrationsJump(null);
   }
 
   function handleStartCreate(initialEventType = '') {
@@ -516,6 +525,7 @@ function AdminDashboardPage() {
             initialEventId={registrationsJump?.eventId || ''}
             initialRegisterMemberOpen={Boolean(registrationsJump?.openRegisterMember)}
             isSuperUser={isSuperUser}
+            onReturnToSource={registrationsJump ? handleReturnFromRegistrationsJump : undefined}
           />
         ) : null}
         {canViewRegistrations && activeModule === 'payment-review' ? (
