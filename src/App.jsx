@@ -28,10 +28,10 @@ function App() {
   // cannot drift apart as permissions change.
   const navDestinations = [
     { to: '/', label: 'Home', end: true, visible: true },
-    { to: '/my-registrations', label: 'My Registrations', visible: true },
-    { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink },
     { to: '/login', label: 'Login', visible: !currentUser },
     { to: '/events', label: 'Programs/Activities Signup', visible: showAdminSignupLink },
+    { to: '/my-registrations', label: 'My Registrations', visible: true },
+    { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink },
     { to: '/profile', label: 'My Profile', visible: Boolean(currentUser) }
   ].filter((destination) => destination.visible);
 
