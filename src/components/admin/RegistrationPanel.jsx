@@ -44,7 +44,9 @@ function RegistrationPanel({
   canManageEvents = false,
   canManageWaitlist = false,
   canRegisterOthers = false,
-  currentUserProfile
+  currentUserProfile,
+  initialEventId = '',
+  initialRegisterMemberOpen = false
 }) {
   const [activityFilter, setActivityFilter] = useState('');
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
@@ -145,6 +147,25 @@ function RegistrationPanel({
       unsubscribeUsers();
     };
   }, [canManageEvents]);
+
+  // Arrives from an Events/Activities card's "Review/Edit Registrations" or
+  // "Register A Member" shortcut (AdminDashboardPage.jsx) - reproduces the
+  // same combined select+open behavior as this panel's own "Register A
+  // Member" button below (handleSelectEvent + setRegisterMemberOpen
+  // together), just triggered externally instead of by a click here.
+  useEffect(() => {
+    if (!initialEventId) {
+      return;
+    }
+
+    setSelectedEventId(initialEventId);
+    setExpandedRegistrationId('');
+
+    if (initialRegisterMemberOpen) {
+      setSuccessMessage('');
+      setRegisterMemberOpen(true);
+    }
+  }, [initialEventId, initialRegisterMemberOpen]);
 
   const eventMap = useMemo(
     () => new Map(events.map((event) => [event.id, event])),

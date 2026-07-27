@@ -40,6 +40,10 @@ function AdminDashboardPage() {
   const [pendingArchiveEventId, setPendingArchiveEventId] = useState('');
   const [archiveError, setArchiveError] = useState('');
   const [moduleNavOpen, setModuleNavOpen] = useState(false);
+  // Set by an Events/Activities card's "Review/Edit Registrations" or
+  // "Register A Member" shortcut so the Registrations module opens straight
+  // to that event instead of making the admin find it again in its own list.
+  const [registrationsJump, setRegistrationsJump] = useState(null);
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
   const canRegisterOthers = isSuperUser || hasPermission('registerOthers');
@@ -301,6 +305,16 @@ function AdminDashboardPage() {
     setActiveModule('event-details');
   }
 
+  function handleViewEventRegistrations(eventId) {
+    setRegistrationsJump({ eventId, openRegisterMember: false });
+    setActiveModule('registrations');
+  }
+
+  function handleRegisterMemberForEvent(eventId) {
+    setRegistrationsJump({ eventId, openRegisterMember: true });
+    setActiveModule('registrations');
+  }
+
   function handleStartCreate(initialEventType = '') {
     setEditingEvent(null);
     setDraftEventType(initialEventType);
@@ -388,6 +402,7 @@ function AdminDashboardPage() {
                 onClick={() => {
                   setActiveModule(module.id);
                   setModuleNavOpen(false);
+                  setRegistrationsJump(null);
                 }}
               >
                 {module.label}
@@ -457,6 +472,7 @@ function AdminDashboardPage() {
               ) : null}
             </div>
             <EventList
+              canRegisterOthers={canRegisterOthers}
               canViewRegistrations={canViewRegistrations}
               events={events}
               registrationCounts={eventRegistrationCounts}
@@ -464,6 +480,8 @@ function AdminDashboardPage() {
               loading={loadingEvents}
               onDelete={handleDelete}
               onEdit={handleEditEvent}
+              onRegisterMember={handleRegisterMemberForEvent}
+              onViewRegistrations={handleViewEventRegistrations}
               isSuperUser={isSuperUser}
               lastSavedEventId={lastSavedEventId}
               defaultEventTypeFilter={eventModuleConfig[activeModule].filter}
@@ -495,6 +513,8 @@ function AdminDashboardPage() {
             canManageWaitlist={canManageWaitlist}
             canRegisterOthers={canRegisterOthers}
             currentUserProfile={userProfile}
+            initialEventId={registrationsJump?.eventId || ''}
+            initialRegisterMemberOpen={Boolean(registrationsJump?.openRegisterMember)}
           />
         ) : null}
         {canViewRegistrations && activeModule === 'payment-review' ? (

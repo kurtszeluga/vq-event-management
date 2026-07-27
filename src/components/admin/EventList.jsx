@@ -26,11 +26,14 @@ const DEFAULT_TYPE_FILTERS = [
 ];
 
 function EventList({
+  canRegisterOthers = false,
   canViewRegistrations = false,
   events,
   loading,
   onDelete,
   onEdit,
+  onRegisterMember,
+  onViewRegistrations,
   registrationCounts = {},
   totalPaidByEventId = {},
   lastSavedEventId = '',
@@ -385,13 +388,23 @@ function EventList({
               Edit
             </button>
             {wasLastSaved ? <span className="recently-saved-flag">Saved</span> : null}
-            {canRegisterEvent(event) ? (
-              <Link
-                className="button-link secondary-action"
-                to={`/register?eventId=${event.id}`}
+            {canViewRegistrations ? (
+              <button
+                className="button-link button-reset secondary-action"
+                type="button"
+                onClick={() => onViewRegistrations(event.id)}
               >
-                {availability.isFull ? 'Join Waitlist' : 'Register'}
-              </Link>
+                Review/Edit Registrations
+              </button>
+            ) : null}
+            {canRegisterOthers ? (
+              <button
+                className="button-link button-reset secondary-action"
+                type="button"
+                onClick={() => onRegisterMember(event.id)}
+              >
+                Register A Member
+              </button>
             ) : null}
             {canViewRegistrations ? (
               <Link
@@ -399,6 +412,14 @@ function EventList({
                 to={`/admin/events/${event.id}/registrations/print`}
               >
                 Print Registration List
+              </Link>
+            ) : null}
+            {canRegisterEvent(event) ? (
+              <Link
+                className="button-link secondary-action"
+                to={`/register?eventId=${event.id}`}
+              >
+                {availability.isFull ? 'Join Waitlist' : 'Register Myself'}
               </Link>
             ) : null}
             <button
