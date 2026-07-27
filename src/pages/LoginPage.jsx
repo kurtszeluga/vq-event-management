@@ -61,7 +61,7 @@ function LoginPage() {
     try {
       await sendPasswordResetEmail(auth, resetEmail);
       setRecoveryMessage(
-        'If that email has an account, Firebase will send password reset instructions.'
+        'If that email has an account, we will send password reset instructions.'
       );
     } catch (error) {
       setRecoveryError(getPasswordResetErrorMessage(error));
