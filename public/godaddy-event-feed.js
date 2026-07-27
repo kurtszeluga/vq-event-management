@@ -1073,7 +1073,8 @@
       || eventType === 'Class (Half Day)'
       || eventType === 'Class (Full Day)'
       || eventType === 'Class (Half-Day)'
-      || eventType === 'Class (Full-Day)';
+      || eventType === 'Class (Full-Day)'
+      || eventType === 'Other';
   }
 
   function buildSupplyListViewerUrl(sourceUrl, eventId) {
