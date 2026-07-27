@@ -46,7 +46,8 @@ function RegistrationPanel({
   canRegisterOthers = false,
   currentUserProfile,
   initialEventId = '',
-  initialRegisterMemberOpen = false
+  initialRegisterMemberOpen = false,
+  isSuperUser = false
 }) {
   const [activityFilter, setActivityFilter] = useState('');
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
@@ -120,16 +121,21 @@ function RegistrationPanel({
       handleError
     );
     // Anyone can register for an event regardless of their own site role, so
-    // the membership lookup below must not exclude Admin/Super User profiles
-    // - excluding them left an admin's own registrations showing "Unknown"
-    // membership instead of their real status.
+    // ideally this lookup would never exclude Admin/Super User profiles - an
+    // admin's own registration otherwise shows "Unknown" membership instead
+    // of their real status. But firestore.rules only lets a plain Admin read
+    // users docs where role == 'General User' (see UserControlPanel's
+    // identical canManageAdminUsers gating) - only a Super User can safely
+    // fetch the unfiltered collection. Without this gate, a plain Admin's
+    // query for every user regardless of role gets refused outright with
+    // "Missing or insufficient permissions", taking down the whole panel.
     const unsubscribeUsers = subscribeToUsers(
       (snapshot) => {
         setUsers(snapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() })));
         markLoaded();
       },
       handleError,
-      { includeAdminProfiles: true }
+      { includeAdminProfiles: isSuperUser }
     );
     const unsubscribePaymentSettings = subscribeToPaymentSettings(
       (settings) => {
@@ -146,7 +152,7 @@ function RegistrationPanel({
       unsubscribeRegistrations();
       unsubscribeUsers();
     };
-  }, [canManageEvents]);
+  }, [canManageEvents, isSuperUser]);
 
   // Arrives from an Events/Activities card's "Review/Edit Registrations" or
   // "Register A Member" shortcut (AdminDashboardPage.jsx) - reproduces the

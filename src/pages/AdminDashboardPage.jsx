@@ -515,6 +515,7 @@ function AdminDashboardPage() {
             currentUserProfile={userProfile}
             initialEventId={registrationsJump?.eventId || ''}
             initialRegisterMemberOpen={Boolean(registrationsJump?.openRegisterMember)}
+            isSuperUser={isSuperUser}
           />
         ) : null}
         {canViewRegistrations && activeModule === 'payment-review' ? (
