@@ -80,6 +80,7 @@ a {
 .brand {
   align-items: center;
   display: inline-flex;
+  flex: 0 0 auto;
   gap: 10px;
   order: 1;
   text-decoration: none;
@@ -92,15 +93,29 @@ a {
   width: 34px;
 }
 
+.brand strong,
+.brand small {
+  display: block;
+}
+
 .brand strong {
-  font-size: 0.98rem;
+  font-size: 0.94rem;
   font-weight: 800;
 }
 
-/* Forced onto its own full-width line below brand/identity (basis 100% with
-   the header's own wrap) rather than left to squeeze into whatever space is
-   left beside the identity chip - at in-between viewport widths that squeeze
-   used to fold five nav pills into three cramped lines. */
+.brand small {
+  color: #5c6966;
+  font-size: 0.72rem;
+  margin-top: 1px;
+}
+
+/* Below 1400px, forced onto its own full-width line under brand/identity
+   (order 3, basis 100%) - flexbox's own auto-wrap can't be trusted for this:
+   letting nav sit between brand and identity and rely on flex-wrap to bail
+   it out only squeezed it into a near-zero-width column instead of cleanly
+   dropping to a new line, at anything narrower than nav's true single-line
+   content width (measured at 653px, so brand + nav + identity only clears a
+   single row above roughly 1400px - see the media query below). */
 .site-nav {
   display: flex;
   flex: 1 1 100%;
@@ -108,6 +123,19 @@ a {
   gap: 8px 26px;
   justify-content: center;
   order: 3;
+}
+
+@media (min-width: 1400px) {
+  /* Enough room for brand + the full nav row + identity on one line - let
+     nav sit centered between them instead of dropping to its own row. */
+  .site-nav {
+    flex: 1 1 auto;
+    order: 2;
+  }
+
+  .site-identity {
+    order: 3;
+  }
 }
 
 .nav-link {

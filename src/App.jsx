@@ -82,7 +82,10 @@ function App() {
             className="brand-logo"
             src="/assets/village-quilters-logo.png"
           />
-          <strong>The Village Quilters</strong>
+          <span>
+            <strong>The Village Quilters</strong>
+            <small>Managing events, activities and members</small>
+          </span>
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
           {navDestinations.map((destination) => (
