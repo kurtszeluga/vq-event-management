@@ -456,6 +456,7 @@ function AdminDashboardPage() {
               ) : null}
             </div>
             <EventList
+              canViewRegistrations={canViewRegistrations}
               events={events}
               registrationCounts={eventRegistrationCounts}
               totalPaidByEventId={canViewRegistrations ? totalPaidByEventId : {}}

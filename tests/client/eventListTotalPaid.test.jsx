@@ -97,3 +97,30 @@ describe('EventList photo count caption', () => {
     expect(screen.queryByText(/Photo/)).toBeNull();
   });
 });
+
+describe('EventList Print Registration List link', () => {
+  it('shows the link, pointing at the correct event, when canViewRegistrations is true', () => {
+    render(
+      <EventList canViewRegistrations events={[PAID_EVENT]} onDelete={() => {}} onEdit={() => {}} />
+    );
+
+    const link = screen.getByRole('link', { name: 'Print Registration List' });
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe('/admin/events/evt-paid/registrations/print');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+
+  it('hides the link without canViewRegistrations', () => {
+    render(<EventList events={[PAID_EVENT]} onDelete={() => {}} onEdit={() => {}} />);
+
+    expect(screen.queryByRole('link', { name: 'Print Registration List' })).toBeNull();
+  });
+
+  it('shows the link for a free event too, since registrants can exist regardless of cost', () => {
+    render(
+      <EventList canViewRegistrations events={[FREE_EVENT]} onDelete={() => {}} onEdit={() => {}} />
+    );
+
+    expect(screen.getByRole('link', { name: 'Print Registration List' })).toBeTruthy();
+  });
+});

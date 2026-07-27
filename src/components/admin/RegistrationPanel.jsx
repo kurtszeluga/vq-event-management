@@ -1025,6 +1025,14 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                     Register A Member
                   </button>
                 ) : null}
+                <a
+                  className="button-link secondary-action"
+                  href={`/admin/events/${group.eventId}/registrations/print`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Print Registration List
+                </a>
                 <button
                   className="button-link button-reset"
                   type="button"

@@ -26,6 +26,7 @@ const DEFAULT_TYPE_FILTERS = [
 ];
 
 function EventList({
+  canViewRegistrations = false,
   events,
   loading,
   onDelete,
@@ -391,6 +392,16 @@ function EventList({
               >
                 {availability.isFull ? 'Join Waitlist' : 'Register'}
               </Link>
+            ) : null}
+            {canViewRegistrations ? (
+              <a
+                className="button-link secondary-action"
+                href={`/admin/events/${event.id}/registrations/print`}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                Print Registration List
+              </a>
             ) : null}
             <button
               className={event.status === 'Archived'

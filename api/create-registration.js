@@ -14,6 +14,7 @@ import {
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
 import {
   PAYMENT_RESERVATION_EXPIRATION_MS,
+  computeRegistrationSummary,
   getInitialPaymentStatus,
   getInitialRegistrationStatus,
   getReservationExpiryMillis,
@@ -130,6 +131,14 @@ export default async function handler(request, response) {
         'Registration confirmation email timed out'
       ).catch((emailError) => {
         console.error('Registration confirmation email failed', emailError);
+      });
+
+      await withTimeout(
+        sendCoordinatorRegistrationEmail(db, confirmationContext),
+        4000,
+        'Coordinator registration notification email timed out'
+      ).catch((emailError) => {
+        console.error('Coordinator registration notification email failed', emailError);
       });
 
       if (confirmationContext.profileReactivated) {
@@ -1422,6 +1431,162 @@ async function sendRegistrationConfirmationEmail(db, { event, registration }) {
     }),
     to: registration.email
   });
+}
+
+// Separate opt-in from sendRegistrationConfirmations: a guild may want the
+// registrant's own confirmation on but not want a coordinator inbox getting
+// one email per signup (or vice versa) for a busy event. Fires from the same
+// post-commit insertion point as the registrant email, once per registration
+// event, using whatever registration/payment status is already final at that
+// point (including the Square online-card path, which finishes its own
+// finalization synchronously inside createRegistration before this runs).
+async function sendCoordinatorRegistrationEmail(db, { event, registration }) {
+  const emailSettingsSnap = await db.collection('appSettings').doc('emailInstructions').get();
+  const emailSettings = emailSettingsSnap.exists ? emailSettingsSnap.data() : {};
+
+  if (emailSettings.sendCoordinatorRegistrationNotifications !== true) {
+    return;
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY is not configured. Skipping coordinator registration notification email.');
+    return;
+  }
+
+  const area = getEmailInstructionArea(event.eventType);
+  const coordinatorContact = await getCoordinatorContact(db, area.areaId);
+
+  if (!coordinatorContact.email) {
+    return;
+  }
+
+  // Queried fresh rather than reused from the registration transaction, so
+  // the stats reflect everything committed up to send time (including this
+  // registration and, for the Square path, its now-finalized payment) rather
+  // than a pre-transaction snapshot.
+  const registrationsSnapshot = await db.collection('registrations')
+    .where('eventId', '==', event.id)
+    .get();
+  const registrations = registrationsSnapshot.docs.map((registrationDoc) => ({
+    id: registrationDoc.id,
+    ...registrationDoc.data()
+  }));
+  const summary = computeRegistrationSummary(event, registrations);
+  const printUrl = `${getAppOrigin()}/admin/events/${event.id}/registrations/print`;
+  const eventTitle = event.title || event.eventType || 'Event';
+  const subjectKind = registration.status === 'Waitlisted' ? 'Waitlist Signup' : 'Registration';
+
+  await sendResendEmail({
+    html: buildCoordinatorNotificationHtml({ event, printUrl, registration, summary }),
+    replyTo: registration.email,
+    subject: `New ${subjectKind}: ${eventTitle}`,
+    text: buildCoordinatorNotificationText({ event, printUrl, registration, summary }),
+    to: coordinatorContact.email
+  });
+}
+
+function getCapacitySummaryText(summary) {
+  if (summary.capacityUnlimited) {
+    return 'Unlimited capacity';
+  }
+
+  if (!summary.capacity) {
+    return 'Capacity not set';
+  }
+
+  return `${summary.registered}/${summary.capacity} filled (${summary.seatsAvailable} open)`;
+}
+
+function buildCoordinatorNotificationHtml({ event, printUrl, registration, summary }) {
+  const logoUrl = `${getAppOrigin()}/assets/village-quilters-logo.png`;
+  const eventTitle = event.title || event.eventType || 'Event';
+  const isWaitlisted = registration.status === 'Waitlisted';
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f3eee8;color:#1d2927;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" style="width:100%;border-collapse:collapse;background:#f3eee8;padding:28px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" style="width:100%;max-width:680px;border-collapse:collapse;background:#fffdfa;border:1px solid #ded5ca;border-radius:8px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px;background:#225c56;color:#fffaf5;">
+                <table role="presentation" style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="width:58px;vertical-align:middle;">
+                      <img alt="Village Quilters" src="${escapeHtml(logoUrl)}" width="48" height="48" style="display:block;border-radius:10px;" />
+                    </td>
+                    <td style="vertical-align:middle;">
+                      <p style="margin:0 0 5px;color:#f3c6a8;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">The Village Quilters, Inc.</p>
+                      <h1 style="margin:0;color:#fffaf5;font-size:24px;line-height:1.25;">New ${isWaitlisted ? 'Waitlist Signup' : 'Registration'}</h1>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 28px;">
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">${escapeHtml(registration.name)} just ${isWaitlisted ? 'joined the waitlist for' : 'registered for'} <strong>${escapeHtml(eventTitle)}</strong>.</p>
+                <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
+                  <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">New Registrant</h2>
+                  ${buildDetailRowHtml('Name', registration.name)}
+                  ${buildDetailRowHtml('Email', registration.email)}
+                  ${buildDetailRowHtml('Phone', registration.phone)}
+                  ${buildDetailRowHtml('Status', registration.status)}
+                  ${buildDetailRowHtml('Payment Status', registration.paymentStatus || 'Pending')}
+                  ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount Due', formatCurrency(registration.amountDue)) : ''}
+                </section>
+                <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#ffffff;">
+                  <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">${escapeHtml(eventTitle)} - Current Status</h2>
+                  ${buildDetailRowHtml('Capacity', getCapacitySummaryText(summary))}
+                  ${buildDetailRowHtml('Registered', String(summary.registered))}
+                  ${buildDetailRowHtml('Waitlisted', String(summary.waitlisted))}
+                  ${buildDetailRowHtml('Pending Payment', String(summary.pendingPayment))}
+                  ${event.isPaid ? buildDetailRowHtml('Total Paid', formatCurrency(summary.totalPaid)) : ''}
+                </section>
+                <p style="margin:0;">
+                  <a href="${escapeHtml(printUrl)}" style="display:inline-block;background:#225c56;color:#fffaf5;text-decoration:none;font-weight:700;padding:10px 14px;border-radius:6px;">Print Registration List</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#225c56;color:#fffaf5;">
+                <p style="margin:0;color:#fffaf5;font-size:13px;line-height:1.5;">The Village Quilters, Inc.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function buildCoordinatorNotificationText({ event, printUrl, registration, summary }) {
+  const eventTitle = event.title || event.eventType || 'Event';
+  const isWaitlisted = registration.status === 'Waitlisted';
+
+  return [
+    `The Village Quilters, Inc. New ${isWaitlisted ? 'Waitlist Signup' : 'Registration'}`,
+    '',
+    `${registration.name} just ${isWaitlisted ? 'joined the waitlist for' : 'registered for'} ${eventTitle}.`,
+    '',
+    `Name: ${registration.name}`,
+    `Email: ${registration.email}`,
+    `Phone: ${registration.phone}`,
+    `Status: ${registration.status}`,
+    `Payment Status: ${registration.paymentStatus || 'Pending'}`,
+    registration.eventPaymentRequired ? `Amount Due: ${formatCurrency(registration.amountDue)}` : '',
+    '',
+    `${eventTitle} - Current Status`,
+    `Capacity: ${getCapacitySummaryText(summary)}`,
+    `Registered: ${summary.registered}`,
+    `Waitlisted: ${summary.waitlisted}`,
+    `Pending Payment: ${summary.pendingPayment}`,
+    event.isPaid ? `Total Paid: ${formatCurrency(summary.totalPaid)}` : '',
+    '',
+    `Print Registration List: ${printUrl}`
+  ].filter((line) => line !== '').join('\n');
 }
 
 async function handleMembershipConfirmationRequest(request, response, db, projectId) {

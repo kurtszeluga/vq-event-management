@@ -151,3 +151,45 @@ export function getArchiveBlockError(registrations = []) {
     + `still ${pendingCount === 1 ? 'has' : 'have'} a payment awaiting collection. `
     + 'Resolve them in Payment Review before archiving.';
 }
+
+// Mirrors RegistrationPanel.jsx's own reduceRegistrationCounts/
+// getTotalPaidAmount bucketing exactly, so a coordinator notification email's
+// numbers always agree with what an admin sees in the Registrations card for
+// the same event - server-side only, since that component is a React file
+// api/ code cannot import from.
+export function computeRegistrationSummary(event = {}, registrations = []) {
+  const counts = registrations.reduce(
+    (summary, registration) => {
+      if (isPaymentPending(registration)) {
+        summary.pendingPayment += 1;
+      }
+
+      if (registration.status === 'Registered') {
+        summary.registered += 1;
+      } else if (registration.status === 'Waitlisted') {
+        summary.waitlisted += 1;
+      } else if (registration.status === 'Cancelled') {
+        summary.cancelled += 1;
+      }
+
+      return summary;
+    },
+    { cancelled: 0, pendingPayment: 0, registered: 0, waitlisted: 0 }
+  );
+  const totalPaid = registrations
+    .filter((registration) => registration?.paymentStatus === 'Paid')
+    .reduce((total, registration) => total + Number(registration.amountPaid || 0), 0);
+  const capacityUnlimited = Boolean(event.capacityUnlimited);
+  const capacity = Number(event.capacity || 0);
+  const seatsAvailable = capacityUnlimited || !capacity
+    ? null
+    : Math.max(capacity - counts.registered, 0);
+
+  return {
+    ...counts,
+    capacity,
+    capacityUnlimited,
+    seatsAvailable,
+    totalPaid
+  };
+}

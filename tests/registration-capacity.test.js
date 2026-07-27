@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   PAYMENT_RESERVATION_EXPIRATION_MS,
+  computeRegistrationSummary,
   getArchiveBlockError,
   getEventCapacityError,
   getEventImagesError,
@@ -422,4 +423,81 @@ test('the archive-block message pluralizes correctly for more than one pending r
 
   assert.match(error, /2 registrations/);
   assert.match(error, /have a payment/);
+});
+
+test('computeRegistrationSummary counts registered/waitlisted/cancelled and sums only Paid amounts', () => {
+  const summary = computeRegistrationSummary(
+    { capacity: 10 },
+    [
+      { paymentStatus: 'Paid', amountPaid: 25, status: 'Registered' },
+      { paymentStatus: 'Paid', amountPaid: 15, status: 'Registered' },
+      { status: 'Waitlisted' },
+      { status: 'Cancelled' },
+      { paymentStatus: 'Refunded', amountPaid: 25, status: 'Cancelled' }
+    ]
+  );
+
+  assert.equal(summary.registered, 2);
+  assert.equal(summary.waitlisted, 1);
+  assert.equal(summary.cancelled, 2);
+  assert.equal(summary.totalPaid, 40);
+});
+
+test('computeRegistrationSummary reports pending payment using the same broad definition as everywhere else', () => {
+  const summary = computeRegistrationSummary(
+    { capacity: 10 },
+    [
+      { paymentStatus: 'Pending', status: 'Registered' },
+      { status: 'Pending Payment' },
+      { paymentStatus: 'Paid', status: 'Registered' }
+    ]
+  );
+
+  assert.equal(summary.pendingPayment, 2);
+});
+
+test('computeRegistrationSummary derives seatsAvailable from capacity minus registered, never below zero', () => {
+  const under = computeRegistrationSummary(
+    { capacity: 5 },
+    [{ status: 'Registered' }, { status: 'Registered' }]
+  );
+  const over = computeRegistrationSummary(
+    { capacity: 1 },
+    [{ status: 'Registered' }, { status: 'Registered' }, { status: 'Registered' }]
+  );
+
+  assert.equal(under.seatsAvailable, 3);
+  assert.equal(over.seatsAvailable, 0);
+});
+
+test('computeRegistrationSummary reports no seat ceiling for unlimited capacity', () => {
+  const summary = computeRegistrationSummary(
+    { capacity: 0, capacityUnlimited: true },
+    [{ status: 'Registered' }]
+  );
+
+  assert.equal(summary.capacityUnlimited, true);
+  assert.equal(summary.seatsAvailable, null);
+});
+
+test('computeRegistrationSummary reports null seatsAvailable when capacity was never set', () => {
+  const summary = computeRegistrationSummary({}, [{ status: 'Registered' }]);
+
+  assert.equal(summary.capacity, 0);
+  assert.equal(summary.seatsAvailable, null);
+});
+
+test('computeRegistrationSummary handles an event with no registrations at all', () => {
+  const summary = computeRegistrationSummary({ capacity: 10 }, []);
+
+  assert.deepEqual(summary, {
+    cancelled: 0,
+    pendingPayment: 0,
+    registered: 0,
+    waitlisted: 0,
+    capacity: 10,
+    capacityUnlimited: false,
+    seatsAvailable: 10,
+    totalPaid: 0
+  });
 });

@@ -20,6 +20,7 @@ import ProfilePage from './pages/ProfilePage.jsx';
 import MyRegistrationsPage from './pages/MyRegistrationsPage.jsx';
 import MemberDirectoryPage from './pages/MemberDirectoryPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
+import RegistrationListPrintPage from './pages/RegistrationListPrintPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import RequireAdmin from './components/RequireAdmin.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
@@ -68,6 +69,14 @@ const router = createBrowserRouter([
         element: (
           <RequireAdmin>
             <AdminDashboardPage />
+          </RequireAdmin>
+        )
+      },
+      {
+        path: 'admin/events/:eventId/registrations/print',
+        element: (
+          <RequireAdmin>
+            <RegistrationListPrintPage />
           </RequireAdmin>
         )
       }

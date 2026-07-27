@@ -691,6 +691,7 @@ service cloud.firestore {
           'challenges',
           'membership',
           'programs',
+          'sendCoordinatorRegistrationNotifications',
           'sendRegistrationConfirmations',
           'updatedDate',
           'workshops'
@@ -698,6 +699,7 @@ service cloud.firestore {
         && request.resource.data.challenges is string
         && request.resource.data.membership is string
         && request.resource.data.programs is string
+        && request.resource.data.sendCoordinatorRegistrationNotifications is bool
         && request.resource.data.sendRegistrationConfirmations is bool
         && request.resource.data.workshops is string
         && request.resource.data.updatedDate is timestamp;

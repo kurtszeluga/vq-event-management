@@ -722,6 +722,24 @@ function ConfigurationPanel({ currentUserProfile }) {
           <p className="form-help">
             Turn this off while testing registrations or membership signup to prevent confirmation emails from being sent.
           </p>
+          <label className="checkbox-label">
+            <input
+              checked={Boolean(emailInstructions.sendCoordinatorRegistrationNotifications)}
+              type="checkbox"
+              onChange={(event) =>
+                setEmailInstructions((current) => ({
+                  ...current,
+                  sendCoordinatorRegistrationNotifications: event.target.checked
+                }))
+              }
+            />
+            <span>Notify Coordinators Of New Registrations</span>
+          </label>
+          <p className="form-help">
+            Sends the area coordinator an email for every new registration or waitlist signup, with current
+            capacity/payment status and a link to print the full registrant list. Independent of the confirmation
+            emails above.
+          </p>
           <div className="configuration-form-grid">
             {EMAIL_INSTRUCTION_AREAS.map((area) => (
               <label className="configuration-span" key={area.areaId}>

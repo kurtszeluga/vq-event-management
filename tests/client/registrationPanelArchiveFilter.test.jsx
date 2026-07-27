@@ -118,4 +118,14 @@ describe('Registrations card archive filter', () => {
 
     expect(screen.getByText(/\$25\.00 Total Paid/)).toBeTruthy();
   });
+
+  it('links to the registration print page for the drilled-in event', async () => {
+    const user = userEvent.setup();
+    render(<RegistrationPanel canManageEvents currentUserProfile={{}} />);
+
+    await user.click(screen.getByRole('button', { name: 'View/Edit Registrations' }));
+
+    const link = screen.getByRole('link', { name: 'Print Registration List' });
+    expect(link.getAttribute('href')).toBe('/admin/events/evt-active/registrations/print');
+  });
 });

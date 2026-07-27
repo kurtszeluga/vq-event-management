@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -20,6 +21,22 @@ const squareWebhookEventsCollection = () => collection(db, 'squareWebhookEvents'
 export function subscribeToRegistrations(onNext, onError) {
   const registrationsQuery = query(registrationsCollection(), orderBy('registrationDate', 'desc'));
   return onSnapshot(registrationsQuery, onNext, onError);
+}
+
+// One-time fetch (not a subscription) for the standalone registration-list
+// print page reached via a coordinator email link - that page has no other
+// state to keep live-updated once it renders. Firestore rules already scope
+// this to admins with viewRegistrations (or the registrant's own record), so
+// no extra permission check is required here.
+export async function getRegistrationsForEvent(eventId) {
+  if (!eventId) {
+    return [];
+  }
+
+  const registrationsQuery = query(registrationsCollection(), where('eventId', '==', eventId));
+  const snapshot = await getDocs(registrationsQuery);
+
+  return snapshot.docs.map((registrationDoc) => ({ id: registrationDoc.id, ...registrationDoc.data() }));
 }
 
 export function subscribeToUserRegistrations(userId, onNext, onError) {

@@ -122,6 +122,7 @@ export const DEFAULT_EMAIL_INSTRUCTIONS = {
   challenges: '',
   membership: '',
   programs: '',
+  sendCoordinatorRegistrationNotifications: false,
   sendRegistrationConfirmations: false,
   workshops: ''
 };
@@ -315,6 +316,7 @@ export async function saveEmailInstructions(instructions, actorProfile) {
     challenges: cleanText(instructions.challenges),
     membership: cleanText(instructions.membership),
     programs: cleanText(instructions.programs),
+    sendCoordinatorRegistrationNotifications: Boolean(instructions.sendCoordinatorRegistrationNotifications),
     sendRegistrationConfirmations: Boolean(instructions.sendRegistrationConfirmations),
     workshops: cleanText(instructions.workshops),
     updatedDate: serverTimestamp()
