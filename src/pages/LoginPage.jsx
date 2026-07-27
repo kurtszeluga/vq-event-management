@@ -4,6 +4,8 @@ import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/aut
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { auth } from '../lib/firebase.js';
+import { startPhoneRecovery, verifyPhoneRecoveryCode } from '../services/accountRecoveryService.js';
+import { formatPhoneNumber } from '../utils/profileFormat.js';
 
 function LoginPage() {
   const { currentUser, firebaseConfigured, loading } = useAuth();
@@ -15,6 +17,14 @@ function LoginPage() {
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [recoveryPhone, setRecoveryPhone] = useState('');
+  const [phoneChallengeId, setPhoneChallengeId] = useState('');
+  const [phoneCode, setPhoneCode] = useState('');
+  const [phoneRecoveryError, setPhoneRecoveryError] = useState('');
+  const [phoneRecoveryMessage, setPhoneRecoveryMessage] = useState('');
+  const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
+  const [verifyingPhoneCode, setVerifyingPhoneCode] = useState(false);
+  const [recoveredEmail, setRecoveredEmail] = useState('');
   const navigate = useNavigate();
 
   if (!loading && currentUser) {
@@ -57,6 +67,60 @@ function LoginPage() {
       setRecoveryError(getPasswordResetErrorMessage(error));
     } finally {
       setSendingReset(false);
+    }
+  }
+
+  function resetPhoneRecoveryState() {
+    setPhoneChallengeId('');
+    setPhoneCode('');
+    setPhoneRecoveryError('');
+    setPhoneRecoveryMessage('');
+    setRecoveredEmail('');
+  }
+
+  async function handleStartPhoneRecovery() {
+    setPhoneRecoveryError('');
+    setPhoneRecoveryMessage('');
+    setRecoveredEmail('');
+    setPhoneCode('');
+
+    if (recoveryPhone.replace(/\D/g, '').length !== 10) {
+      setPhoneRecoveryError('Enter a valid 10-digit phone number.');
+      return;
+    }
+
+    setSendingPhoneCode(true);
+
+    try {
+      const result = await startPhoneRecovery(recoveryPhone);
+      setPhoneChallengeId(result.challengeId || '');
+      setPhoneRecoveryMessage(result.message);
+    } catch (error) {
+      setPhoneRecoveryError(error.message);
+    } finally {
+      setSendingPhoneCode(false);
+    }
+  }
+
+  async function handleVerifyPhoneCode() {
+    setPhoneRecoveryError('');
+
+    if (!phoneChallengeId || !/^\d{6}$/.test(phoneCode)) {
+      setPhoneRecoveryError('Enter the six-digit verification code from your email.');
+      return;
+    }
+
+    setVerifyingPhoneCode(true);
+
+    try {
+      const result = await verifyPhoneRecoveryCode({ challengeId: phoneChallengeId, code: phoneCode });
+      setRecoveredEmail(result.email);
+      setPhoneRecoveryMessage('');
+      setEmail(result.email);
+    } catch (error) {
+      setPhoneRecoveryError(error.message);
+    } finally {
+      setVerifyingPhoneCode(false);
     }
   }
 
@@ -108,6 +172,8 @@ function LoginPage() {
                 setRecoveryOpen((current) => !current);
                 setRecoveryError('');
                 setRecoveryMessage('');
+                setRecoveryPhone('');
+                resetPhoneRecoveryState();
               }}
             >
               Forgot password or username?
@@ -132,6 +198,68 @@ function LoginPage() {
                 >
                   {sendingReset ? 'Sending...' : 'Send Password Reset Email'}
                 </button>
+                <p>
+                  Forgot your email address? Enter the phone number on your
+                  account and we&apos;ll email a verification code to the
+                  address on file.
+                </p>
+                <label>
+                  <span>Phone number</span>
+                  <input
+                    autoComplete="tel"
+                    disabled={!firebaseConfigured || sendingPhoneCode}
+                    onChange={(event) => setRecoveryPhone(formatPhoneNumber(event.target.value))}
+                    type="tel"
+                    value={recoveryPhone}
+                  />
+                </label>
+                {phoneRecoveryError ? (
+                  <p className="form-error">{phoneRecoveryError}</p>
+                ) : null}
+                {phoneRecoveryMessage ? (
+                  <p className="form-success">{phoneRecoveryMessage}</p>
+                ) : null}
+                {recoveredEmail ? (
+                  <p className="form-success">
+                    Your account email is <strong>{recoveredEmail}</strong>.
+                    We&apos;ve filled it in above &mdash; enter your password
+                    or send a password reset email.
+                  </p>
+                ) : null}
+                {!recoveredEmail ? (
+                  <button
+                    className="button-link button-reset secondary-action"
+                    disabled={!firebaseConfigured || sendingPhoneCode}
+                    type="button"
+                    onClick={handleStartPhoneRecovery}
+                  >
+                    {sendingPhoneCode ? 'Sending...' : 'Send Verification Code'}
+                  </button>
+                ) : null}
+                {phoneChallengeId && !recoveredEmail ? (
+                  <>
+                    <label>
+                      <span>Verification code</span>
+                      <input
+                        autoComplete="one-time-code"
+                        disabled={verifyingPhoneCode}
+                        inputMode="numeric"
+                        maxLength={6}
+                        onChange={(event) => setPhoneCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                        type="text"
+                        value={phoneCode}
+                      />
+                    </label>
+                    <button
+                      className="button-link button-reset secondary-action"
+                      disabled={verifyingPhoneCode}
+                      type="button"
+                      onClick={handleVerifyPhoneCode}
+                    >
+                      {verifyingPhoneCode ? 'Verifying...' : 'Verify Code'}
+                    </button>
+                  </>
+                ) : null}
               </div>
             ) : null}
           </div>
