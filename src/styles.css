@@ -105,34 +105,34 @@ a {
   display: flex;
   flex: 1 1 100%;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px 26px;
+  justify-content: center;
   order: 3;
 }
 
 .nav-link {
   align-items: center;
-  background: #f1ebe3;
-  border: 1px solid transparent;
-  border-radius: 999px;
+  background: none;
+  border: none;
   color: #52625f;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  min-height: 34px;
-  padding: 8px 14px;
+  padding: 6px 2px;
   text-decoration: none;
-  transition: background 120ms ease, color 120ms ease;
+  transition: color 120ms ease;
 }
 
 .nav-link.active {
-  background: #225c56;
-  color: #fff;
+  color: #225c56;
+  text-decoration: underline;
+  text-underline-offset: 5px;
 }
 
 .nav-link:not(.active):hover {
-  background: #e5dcd0;
+  color: #225c56;
 }
 
 .button-link {
