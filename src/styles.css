@@ -68,9 +68,10 @@ a {
   background: #fffaf5;
   border-bottom: 1px solid #ded5ca;
   display: flex;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   justify-content: space-between;
-  padding: 18px clamp(18px, 4vw, 56px);
+  padding: 10px clamp(18px, 4vw, 56px) 8px;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -79,43 +80,67 @@ a {
 .brand {
   align-items: center;
   display: inline-flex;
-  gap: 12px;
+  gap: 10px;
+  order: 1;
   text-decoration: none;
 }
 
 .brand-logo {
   display: block;
-  height: 48px;
+  height: 34px;
   object-fit: contain;
-  width: 48px;
+  width: 34px;
 }
 
-.brand strong,
-.brand small {
-  display: block;
+.brand strong {
+  font-size: 0.98rem;
+  font-weight: 800;
 }
 
-.brand small {
-  color: #5c6966;
-  font-size: 1rem;
-  margin-top: 2px;
-}
-
+/* Forced onto its own full-width line below brand/identity (basis 100% with
+   the header's own wrap) rather than left to squeeze into whatever space is
+   left beside the identity chip - at in-between viewport widths that squeeze
+   used to fold five nav pills into three cramped lines. */
 .site-nav {
   display: flex;
+  flex: 1 1 100%;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: 6px;
+  order: 3;
 }
 
-.nav-link,
-.nav-button,
+.nav-link {
+  align-items: center;
+  background: #f1ebe3;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: #52625f;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 8px 14px;
+  text-decoration: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.nav-link.active {
+  background: #225c56;
+  color: #fff;
+}
+
+.nav-link:not(.active):hover {
+  background: #e5dcd0;
+}
+
 .button-link {
   align-items: center;
-  background: transparent;
-  border: 1px solid #c9bbb0;
+  background: #225c56;
+  border: 1px solid #225c56;
   border-radius: 8px;
-  color: #263632;
+  color: #fff;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -123,13 +148,6 @@ a {
   min-height: 44px;
   padding: 13px 16px;
   text-decoration: none;
-}
-
-.nav-link.active,
-.button-link {
-  background: #225c56;
-  border-color: #225c56;
-  color: #fff;
 }
 
 .button-link.secondary-action {
@@ -142,34 +160,121 @@ a {
   background: #e9f2ef;
 }
 
-.nav-button:hover,
-.nav-link:hover {
-  border-color: #225c56;
-}
-
 .button-reset {
   appearance: none;
   cursor: pointer;
   font: inherit;
 }
 
-.auth-banner {
+/* Replaces the old .auth-banner second full-width strip - identity now lives
+   in the header row itself, next to the nav links. */
+.site-identity {
   align-items: center;
   background: #e9f2ef;
-  border-bottom: 1px solid #ccdcd7;
-  color: #263632;
+  border: 1px solid #ccdcd7;
+  border-radius: 999px;
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  padding: 8px clamp(18px, 4vw, 56px);
+  flex: 0 0 auto;
+  gap: 8px;
+  order: 2;
+  padding: 4px 6px 4px 4px;
 }
 
-.auth-banner strong {
+.site-identity-avatar {
+  align-items: center;
+  background: #225c56;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.site-identity-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.site-identity-text strong {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.site-identity-text span {
+  color: #5c6966;
+  font-size: 0.7rem;
+}
+
+.site-identity-role {
   background: #225c56;
   border-radius: 999px;
   color: #fff;
-  font-size: 0.78rem;
-  padding: 4px 9px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 3px 8px;
+  text-transform: uppercase;
+}
+
+.site-identity-signout {
+  appearance: none;
+  background: none;
+  border: none;
+  color: #5c6966;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0 8px 0 2px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.site-identity-signout:hover {
+  color: #225c56;
+}
+
+.breadcrumb {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+  font-weight: 600;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.breadcrumb-item {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.breadcrumb a {
+  color: #225c56;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  color: #52625f;
+}
+
+.breadcrumb-sep {
+  border-right: 2px solid #b9ada2;
+  border-top: 2px solid #b9ada2;
+  height: 5px;
+  transform: rotate(45deg);
+  width: 5px;
 }
 
 .page-content {
@@ -315,7 +420,7 @@ a {
 }
 
 body.popup-mode .site-header,
-body.popup-mode .auth-banner,
+body.popup-mode .site-identity,
 body.popup-mode .pull-refresh-indicator {
   display: none !important;
 }
@@ -571,6 +676,7 @@ body.popup-mode .page-content {
   flex: 0 0 auto;
   height: 46px;
   justify-content: center;
+  order: 4;
   padding: 0;
   width: 46px;
 }
@@ -697,9 +803,15 @@ body.nav-sheet-open {
   padding: 16px 18px;
 }
 
-.nav-sheet-account-email {
+.nav-sheet-account-name {
   color: #263632;
-  font-weight: 700;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.nav-sheet-account-email {
+  color: #5c6966;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -3490,9 +3602,8 @@ body.nav-sheet-open {
     display: flex;
   }
 
-  /* Email and role are shown at the top of the sheet instead, so the banner
-     does not take a second full-width strip under a sticky header. */
-  .auth-banner {
+  /* Name, email, and role are shown at the top of the sheet instead. */
+  .site-identity {
     display: none;
   }
 
@@ -3678,14 +3789,14 @@ body.nav-sheet-open {
 
 @media print {
   .site-header,
-  .auth-banner,
+  .site-identity,
   .site-footer,
   .pull-refresh-indicator,
   .viewer-toolbar,
   .text-button,
   .nav-link,
-  .nav-button,
   .button-link,
+  .breadcrumb,
   .form-actions,
   .card-actions,
   .public-event-card-actions,

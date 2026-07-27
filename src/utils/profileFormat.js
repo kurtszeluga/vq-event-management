@@ -81,6 +81,14 @@ export function buildDisplayName(firstName = '', lastName = '') {
   return [toTitleCase(firstName), toTitleCase(lastName)].filter(Boolean).join(' ');
 }
 
+// userProfile is the Firestore doc (has a name) and starts null until it
+// loads; currentUser is Firebase Auth (has its own displayName, set at
+// profile save time) and is available immediately on sign-in - so the name
+// can show up a beat before the Firestore snapshot arrives.
+export function getAccountDisplayName(currentUser, userProfile) {
+  return userProfile?.name || currentUser?.displayName || '';
+}
+
 export function toTitleCase(value) {
   // Coerced rather than assumed to be a string. 69 call sites pass Firestore
   // field values, which can be absent; previously a null threw on .trim().

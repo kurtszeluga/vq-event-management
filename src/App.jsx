@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import MobileNavSheet from './components/MobileNavSheet.jsx';
 import { useAuth } from './context/useAuth.js';
+import { getAccountDisplayName } from './utils/profileFormat.js';
 
 function App() {
   const location = useLocation();
@@ -81,10 +82,7 @@ function App() {
             className="brand-logo"
             src="/assets/village-quilters-logo.png"
           />
-          <span>
-            <strong>The Village Quilters Network</strong>
-            <small>Managing events, activities and members</small>
-          </span>
+          <strong>The Village Quilters</strong>
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
           {navDestinations.map((destination) => (
@@ -97,12 +95,24 @@ function App() {
               {destination.label}
             </NavLink>
           ))}
-          {currentUser ? (
-            <button className="nav-button" type="button" onClick={logOut}>
+        </nav>
+        {currentUser ? (
+          <div className="site-identity">
+            <span aria-hidden="true" className="site-identity-avatar">
+              {getInitials(currentUser, userProfile)}
+            </span>
+            <span className="site-identity-text">
+              {getAccountDisplayName(currentUser, userProfile) ? (
+                <strong>{getAccountDisplayName(currentUser, userProfile)}</strong>
+              ) : null}
+              <span>{currentUser.email}</span>
+            </span>
+            <span className="site-identity-role">{isAdmin ? 'Admin' : 'Signed in'}</span>
+            <button className="site-identity-signout" type="button" onClick={logOut}>
               Sign out
             </button>
-          ) : null}
-        </nav>
+          </div>
+        ) : null}
         <button
           aria-expanded={navSheetOpen}
           aria-haspopup="dialog"
@@ -120,15 +130,10 @@ function App() {
         destinations={navDestinations}
         isAdmin={isAdmin}
         open={navSheetOpen}
+        userProfile={userProfile}
         onClose={closeNavSheet}
         onSignOut={logOut}
       />
-      {currentUser ? (
-        <div className="auth-banner">
-          <span>{currentUser.email}</span>
-          <strong>{isAdmin ? 'Admin' : 'Signed in'}</strong>
-        </div>
-      ) : null}
       <main className="page-content">
         <Outlet />
       </main>
@@ -150,6 +155,21 @@ function App() {
 
 function userHasActiveMembership(profile) {
   return profile?.status === 'Active' && profile?.membershipStatus === 'Active';
+}
+
+function getInitials(currentUser, userProfile) {
+  const name = getAccountDisplayName(currentUser, userProfile);
+
+  if (name) {
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0].toUpperCase())
+      .join('');
+  }
+
+  return (currentUser?.email || '?')[0].toUpperCase();
 }
 
 function usePullToRefresh(disabled = false) {

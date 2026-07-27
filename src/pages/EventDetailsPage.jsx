@@ -134,6 +134,10 @@ function EventDetailsPage() {
   return (
     <section>
       <PageHeader
+        breadcrumb={[
+          { label: 'Programs & Activities', to: '/events' },
+          { label: event.title || event.eventType || 'Event' }
+        ]}
         eyebrow={event.eventType}
         title={event.title}
         description={event.description}

@@ -92,6 +92,21 @@ describe('rendering', () => {
     expect(screen.queryByText('Admin')).toBeNull();
   });
 
+  it('shows the profile name above the email when one is available', () => {
+    setup({ userProfile: { name: 'Ada Lovelace' } });
+
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('member@example.com')).toBeInTheDocument();
+  });
+
+  it('omits the name row when neither the profile nor the auth account has one', () => {
+    setup();
+
+    expect(screen.queryByText('Ada Lovelace')).toBeNull();
+    // The account card should still just be email + role, nothing blank in between.
+    expect(screen.getByText('member@example.com')).toBeInTheDocument();
+  });
+
   it('omits the account card and sign out when nobody is signed in', () => {
     setup({ currentUser: null });
 

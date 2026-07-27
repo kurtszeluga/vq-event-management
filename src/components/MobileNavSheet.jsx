@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
+import { getAccountDisplayName } from '../utils/profileFormat.js';
 
 // The phone-width site menu. The sticky header used to stack every destination
 // as its own bordered pill, which cost roughly 470px of an 812px viewport before
@@ -12,7 +13,7 @@ import { NavLink } from 'react-router-dom';
 // behind it cannot scroll, and the caller restores focus to the button that
 // opened it. PROJECT_UPGRADE.md's "consistent keyboard focus and dialog focus
 // management" row is the same requirement.
-function MobileNavSheet({ currentUser, destinations, isAdmin, onClose, onSignOut, open }) {
+function MobileNavSheet({ currentUser, destinations, isAdmin, onClose, onSignOut, open, userProfile }) {
   const closeButtonRef = useRef(null);
   const sheetRef = useRef(null);
 
@@ -102,6 +103,11 @@ function MobileNavSheet({ currentUser, destinations, isAdmin, onClose, onSignOut
 
         {currentUser ? (
           <div className="nav-sheet-card nav-sheet-account">
+            {getAccountDisplayName(currentUser, userProfile) ? (
+              <span className="nav-sheet-account-name">
+                {getAccountDisplayName(currentUser, userProfile)}
+              </span>
+            ) : null}
             <span className="nav-sheet-account-email">{currentUser.email}</span>
             <span className="nav-sheet-account-role">
               {isAdmin ? 'Admin' : 'Signed in'}

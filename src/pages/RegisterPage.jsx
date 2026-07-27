@@ -457,6 +457,11 @@ function RegisterPage() {
     return (
       <section>
         <PageHeader
+          breadcrumb={[
+            { label: 'Programs & Activities', to: '/events' },
+            { label: event.title || event.eventType || 'Event', to: `/events/${event.id}` },
+            { label: 'Registration Complete' }
+          ]}
           eyebrow="Registration"
           title="Registration Complete"
           description="Your registration has been received."
@@ -477,6 +482,11 @@ function RegisterPage() {
   return (
     <section>
       <PageHeader
+        breadcrumb={[
+          { label: 'Programs & Activities', to: '/events' },
+          { label: event.title || event.eventType || 'Event', to: `/events/${event.id}` },
+          { label: 'Register' }
+        ]}
         eyebrow="Registration"
         title={`Register For ${event.title}`}
         description="Start with your email address so we can check your profile and membership."
