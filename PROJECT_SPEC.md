@@ -35,6 +35,21 @@ The public-facing listing feed can be embedded on the GoDaddy website, while reg
 
 For admins, the dashboard is the primary home surface. It keeps the admin navigation row visible so users can jump between registrations, events/activities, workshops, challenges, business listings, for-sale listings, user controls, payment review, and system configuration.
 
+`My Registrations` only appears in the nav once a member is signed in.
+
+## Account Recovery
+
+The login page's "Forgot password or username?" panel is a single field that accepts either an email address or a phone number - built for members with limited computer experience, so there is only ever one thing to fill in.
+
+Flow:
+
+- The member enters an email or phone number and submits.
+- The server always returns the same generic response regardless of whether a match was found, to prevent account enumeration; a matching account is emailed a 6-digit code (hashed at rest, 10-minute nominal expiry, rate-limited by IP and by the entered identifier).
+- Entering the correct code signs the member in for real - a Firebase custom token, hand-signed with `node:crypto` rather than the `firebase-admin/auth` SDK subpath (which breaks Vercel's function bundling in this project) - and redirects to `/profile` with the profile edit form already open and the password field focused.
+- The member never sees their recovered email/username directly; proving control of the inbox and being signed in accomplishes the same goal without an extra reveal step.
+
+This reuses the registration flow's email-verification-code pattern and its endpoint: the actions live inside the existing `api/registration-lookup.js` action router rather than a new file, to stay within the Vercel Hobby plan's function limit.
+
 ## Roles And Permissions
 
 ### Super User
@@ -52,6 +67,8 @@ For admins, the dashboard is the primary home surface. It keeps the admin naviga
   - `managePayments`
   - `addUsers`
   - `manageMembershipStatus`
+  - `registerOthers` — register a member on their behalf (cash/check only)
+  - `manageWaitlist` — manually promote a Waitlisted registration off the waitlist
 - Admin profile permissions are cleared when membership becomes inactive because inactive members cannot hold Guild positions.
 
 ### General User
@@ -122,6 +139,7 @@ Programs grouping:
 - Class (Full Day)
 - Lecture
 - Retreat
+- Other
 
 Administrative cards are separated so business listings, for-sale listings, challenges, workshops, and programs can be managed without crowding one event screen.
 
@@ -168,7 +186,7 @@ The app supports GoDaddy embeddable listing feeds via `data-category`:
 Current `events` feed behavior:
 
 - Type filters show Programs and Workshops.
-- The Programs filter includes Class (Half Day), Class (Full Day), Lecture, and Retreat, matching the in-app Programs grouping.
+- The Programs filter includes Class (Half Day), Class (Full Day), Lecture, Retreat, and Other, matching the in-app Programs grouping.
 - Cards are compact and include dates, payment details, capacity/registered/waitlisted/open-seat pills, coordinator contact, images, supply list links, and registration buttons when applicable.
 - Register opens the Vercel registration flow.
 - Supply list viewing/printing uses the working browser-compatible Vercel route behavior.
@@ -199,6 +217,14 @@ Capacity behavior:
 - Waitlist messaging appears when no seat is available.
 - Refund/cancellation returns the seat immediately.
 
+Waitlist promotion:
+
+- When a seat frees up (cancellation or refund), the earliest eligible Waitlisted registrant is automatically emailed an offer to claim it themselves through a magic-link claim page - no sign-in required, no auto-registration, no auto-charging.
+- A Waitlisted registration with an unexpired offer counts as seat-holding, which is how the offered seat stays reserved during the claim window without a separate reservation record.
+- The claim window is 3 days. If it lapses unclaimed, a scheduled daily job advances the offer to the next person on that event's waitlist.
+- If the waitlist is empty when a seat opens, the event coordinator gets a one-time notification instead of an offer email.
+- Admins with the `manageWaitlist` permission can also manually promote a Waitlisted registration directly from the Registrations panel, bypassing the offer/claim flow entirely.
+
 Registration records include:
 
 - Event snapshot fields such as event title, type, date, cost, service fee, and amount due
@@ -207,6 +233,7 @@ Registration records include:
 - Membership/profile status at registration
 - Payment preference, method, status, amount paid, Square transaction/refund IDs
 - Registration status: Pending Payment, Registered, Cancelled, Waitlisted
+- Waitlist offer fields when applicable: offered/expires timestamps, a hashed claim token, and a claimed-date once resolved
 
 ## My Registrations
 
@@ -360,6 +387,8 @@ Legacy/transition:
 - Firebase, Square, and Resend secrets must remain in environment variables.
 - Vercel Hobby function count should be watched; prefer extending existing API routes over adding new functions.
 - Production responses include CSP, frame protection, referrer policy, content-type protection, and permissions policy.
+- Account recovery and waitlist claim links use hashed, expiring, single-purpose tokens (email/phone recovery codes; waitlist claim tokens); the recovery sign-in itself uses a Firebase custom token hand-signed with `node:crypto` rather than the `firebase-admin/auth` SDK.
+- The waitlist-expiry scheduled job is a `GET` endpoint gated by comparing the request's bearer token against the `CRON_SECRET` environment variable, matching Vercel's own cron-auth convention.
 
 ## Current Upgrade Priorities
 

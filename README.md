@@ -91,12 +91,17 @@ Vercel production needs these server-side values when payments, webhooks, and em
 - `SQUARE_ENVIRONMENT` (`sandbox` or `production`)
 - `SQUARE_WEBHOOK_SIGNATURE_KEY`
 - `SQUARE_WEBHOOK_NOTIFICATION_URL` (typically `https://<your-vercel-domain>/api/square-webhook`)
+- `CRON_SECRET` — any random string; authorizes the daily waitlist-offer-expiry job (see Scheduled Jobs below)
 
 Optional:
 
 - `APP_ORIGIN` — public site origin for email links
 - `DISABLE_API_RATE_LIMITS` — set `true` only for local/testing bypass
 - `FIREBASE_API_KEY` — fallback for some admin API routes
+
+### Scheduled Jobs
+
+`vercel.json` declares one Vercel Cron job (`0 13 * * *`, once daily — the Hobby plan's maximum frequency) that hits `/api/create-registration` via `GET` to advance any unclaimed waitlist offers to the next person. Vercel picks this up automatically on deploy; the only setup needed is setting `CRON_SECRET` above, which the cron request must present as a bearer token. Without it, the cron call is refused and unclaimed offers simply never advance until it's set.
 
 Use Square sandbox credentials while testing and production credentials only when ready to take live payments.
 

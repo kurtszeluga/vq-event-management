@@ -28,6 +28,8 @@ Members and registrants can browse available programs and activities, review eve
 
 For paid events, the app can collect online card payments through embedded Square payment fields. The app does not store card numbers, security codes, or wallet payment details. Square handles the payment information.
 
+Members who forget their password or which email they signed up with can recover access from the login page with a single field - an email address or a phone number - and an emailed code, without needing to remember or guess which one they used. Verifying the code signs them in and takes them straight to their profile to set a new password.
+
 Signed-in members can also:
 
 - View their own registrations
@@ -45,10 +47,12 @@ Depending on permissions, admins can:
 
 - Create and manage programs, workshops, challenges, business listings, and for-sale listings
 - Publish, close, archive, and reactivate records
+- Jump directly from an event card to that event's registrations, or to register a member for it, without hunting for the event in a separate module
 - Review registrations by event, year, quarter, and activity type
 - View registration counts, capacity, waitlist counts, and payment status
 - Edit registration payment status where allowed
 - Cancel free or unpaid registrations directly from the registration edit card
+- Manually promote someone off a waitlist, in addition to the app's automatic waitlist offers
 - Record cash, check, waived, no-charge, and refund information
 - Review Square webhook/payment reconciliation items
 - Create and update General User profiles
@@ -76,6 +80,8 @@ Membership CSV imports update profile records directly. Matching is email-first.
 Registration creation is handled by server-side API logic rather than direct browser writes to Firestore. This protects business rules such as membership eligibility, duplicate-registration checks, capacity limits, waitlists, payment status, and identity verification.
 
 For online paid registrations, the app creates a temporary seat hold before the user enters payment information. Active holds count against capacity, preventing a second person from taking the last seat while the first person is paying. If the hold expires, the registration process returns the user to the listing and the seat becomes available again.
+
+When a seat opens up after a cancellation or refund, the app automatically emails the next person on that event's waitlist an offer to claim it themselves - they are never automatically registered or charged. They have a few days to claim it before the offer moves on to the next person. If nobody is left on the waitlist, the event's coordinator is notified instead.
 
 ## Payments And Refunds
 

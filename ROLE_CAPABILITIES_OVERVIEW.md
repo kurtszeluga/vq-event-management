@@ -24,13 +24,14 @@ Members and registrants can use the app to:
 - Print registration information
 - Edit their own profile information
 - View the member directory when active membership and directory settings allow it
+- Recover access from the login page with just an email or phone number if they forget their password or which email they used
 
 The registration process is designed to prevent common problems:
 
 - Duplicate active registrations are caught before submit.
 - Membership eligibility is checked early.
 - Online paid registrations hold a seat temporarily during payment.
-- Full events can route users to a waitlist.
+- Full events can route users to a waitlist; when a seat later opens up, the app automatically emails that person an offer to claim it themselves rather than registering them automatically.
 - Expired payment holds return the user to the listing so they can start again.
 
 ## Profile-Only Members
@@ -46,9 +47,11 @@ Admins are Guild users with selected permissions. Admin access requires an activ
 Depending on permissions, admins may be able to:
 
 - Manage events and activities
-- View and manage registrations
+- View and manage registrations, including quick shortcuts to review or add registrations directly from an event's card
+- Register a guild member for an event on their behalf, for members who don't use online tools
 - Record payment status changes
 - Cancel free or unpaid registrations without a refund
+- Manually promote someone off a waitlist, in addition to the app's automatic waitlist offers
 - Manage payments and refunds
 - Add or update General User profiles
 - Change membership status when allowed
@@ -133,6 +136,7 @@ The app uses several protections to keep registration, membership, and payment w
 - Member directory readers use directory-safe projections rather than full user documents.
 - Firestore rules restrict who can read or write profiles, registrations, payments, settings, and audit records.
 - Verification codes and seat holds expire automatically.
+- Account recovery and waitlist claim links use one-time, expiring codes/tokens; a bare click on an old link never grants access on its own.
 - Production responses include security headers; privacy and support pages are available in the app.
 
 Remaining privacy/security work includes finishing server-side membership/config writes, abuse monitoring/alerts, and expanded automated tests.
