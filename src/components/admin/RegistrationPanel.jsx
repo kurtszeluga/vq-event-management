@@ -117,13 +117,17 @@ function RegistrationPanel({
       },
       handleError
     );
+    // Anyone can register for an event regardless of their own site role, so
+    // the membership lookup below must not exclude Admin/Super User profiles
+    // - excluding them left an admin's own registrations showing "Unknown"
+    // membership instead of their real status.
     const unsubscribeUsers = subscribeToUsers(
       (snapshot) => {
         setUsers(snapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() })));
         markLoaded();
       },
       handleError,
-      { includeAdminProfiles: false }
+      { includeAdminProfiles: true }
     );
     const unsubscribePaymentSettings = subscribeToPaymentSettings(
       (settings) => {
