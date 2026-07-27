@@ -1,5 +1,7 @@
+// Routed through /api/registration-lookup (rather than its own function)
+// to stay under Vercel's per-deployment serverless function cap.
 export async function startPhoneRecovery(phone) {
-  const response = await fetch('/api/account-recovery', {
+  const response = await fetch('/api/registration-lookup', {
     body: JSON.stringify({ action: 'startPhoneRecovery', phone }),
     headers: { 'Content-Type': 'application/json' },
     method: 'POST'
@@ -14,7 +16,7 @@ export async function startPhoneRecovery(phone) {
 }
 
 export async function verifyPhoneRecoveryCode({ challengeId, code }) {
-  const response = await fetch('/api/account-recovery', {
+  const response = await fetch('/api/registration-lookup', {
     body: JSON.stringify({ action: 'verifyPhoneRecoveryCode', challengeId, code }),
     headers: { 'Content-Type': 'application/json' },
     method: 'POST'
