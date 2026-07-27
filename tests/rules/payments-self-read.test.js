@@ -128,4 +128,20 @@ describe('a member reading their own membership payment history', () => {
       getDoc(doc(testEnv.authenticatedContext(OTHER_MEMBER_UID).firestore(), 'payments', REGISTRATION_PAYMENT_ID))
     );
   });
+
+  // registrationId is a string field, so an empty string still satisfies
+  // `registrationId is string` - without also requiring it be non-empty, this
+  // branch calls get() on registrations/{empty path segment}, an invalid
+  // document reference. The owner-by-userId branch above already matches
+  // first for this fixture, so this only surfaced as an intermittent CI
+  // failure (the emulator version there evaluates evaluation-error branches
+  // differently than the locally cached one), not a local one - pinned here
+  // so a future edit that reintroduces it fails deterministically instead.
+  test('an empty registrationId does not error out the read for the payment\'s own owner', async () => {
+    await seed('payments', REGISTRATION_PAYMENT_ID, registrationPayment({ registrationId: '' }));
+
+    await assertSucceeds(
+      getDoc(doc(testEnv.authenticatedContext(MEMBER_UID).firestore(), 'payments', REGISTRATION_PAYMENT_ID))
+    );
+  });
 });

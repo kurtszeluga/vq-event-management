@@ -951,6 +951,7 @@ service cloud.firestore {
         || signedIn()
           && resource.data.entityType == 'Registration'
           && resource.data.registrationId is string
+          && resource.data.registrationId != ''
           && get(/databases/$(database)/documents/registrations/$(resource.data.registrationId)).data.userId == request.auth.uid
         // Membership payments carry no userId field - only entityId, set to
         // the member's own users/{uid} document ID at write time
