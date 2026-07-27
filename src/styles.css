@@ -249,7 +249,14 @@ a {
   text-transform: uppercase;
 }
 
-.site-identity-signout {
+.site-identity-actions {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.site-identity-action {
   appearance: none;
   background: none;
   border: none;
@@ -258,13 +265,18 @@ a {
   font: inherit;
   font-size: 0.76rem;
   font-weight: 700;
-  padding: 0 8px 0 2px;
+  padding: 0;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.site-identity-signout:hover {
+.site-identity-action:hover {
   color: #225c56;
+}
+
+.site-identity-divider {
+  color: #c9bbb0;
+  font-size: 0.7rem;
 }
 
 .breadcrumb {
@@ -846,6 +858,15 @@ body.nav-sheet-open {
 .nav-sheet-account-role {
   color: #5c6966;
   font-size: 16px;
+}
+
+.nav-sheet-account-profile-link {
+  color: #225c56;
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-top: 6px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .nav-sheet-row {

@@ -4,11 +4,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import MobileNavSheet from '../../src/components/MobileNavSheet.jsx';
 
+// My Profile is not a destination - it lives in the account card instead (see
+// the account-card tests below), matching what App.jsx actually passes.
 const DESTINATIONS = [
   { to: '/', label: 'Home', end: true },
   { to: '/my-registrations', label: 'My Registrations' },
-  { to: '/member-directory', label: 'Member Directory' },
-  { to: '/profile', label: 'My Profile' }
+  { to: '/member-directory', label: 'Member Directory' }
 ];
 
 function setup(overrides = {}) {
@@ -64,7 +65,6 @@ describe('rendering', () => {
       'Home',
       'My Registrations',
       'Member Directory',
-      'My Profile',
       'Sign out'
     ]);
   });
@@ -90,6 +90,24 @@ describe('rendering', () => {
 
     expect(screen.getByText('Signed in')).toBeInTheDocument();
     expect(screen.queryByText('Admin')).toBeNull();
+  });
+
+  it('links to /profile from inside the account card, not as a destination row', () => {
+    setup();
+
+    const profileLink = screen.getByRole('link', { name: 'My Profile' });
+    expect(profileLink).toHaveAttribute('href', '/profile');
+    expect(profileLink.closest('.nav-sheet-account')).toBeTruthy();
+    expect(profileLink.className).not.toContain('nav-sheet-row');
+  });
+
+  it('closes the sheet when the profile link is chosen', async () => {
+    const user = userEvent.setup();
+    const { props } = setup();
+
+    await user.click(screen.getByRole('link', { name: 'My Profile' }));
+
+    expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
   it('shows the profile name above the email when one is available', () => {

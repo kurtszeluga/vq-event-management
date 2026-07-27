@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { getAccountDisplayName } from '../utils/profileFormat.js';
 
 // The phone-width site menu. The sticky header used to stack every destination
@@ -112,6 +112,9 @@ function MobileNavSheet({ currentUser, destinations, isAdmin, onClose, onSignOut
             <span className="nav-sheet-account-role">
               {isAdmin ? 'Admin' : 'Signed in'}
             </span>
+            <Link className="nav-sheet-account-profile-link" to="/profile" onClick={onClose}>
+              My Profile
+            </Link>
           </div>
         ) : null}
 

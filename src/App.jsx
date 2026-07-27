@@ -31,8 +31,9 @@ function App() {
     { to: '/login', label: 'Login', visible: !currentUser },
     { to: '/events', label: 'Programs/Activities Signup', visible: showAdminSignupLink },
     { to: '/my-registrations', label: 'My Registrations', visible: true },
-    { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink },
-    { to: '/profile', label: 'My Profile', visible: Boolean(currentUser) }
+    { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink }
+    // My Profile lives in the identity chip/account card instead - see
+    // .site-identity and MobileNavSheet.jsx's account card.
   ].filter((destination) => destination.visible);
 
   function closeNavSheet() {
@@ -111,9 +112,17 @@ function App() {
               <span>{currentUser.email}</span>
             </span>
             <span className="site-identity-role">{isAdmin ? 'Admin' : 'Signed in'}</span>
-            <button className="site-identity-signout" type="button" onClick={logOut}>
-              Sign out
-            </button>
+            <span className="site-identity-actions">
+              <Link className="site-identity-action" to="/profile">
+                My Profile
+              </Link>
+              <span aria-hidden="true" className="site-identity-divider">
+                |
+              </span>
+              <button className="site-identity-action" type="button" onClick={logOut}>
+                Sign out
+              </button>
+            </span>
           </div>
         ) : null}
         <button
