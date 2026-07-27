@@ -1789,8 +1789,8 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
   };
 }
 
-function supportsSupplyList(eventType) {
-  return eventType.startsWith('Class') || eventType === 'Workshop';
+export function supportsSupplyList(eventType) {
+  return eventType.startsWith('Class') || eventType === 'Workshop' || eventType === 'Other';
 }
 
 function supportsClassWorkshopRegistrationDefault(eventType) {
