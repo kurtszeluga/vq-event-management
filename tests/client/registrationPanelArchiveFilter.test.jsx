@@ -2,6 +2,10 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('react-router-dom', () => ({
+  Link: ({ children, to }) => <a href={to}>{children}</a>
+}));
+
 // Both events fall on today's own date, so they always land in whatever the
 // panel's default year/quarter filters resolve to at run time - this test
 // only cares about the Active/Archived split, not the date filters.

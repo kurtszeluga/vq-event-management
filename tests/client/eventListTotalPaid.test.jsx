@@ -107,7 +107,6 @@ describe('EventList Print Registration List link', () => {
     const link = screen.getByRole('link', { name: 'Print Registration List' });
     expect(link).toBeTruthy();
     expect(link.getAttribute('href')).toBe('/admin/events/evt-paid/registrations/print');
-    expect(link.getAttribute('target')).toBe('_blank');
   });
 
   it('hides the link without canViewRegistrations', () => {

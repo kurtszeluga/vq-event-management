@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import AdminRegisterMemberPanel from './AdminRegisterMemberPanel.jsx';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import ModalDialog from '../ModalDialog.jsx';
@@ -1025,14 +1026,12 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                     Register A Member
                   </button>
                 ) : null}
-                <a
+                <Link
                   className="button-link secondary-action"
-                  href={`/admin/events/${group.eventId}/registrations/print`}
-                  rel="noopener noreferrer"
-                  target="_blank"
+                  to={`/admin/events/${group.eventId}/registrations/print`}
                 >
                   Print Registration List
-                </a>
+                </Link>
                 <button
                   className="button-link button-reset"
                   type="button"

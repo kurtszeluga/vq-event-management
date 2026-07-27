@@ -394,14 +394,12 @@ function EventList({
               </Link>
             ) : null}
             {canViewRegistrations ? (
-              <a
+              <Link
                 className="button-link secondary-action"
-                href={`/admin/events/${event.id}/registrations/print`}
-                rel="noopener noreferrer"
-                target="_blank"
+                to={`/admin/events/${event.id}/registrations/print`}
               >
                 Print Registration List
-              </a>
+              </Link>
             ) : null}
             <button
               className={event.status === 'Archived'
