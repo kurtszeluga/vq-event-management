@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
@@ -20,14 +21,14 @@ import {
   verificationSecretsMatch
 } from './_lib/registration-verification.js';
 import {
-  PHONE_CODE_EXPIRATION_MS,
-  PHONE_CODE_MAX_ATTEMPTS,
-  PHONE_CODE_MAX_SENDS_PER_WINDOW,
-  PHONE_CODE_RESEND_DELAY_MS,
-  PHONE_CODE_SEND_WINDOW_MS,
+  ACCOUNT_RECOVERY_CODE_EXPIRATION_MS,
+  ACCOUNT_RECOVERY_CODE_MAX_ATTEMPTS,
+  ACCOUNT_RECOVERY_CODE_MAX_SENDS_PER_WINDOW,
+  ACCOUNT_RECOVERY_CODE_RESEND_DELAY_MS,
+  ACCOUNT_RECOVERY_CODE_SEND_WINDOW_MS,
   buildAccountRecoveryDocumentId,
-  formatPhoneForStorage,
-  normalizePhoneDigits
+  classifyRecoveryIdentifier,
+  formatPhoneForStorage
 } from './_lib/account-recovery.js';
 
 export default async function handler(request, response) {
@@ -54,13 +55,13 @@ export default async function handler(request, response) {
       return;
     }
 
-    if (action === 'startPhoneRecovery') {
-      await startPhoneRecovery(request, response, db);
+    if (action === 'startAccountRecovery') {
+      await startAccountRecovery(request, response, db);
       return;
     }
 
-    if (action === 'verifyPhoneRecoveryCode') {
-      await verifyPhoneRecoveryCode(request, response, db);
+    if (action === 'verifyAccountRecoveryCode') {
+      await verifyAccountRecoveryCode(request, response, db, app);
       return;
     }
 
@@ -235,53 +236,55 @@ async function verifyEmailCode(request, response, db) {
   });
 }
 
-const ACCOUNT_RECOVERY_GENERIC_MESSAGE = 'If we found an account matching that phone number, '
+const ACCOUNT_RECOVERY_GENERIC_MESSAGE = 'If we found an account matching that email or phone number, '
   + 'we sent a verification code to the email address on file.';
 
-async function startPhoneRecovery(request, response, db) {
-  const phoneDigits = normalizePhoneDigits(request.body?.phone);
+async function startAccountRecovery(request, response, db) {
+  const identifier = classifyRecoveryIdentifier(request.body?.identifier);
 
-  if (phoneDigits.length !== 10) {
-    throw httpError(400, 'Enter a valid 10-digit phone number.');
+  if (!identifier.type) {
+    throw httpError(400, 'Enter your email address or a 10-digit phone number.');
   }
 
-  await enforceRecoveryRateLimit(db, request, 'startPhoneRecovery', phoneDigits);
+  await enforceRecoveryRateLimit(db, request, 'startAccountRecovery', identifier.value);
 
-  const challengeId = buildAccountRecoveryDocumentId(phoneDigits);
+  const challengeId = buildAccountRecoveryDocumentId(identifier.type, identifier.value);
   const challengeRef = db.collection('accountRecoveryVerifications').doc(challengeId);
   const existingSnap = await challengeRef.get();
   const existing = existingSnap.exists ? existingSnap.data() : {};
   const now = Date.now();
   const lastSentAt = getTimestampMillis(existing.lastSentAt);
   const existingWindowStart = getTimestampMillis(existing.sendWindowStartedAt);
-  const inCurrentWindow = existingWindowStart && now - existingWindowStart < PHONE_CODE_SEND_WINDOW_MS;
+  const inCurrentWindow = existingWindowStart && now - existingWindowStart < ACCOUNT_RECOVERY_CODE_SEND_WINDOW_MS;
   const sendCount = inCurrentWindow ? Number(existing.sendCount || 0) : 0;
 
-  if (lastSentAt && now - lastSentAt < PHONE_CODE_RESEND_DELAY_MS) {
+  if (lastSentAt && now - lastSentAt < ACCOUNT_RECOVERY_CODE_RESEND_DELAY_MS) {
     throw httpError(429, 'A verification code was sent recently. Please wait one minute before requesting another code.');
   }
 
-  if (sendCount >= PHONE_CODE_MAX_SENDS_PER_WINDOW) {
+  if (sendCount >= ACCOUNT_RECOVERY_CODE_MAX_SENDS_PER_WINDOW) {
     throw httpError(429, 'Too many verification codes have been requested. Please wait and try again later.');
   }
 
   // Looked up here (rather than at verify time) so the profile match and
-  // whether we actually email anyone stays fixed to this send - a profile
-  // being edited between send and verify can't change what the challenge
-  // reveals.
-  const profile = await findUserProfileByPhone(db, phoneDigits);
+  // whether we actually email/sign anyone in stays fixed to this send - a
+  // profile being edited between send and verify can't change what the
+  // challenge reveals.
+  const profile = identifier.type === 'email'
+    ? await findUserProfileByEmail(db, identifier.value)
+    : await findUserProfileByPhone(db, identifier.value);
   const code = generateEmailCode();
   const nowTimestamp = Timestamp.fromMillis(now);
 
   await challengeRef.set({
     attemptCount: 0,
-    codeExpiresAt: Timestamp.fromMillis(now + PHONE_CODE_EXPIRATION_MS),
+    codeExpiresAt: Timestamp.fromMillis(now + ACCOUNT_RECOVERY_CODE_EXPIRATION_MS),
     codeHash: hashVerificationSecret(challengeId, code),
     consumedAt: null,
     email: profile?.email || '',
     lastSentAt: nowTimestamp,
-    phoneDigits,
     profileFound: Boolean(profile),
+    profileUserId: profile ? (profile.userId || profile.id) : '',
     sendCount: sendCount + 1,
     sendWindowStartedAt: inCurrentWindow ? existing.sendWindowStartedAt : nowTimestamp,
     updatedAt: nowTimestamp,
@@ -300,11 +303,11 @@ async function startPhoneRecovery(request, response, db) {
   response.status(200).json({ challengeId, message: ACCOUNT_RECOVERY_GENERIC_MESSAGE });
 }
 
-async function verifyPhoneRecoveryCode(request, response, db) {
+async function verifyAccountRecoveryCode(request, response, db, app) {
   const challengeId = cleanText(request.body?.challengeId);
   const code = cleanText(request.body?.code);
 
-  await enforceRecoveryRateLimit(db, request, 'verifyPhoneRecoveryCode', challengeId);
+  await enforceRecoveryRateLimit(db, request, 'verifyAccountRecoveryCode', challengeId);
 
   if (!challengeId || !/^\d{6}$/.test(code)) {
     throw httpError(400, 'Enter the six-digit verification code from your email.');
@@ -320,7 +323,7 @@ async function verifyPhoneRecoveryCode(request, response, db) {
   const challenge = challengeSnap.data();
   const attemptCount = Number(challenge.attemptCount || 0);
 
-  if (attemptCount >= PHONE_CODE_MAX_ATTEMPTS) {
+  if (attemptCount >= ACCOUNT_RECOVERY_CODE_MAX_ATTEMPTS) {
     throw httpError(429, 'Too many incorrect attempts. Request a new verification code.');
   }
 
@@ -342,18 +345,27 @@ async function verifyPhoneRecoveryCode(request, response, db) {
     verifiedAt: FieldValue.serverTimestamp()
   });
 
-  if (!challenge.profileFound || !challenge.email) {
-    throw httpError(400, "We couldn't find an account for that phone number.");
+  if (!challenge.profileFound || !challenge.profileUserId) {
+    throw httpError(400, "We couldn't find an account for that email or phone number.");
   }
 
-  response.status(200).json({ email: challenge.email, verified: true });
+  let customToken;
+
+  try {
+    customToken = await getAuth(app).createCustomToken(challenge.profileUserId);
+  } catch (error) {
+    console.error('Account recovery custom token could not be created', error);
+    throw httpError(500, 'Could not sign you in. Please try again.');
+  }
+
+  response.status(200).json({ customToken, verified: true });
 }
 
 async function enforceRecoveryRateLimit(db, request, action, targetKey) {
   const oneHour = 60 * 60 * 1000;
   const tenMinutes = 10 * 60 * 1000;
 
-  if (action === 'startPhoneRecovery') {
+  if (action === 'startAccountRecovery') {
     await enforceRateLimit(db, {
       limit: 10,
       message: 'Too many verification code requests. Please wait and try again later.',
@@ -364,7 +376,7 @@ async function enforceRecoveryRateLimit(db, request, action, targetKey) {
     await enforceRateLimit(db, {
       keyParts: [targetKey],
       limit: 5,
-      message: 'Too many verification code requests for this phone number. Please wait and try again later.',
+      message: 'Too many verification code requests for this email or phone number. Please wait and try again later.',
       scope: 'account-recovery-send-target',
       windowMs: oneHour
     });

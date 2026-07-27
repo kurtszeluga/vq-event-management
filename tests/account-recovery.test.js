@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildAccountRecoveryDocumentId,
+  classifyRecoveryIdentifier,
   formatPhoneForStorage,
   generateEmailCode,
   hashVerificationSecret,
@@ -21,14 +22,40 @@ test('formatPhoneForStorage matches the format used when saving profiles', () =>
   assert.equal(formatPhoneForStorage('555123'), '');
 });
 
-test('account recovery document IDs normalize phone digits and stay stable', () => {
-  const first = buildAccountRecoveryDocumentId(normalizePhoneDigits('(555) 123-4567'));
-  const second = buildAccountRecoveryDocumentId(normalizePhoneDigits('555-123-4567'));
-  const other = buildAccountRecoveryDocumentId(normalizePhoneDigits('(555) 999-0000'));
+test('classifyRecoveryIdentifier detects email by shape and normalizes it', () => {
+  assert.deepEqual(
+    classifyRecoveryIdentifier(' Member@Example.com '),
+    { type: 'email', value: 'member@example.com' }
+  );
+});
 
-  assert.equal(first, second);
-  assert.notEqual(first, other);
-  assert.match(first, /^[a-f0-9]{64}$/);
+test('classifyRecoveryIdentifier detects a 10-digit phone number in any format', () => {
+  assert.deepEqual(
+    classifyRecoveryIdentifier('(555) 123-4567'),
+    { type: 'phone', value: '5551234567' }
+  );
+  assert.deepEqual(
+    classifyRecoveryIdentifier('555.123.4567'),
+    { type: 'phone', value: '5551234567' }
+  );
+});
+
+test('classifyRecoveryIdentifier rejects anything that is neither', () => {
+  assert.deepEqual(classifyRecoveryIdentifier('555-123'), { type: null, value: '' });
+  assert.deepEqual(classifyRecoveryIdentifier(''), { type: null, value: '' });
+  assert.deepEqual(classifyRecoveryIdentifier('   '), { type: null, value: '' });
+});
+
+test('account recovery document IDs are stable per type and differ across types and values', () => {
+  const emailFirst = buildAccountRecoveryDocumentId('email', 'member@example.com');
+  const emailSecond = buildAccountRecoveryDocumentId('email', 'member@example.com');
+  const phoneSameValue = buildAccountRecoveryDocumentId('phone', 'member@example.com');
+  const otherPhone = buildAccountRecoveryDocumentId('phone', '5551234567');
+
+  assert.equal(emailFirst, emailSecond);
+  assert.notEqual(emailFirst, phoneSameValue);
+  assert.notEqual(phoneSameValue, otherPhone);
+  assert.match(emailFirst, /^[a-f0-9]{64}$/);
 });
 
 test('verification secrets compare only against the matching challenge and value', () => {

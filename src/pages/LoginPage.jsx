@@ -1,30 +1,25 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithCustomToken, signInWithEmailAndPassword } from 'firebase/auth';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { auth } from '../lib/firebase.js';
-import { startPhoneRecovery, verifyPhoneRecoveryCode } from '../services/accountRecoveryService.js';
-import { formatPhoneNumber } from '../utils/profileFormat.js';
+import { startAccountRecovery, verifyAccountRecoveryCode } from '../services/accountRecoveryService.js';
 
 function LoginPage() {
   const { currentUser, firebaseConfigured, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState('');
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [recoveryIdentifier, setRecoveryIdentifier] = useState('');
+  const [recoveryChallengeId, setRecoveryChallengeId] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [recoveryError, setRecoveryError] = useState('');
   const [recoveryMessage, setRecoveryMessage] = useState('');
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
-  const [sendingReset, setSendingReset] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [recoveryPhone, setRecoveryPhone] = useState('');
-  const [phoneChallengeId, setPhoneChallengeId] = useState('');
-  const [phoneCode, setPhoneCode] = useState('');
-  const [phoneRecoveryError, setPhoneRecoveryError] = useState('');
-  const [phoneRecoveryMessage, setPhoneRecoveryMessage] = useState('');
-  const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
-  const [verifyingPhoneCode, setVerifyingPhoneCode] = useState(false);
-  const [recoveredEmail, setRecoveredEmail] = useState('');
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const navigate = useNavigate();
 
   if (!loading && currentUser) {
@@ -46,81 +41,55 @@ function LoginPage() {
     }
   }
 
-  async function handlePasswordReset() {
-    const resetEmail = email.trim();
+  function resetRecoveryState() {
+    setRecoveryIdentifier('');
+    setRecoveryChallengeId('');
+    setRecoveryCode('');
     setRecoveryError('');
     setRecoveryMessage('');
+  }
 
-    if (!resetEmail) {
-      setRecoveryError('Enter your email address above first.');
+  async function handleSendRecoveryCode() {
+    setRecoveryError('');
+    setRecoveryMessage('');
+    setRecoveryCode('');
+
+    if (!recoveryIdentifier.trim()) {
+      setRecoveryError('Enter your email address or phone number.');
       return;
     }
 
-    setSendingReset(true);
+    setSendingCode(true);
 
     try {
-      await sendPasswordResetEmail(auth, resetEmail);
-      setRecoveryMessage(
-        'If that email has an account, we will send password reset instructions.'
-      );
+      const result = await startAccountRecovery(recoveryIdentifier.trim());
+      setRecoveryChallengeId(result.challengeId || '');
+      setRecoveryMessage(result.message);
     } catch (error) {
-      setRecoveryError(getPasswordResetErrorMessage(error));
+      setRecoveryError(error.message);
     } finally {
-      setSendingReset(false);
+      setSendingCode(false);
     }
   }
 
-  function resetPhoneRecoveryState() {
-    setPhoneChallengeId('');
-    setPhoneCode('');
-    setPhoneRecoveryError('');
-    setPhoneRecoveryMessage('');
-    setRecoveredEmail('');
-  }
+  async function handleVerifyRecoveryCode() {
+    setRecoveryError('');
 
-  async function handleStartPhoneRecovery() {
-    setPhoneRecoveryError('');
-    setPhoneRecoveryMessage('');
-    setRecoveredEmail('');
-    setPhoneCode('');
-
-    if (recoveryPhone.replace(/\D/g, '').length !== 10) {
-      setPhoneRecoveryError('Enter a valid 10-digit phone number.');
+    if (!recoveryChallengeId || !/^\d{6}$/.test(recoveryCode)) {
+      setRecoveryError('Enter the six-digit verification code from your email.');
       return;
     }
 
-    setSendingPhoneCode(true);
+    setVerifyingCode(true);
 
     try {
-      const result = await startPhoneRecovery(recoveryPhone);
-      setPhoneChallengeId(result.challengeId || '');
-      setPhoneRecoveryMessage(result.message);
+      const result = await verifyAccountRecoveryCode({ challengeId: recoveryChallengeId, code: recoveryCode });
+      await signInWithCustomToken(auth, result.customToken);
+      navigate('/profile?passwordReset=1', { replace: true });
     } catch (error) {
-      setPhoneRecoveryError(error.message);
+      setRecoveryError(error.message);
     } finally {
-      setSendingPhoneCode(false);
-    }
-  }
-
-  async function handleVerifyPhoneCode() {
-    setPhoneRecoveryError('');
-
-    if (!phoneChallengeId || !/^\d{6}$/.test(phoneCode)) {
-      setPhoneRecoveryError('Enter the six-digit verification code from your email.');
-      return;
-    }
-
-    setVerifyingPhoneCode(true);
-
-    try {
-      const result = await verifyPhoneRecoveryCode({ challengeId: phoneChallengeId, code: phoneCode });
-      setRecoveredEmail(result.email);
-      setPhoneRecoveryMessage('');
-      setEmail(result.email);
-    } catch (error) {
-      setPhoneRecoveryError(error.message);
-    } finally {
-      setVerifyingPhoneCode(false);
+      setVerifyingCode(false);
     }
   }
 
@@ -170,96 +139,79 @@ function LoginPage() {
               type="button"
               onClick={() => {
                 setRecoveryOpen((current) => !current);
-                setRecoveryError('');
-                setRecoveryMessage('');
-                setRecoveryPhone('');
-                resetPhoneRecoveryState();
+                resetRecoveryState();
               }}
             >
               Forgot password or username?
             </button>
             {recoveryOpen ? (
               <div className="login-recovery-panel">
-                <p>
-                  Your username is your email address. To reset your password,
-                  enter your email above and send reset instructions.
-                </p>
-                {recoveryError ? (
-                  <p className="form-error">{recoveryError}</p>
-                ) : null}
-                {recoveryMessage ? (
-                  <p className="form-success">{recoveryMessage}</p>
-                ) : null}
-                <button
-                  className="button-link button-reset secondary-action"
-                  disabled={!firebaseConfigured || sendingReset}
-                  type="button"
-                  onClick={handlePasswordReset}
-                >
-                  {sendingReset ? 'Sending...' : 'Send Password Reset Email'}
-                </button>
-                <p>
-                  Forgot your email address? Enter the phone number on your
-                  account and we&apos;ll email a verification code to the
-                  address on file.
-                </p>
-                <label>
-                  <span>Phone number</span>
-                  <input
-                    autoComplete="tel"
-                    disabled={!firebaseConfigured || sendingPhoneCode}
-                    onChange={(event) => setRecoveryPhone(formatPhoneNumber(event.target.value))}
-                    type="tel"
-                    value={recoveryPhone}
-                  />
-                </label>
-                {phoneRecoveryError ? (
-                  <p className="form-error">{phoneRecoveryError}</p>
-                ) : null}
-                {phoneRecoveryMessage ? (
-                  <p className="form-success">{phoneRecoveryMessage}</p>
-                ) : null}
-                {recoveredEmail ? (
-                  <p className="form-success">
-                    Your account email is <strong>{recoveredEmail}</strong>.
-                    We&apos;ve filled it in above &mdash; enter your password
-                    or send a password reset email.
-                  </p>
-                ) : null}
-                {!recoveredEmail ? (
-                  <button
-                    className="button-link button-reset secondary-action"
-                    disabled={!firebaseConfigured || sendingPhoneCode}
-                    type="button"
-                    onClick={handleStartPhoneRecovery}
-                  >
-                    {sendingPhoneCode ? 'Sending...' : 'Send Verification Code'}
-                  </button>
-                ) : null}
-                {phoneChallengeId && !recoveredEmail ? (
+                {!recoveryChallengeId ? (
                   <>
+                    <p>
+                      Enter the email address or phone number on your account.
+                      If we find a match, we&apos;ll email you a verification code.
+                    </p>
+                    <label>
+                      <span>Email or phone number</span>
+                      <input
+                        autoComplete="username"
+                        disabled={!firebaseConfigured || sendingCode}
+                        onChange={(event) => setRecoveryIdentifier(event.target.value)}
+                        type="text"
+                        value={recoveryIdentifier}
+                      />
+                    </label>
+                    {recoveryError ? (
+                      <p className="form-error">{recoveryError}</p>
+                    ) : null}
+                    <button
+                      className="button-link button-reset secondary-action"
+                      disabled={!firebaseConfigured || sendingCode}
+                      type="button"
+                      onClick={handleSendRecoveryCode}
+                    >
+                      {sendingCode ? 'Sending...' : 'Send Code'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {recoveryMessage ? (
+                      <p className="form-success">{recoveryMessage}</p>
+                    ) : null}
                     <label>
                       <span>Verification code</span>
                       <input
                         autoComplete="one-time-code"
-                        disabled={verifyingPhoneCode}
+                        disabled={verifyingCode}
                         inputMode="numeric"
                         maxLength={6}
-                        onChange={(event) => setPhoneCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onChange={(event) => setRecoveryCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
                         type="text"
-                        value={phoneCode}
+                        value={recoveryCode}
                       />
                     </label>
+                    {recoveryError ? (
+                      <p className="form-error">{recoveryError}</p>
+                    ) : null}
                     <button
                       className="button-link button-reset secondary-action"
-                      disabled={verifyingPhoneCode}
+                      disabled={verifyingCode}
                       type="button"
-                      onClick={handleVerifyPhoneCode}
+                      onClick={handleVerifyRecoveryCode}
                     >
-                      {verifyingPhoneCode ? 'Verifying...' : 'Verify Code'}
+                      {verifyingCode ? 'Verifying...' : 'Verify & Sign In'}
+                    </button>
+                    <button
+                      className="text-button"
+                      disabled={verifyingCode}
+                      type="button"
+                      onClick={resetRecoveryState}
+                    >
+                      Start over
                     </button>
                   </>
-                ) : null}
+                )}
               </div>
             ) : null}
           </div>
@@ -303,18 +255,6 @@ function getSignInErrorMessage(error) {
   }
 
   return 'Sign in could not be completed. Please try again.';
-}
-
-function getPasswordResetErrorMessage(error) {
-  if (error.code === 'auth/invalid-email') {
-    return 'Enter a valid email address.';
-  }
-
-  if (error.code === 'auth/too-many-requests') {
-    return 'Too many attempts. Please wait a few minutes and try again.';
-  }
-
-  return 'Password reset could not be started. Please check the email address and try again.';
 }
 
 export default LoginPage;

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import {
   updatePassword,
   updateProfile
@@ -48,6 +48,18 @@ function ProfilePage() {
   // already works.
   const [isEditing, setIsEditing] = useState(false);
   const [membershipPayments, setMembershipPayments] = useState([]);
+  const [searchParams] = useSearchParams();
+  const showPasswordResetBanner = searchParams.get('passwordReset') === '1';
+  const newPasswordInputRef = useRef(null);
+
+  // Landed here straight from the login page's email/phone recovery flow -
+  // draw attention to the password field they came here to fill in rather
+  // than leaving them to notice the section on their own.
+  useEffect(() => {
+    if (showPasswordResetBanner && currentUser) {
+      newPasswordInputRef.current?.focus();
+    }
+  }, [showPasswordResetBanner, currentUser]);
 
   // Membership-type payments (dues), not event registration payments -
   // subscribeToMembershipPayments() queries entityId === the signed-in
@@ -427,6 +439,12 @@ function ProfilePage() {
           <div className="form-section-header">
             <h2>Change Password</h2>
           </div>
+          {showPasswordResetBanner ? (
+            <p className="form-success">
+              You&apos;re signed in. Set a new password below to finish
+              recovering your account.
+            </p>
+          ) : null}
           <label>
             <span>New Password *</span>
             <input
@@ -434,6 +452,7 @@ function ProfilePage() {
               disabled={savingPassword}
               minLength={8}
               onChange={(event) => setNewPassword(event.target.value)}
+              ref={newPasswordInputRef}
               required
               type="password"
               value={newPassword}
