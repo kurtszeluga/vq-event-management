@@ -18,6 +18,7 @@ import PrivacyPage from './pages/PrivacyPage.jsx';
 import SupportPage from './pages/SupportPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import MyRegistrationsPage from './pages/MyRegistrationsPage.jsx';
+import WaitlistClaimPage from './pages/WaitlistClaimPage.jsx';
 import MemberDirectoryPage from './pages/MemberDirectoryPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import RegistrationListPrintPage from './pages/RegistrationListPrintPage.jsx';
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'my-registrations', element: <MyRegistrationsPage /> },
+      { path: 'waitlist-claim', element: <WaitlistClaimPage /> },
       { path: 'member-directory', element: <MemberDirectoryPage /> },
       { path: 'events', element: <EventsPage /> },
       { path: 'business-listings', element: <BusinessListingsPage /> },

@@ -18,6 +18,7 @@ import {
   getInitialPaymentStatus,
   getInitialRegistrationStatus,
   getReservationExpiryMillis,
+  hasActiveWaitlistOffer,
   hasAvailableSeat,
   isActiveReservation,
   isCashCheckPaymentAllowed,
@@ -25,12 +26,24 @@ import {
   reservationMatchesRequest,
   resolveAdminCollectedPayment
 } from './_lib/registration-capacity.js';
+import {
+  expireStaleWaitlistOffers,
+  waitlistOfferTokenMatches
+} from './_lib/waitlist.js';
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
 
+  // Vercel Cron always invokes via GET. Handled ahead of the POST-only gate
+  // below since this is the only action Vercel itself ever calls this way -
+  // everything else on this endpoint remains POST.
+  if (request.method === 'GET') {
+    await handleWaitlistCronRequest(request, response);
+    return;
+  }
+
   if (request.method !== 'POST') {
-    response.setHeader('Allow', 'POST');
+    response.setHeader('Allow', 'GET, POST');
     response.status(405).json({ error: 'Method not allowed.' });
     return;
   }
@@ -38,6 +51,30 @@ export default async function handler(request, response) {
   try {
     const app = initializeAdminApp();
     const db = getFirestore();
+
+    if (request.body?.action === 'claimWaitlistOffer') {
+      await enforceRateLimit(db, {
+        limit: 20,
+        message: 'Too many waitlist claim attempts. Please wait and try again later.',
+        request,
+        scope: 'waitlist-claim-ip',
+        windowMs: 10 * 60 * 1000
+      });
+      await handleClaimWaitlistOffer(request, response, db);
+      return;
+    }
+
+    if (request.body?.action === 'manuallyPromoteWaitlisted') {
+      await enforceRateLimit(db, {
+        limit: 40,
+        message: 'Too many waitlist promotion requests. Please wait and try again later.',
+        request,
+        scope: 'waitlist-promote-ip',
+        windowMs: 10 * 60 * 1000
+      });
+      await handleManuallyPromoteWaitlisted(request, response, db, app.options.projectId);
+      return;
+    }
 
     if (request.body?.action === 'squareConfig') {
       await enforceRateLimit(db, {
@@ -161,6 +198,281 @@ export default async function handler(request, response) {
       error: error.message || 'Registration could not be completed.'
     });
   }
+}
+
+async function handleWaitlistCronRequest(request, response) {
+  const cronSecret = process.env.CRON_SECRET || '';
+  const authHeader = request.headers.authorization || '';
+
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    response.status(401).json({ error: 'Unauthorized.' });
+    return;
+  }
+
+  try {
+    initializeAdminApp();
+    const db = getFirestore();
+    const result = await expireStaleWaitlistOffers(db);
+
+    response.status(200).json({ ok: true, ...result });
+  } catch (error) {
+    console.error('Waitlist cron sweep failed', error);
+    response.status(error.statusCode || 500).json({
+      error: error.message || 'Waitlist cron sweep failed.'
+    });
+  }
+}
+
+async function handleClaimWaitlistOffer(request, response, db) {
+  const registrationId = cleanText(request.body?.registrationId);
+  const token = cleanText(request.body?.token);
+  const squarePaymentToken = cleanText(request.body?.squarePaymentToken);
+  const confirmed = request.body?.confirmed === true;
+
+  if (!registrationId || !token) {
+    throw httpError(400, 'This claim link is invalid.');
+  }
+
+  const registrationRef = db.collection('registrations').doc(registrationId);
+  const registrationSnap = await registrationRef.get();
+
+  if (!registrationSnap.exists) {
+    throw httpError(404, 'This offer is no longer available.');
+  }
+
+  const registration = { id: registrationSnap.id, ...registrationSnap.data() };
+  const offerValid = registration.status === 'Waitlisted'
+    && hasActiveWaitlistOffer(registration)
+    && waitlistOfferTokenMatches(registrationId, token, registration.waitlistOfferTokenHash);
+
+  if (!offerValid) {
+    throw httpError(400, 'This offer is no longer available. It may have expired or already been claimed by someone else.');
+  }
+
+  const requiresPayment = Boolean(registration.eventPaymentRequired)
+    && registration.paymentPreference !== 'cash-check-later';
+
+  // Neither branch finalizes anything on a bare lookup: a paid claim always
+  // needs a real Square token, and a free/cash-check claim only finalizes
+  // once the member has explicitly confirmed - a page load alone (e.g. an
+  // email client's link-preview bot) must never be enough to claim a spot.
+  if ((requiresPayment && !squarePaymentToken) || (!requiresPayment && !confirmed)) {
+    response.status(200).json({
+      amountDue: registration.amountDue,
+      claimed: false,
+      eventTitle: registration.eventTitle,
+      paymentRequired: requiresPayment
+    });
+    return;
+  }
+
+  if (requiresPayment) {
+    const squarePayment = await createSquarePayment({
+      amountDue: registration.amountDue,
+      eventTitle: registration.eventTitle,
+      idempotencyKey: registrationId,
+      registrationId,
+      sourceId: squarePaymentToken
+    });
+
+    await finalizeWaitlistClaimPayment(db, registration, squarePayment);
+  } else {
+    await finalizeWaitlistClaimWithoutPayment(db, registration);
+  }
+
+  const eventSnap = await db.collection('events').doc(registration.eventId).get();
+
+  if (eventSnap.exists) {
+    await withTimeout(
+      sendRegistrationConfirmationEmail(db, {
+        event: { id: eventSnap.id, ...eventSnap.data() },
+        registration: { ...registration, status: 'Registered' }
+      }),
+      4000,
+      'Waitlist claim confirmation email timed out'
+    ).catch((emailError) => {
+      console.error('Waitlist claim confirmation email failed', emailError);
+    });
+  }
+
+  response.status(200).json({ claimed: true });
+}
+
+async function finalizeWaitlistClaimWithoutPayment(db, registration) {
+  const batch = db.batch();
+
+  batch.update(db.collection('registrations').doc(registration.id), {
+    claimedDate: FieldValue.serverTimestamp(),
+    status: 'Registered',
+    waitlistOfferedAt: FieldValue.delete(),
+    waitlistOfferExpiresAt: FieldValue.delete(),
+    waitlistOfferTokenHash: FieldValue.delete()
+  });
+  batch.set(db.collection('auditLogs').doc(), {
+    action: 'ClaimWaitlistOffer',
+    actorEmail: registration.email,
+    actorName: registration.name,
+    actorRole: 'Registrant',
+    actorUserId: registration.userId || '',
+    after: { status: 'Registered' },
+    before: { status: 'Waitlisted' },
+    createdDate: FieldValue.serverTimestamp(),
+    entityId: registration.id,
+    entityType: 'Registration',
+    summary: `${registration.name} claimed their waitlist spot for "${registration.eventTitle}"`
+  });
+
+  await batch.commit();
+}
+
+// Payment failures never reach here - createSquarePayment throws before any
+// write happens, so a declined card simply leaves the registration
+// Waitlisted with its offer (and claim window) untouched, free to retry.
+async function finalizeWaitlistClaimPayment(db, registration, squarePayment) {
+  const paymentSnapshot = await db.collection('payments')
+    .where('registrationId', '==', registration.id)
+    .limit(1)
+    .get();
+  const squareTransactionId = squarePayment.id || '';
+  const batch = db.batch();
+
+  batch.update(db.collection('registrations').doc(registration.id), {
+    amountPaid: registration.amountDue,
+    claimedDate: FieldValue.serverTimestamp(),
+    paymentMethod: 'Online',
+    paymentNote: 'Paid online through Square.',
+    paymentPreference: 'online',
+    paymentStatus: 'Paid',
+    paymentUpdatedDate: FieldValue.serverTimestamp(),
+    squareTransactionId,
+    status: 'Registered',
+    waitlistOfferedAt: FieldValue.delete(),
+    waitlistOfferExpiresAt: FieldValue.delete(),
+    waitlistOfferTokenHash: FieldValue.delete()
+  });
+
+  if (!paymentSnapshot.empty) {
+    batch.update(paymentSnapshot.docs[0].ref, {
+      amount: registration.amountDue,
+      method: 'Online',
+      note: 'Paid online through Square.',
+      processor: 'Square',
+      registrationStatus: 'Registered',
+      squareTransactionId,
+      status: 'Paid',
+      updatedRegistrationSnapshot: {
+        amountPaid: registration.amountDue,
+        paymentMethod: 'Online',
+        paymentPreference: 'online',
+        paymentStatus: 'Paid',
+        squareTransactionId,
+        status: 'Registered'
+      }
+    });
+  }
+
+  batch.set(db.collection('auditLogs').doc(), {
+    action: 'Pay',
+    actorEmail: registration.email,
+    actorName: registration.name,
+    actorRole: 'Registrant',
+    actorUserId: registration.userId || '',
+    after: { paymentStatus: 'Paid', squareTransactionId, status: 'Registered' },
+    before: { paymentStatus: registration.paymentStatus, status: 'Waitlisted' },
+    createdDate: FieldValue.serverTimestamp(),
+    entityId: registration.id,
+    entityType: 'Registration',
+    summary: `${registration.name} paid online to claim their waitlist spot for "${registration.eventTitle}"`
+  });
+
+  await batch.commit();
+}
+
+async function handleManuallyPromoteWaitlisted(request, response, db, projectId) {
+  const idToken = getBearerToken(request);
+
+  if (!idToken) {
+    throw httpError(401, 'You must be signed in to manage the waitlist.');
+  }
+
+  let decodedToken;
+
+  try {
+    decodedToken = await verifyFirebaseIdToken(idToken, projectId);
+  } catch {
+    throw httpError(401, 'Your sign-in has expired. Please sign in again.');
+  }
+
+  const actorUserId = decodedToken.user_id || decodedToken.sub || decodedToken.uid || '';
+
+  if (!actorUserId) {
+    throw httpError(401, 'Invalid authorization token.');
+  }
+
+  const actorSnap = await db.collection('users').doc(actorUserId).get();
+  const actorProfile = actorSnap.exists ? actorSnap.data() : {};
+
+  if (!canManageWaitlist(actorProfile)) {
+    throw httpError(403, 'This account cannot manage the waitlist.');
+  }
+
+  const registrationId = cleanText(request.body?.registrationId);
+
+  if (!registrationId) {
+    throw httpError(400, 'Registration ID is required.');
+  }
+
+  const registrationRef = db.collection('registrations').doc(registrationId);
+  const registrationSnap = await registrationRef.get();
+
+  if (!registrationSnap.exists) {
+    throw httpError(404, 'Registration record could not be found.');
+  }
+
+  const registration = { id: registrationSnap.id, ...registrationSnap.data() };
+
+  if (registration.status !== 'Waitlisted') {
+    throw httpError(400, 'Only a waitlisted registration can be promoted.');
+  }
+
+  const batch = db.batch();
+
+  batch.update(registrationRef, {
+    claimedDate: FieldValue.serverTimestamp(),
+    status: 'Registered',
+    waitlistOfferedAt: FieldValue.delete(),
+    waitlistOfferExpiresAt: FieldValue.delete(),
+    waitlistOfferTokenHash: FieldValue.delete()
+  });
+  batch.set(db.collection('auditLogs').doc(), {
+    action: 'ManuallyPromoteWaitlisted',
+    actorEmail: actorProfile.email || '',
+    actorName: actorProfile.name || actorProfile.email || 'Unknown Admin',
+    actorRole: actorProfile.role || '',
+    actorUserId,
+    after: { status: 'Registered' },
+    before: { status: 'Waitlisted' },
+    createdDate: FieldValue.serverTimestamp(),
+    entityId: registrationId,
+    entityType: 'Registration',
+    summary: `${actorProfile.name || 'An admin'} manually promoted ${registration.name} off the waitlist for "${registration.eventTitle}"`
+  });
+
+  await batch.commit();
+
+  response.status(200).json({ registrationId, status: 'Registered' });
+}
+
+export function canManageWaitlist(actorProfile) {
+  if (!actorProfile || actorProfile.status !== 'Active') {
+    return false;
+  }
+
+  if (actorProfile.role === 'Super User') {
+    return true;
+  }
+
+  return actorProfile.role === 'Admin' && actorProfile.permissions?.manageWaitlist === true;
 }
 
 async function enforceRegistrationRateLimit(db, request, action, payload) {
@@ -367,7 +679,9 @@ async function createRegistration(db, payload, authorization) {
     const registeredCount = existingRegistrations.filter(
       (registration) => registration.status === 'Registered'
     ).length;
-    const activeSeatCount = existingRegistrations.filter(isSeatHoldingRegistration).length;
+    const activeSeatCount = existingRegistrations.filter(
+      (registration) => isSeatHoldingRegistration(registration)
+    ).length;
     const activeReservationCount = await getActiveReservationCount(
       transaction,
       db,
@@ -731,7 +1045,9 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       throw httpError(409, 'An active registration already exists for this email and event.');
     }
 
-    const activeSeatCount = existingRegistrations.filter(isSeatHoldingRegistration).length;
+    const activeSeatCount = existingRegistrations.filter(
+      (registration) => isSeatHoldingRegistration(registration)
+    ).length;
     const activeReservationCount = await getActiveReservationCount(
       transaction,
       db,
@@ -1826,7 +2142,10 @@ function getRegistrationEmailHeading(status) {
 
 function getRegistrationEmailIntro(area, registration) {
   if (registration.status === 'Waitlisted') {
-    return `Your ${area.areaLabel.toLowerCase()} waitlist request has been received.`;
+    return `Your ${area.areaLabel.toLowerCase()} waitlist request has been received. `
+      + "If a seat opens up, we'll email you a link to claim it yourself - you won't be "
+      + "automatically registered or charged. You'll have a few days to claim it before "
+      + 'the seat is offered to the next person on the waitlist.';
   }
 
   if (registration.status === 'Pending Payment') {

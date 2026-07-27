@@ -28,6 +28,10 @@ export const USER_PERMISSION_OPTIONS = [
   {
     key: 'registerOthers',
     label: 'Register Members On Their Behalf'
+  },
+  {
+    key: 'manageWaitlist',
+    label: 'Manage Event Waitlists'
   }
 ];
 

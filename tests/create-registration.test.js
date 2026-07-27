@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { canRegisterOthers, getProfileStatus, validateRegistrationEligibility } from '../api/create-registration.js';
+import {
+  canManageWaitlist,
+  canRegisterOthers,
+  getProfileStatus,
+  validateRegistrationEligibility
+} from '../api/create-registration.js';
 
 const OPEN_EVENT = {
   eventType: 'Workshop',
@@ -148,6 +153,49 @@ describe('canRegisterOthers', () => {
   test('a missing or empty profile cannot', () => {
     assert.equal(canRegisterOthers(null), false);
     assert.equal(canRegisterOthers({}), false);
+  });
+});
+
+describe('canManageWaitlist', () => {
+  test('a Super User can manage the waitlist regardless of their permissions object', () => {
+    assert.equal(canManageWaitlist({ permissions: {}, role: 'Super User', status: 'Active' }), true);
+  });
+
+  test('an Active Admin with the permission can', () => {
+    assert.equal(
+      canManageWaitlist({ permissions: { manageWaitlist: true }, role: 'Admin', status: 'Active' }),
+      true
+    );
+  });
+
+  test('an Active Admin without the permission cannot', () => {
+    assert.equal(
+      canManageWaitlist({ permissions: { manageWaitlist: false }, role: 'Admin', status: 'Active' }),
+      false
+    );
+    assert.equal(
+      canManageWaitlist({ permissions: {}, role: 'Admin', status: 'Active' }),
+      false
+    );
+  });
+
+  test('an Inactive Admin cannot, even with the permission - the status gate wins', () => {
+    assert.equal(
+      canManageWaitlist({ permissions: { manageWaitlist: true }, role: 'Admin', status: 'Inactive' }),
+      false
+    );
+  });
+
+  test('a General User cannot, even if permissions somehow carries the key', () => {
+    assert.equal(
+      canManageWaitlist({ permissions: { manageWaitlist: true }, role: 'General User', status: 'Active' }),
+      false
+    );
+  });
+
+  test('a missing or empty profile cannot', () => {
+    assert.equal(canManageWaitlist(null), false);
+    assert.equal(canManageWaitlist({}), false);
   });
 });
 

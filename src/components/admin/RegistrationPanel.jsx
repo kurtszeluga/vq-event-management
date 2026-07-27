@@ -13,6 +13,7 @@ import {
 } from '../../services/eventService.js';
 import {
   cancelRegistration,
+  manuallyPromoteWaitlisted,
   subscribeToPayments,
   subscribeToRegistrations,
   updateRegistrationPayment
@@ -39,7 +40,12 @@ const QUARTER_FILTERS = [
 const DEFAULT_YEAR_FILTER = String(new Date().getFullYear());
 const DEFAULT_QUARTER_FILTER = getQuarterFilterValue(new Date());
 
-function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false, currentUserProfile }) {
+function RegistrationPanel({
+  canManageEvents = false,
+  canManageWaitlist = false,
+  canRegisterOthers = false,
+  currentUserProfile
+}) {
   const [activityFilter, setActivityFilter] = useState('');
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [registerMemberOpen, setRegisterMemberOpen] = useState(false);
@@ -55,6 +61,7 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
     key: 'registeredDate'
   });
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
+  const [promotingRegistrationId, setPromotingRegistrationId] = useState('');
   const [expandedRegistrationId, setExpandedRegistrationId] = useState('');
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
@@ -431,6 +438,22 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
     ),
     [registrationSortConfig, selectedEventGroup, userMap]
   );
+  // Rank is always by registrationDate ascending (first come, first offered)
+  // regardless of the table's own sort column, computed from the event
+  // group's full registration list rather than the display-sorted one.
+  const waitlistRankById = useMemo(() => {
+    const waitlisted = (selectedEventGroup?.registrations || [])
+      .filter((registration) => registration.status === 'Waitlisted')
+      .slice()
+      .sort((first, second) => getTimestampValue(first.registrationDate) - getTimestampValue(second.registrationDate));
+    const ranks = new Map();
+
+    waitlisted.forEach((registration, index) => {
+      ranks.set(registration.id, index + 1);
+    });
+
+    return ranks;
+  }, [selectedEventGroup]);
   // Uses raw (non-combined) counts, matching the server's seat-holding
   // definition (Pending Payment + Registered), so a full event is detected
   // before the admin ever picks a member, not after a submit-time refusal.
@@ -673,6 +696,25 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
     } finally {
       setSavingRegistrationId('');
       setCancelConfirmationOpen(false);
+    }
+  }
+
+  // Bypasses the offer/email/payment flow entirely - an admin vouching for
+  // someone registers them outright. Any payment still owed is collected
+  // afterward through the same payment-status edit every other registration
+  // already uses, not a separate flow here.
+  async function handlePromoteWaitlisted(registration) {
+    setError('');
+    setSuccessMessage('');
+    setPromotingRegistrationId(registration.id);
+
+    try {
+      await manuallyPromoteWaitlisted(registration.id);
+      setSuccessMessage(`${registration.name || 'Registrant'} was promoted off the waitlist.`);
+    } catch (promoteError) {
+      setError(promoteError.message || 'Registration could not be promoted.');
+    } finally {
+      setPromotingRegistrationId('');
     }
   }
 
@@ -925,7 +967,11 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                             </td>
                             <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
                             <td data-label="Membership">{user?.membershipStatus || 'Unknown'}</td>
-                            <td data-label="Registration Status">{registration.status || 'Registered'}</td>
+                            <td data-label="Registration Status">
+                              {registration.status === 'Waitlisted'
+                                ? getWaitlistStatusText(registration, waitlistRankById.get(registration.id))
+                                : (registration.status || 'Registered')}
+                            </td>
                             <td data-label="Payment">{formatPaymentSummary(registration)}</td>
                             <td data-label="Profile">
                               {registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
@@ -946,6 +992,16 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                                 >
                                   Edit
                                 </button>
+                                {canManageWaitlist && registration.status === 'Waitlisted' ? (
+                                  <button
+                                    className="button-link button-reset secondary-action compact-action"
+                                    disabled={promotingRegistrationId === registration.id}
+                                    type="button"
+                                    onClick={() => handlePromoteWaitlisted(registration)}
+                                  >
+                                    {promotingRegistrationId === registration.id ? 'Promoting...' : 'Promote'}
+                                  </button>
+                                ) : null}
                               </div>
                             </td>
                           </tr>
@@ -971,7 +1027,12 @@ function RegistrationPanel({ canManageEvents = false, canRegisterOthers = false,
                                       label="Membership When Registered"
                                       value={registration.membershipStatusAtRegistration || 'Unknown'}
                                     />
-                                    <DetailItem label="Registration Status" value={registration.status || 'Registered'} />
+                                    <DetailItem
+                                      label="Registration Status"
+                                      value={registration.status === 'Waitlisted'
+                                        ? getWaitlistStatusText(registration, waitlistRankById.get(registration.id))
+                                        : (registration.status || 'Registered')}
+                                    />
                                     <DetailItem label="Amount Due" value={formatCurrencyValue(getAmountDue(registration))} />
                                     <DetailItem label="Amount Paid" value={formatCurrencyValue(registration.amountPaid || 0)} />
                                     <DetailItem label="Payment Status" value={formatPaymentSummary(registration)} />
@@ -1491,6 +1552,18 @@ function getTimestampValue(value) {
 
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+}
+
+function getWaitlistStatusText(registration, rank) {
+  const rankText = rank ? `#${rank}` : '';
+  const expiresAtMillis = getTimestampValue(registration.waitlistOfferExpiresAt);
+  const hasActiveOffer = Boolean(expiresAtMillis) && expiresAtMillis > Date.now();
+
+  if (!hasActiveOffer) {
+    return `Waitlisted ${rankText}`.trim();
+  }
+
+  return `Waitlisted ${rankText} - Offer sent, expires ${formatDateTime(registration.waitlistOfferExpiresAt)}`.trim();
 }
 
 function formatDateTime(value) {

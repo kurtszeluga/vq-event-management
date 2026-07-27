@@ -2,6 +2,8 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
+import { isSeatHoldingRegistration } from './_lib/registration-capacity.js';
+import { createNextWaitlistOffer } from './_lib/waitlist.js';
 
 const PAYMENT_METHODS = ['', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -172,6 +174,10 @@ export default async function handler(request, response) {
     });
 
     await batch.commit();
+
+    if (effectiveStatusUpdate.status === 'Cancelled') {
+      await promoteFromWaitlistIfSeatFreed(db, before);
+    }
 
     if (shouldSendRefundNotification({
       paymentUpdate: effectivePaymentUpdate,
@@ -587,6 +593,8 @@ async function cancelRegistrationWithoutRefund({
 
   await batch.commit();
 
+  await promoteFromWaitlistIfSeatFreed(db, before);
+
   const updatedRegistration = {
     ...before,
     ...paymentUpdate,
@@ -987,6 +995,30 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
       setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
     })
   ]);
+}
+
+// `before` is the registration snapshot from immediately before it was
+// cancelled - only a registration that was actually holding a seat (a plain
+// Registered/Pending Payment registration, or a Waitlisted one with an
+// active offer) frees one up worth re-offering.
+async function promoteFromWaitlistIfSeatFreed(db, before) {
+  if (!isSeatHoldingRegistration(before) || !before.eventId) {
+    return;
+  }
+
+  await withTimeout(
+    (async () => {
+      const eventSnap = await db.collection('events').doc(before.eventId).get();
+
+      if (eventSnap.exists) {
+        await createNextWaitlistOffer(db, { id: eventSnap.id, ...eventSnap.data() });
+      }
+    })(),
+    4000,
+    'Waitlist offer creation timed out'
+  ).catch((error) => {
+    console.error('Waitlist offer creation failed', error);
+  });
 }
 
 function getBearerToken(request) {

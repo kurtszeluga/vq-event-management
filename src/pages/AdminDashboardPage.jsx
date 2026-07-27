@@ -43,6 +43,7 @@ function AdminDashboardPage() {
   const canManageEvents = hasPermission('manageEvents');
   const canAddUsers = hasPermission('addUsers');
   const canRegisterOthers = isSuperUser || hasPermission('registerOthers');
+  const canManageWaitlist = isSuperUser || hasPermission('manageWaitlist');
   const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
   const canViewRegistrations = hasPermission('viewRegistrations');
   // Single source of truth for the Manage/Edit row: the desktop buttons, the
@@ -491,6 +492,7 @@ function AdminDashboardPage() {
         {canViewRegistrations && activeModule === 'registrations' ? (
           <RegistrationPanel
             canManageEvents={canManageEvents}
+            canManageWaitlist={canManageWaitlist}
             canRegisterOthers={canRegisterOthers}
             currentUserProfile={userProfile}
           />

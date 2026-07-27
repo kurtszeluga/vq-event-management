@@ -6,8 +6,18 @@ export const PAYMENT_RESERVATION_EXPIRATION_MS = 5 * 60 * 1000;
 
 const SEAT_HOLDING_STATUSES = ['Pending Payment', 'Registered'];
 
-export function isSeatHoldingRegistration(registration = {}) {
-  return SEAT_HOLDING_STATUSES.includes(registration.status);
+// A Waitlisted registration with an unexpired offer is holding the seat that
+// was just offered to it - this is the entire mechanism preventing that seat
+// from being double-offered or grabbed by a fresh registrant during the
+// claim window, with no separate reservation collection needed.
+export function hasActiveWaitlistOffer(registration = {}, now = Date.now()) {
+  const expiresAt = getTimestampMillis(registration.waitlistOfferExpiresAt);
+  return Boolean(expiresAt) && expiresAt > now;
+}
+
+export function isSeatHoldingRegistration(registration = {}, now = Date.now()) {
+  return SEAT_HOLDING_STATUSES.includes(registration.status)
+    || (registration.status === 'Waitlisted' && hasActiveWaitlistOffer(registration, now));
 }
 
 // Capacity of 0 with capacityUnlimited unset yields no available seat, so every

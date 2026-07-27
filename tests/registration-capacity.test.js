@@ -9,6 +9,7 @@ import {
   getInitialPaymentStatus,
   getInitialRegistrationStatus,
   getReservationExpiryMillis,
+  hasActiveWaitlistOffer,
   hasAvailableSeat,
   isActiveReservation,
   isCashCheckPaymentAllowed,
@@ -27,6 +28,34 @@ test('only registered and pending-payment registrations hold a seat', () => {
   assert.equal(isSeatHoldingRegistration({ status: 'Cancelled' }), false);
   assert.equal(isSeatHoldingRegistration({ status: 'Waitlisted' }), false);
   assert.equal(isSeatHoldingRegistration({}), false);
+});
+
+test('hasActiveWaitlistOffer is true only while the offer has not yet expired', () => {
+  assert.equal(hasActiveWaitlistOffer({}, NOW), false);
+  assert.equal(
+    hasActiveWaitlistOffer({ waitlistOfferExpiresAt: new Date(NOW + 1000).toISOString() }, NOW),
+    true
+  );
+  assert.equal(
+    hasActiveWaitlistOffer({ waitlistOfferExpiresAt: new Date(NOW - 1000).toISOString() }, NOW),
+    false
+  );
+});
+
+test('a waitlisted registration with an active offer holds the seat it was offered', () => {
+  const offered = {
+    status: 'Waitlisted',
+    waitlistOfferExpiresAt: new Date(NOW + 1000).toISOString()
+  };
+  const expiredOffer = {
+    status: 'Waitlisted',
+    waitlistOfferExpiresAt: new Date(NOW - 1000).toISOString()
+  };
+
+  assert.equal(isSeatHoldingRegistration(offered, NOW), true);
+  assert.equal(isSeatHoldingRegistration(expiredOffer, NOW), false);
+  // Never offered at all - the plain "waitlisted, nothing pending" case.
+  assert.equal(isSeatHoldingRegistration({ status: 'Waitlisted' }, NOW), false);
 });
 
 test('an active payment hold consumes the last seat', () => {

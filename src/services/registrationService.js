@@ -406,6 +406,59 @@ export async function cancelRegistration(registrationId, { cancelNote = '' } = {
   return result;
 }
 
+// No auth token - the claim link's own token, emailed only to the
+// waitlisted member, is what authorizes this. Matches the magic-link design
+// already used for login recovery, so no sign-in is required to claim.
+export async function claimWaitlistOffer({ confirmed = false, registrationId, squarePaymentToken = '', token }) {
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({
+      action: 'claimWaitlistOffer',
+      confirmed,
+      registrationId,
+      squarePaymentToken,
+      token
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'This offer could not be claimed.');
+  }
+
+  return result;
+}
+
+export async function manuallyPromoteWaitlisted(registrationId) {
+  const idToken = await auth?.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('You must be signed in to manage the waitlist.');
+  }
+
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({
+      action: 'manuallyPromoteWaitlisted',
+      registrationId
+    }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Registration could not be promoted.');
+  }
+
+  return result;
+}
+
 async function parseJsonResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   const bodyText = await response.text();

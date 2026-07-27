@@ -25,5 +25,11 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/create-registration",
+      "schedule": "0 13 * * *"
+    }
   ]
 }
