@@ -51,6 +51,11 @@ function ProfilePage() {
   const [searchParams] = useSearchParams();
   const showPasswordResetBanner = searchParams.get('passwordReset') === '1';
   const newPasswordInputRef = useRef(null);
+  // Fires setIsEditing(true) at most once - without this guard, every
+  // Firestore snapshot update to userProfile would re-run the effect below
+  // and pop the form back into edit mode even after the member had
+  // deliberately clicked Cancel.
+  const autoEditOpenedRef = useRef(false);
 
   // Landed here straight from the login page's email/phone recovery flow -
   // draw attention to the password field they came here to fill in rather
@@ -60,6 +65,17 @@ function ProfilePage() {
       newPasswordInputRef.current?.focus();
     }
   }, [showPasswordResetBanner, currentUser]);
+
+  // Also open the profile details straight into edit mode so they can fix
+  // up their name/phone/address in the same visit, not just the password.
+  // Waits for userProfile so the sync effect below has already populated
+  // the form fields from real data before edit mode reveals them.
+  useEffect(() => {
+    if (showPasswordResetBanner && currentUser && userProfile && !autoEditOpenedRef.current) {
+      autoEditOpenedRef.current = true;
+      setIsEditing(true);
+    }
+  }, [showPasswordResetBanner, currentUser, userProfile]);
 
   // Membership-type payments (dues), not event registration payments -
   // subscribeToMembershipPayments() queries entityId === the signed-in

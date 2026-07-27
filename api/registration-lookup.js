@@ -236,8 +236,11 @@ async function verifyEmailCode(request, response, db) {
   });
 }
 
+// The 10 minutes named here must track ACCOUNT_RECOVERY_CODE_EXPIRATION_MS
+// below - it's restated in copy because the code's own expiry isn't
+// otherwise visible to the person who just requested it.
 const ACCOUNT_RECOVERY_GENERIC_MESSAGE = 'If we found an account matching that email or phone number, '
-  + 'we sent a verification code to the email address on file.';
+  + 'we sent a verification code to the email address on file. The code expires in 10 minutes.';
 
 async function startAccountRecovery(request, response, db) {
   const identifier = classifyRecoveryIdentifier(request.body?.identifier);
