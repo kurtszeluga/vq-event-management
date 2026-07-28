@@ -3892,13 +3892,44 @@ body.nav-sheet-open {
     padding: 0;
   }
 
-  /* Safari's print pagination is extremely slow to compute inside a
-     scrollable (overflow-x: auto) container - on the registration list
-     print page this alone stalled the print dialog for a long time, even
-     though Chrome/Firefox handle it instantly. Let the table overflow the
-     page width instead of scrolling so Safari can paginate it directly. */
   .user-table-wrap {
     overflow: visible;
+  }
+
+  /* table-layout: auto makes Safari re-scan every cell in every column to
+     size them, then redo that scan per printed page - fine for the handful
+     of rows other admin tables show on screen, but on the registration list
+     print page (which can run to dozens of registrants on one table) it's
+     what actually stalls the print dialog, not the scrolling wrapper above.
+     Fixed layout with explicit widths sizes columns from the header row
+     alone, which Chrome/Firefox already did well enough not to need this. */
+  .registration-table {
+    table-layout: fixed;
+  }
+
+  .registration-table th:nth-child(1),
+  .registration-table td:nth-child(1) {
+    width: 32%;
+  }
+
+  .registration-table th:nth-child(2),
+  .registration-table td:nth-child(2) {
+    width: 14%;
+  }
+
+  .registration-table th:nth-child(3),
+  .registration-table td:nth-child(3) {
+    width: 20%;
+  }
+
+  .registration-table th:nth-child(4),
+  .registration-table td:nth-child(4) {
+    width: 14%;
+  }
+
+  .registration-table th:nth-child(5),
+  .registration-table td:nth-child(5) {
+    width: 20%;
   }
 
   .viewer-pdf-preview {
