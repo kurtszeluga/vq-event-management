@@ -496,6 +496,7 @@ function AdminDashboardPage() {
               defaultEventTypeFilter={eventModuleConfig[activeModule].filter}
               showTypeFilters={eventModuleConfig[activeModule].showTypeFilters}
               excludedEventTypes={eventModuleConfig[activeModule].excludedEventTypes}
+              sourceModule={activeModule}
             />
           </section>
         ) : null}

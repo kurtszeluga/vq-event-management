@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth.js';
 import { getEvent } from '../services/eventService.js';
 import { getRegistrationsForEvent } from '../services/registrationService.js';
@@ -14,6 +14,8 @@ import { isPaymentPending } from '../utils/registrationEligibility.js';
 function RegistrationListPrintPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnModule = location.state?.module || '';
   const { hasPermission } = useAuth();
   const canViewRegistrations = hasPermission('viewRegistrations');
   const [event, setEvent] = useState(null);
@@ -78,9 +80,19 @@ function RegistrationListPrintPage() {
     window.print();
   }
 
-  function handleClose() {
+  function handleReturn() {
     if (window.opener) {
       window.close();
+      return;
+    }
+
+    // Reached via an in-app Link from the admin dashboard, which stashes the
+    // module it was on (Events/Activities, Registrations, etc.) since that
+    // tab is tracked in memory rather than in the URL - a plain history.back()
+    // would land on /admin without it, dropping the admin onto the module
+    // chooser instead of the list they came from.
+    if (returnModule) {
+      navigate('/admin', { state: { module: returnModule } });
       return;
     }
 
@@ -101,8 +113,8 @@ function RegistrationListPrintPage() {
             <h1>Permission required</h1>
           </div>
           <div className="viewer-actions">
-            <button className="button-link" type="button" onClick={handleClose}>
-              Close
+            <button className="button-link" type="button" onClick={handleReturn}>
+              Return
             </button>
           </div>
         </header>
@@ -135,8 +147,8 @@ function RegistrationListPrintPage() {
             <h1>Event unavailable</h1>
           </div>
           <div className="viewer-actions">
-            <button className="button-link" type="button" onClick={handleClose}>
-              Close
+            <button className="button-link" type="button" onClick={handleReturn}>
+              Return
             </button>
           </div>
         </header>
@@ -156,8 +168,8 @@ function RegistrationListPrintPage() {
           <button className="button-link secondary-action" type="button" onClick={handlePrint}>
             Print
           </button>
-          <button className="button-link" type="button" onClick={handleClose}>
-            Close
+          <button className="button-link" type="button" onClick={handleReturn}>
+            Return
           </button>
         </div>
       </header>

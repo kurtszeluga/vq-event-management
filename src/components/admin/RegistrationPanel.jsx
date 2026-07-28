@@ -1131,6 +1131,7 @@ function RegistrationPanel({
                 <Link
                   className="button-link secondary-action"
                   to={`/admin/events/${group.eventId}/registrations/print`}
+                  state={{ module: 'registrations' }}
                 >
                   Print Registration List
                 </Link>

@@ -39,7 +39,8 @@ function EventList({
   lastSavedEventId = '',
   defaultEventTypeFilter = ALL_TYPES,
   showTypeFilters = true,
-  excludedEventTypes = []
+  excludedEventTypes = [],
+  sourceModule = ''
 }) {
   const excludedTypes = useMemo(() => new Set(excludedEventTypes), [excludedEventTypes]);
   const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
@@ -410,6 +411,7 @@ function EventList({
               <Link
                 className="button-link secondary-action"
                 to={`/admin/events/${event.id}/registrations/print`}
+                state={{ module: sourceModule }}
               >
                 Print Registration List
               </Link>
