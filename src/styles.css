@@ -3892,6 +3892,15 @@ body.nav-sheet-open {
     padding: 0;
   }
 
+  /* Safari's print pagination is extremely slow to compute inside a
+     scrollable (overflow-x: auto) container - on the registration list
+     print page this alone stalled the print dialog for a long time, even
+     though Chrome/Firefox handle it instantly. Let the table overflow the
+     page width instead of scrolling so Safari can paginate it directly. */
+  .user-table-wrap {
+    overflow: visible;
+  }
+
   .viewer-pdf-preview {
     gap: 0;
   }
