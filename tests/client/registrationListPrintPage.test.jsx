@@ -5,7 +5,8 @@ const navigateMock = vi.fn();
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
-  useParams: () => ({ eventId: 'evt-1' })
+  useParams: () => ({ eventId: 'evt-1' }),
+  useLocation: () => ({ state: null })
 }));
 
 let hasPermissionResult = true;
