@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPhotoCount } from '../EventImageCarousel.jsx';
+import { getEventPlaceholderImage } from '../../data/eventOptions.js';
 import {
   formatCurrency,
   formatEventDate,
@@ -380,6 +381,8 @@ function EventList({
                   {formatPhotoCount(event.imageUrls.filter(Boolean).length)}
                 </p>
               </>
+            ) : getEventPlaceholderImage(event.eventType) ? (
+              <img alt="No image uploaded" src={getEventPlaceholderImage(event.eventType)} />
             ) : (
               <div className="image-placeholder" aria-label="No image uploaded" />
             )}

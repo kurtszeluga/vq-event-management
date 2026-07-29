@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import EventImageCarousel from '../components/EventImageCarousel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import { getEventPlaceholderImage } from '../data/eventOptions.js';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
@@ -105,9 +106,12 @@ function buildEventPrintHtml(event) {
     ? `<div class="meta-row"><div class="meta-label">Registration Open/Closes</div><div>${escapeHtml(formatRegistrationDateRange(event))}</div></div>`
     : '';
   const imageUrl = event.imageUrls?.find(Boolean) || '';
+  const placeholderImage = getEventPlaceholderImage(event.eventType);
   const imageBlock = imageUrl
     ? `<div class="image-wrap"><img alt="${title} thumbnail" src="${escapeHtml(imageUrl)}" /></div>`
-    : '<div class="image-wrap image-placeholder" aria-label="No image uploaded"></div>';
+    : placeholderImage
+      ? `<div class="image-wrap"><img alt="No image uploaded" src="${escapeHtml(placeholderImage)}" /></div>`
+      : '<div class="image-wrap image-placeholder" aria-label="No image uploaded"></div>';
 
   return `<!doctype html>
   <html lang="en">
@@ -553,7 +557,11 @@ function EventsPage() {
                 ) : null}
               </div>
               <div className="public-event-card-thumbnail">
-                <EventImageCarousel altText={`${event.title} thumbnail`} imageUrls={event.imageUrls} />
+                <EventImageCarousel
+                  altText={`${event.title} thumbnail`}
+                  eventType={event.eventType}
+                  imageUrls={event.imageUrls}
+                />
               </div>
               <div className="public-event-card-actions">
                 {event.supplyListUrl ? (

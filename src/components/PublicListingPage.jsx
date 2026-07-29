@@ -109,7 +109,11 @@ function PublicListingPage({
                 </dl>
               </div>
               <div className="public-event-card-thumbnail">
-                <EventImageCarousel altText={`${titleText} thumbnail`} imageUrls={event.imageUrls} />
+                <EventImageCarousel
+                  altText={`${titleText} thumbnail`}
+                  eventType={event.eventType}
+                  imageUrls={event.imageUrls}
+                />
               </div>
             </article>
           );

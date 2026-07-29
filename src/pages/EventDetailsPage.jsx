@@ -219,7 +219,11 @@ function EventDetailsPage() {
           </div>
         </div>
         <div className="event-image-grid">
-          <EventImageCarousel altText={`${event.title} image`} imageUrls={event.imageUrls} />
+          <EventImageCarousel
+            altText={`${event.title} image`}
+            eventType={event.eventType}
+            imageUrls={event.imageUrls}
+          />
         </div>
       </div>
     </section>

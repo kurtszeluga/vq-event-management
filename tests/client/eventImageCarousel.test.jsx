@@ -12,12 +12,33 @@ afterEach(() => {
 });
 
 describe('EventImageCarousel', () => {
-  it('renders the existing placeholder when there are no images', () => {
+  it('renders the existing blank placeholder when there are no images and no known type', () => {
     render(<EventImageCarousel altText="Guild Retreat thumbnail" imageUrls={[]} />);
 
     expect(screen.getByLabelText('No image uploaded')).toBeInTheDocument();
     expect(screen.queryByRole('img')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('renders the default quilt-block image for a type that has one', () => {
+    render(<EventImageCarousel altText="Guild Retreat thumbnail" eventType="Workshop" imageUrls={[]} />);
+
+    const img = screen.getByRole('img');
+    expect(img).toHaveAttribute('src', '/assets/event-placeholders/workshop.svg');
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('renders the existing blank placeholder for types with no default image', () => {
+    render(<EventImageCarousel altText="Guild Retreat thumbnail" eventType="For Sale" imageUrls={[]} />);
+
+    expect(screen.getByLabelText('No image uploaded')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('prefers a real uploaded photo over the default image', () => {
+    render(<EventImageCarousel altText="Guild Retreat thumbnail" eventType="Workshop" imageUrls={['photo-1.jpg']} />);
+
+    expect(screen.getByAltText('Guild Retreat thumbnail')).toHaveAttribute('src', 'photo-1.jpg');
   });
 
   it('renders the image with no controls but a singular "1 Photo" caption when there is exactly one', () => {

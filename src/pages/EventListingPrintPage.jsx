@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
+import { getEventPlaceholderImage } from '../data/eventOptions.js';
 import { getEvent } from '../services/eventService.js';
 import {
   formatCurrency,
@@ -181,6 +182,8 @@ function EventListingPrintPage() {
         <div className="public-event-card-thumbnail">
           {thumbnailUrl ? (
             <img alt={`${event.title} thumbnail`} src={thumbnailUrl} />
+          ) : getEventPlaceholderImage(event.eventType) ? (
+            <img alt="No image uploaded" src={getEventPlaceholderImage(event.eventType)} />
           ) : (
             <div className="image-placeholder" aria-label="No image uploaded" />
           )}

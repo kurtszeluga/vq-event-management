@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getEventPlaceholderImage } from '../data/eventOptions.js';
 
 const AUTO_ROTATE_INTERVAL_MS = 4000;
 
@@ -8,7 +9,7 @@ const AUTO_ROTATE_INTERVAL_MS = 4000;
 // are 2+ photos to flip between - never a side-by-side strip - but the photo
 // count caption shows for any single image too. The pause toggle is a WCAG
 // 2.2.2 requirement for any auto-updating content, not just a nicety.
-function EventImageCarousel({ altText, imageUrls = [], placeholderLabel = 'No image uploaded' }) {
+function EventImageCarousel({ altText, eventType, imageUrls = [], placeholderLabel = 'No image uploaded' }) {
   const images = imageUrls.filter(Boolean);
   const hasMultiple = images.length > 1;
   const [index, setIndex] = useState(0);
@@ -30,6 +31,12 @@ function EventImageCarousel({ altText, imageUrls = [], placeholderLabel = 'No im
   }, [hasMultiple, isPaused, index]);
 
   if (!images.length) {
+    const defaultImage = getEventPlaceholderImage(eventType);
+
+    if (defaultImage) {
+      return <img alt={placeholderLabel} src={defaultImage} />;
+    }
+
     return <div className="image-placeholder" aria-label={placeholderLabel} />;
   }
 
