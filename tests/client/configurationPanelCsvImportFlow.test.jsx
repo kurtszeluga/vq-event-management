@@ -1,14 +1,14 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// The bug this guards against: after a CSV import, rows that failed
-// validation (missing name, invalid email, etc.) used to vanish along with
-// the rest of the preview - the admin had no way to find and fix them.
-// This drives the real component through choose -> review -> import and
-// checks the flagged rows persist afterward with working Edit/Dismiss
-// actions, instead of mocking ConfigurationPanel away like the dashboard
-// nav tests do.
+// Rows with data problems (missing name, bad email/phone) are no longer
+// excluded from import and shown only in a preview that vanishes once the
+// admin confirms - that left no durable way to find and fix them. They now
+// import anyway with a Pending membership status and a review note (see
+// configurationServiceCsvPendingReview.test.js for that logic), landing in
+// the existing, durable Membership Profiles list instead of a side panel
+// that only lived in this component's in-memory state.
 
 const importMembersFromCsvRowsMock = vi.fn();
 
@@ -81,12 +81,35 @@ async function uploadCsv(user, file) {
   await user.upload(fileInput, file);
 }
 
-describe('CSV import: rows needing fixing persist after import', () => {
-  it('keeps invalid rows visible with Edit/Dismiss actions once the import completes', async () => {
+describe('CSV import: rows with issues import as Pending instead of being excluded', () => {
+  it('shows a review warning (not a block) in the preview and still offers to import every row', async () => {
+    const user = userEvent.setup();
+    render(<ConfigurationPanel currentUserProfile={{ id: 'admin-1', name: 'Admin' }} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Membership Profiles' }));
+
+    await uploadCsv(
+      user,
+      makeCsvFile([
+        'Adams,Nancy,adamsn952@gmail.com,919 349-2725',
+        ',Sam,sam.no-lastname@example.com,555-201-9813',
+        'Egan,Judy,not-an-email,555-201-9815'
+      ])
+    );
+
+    expect(await screen.findByText(/3 rows found, 3 ready to import, 2 will need review/)).toBeTruthy();
+    expect(screen.getByText(/Row 2 \(Sam\): Missing last name/)).toBeTruthy();
+    expect(screen.getByText(/Row 3 \(Judy Egan\): Invalid email format/)).toBeTruthy();
+    // All 3 - nothing is excluded from the count anymore.
+    expect(screen.getByRole('button', { name: 'Import 3 Profiles' })).not.toBeDisabled();
+  });
+
+  it('reports how many rows were set to Pending for review after import completes', async () => {
     const user = userEvent.setup();
     importMembersFromCsvRowsMock.mockResolvedValue({
-      createdCount: 1,
-      importedCount: 1,
+      createdCount: 3,
+      importedCount: 3,
+      pendingReviewCount: 2,
       reviewCount: 0,
       reviewRows: [],
       skippedSuperUserCount: 0,
@@ -106,31 +129,19 @@ describe('CSV import: rows needing fixing persist after import', () => {
       ])
     );
 
-    expect(await screen.findByText(/2 rows need fixing/)).toBeTruthy();
-
-    await user.click(screen.getByRole('button', { name: 'Import 1 Profile' }));
+    await user.click(screen.getByRole('button', { name: 'Import 3 Profiles' }));
 
     await waitFor(() => {
       expect(importMembersFromCsvRowsMock).toHaveBeenCalledTimes(1);
     });
+    expect(importMembersFromCsvRowsMock.mock.calls[0][0]).toHaveLength(3);
 
-    // The old bug: this whole section disappeared with the rest of the
-    // preview once setCsvPreview(null) ran after a successful import.
-    expect(await screen.findByText('Rows That Need Fixing')).toBeTruthy();
-    expect(screen.getByText(/Missing last name/)).toBeTruthy();
-    expect(screen.getByText(/Invalid email format/)).toBeTruthy();
-    expect(screen.queryByText(/rows need fixing before they can be imported/)).toBeNull();
-
-    const samRow = screen.getByText(/Row 2: Sam/).closest('.configuration-review-item');
-    await user.click(within(samRow).getByRole('button', { name: 'Edit' }));
-
-    expect(await screen.findByDisplayValue('Sam')).toBeTruthy();
-    expect(screen.getByDisplayValue('sam.no-lastname@example.com')).toBeTruthy();
-
-    const judyRow = screen.getByText(/Row 3: Judy Egan/).closest('.configuration-review-item');
-    await user.click(within(judyRow).getByRole('button', { name: 'Dismiss' }));
-
-    expect(screen.queryByText(/Row 3: Judy Egan/)).toBeNull();
-    expect(screen.getByText(/Row 2: Sam/)).toBeTruthy();
+    expect(
+      await screen.findByText(/2 row\(s\) had missing or invalid data and were set to Pending/)
+    ).toBeTruthy();
+    // The old side list is gone - Pending review now lives in the profile
+    // list itself (via the existing Pending status filter), not a widget
+    // that only survives until the next render.
+    expect(screen.queryByText('Rows That Need Fixing')).toBeNull();
   });
 });

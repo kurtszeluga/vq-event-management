@@ -449,6 +449,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
   });
 
   const membershipPaymentWrites = [];
+  let pendingReviewCount = 0;
   const profileWrites = importedProfiles.flatMap((profile) => {
     const existingAnyProfileByEmail = profile.email ? allProfilesByEmail.get(profile.email) : null;
 
@@ -467,7 +468,14 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
       importedProfileIds.add(existingByEmail.id);
       const value = buildImportedExistingProfile(existingByEmail, profile, 'email', termsVersion);
 
-      if (shouldRecordCsvMembershipPayment(existingByEmail, profile.status, isAnnualRefresh)) {
+      if (profile.issues.length) {
+        pendingReviewCount += 1;
+      }
+
+      // Use the profile's own final membershipStatus (value), not the raw
+      // imported status - a row with issues is forced to Pending above and
+      // must never be recorded as a paid membership because of that.
+      if (shouldRecordCsvMembershipPayment(existingByEmail, value.membershipStatus, isAnnualRefresh)) {
         membershipPaymentWrites.push(buildCsvMembershipPaymentWrite({
           actorProfile,
           importMode: isAnnualRefresh ? 'Annual Refresh' : 'Add/Update Only',
@@ -501,7 +509,11 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     importedProfileIds.add(profile.profileId);
     const value = buildImportedNewProfile(profile, termsVersion);
 
-    if (profile.status === 'Active') {
+    if (profile.issues.length) {
+      pendingReviewCount += 1;
+    }
+
+    if (value.membershipStatus === 'Active') {
       membershipPaymentWrites.push(buildCsvMembershipPaymentWrite({
         actorProfile,
         importMode: isAnnualRefresh ? 'Annual Refresh' : 'Add/Update Only',
@@ -596,6 +608,7 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     createdCount,
     importedCount: importedProfiles.length,
     inactivatedCount: profilesToInactivate.length,
+    pendingReviewCount,
     reviewCount: reviewRows.length,
     reviewRows,
     skippedSuperUserCount: skippedSuperUserRows.length,
@@ -854,16 +867,22 @@ function buildMemberPayload(member, memberId) {
   };
 }
 
-function buildProfileImportPayload(profile, profileId) {
-  const email = cleanText(profile.email).toLowerCase();
+// A malformed email/phone from the CSV is never written as-is - that would
+// either overwrite a good existing value or store garbage on a new profile.
+// It's left blank here (buildImportedExistingProfile/buildImportedNewProfile
+// fall back to the existing value or nothing) and the reason goes into
+// issues instead, which becomes part of the profile's review note below.
+export function buildProfileImportPayload(profile, profileId) {
+  const email = profile.emailInvalid ? '' : cleanText(profile.email).toLowerCase();
   const firstName = cleanText(profile.firstName);
   const lastName = cleanText(profile.lastName);
   const name = cleanText(profile.name || [firstName, lastName].filter(Boolean).join(' '));
-  const phone = cleanText(profile.phone);
+  const phone = profile.phoneInvalid ? '' : cleanText(profile.phone);
 
   return {
     email,
     firstName,
+    issues: Array.isArray(profile.issues) ? profile.issues : [],
     lastName,
     name,
     normalizedPhone: normalizePhone(phone),
@@ -879,7 +898,11 @@ export function buildImportedExistingProfile(existingProfile, importedProfile, m
   const lastName = importedProfile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name);
   const name = importedProfile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' ');
   const termsAcceptance = buildOfflineTermsAcceptance(existingProfile, termsVersion);
-  const membershipStatus = importedProfile.status;
+  const issues = Array.isArray(importedProfile.issues) ? importedProfile.issues : [];
+  // A row with issues never becomes Active from a CSV import, even during
+  // an Annual Refresh that would otherwise force it - Pending keeps it
+  // visible for review instead of silently treating bad data as paid.
+  const membershipStatus = issues.length ? 'Pending' : importedProfile.status;
   const role = getMembershipAllowedRole(existingProfile, membershipStatus);
 
   return {
@@ -893,6 +916,7 @@ export function buildImportedExistingProfile(existingProfile, importedProfile, m
     lastName,
     membershipMatchedBy: matchedBy,
     membershipMemberId: '',
+    membershipReviewNote: buildCsvReviewNote(existingProfile.membershipReviewNote, issues),
     membershipPaymentAmount: membershipStatus === 'Active'
       ? 0
       : existingProfile.membershipPaymentAmount || 0,
@@ -923,6 +947,9 @@ export function buildImportedExistingProfile(existingProfile, importedProfile, m
 }
 
 export function buildImportedNewProfile(importedProfile, termsVersion) {
+  const issues = Array.isArray(importedProfile.issues) ? importedProfile.issues : [];
+  const membershipStatus = issues.length ? 'Pending' : importedProfile.status;
+
   return {
     billingAddress: { ...getEmptyBillingAddress(), city: importedProfile.town || '' },
     createdDate: serverTimestamp(),
@@ -931,14 +958,15 @@ export function buildImportedNewProfile(importedProfile, termsVersion) {
     lastName: importedProfile.lastName,
     membershipMatchedBy: 'csv',
     membershipMemberId: '',
-    membershipPaymentAmount: importedProfile.status === 'Active' ? 0 : 0,
+    membershipPaymentAmount: membershipStatus === 'Active' ? 0 : 0,
     membershipPaymentMethod: '',
-    membershipPaymentNote: importedProfile.status === 'Active'
+    membershipPaymentNote: membershipStatus === 'Active'
       ? 'Membership marked paid from CSV import. Amount and method were not included in the CSV.'
       : '',
-    membershipPaymentStatus: importedProfile.status === 'Active' ? 'Paid' : 'Pending',
+    membershipPaymentStatus: membershipStatus === 'Active' ? 'Paid' : 'Pending',
     membershipPaymentUpdatedDate: serverTimestamp(),
-    membershipStatus: importedProfile.status,
+    membershipReviewNote: buildCsvReviewNote('', issues),
+    membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name: importedProfile.name,
     permissions: normalizeUserPermissions(),
@@ -952,6 +980,19 @@ export function buildImportedNewProfile(importedProfile, termsVersion) {
     updatedDate: serverTimestamp(),
     userId: importedProfile.profileId
   };
+}
+
+// Combines any issues flagged for this CSV row into the profile's existing
+// membershipReviewNote instead of overwriting it, so a Super User's own
+// notes from a prior manual review are never silently lost.
+function buildCsvReviewNote(existingNote, issues) {
+  if (!issues.length) {
+    return existingNote || '';
+  }
+
+  const issueText = `CSV import: ${issues.join('; ')}.`;
+
+  return existingNote ? `${existingNote} | ${issueText}` : issueText;
 }
 
 function shouldRecordCsvMembershipPayment(existingProfile, importedMembershipStatus, isAnnualRefresh) {

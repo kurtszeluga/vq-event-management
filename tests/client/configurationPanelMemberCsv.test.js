@@ -137,7 +137,7 @@ describe('analyzeMemberCsv (preview, before anything is imported)', () => {
   });
 });
 
-describe('analyzeMemberCsv row validation (fix-before-import)', () => {
+describe('analyzeMemberCsv row validation (issues flag rows for review, not exclusion)', () => {
   it('accepts a row with a name and only a phone number - no email required', () => {
     const csv = [
       'Last Name,First Name,Email,Phone',
@@ -147,7 +147,7 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
     const analysis = analyzeMemberCsv(csv);
 
     expect(analysis.validRows).toHaveLength(1);
-    expect(analysis.invalidRows).toHaveLength(0);
+    expect(analysis.validRows[0].issues).toEqual([]);
   });
 
   it('accepts a row with a name and only an email - no phone required', () => {
@@ -159,10 +159,10 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
     const analysis = analyzeMemberCsv(csv);
 
     expect(analysis.validRows).toHaveLength(1);
-    expect(analysis.invalidRows).toHaveLength(0);
+    expect(analysis.validRows[0].issues).toEqual([]);
   });
 
-  it('flags a row missing the last name', () => {
+  it('flags a row missing the last name but still includes it in validRows', () => {
     const csv = [
       'Last Name,First Name,Email,Phone',
       ',Nancy,adamsn952@gmail.com,919 349-2725'
@@ -170,9 +170,8 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
 
     const analysis = analyzeMemberCsv(csv);
 
-    expect(analysis.validRows).toHaveLength(0);
-    expect(analysis.invalidRows).toHaveLength(1);
-    expect(analysis.invalidRows[0].issues).toEqual(['Missing last name']);
+    expect(analysis.validRows).toHaveLength(1);
+    expect(analysis.validRows[0].issues).toEqual(['Missing last name']);
   });
 
   it('flags a row missing the first name', () => {
@@ -183,8 +182,7 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
 
     const analysis = analyzeMemberCsv(csv);
 
-    expect(analysis.invalidRows).toHaveLength(1);
-    expect(analysis.invalidRows[0].issues).toEqual(['Missing first name']);
+    expect(analysis.validRows[0].issues).toEqual(['Missing first name']);
   });
 
   it('flags a row with neither email nor phone', () => {
@@ -195,14 +193,13 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
 
     const analysis = analyzeMemberCsv(csv);
 
-    expect(analysis.validRows).toHaveLength(0);
-    expect(analysis.invalidRows).toHaveLength(1);
-    expect(analysis.invalidRows[0].issues).toEqual([
+    expect(analysis.validRows).toHaveLength(1);
+    expect(analysis.validRows[0].issues).toEqual([
       'Missing email and phone number - at least one is required'
     ]);
   });
 
-  it('flags an invalid email format', () => {
+  it('flags an invalid email format and marks emailInvalid', () => {
     const csv = [
       'Last Name,First Name,Email,Phone',
       'Adams,Nancy,not-an-email,919 349-2725'
@@ -210,8 +207,9 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
 
     const analysis = analyzeMemberCsv(csv);
 
-    expect(analysis.invalidRows).toHaveLength(1);
-    expect(analysis.invalidRows[0].issues).toEqual(['Invalid email format']);
+    expect(analysis.validRows[0].issues).toEqual(['Invalid email format']);
+    expect(analysis.validRows[0].emailInvalid).toBe(true);
+    expect(analysis.validRows[0].phoneInvalid).toBe(false);
   });
 
   it('flags a phone number with extra digits instead of silently truncating it', () => {
@@ -222,8 +220,8 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
 
     const analysis = analyzeMemberCsv(csv);
 
-    expect(analysis.invalidRows).toHaveLength(1);
-    expect(analysis.invalidRows[0].issues).toEqual(['Phone number has 11 digits (expected 10)']);
+    expect(analysis.validRows[0].issues).toEqual(['Phone number has 11 digits (expected 10)']);
+    expect(analysis.validRows[0].phoneInvalid).toBe(true);
   });
 
   it('flags a phone number with missing digits', () => {
@@ -234,8 +232,7 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
 
     const analysis = analyzeMemberCsv(csv);
 
-    expect(analysis.invalidRows).toHaveLength(1);
-    expect(analysis.invalidRows[0].issues).toEqual(['Phone number has 9 digits (expected 10)']);
+    expect(analysis.validRows[0].issues).toEqual(['Phone number has 9 digits (expected 10)']);
   });
 
   it('accepts a phone number with a leading 1 country code', () => {
@@ -247,7 +244,7 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
     const analysis = analyzeMemberCsv(csv);
 
     expect(analysis.validRows).toHaveLength(1);
-    expect(analysis.invalidRows).toHaveLength(0);
+    expect(analysis.validRows[0].issues).toEqual([]);
   });
 
   it('collects multiple issues on the same row', () => {
@@ -258,8 +255,8 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
 
     const analysis = analyzeMemberCsv(csv);
 
-    expect(analysis.invalidRows).toHaveLength(1);
-    expect(analysis.invalidRows[0].issues).toEqual([
+    expect(analysis.validRows).toHaveLength(1);
+    expect(analysis.validRows[0].issues).toEqual([
       'Missing name',
       'Invalid email format',
       'Phone number has 5 digits (expected 10)'
@@ -275,6 +272,6 @@ describe('analyzeMemberCsv row validation (fix-before-import)', () => {
     const analysis = analyzeMemberCsv(csv);
 
     expect(analysis.validRows).toHaveLength(1);
-    expect(analysis.invalidRows).toHaveLength(0);
+    expect(analysis.validRows[0].issues).toEqual([]);
   });
 });

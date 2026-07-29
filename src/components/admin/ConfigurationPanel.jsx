@@ -86,7 +86,6 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [emailTestRecipient, setEmailTestRecipient] = useState(currentUserProfile?.email || '');
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
-  const [importInvalidRows, setImportInvalidRows] = useState([]);
   const [importMessage, setImportMessage] = useState('');
   const [importReviewRows, setImportReviewRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,8 +104,8 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
   const memberCounts = getMemberCounts(members);
-  const filteredMembers = members.filter((member) =>
-    (member.membershipStatus || 'Unknown') === memberStatusFilter
+  const filteredMembers = sortMembersByLastName(
+    members.filter((member) => (member.membershipStatus || 'Unknown') === memberStatusFilter)
   );
 
   function renderMemberForm() {
@@ -359,7 +358,6 @@ function ConfigurationPanel({ currentUserProfile }) {
 
     setError('');
     setSuccessMessage('');
-    setImportInvalidRows([]);
     setImportMessage('');
     setImportReviewRows([]);
 
@@ -386,49 +384,34 @@ function ConfigurationPanel({ currentUserProfile }) {
 
   // Step 2: the admin has reviewed the preview and explicitly confirms -
   // only now does anything reach Firestore, in batches under the hood.
+  // Rows with issues (see analyzeMemberCsv) import anyway, landing with a
+  // Pending membership status and a review note - durable in the profile
+  // itself, so it survives navigating away and is findable via the
+  // existing Pending filter instead of living only in this component's
+  // state until the next re-render wipes it.
   async function handleConfirmCsvImport() {
     if (!csvPreview?.validRows.length) {
       return;
     }
 
-    const skippedInvalidRows = csvPreview.invalidRows || [];
-
     await runSave('csv', async () => {
       const importResult = await importMembersFromCsvRows(csvPreview.validRows, currentUserProfile, {
         mode: memberImportMode
       });
-      setImportInvalidRows(skippedInvalidRows);
       setImportReviewRows(importResult.reviewRows || []);
       const skippedText = importResult.skippedSuperUserCount
         ? ` ${importResult.skippedSuperUserCount} Super User row(s) skipped.`
         : '';
-      const invalidText = skippedInvalidRows.length
-        ? ` ${skippedInvalidRows.length} row(s) were not imported and need fixing - see the list below.`
+      const pendingText = importResult.pendingReviewCount
+        ? ` ${importResult.pendingReviewCount} row(s) had missing or invalid data and were set to Pending - find them under the Pending filter below.`
         : '';
       setImportMessage(
         memberImportMode === 'annualRefresh'
-          ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.${skippedText}${invalidText}`
-          : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.${skippedText}${invalidText}`
+          ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.${skippedText}${pendingText}`
+          : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.${skippedText}${pendingText}`
       );
       setCsvPreview(null);
     });
-  }
-
-  function handleEditInvalidCsvRow(row) {
-    setMemberForm({
-      ...EMPTY_MEMBER_FORM,
-      email: row.email,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      phone: row.phone,
-      status: row.status || 'Active',
-      town: row.town
-    });
-    setMemberFormOpen(true);
-  }
-
-  function handleDismissInvalidCsvRow(dataRowNumber) {
-    setImportInvalidRows((current) => current.filter((row) => row.dataRowNumber !== dataRowNumber));
   }
 
   async function handleSaveLocation(event) {
@@ -868,15 +851,16 @@ function ConfigurationPanel({ currentUserProfile }) {
   }
 
   function renderCsvPreview() {
-    const { duplicateEmails, fileName, invalidRows, skippedRows, totalDataRows, validRows } = csvPreview;
+    const { duplicateEmails, fileName, skippedRows, totalDataRows, validRows } = csvPreview;
     const canImport = validRows.length > 0 && savingSection !== 'csv';
+    const rowsNeedingReview = validRows.filter((row) => row.issues.length);
 
     return (
       <div className="configuration-csv-preview">
         <h4>{fileName}</h4>
         <p className="form-help">
           {totalDataRows} row{totalDataRows === 1 ? '' : 's'} found, {validRows.length} ready to
-          import{invalidRows.length ? `, ${invalidRows.length} need${invalidRows.length === 1 ? 's' : ''} fixing` : ''}
+          import{rowsNeedingReview.length ? `, ${rowsNeedingReview.length} will need review` : ''}
           {skippedRows.length ? `, ${skippedRows.length} skipped` : ''}.
         </p>
         {!validRows.length ? (
@@ -885,16 +869,17 @@ function ConfigurationPanel({ currentUserProfile }) {
             Name/Last Name, Email, and Phone columns, then choose the file again.
           </p>
         ) : null}
-        {invalidRows.length ? (
-          <div className="csv-preview-warning csv-preview-error">
+        {rowsNeedingReview.length ? (
+          <div className="csv-preview-warning">
             <p>
-              {invalidRows.length} row{invalidRows.length === 1 ? '' : 's'} need
-              {invalidRows.length === 1 ? 's' : ''} fixing before {invalidRows.length === 1 ? 'it' : 'they'} can be
-              imported - each needs a full name and at least one of a valid email or a 10-digit
-              phone number:
+              {rowsNeedingReview.length} row{rowsNeedingReview.length === 1 ? '' : 's'} will import
+              with a <strong>Pending</strong> membership status instead of being skipped, since{' '}
+              {rowsNeedingReview.length === 1 ? 'it has' : 'they have'} missing or invalid data - find{' '}
+              {rowsNeedingReview.length === 1 ? 'it' : 'them'} under the Pending filter below to fix
+              and set to Active:
             </p>
             <ul>
-              {invalidRows.map((row) => (
+              {rowsNeedingReview.map((row) => (
                 <li key={row.dataRowNumber}>
                   Row {row.dataRowNumber} ({row.name || row.email || row.phone || 'blank'}):{' '}
                   {row.issues.join('; ')}.
@@ -1008,39 +993,6 @@ function ConfigurationPanel({ currentUserProfile }) {
         </p>
         {importMessage ? <p className="form-help">{importMessage}</p> : null}
         {csvPreview ? renderCsvPreview() : null}
-        {importInvalidRows.length ? (
-          <div className="configuration-review-list">
-            <h4>Rows That Need Fixing</h4>
-            <p className="form-help">
-              These rows from the last upload were not imported. Fix the issue and re-upload, or
-              press Edit to add the profile here directly.
-            </p>
-            {importInvalidRows.map((row) => (
-              <div className="configuration-review-item" key={row.dataRowNumber}>
-                <strong>
-                  Row {row.dataRowNumber}: {row.name || row.email || row.phone || 'Blank row'}
-                </strong>
-                <span>{row.issues.join('; ')}.</span>
-                <div className="card-actions">
-                  <button
-                    className="button-link button-reset"
-                    type="button"
-                    onClick={() => handleEditInvalidCsvRow(row)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="button-link button-reset secondary-action"
-                    type="button"
-                    onClick={() => handleDismissInvalidCsvRow(row.dataRowNumber)}
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
         {importReviewRows.length ? (
           <div className="configuration-review-list">
             <h4>Import Review</h4>
@@ -1766,6 +1718,23 @@ function getLastNameFallback(name = '') {
   return parts.length > 1 ? parts.slice(1).join(' ') : '';
 }
 
+function sortMembersByLastName(members) {
+  return [...members].sort((firstMember, secondMember) => {
+    const firstValue = getMemberSortValue(firstMember);
+    const secondValue = getMemberSortValue(secondMember);
+
+    return firstValue.localeCompare(secondValue, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function getMemberSortValue(member) {
+  return [
+    member.lastName || getLastNameFallback(member.name),
+    member.firstName || getFirstNameFallback(member.name),
+    member.email || ''
+  ].join(' ');
+}
+
 function formatConfigurationTimeRange(startTime, endTime) {
   const formattedStart = formatClockTime(startTime);
   const formattedEnd = formatClockTime(endTime);
@@ -1789,10 +1758,17 @@ function getMemberCsvPhoneDigits(phone) {
 
 // Every row needs a full name plus at least one working way to reach the
 // member (email or phone) - members without email are common here, so
-// email and phone are alternatives, not both required. Returns the list of
-// problems with a row, or an empty array when it's fit to import.
+// email and phone are alternatives, not both required. Rather than reject
+// a row outright, a row with issues still imports (see importMembersFromCsvRows)
+// but lands with a Pending membership status and a review note instead of
+// silently accepting bad data or dropping the row entirely - the admin can
+// find and fix it right in the profile list. emailInvalid/phoneInvalid flag
+// which field (if any) is malformed enough that it should not be written
+// as-is, so a bad value doesn't overwrite a good existing one.
 function getMemberCsvRowIssues(row) {
   const issues = [];
+  const emailInvalid = Boolean(row.email) && !EMAIL_FORMAT.test(row.email);
+  const phoneInvalid = Boolean(row.phoneDigitCount) && row.phoneDigitCount !== 10;
 
   if (!row.name) {
     issues.push('Missing name');
@@ -1805,11 +1781,11 @@ function getMemberCsvRowIssues(row) {
     }
   }
 
-  if (row.email && !EMAIL_FORMAT.test(row.email)) {
+  if (emailInvalid) {
     issues.push('Invalid email format');
   }
 
-  if (row.phoneDigitCount && row.phoneDigitCount !== 10) {
+  if (phoneInvalid) {
     issues.push(`Phone number has ${row.phoneDigitCount} digits (expected 10)`);
   }
 
@@ -1817,17 +1793,20 @@ function getMemberCsvRowIssues(row) {
     issues.push('Missing email and phone number - at least one is required');
   }
 
-  return issues;
+  return { emailInvalid, issues, phoneInvalid };
 }
 
-// Parses every data row and sorts it into rows ready to import, rows with
-// nothing usable in them, and rows with usable-but-invalid data (missing
-// name, missing both email and phone, a malformed email, or a phone number
-// with the wrong number of digits) - plus a duplicate-email check. All
-// client side, no Firestore involved, so the admin can review and fix the
-// CSV before anything is written. dataRowNumber is 1-based among data rows
-// only (blank rows and the header/banner rows above them don't count),
-// matching what you'd get counting down the spreadsheet from the header.
+// Parses every data row and sorts it into rows ready to import vs. rows
+// with nothing usable in them (skippedRows - no name, email, or phone at
+// all, so there is nothing to build a profile from), plus a duplicate-email
+// check. Rows with usable-but-invalid data (missing name, missing both
+// email and phone, a malformed email, or a phone number with the wrong
+// digit count) are NOT excluded here - they still import (see
+// importMembersFromCsvRows), just flagged with an `issues` list so the
+// preview can warn about them before the admin confirms. All client side,
+// no Firestore involved. dataRowNumber is 1-based among data rows only
+// (blank rows and the header/banner rows above them don't count), matching
+// what you'd get counting down the spreadsheet from the header.
 export function analyzeMemberCsv(text) {
   const rows = parseCsvRows(text);
   const headerRowIndex = findMemberCsvHeaderRowIndex(rows);
@@ -1875,19 +1854,9 @@ export function analyzeMemberCsv(text) {
   });
 
   const skippedRows = parsedRows.filter((row) => !(row.name || row.email || row.phone));
-  const reviewableRows = parsedRows.filter((row) => row.name || row.email || row.phone);
-  const invalidRows = [];
-  const validRows = [];
-
-  reviewableRows.forEach((row) => {
-    const issues = getMemberCsvRowIssues(row);
-
-    if (issues.length) {
-      invalidRows.push({ ...row, issues });
-    } else {
-      validRows.push(row);
-    }
-  });
+  const validRows = parsedRows
+    .filter((row) => row.name || row.email || row.phone)
+    .map((row) => ({ ...row, ...getMemberCsvRowIssues(row) }));
 
   const emailRowNumbers = new Map();
   validRows.forEach((row) => {
@@ -1904,7 +1873,6 @@ export function analyzeMemberCsv(text) {
   return {
     duplicateEmails,
     headerFound,
-    invalidRows,
     skippedRows,
     totalDataRows: parsedRows.length,
     validRows
