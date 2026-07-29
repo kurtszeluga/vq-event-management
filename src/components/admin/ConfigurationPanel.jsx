@@ -41,7 +41,8 @@ const EMPTY_MEMBER_FORM = {
   lastName: '',
   name: '',
   phone: '',
-  status: 'Active'
+  status: 'Active',
+  town: ''
 };
 
 const EMPTY_LOCATION_FORM = {
@@ -154,6 +155,18 @@ function ConfigurationPanel({ currentUserProfile }) {
                 ...current,
                 phone: formatPhoneNumber(event.target.value)
               }))
+            }
+          />
+        </label>
+        <label>
+          <span>Town</span>
+          <input
+            value={memberForm.town}
+            onBlur={(event) =>
+              setMemberForm((current) => ({ ...current, town: toTitleCase(event.target.value) }))
+            }
+            onChange={(event) =>
+              setMemberForm((current) => ({ ...current, town: event.target.value }))
             }
           />
         </label>
@@ -940,6 +953,14 @@ function ConfigurationPanel({ currentUserProfile }) {
             Add Profile
           </button>
         </div>
+        <p className="form-help">
+          <strong>Add/Update Only</strong> adds new profiles and updates matches already found in the
+          file; membership status comes from each row, and profiles not in the CSV are left alone.{' '}
+          <strong>Annual Refresh</strong> is for uploading the complete, current paid roster: every
+          profile in the file is marked Active for the year, and any profile that is currently Active
+          but missing from the file is marked Inactive. Only use Annual Refresh with a complete
+          membership list - a partial list will deactivate everyone left out of it.
+        </p>
         {importMessage ? <p className="form-help">{importMessage}</p> : null}
         {csvPreview ? renderCsvPreview() : null}
         {importReviewRows.length ? (
@@ -1001,7 +1022,8 @@ function ConfigurationPanel({ currentUserProfile }) {
                   setMemberForm({
                     ...EMPTY_MEMBER_FORM,
                     ...member,
-                    status: member.membershipStatus || 'Unknown'
+                    status: member.membershipStatus || 'Unknown',
+                    town: member.billingAddress?.city || ''
                   });
                   setMemberFormOpen(true);
                 }}

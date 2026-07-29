@@ -2377,7 +2377,11 @@ body.nav-sheet-open {
 .user-table {
   border-collapse: collapse;
   min-width: 860px;
-  width: 100%;
+  width: auto;
+}
+
+.user-table .card-actions {
+  flex-wrap: nowrap;
 }
 
 .user-table th,
@@ -3849,6 +3853,10 @@ body.nav-sheet-open {
     font-size: 0.78rem;
     font-weight: 900;
     text-transform: uppercase;
+  }
+
+  .user-table .card-actions {
+    flex-wrap: wrap;
   }
 
   .user-table .configuration-detail-cell {

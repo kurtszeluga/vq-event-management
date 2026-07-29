@@ -1039,7 +1039,10 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
   const role = getMembershipAllowedRole(existingProfile, membershipStatus);
 
   return {
-    billingAddress: existingProfile.billingAddress || getEmptyBillingAddress(),
+    billingAddress: {
+      ...(existingProfile.billingAddress || getEmptyBillingAddress()),
+      city: cleanText(profile.town) || existingProfile.billingAddress?.city || ''
+    },
     createdDate: existingProfile.createdDate || serverTimestamp(),
     email: cleanText(profile.email || existingProfile.email).toLowerCase(),
     firstName,
