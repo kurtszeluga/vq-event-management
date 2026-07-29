@@ -564,11 +564,21 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
   // only sees the database as it stood before a commit - bundled into the
   // same batch as the profile write, a brand-new or newly-reactivated
   // profile looks like it doesn't exist yet, and the whole batch is refused.
+  //
+  // Each directory write also costs several get()/exists() calls (the
+  // eligibility check re-reads users/{id} multiple times, uncached, and
+  // Firestore evaluates the create AND update branches of the rule for every
+  // set()), so it needs a much smaller chunk than the profile writes above -
+  // verified against the emulator at CSV-import scale in
+  // tests/rules/member-directory-batch-create.test.js. 200 blows Firestore's
+  // per-request rule-evaluation budget partway through and refuses the whole
+  // batch; 5 is proven safe for all 251 rows of a real roster import.
+  const directoryChunkSize = 5;
   const userWrites = writes.filter((write) => write.ref.path.startsWith('users/'));
 
-  for (let startIndex = 0; startIndex < userWrites.length; startIndex += chunkSize) {
+  for (let startIndex = 0; startIndex < userWrites.length; startIndex += directoryChunkSize) {
     const directoryBatch = writeBatch(db);
-    const chunk = userWrites.slice(startIndex, startIndex + chunkSize);
+    const chunk = userWrites.slice(startIndex, startIndex + directoryChunkSize);
 
     chunk.forEach((write) => {
       applyMemberDirectorySync(directoryBatch, write.ref.id, write.value);
