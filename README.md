@@ -11,6 +11,7 @@ Primary docs:
 
 ## Current Production Posture
 
+- Production data was reset to just the Super User account for beta testing with a small group of invited Guild members. The site footer shows a build version tag (`src/version.js`, starting at Beta 1.0) bumped by hand for each significant change.
 - Phase 1 registration security and Phase 2 payment/capacity reliability are complete.
 - Directory-safe projections, broader API rate limits, security headers, privacy/support pages, and server-only event writes are in place.
 - Remaining Phase 3 work is mainly membership CSV/config write centralization and abuse monitoring/alerts.
@@ -149,6 +150,7 @@ Shared helpers live under `api/_lib/` and do not count as separate functions. Re
 - `npm test` runs the focused Node test suite (`tests/*.test.js`).
 - `npm run setup:first-admin` creates or updates the first Firebase Auth Super User and matching Firestore profile.
 - `npm run backfill:member-directory` rebuilds `memberDirectoryProfiles` from eligible `users` docs (requires `FIREBASE_SERVICE_ACCOUNT_PATH`).
+- `node scripts/generateEventPlaceholderImages.mjs` regenerates the default per-event-type images shown when an event has no uploaded photo (`public/assets/event-placeholders/`).
 
 ## First Super User Setup
 

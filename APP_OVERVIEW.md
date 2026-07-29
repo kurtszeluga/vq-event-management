@@ -12,7 +12,7 @@ The app currently supports these main areas:
 
 - Programs and activities, including classes, lectures, retreats, workshops, and challenges
 - Business listings and items for sale
-- Event images, supply lists, and supporting documents
+- Event images, supply lists, and supporting documents. An event saved without a photo shows a themed default image (a distinct quilt-block pattern per event type) instead of a blank thumbnail
 - Event registration, waitlists, capacity, and seat holds
 - Member/user profiles and Guild membership status
 - Online and manual payment tracking
@@ -73,7 +73,7 @@ Membership information is stored on the profile, including:
 - Terms acceptance information
 - Contact and billing address information
 
-Membership CSV imports update profile records directly. Matching is email-first. Phone-only matches are intentionally treated cautiously because they can identify the wrong person.
+Membership CSV imports update profile records directly. Matching is email-first. Phone-only matches are intentionally treated cautiously because they can identify the wrong person. A Town (or City) column is imported into the member's address. Choosing a CSV file only parses and previews it - nothing is written until an admin reviews the row counts and any flagged problems (rows missing identifying information, duplicate emails) and explicitly confirms the import.
 
 ## Registration And Capacity Protection
 
@@ -132,5 +132,7 @@ Security is handled through several layers:
 The current system already protects direct browser registration and event creation. Remaining hardening includes finishing server-side membership/config writes, abuse monitoring/alerts, and broader automated rules/workflow tests.
 
 ## Current Direction
+
+The app has entered beta testing: production data was reset to just the Super User account so a small group of invited Guild members can test with a clean slate, and the site footer now shows a build version tag (starting at Beta 1.0, bumped by hand for each significant change) so testers and admins can tell which build they're looking at.
 
 The app is moving from event registration toward a broader member portal. The long-term direction includes richer membership management, member-only information, better directory print/export tools, attendance and roster workflows, reminders, reporting, and improved admin automation.

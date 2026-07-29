@@ -87,7 +87,10 @@ Important behavior:
 - A profile can exist without an activated login account.
 - Firebase Authentication is attached when a person activates/signs into an account.
 - Membership CSV upload updates profiles directly.
+- The CSV importer scans for the real header row instead of assuming row 1, so a title/banner row above the column headers (a common roster-export shape) no longer causes every row to be silently dropped.
 - CSV matching is email-first. Phone-only matches are treated cautiously and routed to exceptions/review rather than automatically applied.
+- A CSV Town (or City) column, when present, is imported into the profile's `billingAddress.city`. On every import (Add/Update or Annual Refresh), a non-blank Town value syncs the profile's city; a blank cell leaves the existing value untouched.
+- Selecting a CSV file only parses and previews it client-side - no writes happen yet. The preview reports total/valid row counts and flags rows with no name/email/phone (by row number) and duplicate emails within the file. Import only proceeds after an explicit confirmation step.
 - Annual refresh assumes the CSV contains active paid Guild members.
 - Annual refresh sets uploaded/new/reactivated profiles to Active membership and can set missing non-archived profiles to Inactive membership.
 - Profiles created by CSV upload or by an admin assume terms were accepted manually/offline.
@@ -173,6 +176,10 @@ Type-specific behavior:
 - Lectures do not require registration configuration.
 - Other supports a registration option of N/A for one-off events.
 - Business Listings and For Sale do not use registration.
+
+### Default Event Images
+
+An event saved without an uploaded photo shows a default image instead of an empty thumbnail, on the admin list, the public listing cards, event details, and both print paths. Each event type maps to its own real, traditional quilt block pattern rendered as SVG (Nine Patch for classes, Churn Dash for workshops, Ohio Star for retreats, Flying Geese for lectures, Bear Paw for challenges, Pinwheel for everything else), each in its own color, with the event type name superimposed. Business Listing and For Sale intentionally have no default image. Assets live in `public/assets/event-placeholders/` and are regenerated with `scripts/generateEventPlaceholderImages.mjs`; the type-to-image mapping is `getEventPlaceholderImage()` in `src/data/eventOptions.js`. A real uploaded photo always takes priority.
 
 ## Public And GoDaddy Listings
 
@@ -373,7 +380,7 @@ Primary collections:
 
 Legacy/transition:
 
-- `members` is no longer the desired source of truth. Membership is now managed on `users`.
+- `members` is fully unused - confirmed zero live callers of its read/write functions (`subscribeToMembers`, `saveMember`, `archiveMember`, `reactivateMember` in `configurationService.js`) anywhere in `src/`. Membership is managed entirely on `users`. The collection is a candidate for deletion.
 
 ## Security Requirements
 
@@ -389,6 +396,7 @@ Legacy/transition:
 - Production responses include CSP, frame protection, referrer policy, content-type protection, and permissions policy.
 - Account recovery and waitlist claim links use hashed, expiring, single-purpose tokens (email/phone recovery codes; waitlist claim tokens); the recovery sign-in itself uses a Firebase custom token hand-signed with `node:crypto` rather than the `firebase-admin/auth` SDK.
 - The waitlist-expiry scheduled job is a `GET` endpoint gated by comparing the request's bearer token against the `CRON_SECRET` environment variable, matching Vercel's own cron-auth convention.
+- `memberDirectoryProfiles` writes must never be batched atomically with the `users` write that made the profile newly directory-eligible (a brand-new active member, or a reactivation). The rule's eligibility check reads `users/{id}` with `get()`, which only sees the database as it stood before the current commit, so a same-batch profile write and directory write are refused together. Client code (`configurationService.js`, `userService.js`) always commits the profile write first, then syncs the directory entry as a separate write. Bulk directory syncs (CSV import) also need a much smaller batch chunk size than plain profile writes - each directory write costs several `get()`/`exists()` calls against the same document, uncached, and Firestore evaluates both the create and update branches of the rule for every `set()`; 200 per batch exceeds Firestore's per-request rule-evaluation budget, 5 is verified safe. See `tests/rules/member-directory-batch-create.test.js`.
 
 ## Current Upgrade Priorities
 

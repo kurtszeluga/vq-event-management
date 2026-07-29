@@ -69,7 +69,7 @@ Super Users can:
 - Manage all user profiles, roles, and permissions
 - Manage admin access
 - Manage membership status and membership payment tracking
-- Run membership CSV imports
+- Run membership CSV imports, including a Town/City column and a preview step that flags problem rows before anything is imported
 - Configure membership terms and conditions
 - Configure registration membership checks
 - Configure payment settings
