@@ -78,6 +78,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [error, setError] = useState('');
   const [coordinatorForms, setCoordinatorForms] = useState({});
   const [coordinatorMessages, setCoordinatorMessages] = useState({});
+  const [csvPreview, setCsvPreview] = useState(null);
   const [directorySettings, setDirectorySettings] = useState(DEFAULT_DIRECTORY_SETTINGS);
   const [emailInstructions, setEmailInstructions] = useState(DEFAULT_EMAIL_INSTRUCTIONS);
   const [emailTestArea, setEmailTestArea] = useState(EMAIL_INSTRUCTION_AREAS[0].areaId);
@@ -326,8 +327,12 @@ function ConfigurationPanel({ currentUserProfile }) {
     });
   }
 
-  async function handleCsvUpload(event) {
+  // Step 1: pick a file. Parses it entirely client side - nothing is
+  // written to Firestore here - so problems in the CSV surface as a
+  // reviewable preview instead of a partial import you have to untangle.
+  async function handleCsvFileSelected(event) {
     const file = event.target.files?.[0];
+    event.target.value = '';
 
     if (!file) {
       return;
@@ -335,21 +340,44 @@ function ConfigurationPanel({ currentUserProfile }) {
 
     if (!memberImportMode) {
       setError('Choose an import mode before uploading the membership CSV.');
-      event.target.value = '';
       return;
     }
 
+    setError('');
+    setSuccessMessage('');
     setImportMessage('');
     setImportReviewRows([]);
-    await runSave('csv', async () => {
-      const text = await file.text();
-      const rows = parseMemberCsv(text);
 
-      if (!rows.length) {
-        throw new Error('No membership rows were found in the CSV file.');
+    try {
+      const text = await file.text();
+      const analysis = analyzeMemberCsv(text);
+
+      if (!analysis.totalDataRows) {
+        setError(`"${file.name}" has no data rows to import.`);
+        setCsvPreview(null);
+        return;
       }
 
-      const importResult = await importMembersFromCsvRows(rows, currentUserProfile, {
+      setCsvPreview({ fileName: file.name, ...analysis });
+    } catch (readError) {
+      setError(readError.message);
+      setCsvPreview(null);
+    }
+  }
+
+  function handleCancelCsvPreview() {
+    setCsvPreview(null);
+  }
+
+  // Step 2: the admin has reviewed the preview and explicitly confirms -
+  // only now does anything reach Firestore, in batches under the hood.
+  async function handleConfirmCsvImport() {
+    if (!csvPreview?.validRows.length) {
+      return;
+    }
+
+    await runSave('csv', async () => {
+      const importResult = await importMembersFromCsvRows(csvPreview.validRows, currentUserProfile, {
         mode: memberImportMode
       });
       setImportReviewRows(importResult.reviewRows || []);
@@ -361,8 +389,8 @@ function ConfigurationPanel({ currentUserProfile }) {
           ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.${skippedText}`
           : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.${skippedText}`
       );
+      setCsvPreview(null);
     });
-    event.target.value = '';
   }
 
   async function handleSaveLocation(event) {
@@ -801,13 +829,70 @@ function ConfigurationPanel({ currentUserProfile }) {
     );
   }
 
+  function renderCsvPreview() {
+    const { duplicateEmails, fileName, skippedRows, totalDataRows, validRows } = csvPreview;
+    const canImport = validRows.length > 0 && savingSection !== 'csv';
+
+    return (
+      <div className="configuration-csv-preview">
+        <h4>{fileName}</h4>
+        <p className="form-help">
+          {totalDataRows} row{totalDataRows === 1 ? '' : 's'} found, {validRows.length} ready to import.
+        </p>
+        {!validRows.length ? (
+          <p className="csv-preview-warning csv-preview-error">
+            None of these rows have a name, email, or phone number. Check that the file has First
+            Name/Last Name, Email, and Phone columns, then choose the file again.
+          </p>
+        ) : null}
+        {skippedRows.length ? (
+          <p className="csv-preview-warning">
+            {skippedRows.length} row{skippedRows.length === 1 ? '' : 's'} skipped (no name, email, or
+            phone): data row{skippedRows.length === 1 ? '' : 's'}{' '}
+            {skippedRows.map((row) => row.dataRowNumber).join(', ')}.
+          </p>
+        ) : null}
+        {duplicateEmails.length ? (
+          <p className="csv-preview-warning">
+            {duplicateEmails.length} email{duplicateEmails.length === 1 ? '' : 's'} appear more than
+            once - only the last row for each will be imported:{' '}
+            {duplicateEmails
+              .map(({ email, rowNumbers }) => `${email} (rows ${rowNumbers.join(', ')})`)
+              .join('; ')}
+            .
+          </p>
+        ) : null}
+        <div className="configuration-actions configuration-actions-tight">
+          <button
+            className="button-link button-reset secondary-action"
+            disabled={!canImport}
+            type="button"
+            onClick={handleConfirmCsvImport}
+          >
+            {savingSection === 'csv' ? 'Importing...' : `Import ${validRows.length} Profile${validRows.length === 1 ? '' : 's'}`}
+          </button>
+          <button
+            className="button-link button-reset"
+            disabled={savingSection === 'csv'}
+            type="button"
+            onClick={handleCancelCsvPreview}
+          >
+            Choose A Different File
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   function renderMemberListCard() {
     return (
       <article className="configuration-mini-card">
         <div className="configuration-card-header">
           <h3>Membership Profiles</h3>
-          <p>Upload a CSV to update profile membership. Email matches update automatically; phone-only matches are held for review.</p>
-          <p>CSV columns should use First Name, Last Name, Email, and Phone. Status is optional.</p>
+          <p>
+            Upload a CSV (First Name, Last Name, Email, Phone - Status and Town optional) to update
+            profile membership. Email matches update automatically; phone-only matches are held for review.
+          </p>
         </div>
         <div className="configuration-summary" aria-label="Membership profile totals">
           <span>Pending: {memberCounts.pending}</span>
@@ -817,7 +902,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           <span>Unknown: {memberCounts.unknown}</span>
           <span>Total: {memberCounts.total}</span>
         </div>
-        <div className="configuration-actions">
+        <div className="configuration-actions configuration-actions-tight">
           <label className="configuration-inline-label">
             <span>Import Mode</span>
             <select
@@ -834,7 +919,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             className="visually-hidden-file"
             ref={csvInputRef}
             type="file"
-            onChange={handleCsvUpload}
+            onChange={handleCsvFileSelected}
           />
           <button
             className="button-link button-reset secondary-action"
@@ -842,7 +927,7 @@ function ConfigurationPanel({ currentUserProfile }) {
             type="button"
             onClick={() => csvInputRef.current?.click()}
           >
-            {savingSection === 'csv' ? 'Importing...' : 'Upload Membership CSV'}
+            Choose Membership CSV
           </button>
           <button
             className="button-link button-reset secondary-action"
@@ -854,8 +939,9 @@ function ConfigurationPanel({ currentUserProfile }) {
           >
             Add Profile
           </button>
-          {importMessage ? <span className="form-help">{importMessage}</span> : null}
         </div>
+        {importMessage ? <p className="form-help">{importMessage}</p> : null}
+        {csvPreview ? renderCsvPreview() : null}
         {importReviewRows.length ? (
           <div className="configuration-review-list">
             <h4>Import Review</h4>
@@ -1591,47 +1677,82 @@ function formatConfigurationTimeRange(startTime, endTime) {
   return [formattedStart || '-', formattedEnd || '-'].join(' / ');
 }
 
-export function parseMemberCsv(text) {
+// Parses every data row and sorts it into rows ready to import vs. rows
+// with nothing usable in them, plus a duplicate-email check - all client
+// side, no Firestore involved, so the admin can review and fix the CSV
+// before anything is written. dataRowNumber is 1-based among data rows
+// only (blank rows and the header/banner rows above them don't count),
+// matching what you'd get counting down the spreadsheet from the header.
+export function analyzeMemberCsv(text) {
   const rows = parseCsvRows(text);
   const headerRowIndex = findMemberCsvHeaderRowIndex(rows);
+  const headerFound = rows[headerRowIndex]?.some(
+    (cell) => HEADER_ROW_HINT_TOKENS.has(normalizeCsvHeader(cell).toLowerCase())
+  ) || false;
   const headerRow = rows[headerRowIndex] || [];
   const dataRows = rows.slice(headerRowIndex + 1);
   const headers = headerRow.map(normalizeCsvHeader);
   const columnMap = getMemberCsvColumnMap(headers);
 
-  return dataRows
-    .map((row) => {
-      const record = {};
+  const parsedRows = dataRows.map((row, index) => {
+    const record = {};
 
-      headers.forEach((header, index) => {
-        record[header] = row[index] || '';
-      });
-      const firstName = getCsvValue(record, FIRST_NAME_HEADERS)
-        || getCsvColumnValue(row, columnMap.firstName);
-      const lastName = getCsvValue(record, LAST_NAME_HEADERS)
-        || getCsvColumnValue(row, columnMap.lastName);
-      const fullName = getCsvValue(record, NAME_COLUMN_HEADERS);
-      const email = getCsvValue(record, EMAIL_HEADERS)
-        || getCsvColumnValue(row, columnMap.email);
-      const phone = getCsvValue(record, PHONE_HEADERS)
-        || getCsvColumnValue(row, columnMap.phone);
-      const town = getCsvValue(record, TOWN_HEADERS)
-        || getCsvColumnValue(row, columnMap.town);
+    headers.forEach((header, headerIndex) => {
+      record[header] = row[headerIndex] || '';
+    });
+    const firstName = getCsvValue(record, FIRST_NAME_HEADERS)
+      || getCsvColumnValue(row, columnMap.firstName);
+    const lastName = getCsvValue(record, LAST_NAME_HEADERS)
+      || getCsvColumnValue(row, columnMap.lastName);
+    const fullName = getCsvValue(record, NAME_COLUMN_HEADERS);
+    const email = getCsvValue(record, EMAIL_HEADERS)
+      || getCsvColumnValue(row, columnMap.email);
+    const phone = getCsvValue(record, PHONE_HEADERS)
+      || getCsvColumnValue(row, columnMap.phone);
+    const town = getCsvValue(record, TOWN_HEADERS)
+      || getCsvColumnValue(row, columnMap.town);
 
-      return {
-        email,
-        firstName: toTitleCase(firstName),
-        lastName: toTitleCase(lastName),
-        name: toTitleCase(fullName || [firstName, lastName].filter(Boolean).join(' ')),
-        notes: getCsvValue(record, ['notes', 'note', 'comments']),
-        phone: formatPhoneNumber(phone),
-        status: getCsvValue(record, ['status']).toLowerCase() === 'inactive'
-          ? 'Inactive'
-          : 'Active',
-        town: toTitleCase(town)
-      };
-    })
-    .filter((row) => row.name || row.email || row.phone);
+    return {
+      dataRowNumber: index + 1,
+      email,
+      firstName: toTitleCase(firstName),
+      lastName: toTitleCase(lastName),
+      name: toTitleCase(fullName || [firstName, lastName].filter(Boolean).join(' ')),
+      notes: getCsvValue(record, ['notes', 'note', 'comments']),
+      phone: formatPhoneNumber(phone),
+      status: getCsvValue(record, ['status']).toLowerCase() === 'inactive'
+        ? 'Inactive'
+        : 'Active',
+      town: toTitleCase(town)
+    };
+  });
+
+  const validRows = parsedRows.filter((row) => row.name || row.email || row.phone);
+  const skippedRows = parsedRows.filter((row) => !(row.name || row.email || row.phone));
+
+  const emailRowNumbers = new Map();
+  validRows.forEach((row) => {
+    if (!row.email) {
+      return;
+    }
+
+    emailRowNumbers.set(row.email, [...(emailRowNumbers.get(row.email) || []), row.dataRowNumber]);
+  });
+  const duplicateEmails = [...emailRowNumbers.entries()]
+    .filter(([, rowNumbers]) => rowNumbers.length > 1)
+    .map(([email, rowNumbers]) => ({ email, rowNumbers }));
+
+  return {
+    duplicateEmails,
+    headerFound,
+    skippedRows,
+    totalDataRows: parsedRows.length,
+    validRows
+  };
+}
+
+export function parseMemberCsv(text) {
+  return analyzeMemberCsv(text).validRows;
 }
 
 const FIRST_NAME_HEADERS = ['firstName', 'firstname', 'first', 'givenName', 'givenname'];

@@ -2937,6 +2937,36 @@ body.nav-sheet-open {
   gap: 8px;
 }
 
+.configuration-csv-preview {
+  background: #fffdfa;
+  border: 1px solid #cfe3de;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.configuration-csv-preview h4 {
+  color: #225c56;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.csv-preview-warning {
+  color: #8a4b00;
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.csv-preview-warning.csv-preview-error {
+  color: #8a2f1f;
+  font-weight: 700;
+}
+
+.configuration-actions-tight {
+  gap: 8px;
+}
+
 .configuration-review-list {
   border: 1px solid #ead4c8;
   border-radius: 8px;
