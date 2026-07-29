@@ -86,6 +86,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [emailTestRecipient, setEmailTestRecipient] = useState(currentUserProfile?.email || '');
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
+  const [importInvalidRows, setImportInvalidRows] = useState([]);
   const [importMessage, setImportMessage] = useState('');
   const [importReviewRows, setImportReviewRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -358,6 +359,7 @@ function ConfigurationPanel({ currentUserProfile }) {
 
     setError('');
     setSuccessMessage('');
+    setImportInvalidRows([]);
     setImportMessage('');
     setImportReviewRows([]);
 
@@ -389,21 +391,44 @@ function ConfigurationPanel({ currentUserProfile }) {
       return;
     }
 
+    const skippedInvalidRows = csvPreview.invalidRows || [];
+
     await runSave('csv', async () => {
       const importResult = await importMembersFromCsvRows(csvPreview.validRows, currentUserProfile, {
         mode: memberImportMode
       });
+      setImportInvalidRows(skippedInvalidRows);
       setImportReviewRows(importResult.reviewRows || []);
       const skippedText = importResult.skippedSuperUserCount
         ? ` ${importResult.skippedSuperUserCount} Super User row(s) skipped.`
         : '';
+      const invalidText = skippedInvalidRows.length
+        ? ` ${skippedInvalidRows.length} row(s) were not imported and need fixing - see the list below.`
+        : '';
       setImportMessage(
         memberImportMode === 'annualRefresh'
-          ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.${skippedText}`
-          : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.${skippedText}`
+          ? `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created, ${importResult.inactivatedCount} missing profiles marked inactive membership. ${importResult.reviewCount} phone-only matches need review.${skippedText}${invalidText}`
+          : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.${skippedText}${invalidText}`
       );
       setCsvPreview(null);
     });
+  }
+
+  function handleEditInvalidCsvRow(row) {
+    setMemberForm({
+      ...EMPTY_MEMBER_FORM,
+      email: row.email,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      phone: row.phone,
+      status: row.status || 'Active',
+      town: row.town
+    });
+    setMemberFormOpen(true);
+  }
+
+  function handleDismissInvalidCsvRow(dataRowNumber) {
+    setImportInvalidRows((current) => current.filter((row) => row.dataRowNumber !== dataRowNumber));
   }
 
   async function handleSaveLocation(event) {
@@ -983,6 +1008,39 @@ function ConfigurationPanel({ currentUserProfile }) {
         </p>
         {importMessage ? <p className="form-help">{importMessage}</p> : null}
         {csvPreview ? renderCsvPreview() : null}
+        {importInvalidRows.length ? (
+          <div className="configuration-review-list">
+            <h4>Rows That Need Fixing</h4>
+            <p className="form-help">
+              These rows from the last upload were not imported. Fix the issue and re-upload, or
+              press Edit to add the profile here directly.
+            </p>
+            {importInvalidRows.map((row) => (
+              <div className="configuration-review-item" key={row.dataRowNumber}>
+                <strong>
+                  Row {row.dataRowNumber}: {row.name || row.email || row.phone || 'Blank row'}
+                </strong>
+                <span>{row.issues.join('; ')}.</span>
+                <div className="card-actions">
+                  <button
+                    className="button-link button-reset"
+                    type="button"
+                    onClick={() => handleEditInvalidCsvRow(row)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="button-link button-reset secondary-action"
+                    type="button"
+                    onClick={() => handleDismissInvalidCsvRow(row.dataRowNumber)}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {importReviewRows.length ? (
           <div className="configuration-review-list">
             <h4>Import Review</h4>
