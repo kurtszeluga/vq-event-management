@@ -194,9 +194,19 @@ function SupplyListViewerPage() {
     };
   }, [printDocumentHtml]);
 
+  // GoDaddy's embed link is a full top-window navigation (window.top.location
+  // = url), not a popup - there is no window.opener to close, but the GoDaddy
+  // page is still the previous entry in browser history. Only fall back to
+  // the in-app events list when there is truly nowhere to go back to (a
+  // bookmarked or directly-typed URL).
   const handleClose = useCallback(() => {
     if (window.opener) {
       window.close();
+      return;
+    }
+
+    if (window.history.length > 1) {
+      navigate(-1);
       return;
     }
 
@@ -277,7 +287,7 @@ function SupplyListViewerPage() {
             Print
           </button>
           <button className="button-link" type="button" onClick={handleClose}>
-            Close
+            Return
           </button>
         </div>
       </div>
