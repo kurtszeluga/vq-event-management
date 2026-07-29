@@ -13,7 +13,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
-import { applyMemberDirectorySync } from './memberDirectoryProfile.js';
+import { applyMemberDirectorySync, syncMemberDirectoryProfile } from './memberDirectoryProfile.js';
 
 const usersCollection = () => collection(db, 'users');
 const auditLogsCollection = () => collection(db, 'auditLogs');
@@ -95,10 +95,6 @@ export async function reactivateUserProfile(userId, actorProfile) {
   };
 
   batch.update(userRef, after);
-  applyMemberDirectorySync(batch, userId, {
-    ...before,
-    status: 'Active'
-  });
   addAuditLog(batch, {
     action: 'Reactivate',
     actorProfile,
@@ -110,7 +106,11 @@ export async function reactivateUserProfile(userId, actorProfile) {
     summary: `Reactivated user "${before.name || before.email || userId}"`
   });
 
-  return batch.commit();
+  await batch.commit();
+  // The directory rule's eligibility check reads users/{id} with get(),
+  // which only sees pre-commit state - this write can make the profile
+  // newly eligible, so the directory sync has to happen after it lands.
+  return syncMemberDirectoryProfile(userId, { ...before, status: 'Active' });
 }
 
 export async function createUserByAdmin(userData) {

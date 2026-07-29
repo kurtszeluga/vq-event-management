@@ -11,7 +11,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase.js';
-import { applyMemberDirectorySync } from './memberDirectoryProfile.js';
+import { applyMemberDirectorySync, syncMemberDirectoryProfile } from './memberDirectoryProfile.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const paymentSettingsRef = () => doc(db, 'appSettings', 'paymentSettings');
@@ -387,7 +387,6 @@ export async function saveMembershipProfile(profile, actorProfile) {
   const payload = buildManualMembershipProfile(profile, before, profileRef.id);
 
   batch.set(profileRef, payload, { merge: false });
-  applyMemberDirectorySync(batch, profileRef.id, payload);
   addConfigurationAuditLog(batch, {
     actorProfile,
     after: payload,
@@ -396,7 +395,13 @@ export async function saveMembershipProfile(profile, actorProfile) {
     summary: `Saved membership profile "${payload.name || payload.email || payload.phone}"`
   });
 
-  return batch.commit();
+  await batch.commit();
+  // Firestore's directory rule reads users/{id} with get(), which only sees
+  // the database as it stood before this commit - batching this write with
+  // the profile write above means a brand-new or newly-eligible profile
+  // would look like it doesn't exist yet, and the whole batch gets refused.
+  // Syncing after the profile write has landed avoids that entirely.
+  return syncMemberDirectoryProfile(profileRef.id, payload);
 }
 
 export async function importMembersFromCsvRows(rows, actorProfile, options = {}) {
@@ -530,10 +535,6 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
 
     chunk.forEach((write) => {
       batch.set(write.ref, write.value, { merge: write.merge !== false });
-
-      if (write.ref.path.startsWith('users/')) {
-        applyMemberDirectorySync(batch, write.ref.id, write.value);
-      }
     });
 
     if (startIndex === 0) {
@@ -556,6 +557,24 @@ export async function importMembersFromCsvRows(rows, actorProfile, options = {})
     }
 
     await batch.commit();
+  }
+
+  // Directory sync happens only after every profile write above has landed.
+  // The directory rule's eligibility check reads users/{id} with get(), which
+  // only sees the database as it stood before a commit - bundled into the
+  // same batch as the profile write, a brand-new or newly-reactivated
+  // profile looks like it doesn't exist yet, and the whole batch is refused.
+  const userWrites = writes.filter((write) => write.ref.path.startsWith('users/'));
+
+  for (let startIndex = 0; startIndex < userWrites.length; startIndex += chunkSize) {
+    const directoryBatch = writeBatch(db);
+    const chunk = userWrites.slice(startIndex, startIndex + chunkSize);
+
+    chunk.forEach((write) => {
+      applyMemberDirectorySync(directoryBatch, write.ref.id, write.value);
+    });
+
+    await directoryBatch.commit();
   }
 
   const updatedCount = profileWrites.filter((write) =>
@@ -658,7 +677,6 @@ export async function reactivateMembershipProfile(profile, actorProfile) {
   const payload = buildMembershipStatusProfile(profile, 'Active');
 
   batch.set(profileRef, payload, { merge: false });
-  applyMemberDirectorySync(batch, profile.id, payload);
   addConfigurationAuditLog(batch, {
     action: 'Reactivate',
     actorProfile,
@@ -670,7 +688,11 @@ export async function reactivateMembershipProfile(profile, actorProfile) {
     summary: `Reactivated membership for "${profile.name || profile.email || profile.phone}"`
   });
 
-  return batch.commit();
+  await batch.commit();
+  // Same reasoning as saveMembershipProfile: this write makes the profile
+  // newly directory-eligible, and the directory rule's get() only sees
+  // pre-commit state, so it has to happen after the profile write lands.
+  return syncMemberDirectoryProfile(profile.id, payload);
 }
 
 export async function saveEventLocationDefault(location, actorProfile) {
