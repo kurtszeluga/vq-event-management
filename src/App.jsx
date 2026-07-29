@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import MobileNavSheet from './components/MobileNavSheet.jsx';
 import { useAuth } from './context/useAuth.js';
 import { getAccountDisplayName } from './utils/profileFormat.js';
+import { APP_VERSION } from './version.js';
 
 function App() {
   const location = useLocation();
@@ -159,6 +160,7 @@ function App() {
           <Link to="/terms">Terms</Link>
           <Link to="/privacy">Privacy</Link>
           <Link to="/support">Support</Link>
+          <span className="site-footer-version">{APP_VERSION}</span>
         </nav>
       </footer>
     </div>
