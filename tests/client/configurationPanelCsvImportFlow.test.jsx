@@ -1,6 +1,6 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Rows with data problems (missing name, bad email/phone) are no longer
 // excluded from import and shown only in a preview that vanishes once the
@@ -68,6 +68,10 @@ vi.mock('../../src/services/configurationService.js', async () => {
 
 const { default: ConfigurationPanel } = await import('../../src/components/admin/ConfigurationPanel.jsx');
 
+beforeEach(() => {
+  importMembersFromCsvRowsMock.mockReset();
+});
+
 afterEach(cleanup);
 
 function makeCsvFile(rows) {
@@ -75,8 +79,8 @@ function makeCsvFile(rows) {
   return new File([csv], 'roster.csv', { type: 'text/csv' });
 }
 
-async function uploadCsv(user, file) {
-  await user.selectOptions(screen.getByLabelText('Import Mode'), 'Add/Update Only');
+async function uploadCsv(user, file, importMode = 'Add/Update Only') {
+  await user.selectOptions(screen.getByLabelText('Import Mode'), importMode);
   const fileInput = document.querySelector('input[type="file"]');
   await user.upload(fileInput, file);
 }
@@ -143,5 +147,100 @@ describe('CSV import: rows with issues import as Pending instead of being exclud
     // list itself (via the existing Pending status filter), not a widget
     // that only survives until the next render.
     expect(screen.queryByText('Rows That Need Fixing')).toBeNull();
+  });
+});
+
+describe('Annual Refresh requires an explicit confirmation before it runs', () => {
+  it('does not import immediately - it opens a confirmation dialog explaining the effect first', async () => {
+    const user = userEvent.setup();
+    render(<ConfigurationPanel currentUserProfile={{ id: 'admin-1', name: 'Admin' }} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Membership Profiles' }));
+    await uploadCsv(
+      user,
+      makeCsvFile(['Adams,Nancy,adamsn952@gmail.com,919 349-2725']),
+      'Annual Refresh'
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Import 1 Profile' }));
+
+    expect(await screen.findByText('Confirm Annual Refresh')).toBeTruthy();
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/This file has 1 profile\(s\)/)).toBeTruthy();
+    expect(within(dialog).getByText(/marked Inactive/)).toBeTruthy();
+    expect(importMembersFromCsvRowsMock).not.toHaveBeenCalled();
+  });
+
+  it('runs the import only after the dialog is confirmed', async () => {
+    const user = userEvent.setup();
+    importMembersFromCsvRowsMock.mockResolvedValue({
+      createdCount: 1,
+      importedCount: 1,
+      inactivatedCount: 0,
+      pendingReviewCount: 0,
+      reviewCount: 0,
+      reviewRows: [],
+      skippedSuperUserCount: 0,
+      updatedCount: 0
+    });
+
+    render(<ConfigurationPanel currentUserProfile={{ id: 'admin-1', name: 'Admin' }} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Membership Profiles' }));
+    await uploadCsv(
+      user,
+      makeCsvFile(['Adams,Nancy,adamsn952@gmail.com,919 349-2725']),
+      'Annual Refresh'
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Import 1 Profile' }));
+    await user.click(await screen.findByRole('button', { name: 'Run Annual Refresh' }));
+
+    await waitFor(() => {
+      expect(importMembersFromCsvRowsMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('does not import when the dialog is cancelled', async () => {
+    const user = userEvent.setup();
+    render(<ConfigurationPanel currentUserProfile={{ id: 'admin-1', name: 'Admin' }} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Membership Profiles' }));
+    await uploadCsv(
+      user,
+      makeCsvFile(['Adams,Nancy,adamsn952@gmail.com,919 349-2725']),
+      'Annual Refresh'
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Import 1 Profile' }));
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText('Confirm Annual Refresh')).toBeNull();
+    expect(importMembersFromCsvRowsMock).not.toHaveBeenCalled();
+  });
+
+  it('imports immediately for Add/Update Only - no confirmation dialog', async () => {
+    const user = userEvent.setup();
+    importMembersFromCsvRowsMock.mockResolvedValue({
+      createdCount: 1,
+      importedCount: 1,
+      pendingReviewCount: 0,
+      reviewCount: 0,
+      reviewRows: [],
+      skippedSuperUserCount: 0,
+      updatedCount: 0
+    });
+
+    render(<ConfigurationPanel currentUserProfile={{ id: 'admin-1', name: 'Admin' }} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Membership Profiles' }));
+    await uploadCsv(user, makeCsvFile(['Adams,Nancy,adamsn952@gmail.com,919 349-2725']));
+
+    await user.click(await screen.findByRole('button', { name: 'Import 1 Profile' }));
+
+    expect(screen.queryByText('Confirm Annual Refresh')).toBeNull();
+    await waitFor(() => {
+      expect(importMembersFromCsvRowsMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

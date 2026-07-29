@@ -91,6 +91,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [loading, setLoading] = useState(true);
   const [locationFormOpen, setLocationFormOpen] = useState(false);
   const [locationForm, setLocationForm] = useState(EMPTY_LOCATION_FORM);
+  const [annualRefreshConfirmOpen, setAnnualRefreshConfirmOpen] = useState(false);
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
   const [memberImportMode, setMemberImportMode] = useState('');
@@ -356,6 +357,7 @@ function ConfigurationPanel({ currentUserProfile }) {
       return;
     }
 
+    setAnnualRefreshConfirmOpen(false);
     setError('');
     setSuccessMessage('');
     setImportMessage('');
@@ -910,7 +912,13 @@ function ConfigurationPanel({ currentUserProfile }) {
             className="button-link button-reset secondary-action"
             disabled={!canImport}
             type="button"
-            onClick={handleConfirmCsvImport}
+            onClick={() => {
+              if (memberImportMode === 'annualRefresh') {
+                setAnnualRefreshConfirmOpen(true);
+              } else {
+                handleConfirmCsvImport();
+              }
+            }}
           >
             {savingSection === 'csv' ? 'Importing...' : `Import ${validRows.length} Profile${validRows.length === 1 ? '' : 's'}`}
           </button>
@@ -1061,6 +1069,27 @@ function ConfigurationPanel({ currentUserProfile }) {
             ],
             detail: memberFormOpen && memberForm.id === member.id ? renderMemberForm() : null
           }))}
+        />
+        <ConfirmDialog
+          busy={savingSection === 'csv'}
+          cancelLabel="Cancel"
+          confirmLabel="Run Annual Refresh"
+          description={
+            `This file has ${csvPreview?.validRows.length ?? 0} profile(s). Every one of them will `
+            + 'be marked Active for the year with a membership payment recorded. Your membership '
+            + `list currently has ${memberCounts.total - memberCounts.archived} non-archived `
+            + 'profile(s) - any of those NOT matched by this file will be marked Inactive. Make '
+            + 'sure this file is the complete, current membership roster before continuing - a '
+            + 'partial list will deactivate everyone left out of it.'
+          }
+          open={annualRefreshConfirmOpen}
+          title="Confirm Annual Refresh"
+          tone="danger"
+          onCancel={() => setAnnualRefreshConfirmOpen(false)}
+          onConfirm={async () => {
+            setAnnualRefreshConfirmOpen(false);
+            await handleConfirmCsvImport();
+          }}
         />
       </article>
     );

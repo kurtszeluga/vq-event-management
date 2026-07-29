@@ -1519,6 +1519,20 @@ body.nav-sheet-open {
   background: #fbe9e3;
 }
 
+/* ConfirmDialog's tone="danger" only ever adds .archive-action to its own
+   confirm button (reused from the card-actions layout class), which by
+   itself carries no color - give it the same look as .danger-button so a
+   dangerous confirmation actually reads as one. */
+.app-confirm-dialog-body .form-actions .archive-action {
+  background: #fffaf8;
+  border: 1px solid #c44c33;
+  color: #9a341f;
+}
+
+.app-confirm-dialog-body .form-actions .archive-action:hover {
+  background: #fbe9e3;
+}
+
 .text-button:disabled {
   color: #8b9693;
   cursor: not-allowed;
