@@ -1591,9 +1591,11 @@ function formatConfigurationTimeRange(startTime, endTime) {
   return [formattedStart || '-', formattedEnd || '-'].join(' / ');
 }
 
-function parseMemberCsv(text) {
+export function parseMemberCsv(text) {
   const rows = parseCsvRows(text);
-  const [headerRow = [], ...dataRows] = rows;
+  const headerRowIndex = findMemberCsvHeaderRowIndex(rows);
+  const headerRow = rows[headerRowIndex] || [];
+  const dataRows = rows.slice(headerRowIndex + 1);
   const headers = headerRow.map(normalizeCsvHeader);
   const columnMap = getMemberCsvColumnMap(headers);
 
@@ -1608,17 +1610,13 @@ function parseMemberCsv(text) {
         || getCsvColumnValue(row, columnMap.firstName);
       const lastName = getCsvValue(record, LAST_NAME_HEADERS)
         || getCsvColumnValue(row, columnMap.lastName);
-      const fullName = getCsvValue(record, [
-        'name',
-        'member',
-        'memberName',
-        'fullName',
-        'displayName'
-      ]);
+      const fullName = getCsvValue(record, NAME_COLUMN_HEADERS);
       const email = getCsvValue(record, EMAIL_HEADERS)
         || getCsvColumnValue(row, columnMap.email);
       const phone = getCsvValue(record, PHONE_HEADERS)
         || getCsvColumnValue(row, columnMap.phone);
+      const town = getCsvValue(record, TOWN_HEADERS)
+        || getCsvColumnValue(row, columnMap.town);
 
       return {
         email,
@@ -1629,7 +1627,8 @@ function parseMemberCsv(text) {
         phone: formatPhoneNumber(phone),
         status: getCsvValue(record, ['status']).toLowerCase() === 'inactive'
           ? 'Inactive'
-          : 'Active'
+          : 'Active',
+        town: toTitleCase(town)
       };
     })
     .filter((row) => row.name || row.email || row.phone);
@@ -1639,6 +1638,37 @@ const FIRST_NAME_HEADERS = ['firstName', 'firstname', 'first', 'givenName', 'giv
 const LAST_NAME_HEADERS = ['lastName', 'lastname', 'last', 'surname', 'familyName', 'familyname'];
 const EMAIL_HEADERS = ['email', 'emailAddress', 'eMail'];
 const PHONE_HEADERS = ['phone', 'phoneNumber', 'telephone', 'mobile'];
+const NAME_COLUMN_HEADERS = ['name', 'member', 'memberName', 'fullName', 'displayName'];
+const TOWN_HEADERS = ['town', 'city', 'townCity', 'cityTown'];
+const HEADER_ROW_HINT_TOKENS = new Set([
+  ...FIRST_NAME_HEADERS,
+  ...LAST_NAME_HEADERS,
+  ...EMAIL_HEADERS,
+  ...PHONE_HEADERS,
+  ...NAME_COLUMN_HEADERS,
+  ...TOWN_HEADERS
+].map((token) => token.toLowerCase()));
+const HEADER_ROW_SCAN_LIMIT = 20;
+
+// Roster exports often carry a title/banner row (e.g. "Village Quilters
+// Roster July 2026") above the real column headers. Blank rows are already
+// dropped by parseCsvRows, but a banner row is not blank, so find the first
+// row that actually looks like a header instead of assuming row 0 is it.
+function findMemberCsvHeaderRowIndex(rows) {
+  const scanLimit = Math.min(rows.length, HEADER_ROW_SCAN_LIMIT);
+
+  for (let index = 0; index < scanLimit; index += 1) {
+    const isHeaderRow = rows[index].some(
+      (cell) => HEADER_ROW_HINT_TOKENS.has(normalizeCsvHeader(cell).toLowerCase())
+    );
+
+    if (isHeaderRow) {
+      return index;
+    }
+  }
+
+  return 0;
+}
 
 function normalizeCsvHeader(header) {
   return normalizeCsvCell(header)
@@ -1664,7 +1694,8 @@ function getMemberCsvColumnMap(headers) {
     email: getHeaderIndex(headers, EMAIL_HEADERS),
     firstName: getHeaderIndex(headers, FIRST_NAME_HEADERS),
     lastName: getHeaderIndex(headers, LAST_NAME_HEADERS),
-    phone: getHeaderIndex(headers, PHONE_HEADERS)
+    phone: getHeaderIndex(headers, PHONE_HEADERS),
+    town: getHeaderIndex(headers, TOWN_HEADERS)
   };
 }
 

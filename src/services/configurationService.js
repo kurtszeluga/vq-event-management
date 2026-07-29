@@ -837,11 +837,12 @@ function buildProfileImportPayload(profile, profileId) {
     normalizedPhone: normalizePhone(phone),
     phone,
     profileId,
-    status: getValidMemberStatus(profile.status)
+    status: getValidMemberStatus(profile.status),
+    town: cleanText(profile.town)
   };
 }
 
-function buildImportedExistingProfile(existingProfile, importedProfile, matchedBy, termsVersion) {
+export function buildImportedExistingProfile(existingProfile, importedProfile, matchedBy, termsVersion) {
   const firstName = importedProfile.firstName || existingProfile.firstName || getFirstNameFallback(existingProfile.name);
   const lastName = importedProfile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name);
   const name = importedProfile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' ');
@@ -850,7 +851,10 @@ function buildImportedExistingProfile(existingProfile, importedProfile, matchedB
   const role = getMembershipAllowedRole(existingProfile, membershipStatus);
 
   return {
-    billingAddress: existingProfile.billingAddress || getEmptyBillingAddress(),
+    billingAddress: {
+      ...(existingProfile.billingAddress || getEmptyBillingAddress()),
+      city: importedProfile.town || existingProfile.billingAddress?.city || ''
+    },
     createdDate: existingProfile.createdDate || serverTimestamp(),
     email: importedProfile.email || existingProfile.email || '',
     firstName,
@@ -886,9 +890,9 @@ function buildImportedExistingProfile(existingProfile, importedProfile, matchedB
   };
 }
 
-function buildImportedNewProfile(importedProfile, termsVersion) {
+export function buildImportedNewProfile(importedProfile, termsVersion) {
   return {
-    billingAddress: getEmptyBillingAddress(),
+    billingAddress: { ...getEmptyBillingAddress(), city: importedProfile.town || '' },
     createdDate: serverTimestamp(),
     email: importedProfile.email,
     firstName: importedProfile.firstName,
@@ -1064,7 +1068,7 @@ function buildMembershipStatusProfile(profile, membershipStatus) {
   };
 }
 
-function buildInactivatedMembershipProfile(profile) {
+export function buildInactivatedMembershipProfile(profile) {
   const firstName = profile.firstName || getFirstNameFallback(profile.name);
   const lastName = profile.lastName || getLastNameFallback(profile.name);
   const name = profile.name || [firstName, lastName].filter(Boolean).join(' ');
