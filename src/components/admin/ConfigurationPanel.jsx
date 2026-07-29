@@ -843,20 +843,40 @@ function ConfigurationPanel({ currentUserProfile }) {
   }
 
   function renderCsvPreview() {
-    const { duplicateEmails, fileName, skippedRows, totalDataRows, validRows } = csvPreview;
+    const { duplicateEmails, fileName, invalidRows, skippedRows, totalDataRows, validRows } = csvPreview;
     const canImport = validRows.length > 0 && savingSection !== 'csv';
 
     return (
       <div className="configuration-csv-preview">
         <h4>{fileName}</h4>
         <p className="form-help">
-          {totalDataRows} row{totalDataRows === 1 ? '' : 's'} found, {validRows.length} ready to import.
+          {totalDataRows} row{totalDataRows === 1 ? '' : 's'} found, {validRows.length} ready to
+          import{invalidRows.length ? `, ${invalidRows.length} need${invalidRows.length === 1 ? 's' : ''} fixing` : ''}
+          {skippedRows.length ? `, ${skippedRows.length} skipped` : ''}.
         </p>
         {!validRows.length ? (
           <p className="csv-preview-warning csv-preview-error">
             None of these rows have a name, email, or phone number. Check that the file has First
             Name/Last Name, Email, and Phone columns, then choose the file again.
           </p>
+        ) : null}
+        {invalidRows.length ? (
+          <div className="csv-preview-warning csv-preview-error">
+            <p>
+              {invalidRows.length} row{invalidRows.length === 1 ? '' : 's'} need
+              {invalidRows.length === 1 ? 's' : ''} fixing before {invalidRows.length === 1 ? 'it' : 'they'} can be
+              imported - each needs a full name and at least one of a valid email or a 10-digit
+              phone number:
+            </p>
+            <ul>
+              {invalidRows.map((row) => (
+                <li key={row.dataRowNumber}>
+                  Row {row.dataRowNumber} ({row.name || row.email || row.phone || 'blank'}):{' '}
+                  {row.issues.join('; ')}.
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         {skippedRows.length ? (
           <p className="csv-preview-warning">
@@ -1699,10 +1719,55 @@ function formatConfigurationTimeRange(startTime, endTime) {
   return [formattedStart || '-', formattedEnd || '-'].join(' / ');
 }
 
-// Parses every data row and sorts it into rows ready to import vs. rows
-// with nothing usable in them, plus a duplicate-email check - all client
-// side, no Firestore involved, so the admin can review and fix the CSV
-// before anything is written. dataRowNumber is 1-based among data rows
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// A US phone column sometimes carries a leading country code (11 digits
+// starting with 1) - strip that before checking for the expected 10.
+function getMemberCsvPhoneDigits(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+
+  return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+}
+
+// Every row needs a full name plus at least one working way to reach the
+// member (email or phone) - members without email are common here, so
+// email and phone are alternatives, not both required. Returns the list of
+// problems with a row, or an empty array when it's fit to import.
+function getMemberCsvRowIssues(row) {
+  const issues = [];
+
+  if (!row.name) {
+    issues.push('Missing name');
+  } else if (!row.hasFullNameColumn) {
+    if (!row.firstName) {
+      issues.push('Missing first name');
+    }
+    if (!row.lastName) {
+      issues.push('Missing last name');
+    }
+  }
+
+  if (row.email && !EMAIL_FORMAT.test(row.email)) {
+    issues.push('Invalid email format');
+  }
+
+  if (row.phoneDigitCount && row.phoneDigitCount !== 10) {
+    issues.push(`Phone number has ${row.phoneDigitCount} digits (expected 10)`);
+  }
+
+  if (!row.email && !row.phoneDigitCount) {
+    issues.push('Missing email and phone number - at least one is required');
+  }
+
+  return issues;
+}
+
+// Parses every data row and sorts it into rows ready to import, rows with
+// nothing usable in them, and rows with usable-but-invalid data (missing
+// name, missing both email and phone, a malformed email, or a phone number
+// with the wrong number of digits) - plus a duplicate-email check. All
+// client side, no Firestore involved, so the admin can review and fix the
+// CSV before anything is written. dataRowNumber is 1-based among data rows
 // only (blank rows and the header/banner rows above them don't count),
 // matching what you'd get counting down the spreadsheet from the header.
 export function analyzeMemberCsv(text) {
@@ -1738,10 +1803,12 @@ export function analyzeMemberCsv(text) {
       dataRowNumber: index + 1,
       email,
       firstName: toTitleCase(firstName),
+      hasFullNameColumn: Boolean(fullName),
       lastName: toTitleCase(lastName),
       name: toTitleCase(fullName || [firstName, lastName].filter(Boolean).join(' ')),
       notes: getCsvValue(record, ['notes', 'note', 'comments']),
       phone: formatPhoneNumber(phone),
+      phoneDigitCount: getMemberCsvPhoneDigits(phone).length,
       status: getCsvValue(record, ['status']).toLowerCase() === 'inactive'
         ? 'Inactive'
         : 'Active',
@@ -1749,8 +1816,20 @@ export function analyzeMemberCsv(text) {
     };
   });
 
-  const validRows = parsedRows.filter((row) => row.name || row.email || row.phone);
   const skippedRows = parsedRows.filter((row) => !(row.name || row.email || row.phone));
+  const reviewableRows = parsedRows.filter((row) => row.name || row.email || row.phone);
+  const invalidRows = [];
+  const validRows = [];
+
+  reviewableRows.forEach((row) => {
+    const issues = getMemberCsvRowIssues(row);
+
+    if (issues.length) {
+      invalidRows.push({ ...row, issues });
+    } else {
+      validRows.push(row);
+    }
+  });
 
   const emailRowNumbers = new Map();
   validRows.forEach((row) => {
@@ -1767,6 +1846,7 @@ export function analyzeMemberCsv(text) {
   return {
     duplicateEmails,
     headerFound,
+    invalidRows,
     skippedRows,
     totalDataRows: parsedRows.length,
     validRows

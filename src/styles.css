@@ -2967,6 +2967,19 @@ body.nav-sheet-open {
   font-weight: 700;
 }
 
+div.csv-preview-warning {
+  display: grid;
+  gap: 6px;
+}
+
+.csv-preview-warning ul {
+  display: grid;
+  font-weight: 400;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+}
+
 .configuration-actions-tight {
   gap: 8px;
 }

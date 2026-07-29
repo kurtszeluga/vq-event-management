@@ -136,3 +136,145 @@ describe('analyzeMemberCsv (preview, before anything is imported)', () => {
     expect(analysis.validRows).toHaveLength(0);
   });
 });
+
+describe('analyzeMemberCsv row validation (fix-before-import)', () => {
+  it('accepts a row with a name and only a phone number - no email required', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,,919 349-2725'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.validRows).toHaveLength(1);
+    expect(analysis.invalidRows).toHaveLength(0);
+  });
+
+  it('accepts a row with a name and only an email - no phone required', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,adamsn952@gmail.com,'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.validRows).toHaveLength(1);
+    expect(analysis.invalidRows).toHaveLength(0);
+  });
+
+  it('flags a row missing the last name', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      ',Nancy,adamsn952@gmail.com,919 349-2725'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.validRows).toHaveLength(0);
+    expect(analysis.invalidRows).toHaveLength(1);
+    expect(analysis.invalidRows[0].issues).toEqual(['Missing last name']);
+  });
+
+  it('flags a row missing the first name', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,,adamsn952@gmail.com,919 349-2725'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.invalidRows).toHaveLength(1);
+    expect(analysis.invalidRows[0].issues).toEqual(['Missing first name']);
+  });
+
+  it('flags a row with neither email nor phone', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,,'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.validRows).toHaveLength(0);
+    expect(analysis.invalidRows).toHaveLength(1);
+    expect(analysis.invalidRows[0].issues).toEqual([
+      'Missing email and phone number - at least one is required'
+    ]);
+  });
+
+  it('flags an invalid email format', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,not-an-email,919 349-2725'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.invalidRows).toHaveLength(1);
+    expect(analysis.invalidRows[0].issues).toEqual(['Invalid email format']);
+  });
+
+  it('flags a phone number with extra digits instead of silently truncating it', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,adamsn952@gmail.com,919 349-27255'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.invalidRows).toHaveLength(1);
+    expect(analysis.invalidRows[0].issues).toEqual(['Phone number has 11 digits (expected 10)']);
+  });
+
+  it('flags a phone number with missing digits', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,adamsn952@gmail.com,919 349-272'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.invalidRows).toHaveLength(1);
+    expect(analysis.invalidRows[0].issues).toEqual(['Phone number has 9 digits (expected 10)']);
+  });
+
+  it('accepts a phone number with a leading 1 country code', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,adamsn952@gmail.com,1-919-349-2725'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.validRows).toHaveLength(1);
+    expect(analysis.invalidRows).toHaveLength(0);
+  });
+
+  it('collects multiple issues on the same row', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      ',,not-an-email,12345'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.invalidRows).toHaveLength(1);
+    expect(analysis.invalidRows[0].issues).toEqual([
+      'Missing name',
+      'Invalid email format',
+      'Phone number has 5 digits (expected 10)'
+    ]);
+  });
+
+  it('does not require separate first/last columns when a single Name column is used', () => {
+    const csv = [
+      'Name,Email,Phone',
+      'Nancy Adams,adamsn952@gmail.com,919 349-2725'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.validRows).toHaveLength(1);
+    expect(analysis.invalidRows).toHaveLength(0);
+  });
+});
