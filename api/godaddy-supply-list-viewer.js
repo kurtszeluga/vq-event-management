@@ -1,5 +1,6 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
+import { parseRequestQuery } from './_lib/request-query.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 
 export default async function handler(request, response) {
@@ -10,7 +11,7 @@ export default async function handler(request, response) {
   }
 
   try {
-    const eventId = getQueryValue(request.query.eventId);
+    const eventId = parseRequestQuery(request).get('eventId');
 
     if (!eventId) {
       response.status(400).send(buildMessageHtml('Supply list unavailable', 'The event was missing.'));
@@ -315,10 +316,6 @@ function buildFileProxyUrl(origin, fileUrl, fileName, disposition = 'inline') {
   });
 
   return `${origin}/api/file-proxy?${params.toString()}`;
-}
-
-function getQueryValue(value) {
-  return Array.isArray(value) ? value[0] : value;
 }
 
 function getRequestOrigin(request) {

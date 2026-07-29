@@ -3,6 +3,7 @@ import {
   initializeAdminApp,
   loadRegistrationCounts
 } from './_lib/public-event-feed.js';
+import { parseRequestQuery } from './_lib/request-query.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 
 export default async function handler(request, response) {
@@ -34,7 +35,7 @@ export default async function handler(request, response) {
       windowMs: 10 * 60 * 1000
     });
 
-    const eventIds = String(request.query.eventIds || '')
+    const eventIds = String(parseRequestQuery(request).get('eventIds') || '')
       .split(',')
       .map((eventId) => eventId.trim())
       .filter(Boolean);

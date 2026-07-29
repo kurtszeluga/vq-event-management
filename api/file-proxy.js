@@ -1,5 +1,6 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
+import { parseRequestQuery } from './_lib/request-query.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 
 const ALLOWED_HOSTS = new Set([
@@ -31,8 +32,10 @@ export default async function handler(request, response) {
       windowMs: 10 * 60 * 1000
     });
 
-    const { url, disposition = 'inline', filename = 'download.pdf' } = request.query || {};
-    const fileUrl = Array.isArray(url) ? url[0] : url;
+    const searchParams = parseRequestQuery(request);
+    const fileUrl = searchParams.get('url');
+    const disposition = searchParams.get('disposition') || 'inline';
+    const filename = searchParams.get('filename') || 'download.pdf';
 
     if (!fileUrl || typeof fileUrl !== 'string') {
       response.status(400).json({ error: 'Missing file URL.' });
@@ -65,7 +68,7 @@ export default async function handler(request, response) {
 
     const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
     const safeDisposition = disposition === 'attachment' ? 'attachment' : 'inline';
-    const safeFileName = sanitizeFileName(Array.isArray(filename) ? filename[0] : filename);
+    const safeFileName = sanitizeFileName(filename);
     const statusCode = upstream.status === 206 ? 206 : 200;
 
     response.setHeader('Content-Type', contentType);

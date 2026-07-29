@@ -1,5 +1,6 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFeedCategory, initializeAdminApp, loadPublicFeed } from './_lib/public-event-feed.js';
+import { parseRequestQuery } from './_lib/request-query.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 
 export default async function handler(request, response) {
@@ -29,7 +30,7 @@ export default async function handler(request, response) {
       windowMs: 10 * 60 * 1000
     });
 
-    const category = getFeedCategory(request.query.category);
+    const category = getFeedCategory(parseRequestQuery(request).get('category'));
     const origin = getRequestOrigin(request);
     const payload = await loadPublicFeed(category, origin);
 
