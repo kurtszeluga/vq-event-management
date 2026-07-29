@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Regenerates the default event-card images used when an event is saved
-// without a photo (see src/data/eventOptions.js EVENT_TYPE_PLACEHOLDER_IMAGES).
+// without a photo (see shared/eventImages.js EVENT_TYPE_PLACEHOLDER_IMAGES).
 // Each is a real, traditional quilt block pattern, not invented geometry.
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';

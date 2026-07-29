@@ -30,3 +30,23 @@ test('an event with no images reports an empty array and a zero count', () => {
   assert.deepEqual(feedEvent.imageUrls, []);
   assert.equal(feedEvent.imageCount, 0);
 });
+
+test('the feed publishes an absolute default placeholder image for a type that has one', () => {
+  const feedEvent = serializeEvent({ ...BASE_EVENT }, 'https://example.com');
+
+  assert.equal(feedEvent.placeholderImageUrl, 'https://example.com/assets/event-placeholders/workshop.svg');
+});
+
+test('the placeholder URL is absolute even when the origin has a trailing slash', () => {
+  const feedEvent = serializeEvent({ ...BASE_EVENT }, 'https://example.com/');
+
+  assert.equal(feedEvent.placeholderImageUrl, 'https://example.com/assets/event-placeholders/workshop.svg');
+});
+
+test('Business Listing and For Sale have no default placeholder image, matching the site', () => {
+  const businessEvent = serializeEvent({ ...BASE_EVENT, eventType: 'Business Listing' }, 'https://example.com');
+  const forSaleEvent = serializeEvent({ ...BASE_EVENT, eventType: 'For Sale' }, 'https://example.com');
+
+  assert.equal(businessEvent.placeholderImageUrl, '');
+  assert.equal(forSaleEvent.placeholderImageUrl, '');
+});

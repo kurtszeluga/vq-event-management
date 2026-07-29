@@ -126,7 +126,7 @@
       : description;
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
     const paymentDetails = getPaymentDetails(event);
-    const thumbnail = buildThumbnailMarkup(getEventImages(event), event.title || 'Event');
+    const thumbnail = buildThumbnailMarkup(getEventImages(event), event.title || 'Event', event.placeholderImageUrl);
     const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
     const supplyListViewerUrl =
       event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id);
@@ -215,8 +215,20 @@
     return count === 1 ? '1 Photo' : `${count} Photos`;
   }
 
-  function buildThumbnailMarkup(images, title) {
+  function buildThumbnailMarkup(images, title, placeholderImageUrl) {
     if (!images.length) {
+      // Same default quilt-block image the main site shows for this event
+      // type when nothing has been uploaded - not clickable/zoomable, unlike
+      // a real photo, since there is nothing more to show. Business Listing
+      // and For Sale have no placeholder mapping and keep the flat box.
+      if (placeholderImageUrl) {
+        return `
+          <div class="vq-feed-thumb-stack">
+            <img alt="${escapeHtml(title)}" class="vq-feed-thumb-image" src="${escapeAttribute(placeholderImageUrl)}" />
+          </div>
+        `;
+      }
+
       return '<div class="vq-feed-thumb-placeholder" aria-hidden="true"></div>';
     }
 
@@ -1137,8 +1149,8 @@
       ? `${escapeHtml(formatCurrency(getPaymentTotal(event)))} total (${escapeHtml(formatCurrency(event.cost || 0))} + ${escapeHtml(formatCurrency(event.serviceFee || 0))} service fee)`
       : 'No Charge';
     const registration = escapeHtml(event.registrationOpen ? 'Registration open' : 'Registration closed');
-    const imageBlock = event.imageUrl
-      ? `<img alt="${title}" class="event-image" src="${escapeAttribute(event.imageUrl)}" />`
+    const imageBlock = event.imageUrl || event.placeholderImageUrl
+      ? `<img alt="${title}" class="event-image" src="${escapeAttribute(event.imageUrl || event.placeholderImageUrl)}" />`
       : '';
     const stats = getRegistrationStats(event);
 

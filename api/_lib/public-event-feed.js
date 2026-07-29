@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getEventPlaceholderImage } from '../../shared/eventImages.js';
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 
 const EVENT_CATEGORY_CONFIG = {
@@ -260,6 +261,12 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     // set later without a breaking change to the feed shape meanwhile.
     imageUrls: Array.isArray(event.imageUrls) ? event.imageUrls.filter(Boolean) : [],
     imageCount: Array.isArray(event.imageUrls) ? event.imageUrls.filter(Boolean).length : 0,
+    // Same quilt-block default the site shows for an event with no uploaded
+    // photo (empty string for Business Listing/For Sale, which keep the
+    // plain empty state) - absolute, since GoDaddy embeds this feed cross-origin.
+    placeholderImageUrl: getEventPlaceholderImage(eventType)
+      ? `${safeOrigin}${getEventPlaceholderImage(eventType)}`
+      : '',
     supplyListFileName: event.supplyListFileName || '',
     supplyListTitle: event.supplyListTitle || event.supplyListFileName || '',
     supplyListUrl: event.supplyListUrl || '',

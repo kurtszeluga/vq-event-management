@@ -138,7 +138,7 @@ function SupplyListViewerPage() {
     return () => {
       active = false;
 
-      if (pdfDocument) {
+      if (pdfDocument && typeof pdfDocument.destroy === 'function') {
         pdfDocument.destroy();
       }
     };
