@@ -238,6 +238,7 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     address: event.address || '',
     askingPrice: Number(event.askingPrice || 0),
     allowCashCheckPayment: Boolean(event.allowCashCheckPayment),
+    cashCheckOnly: Boolean(event.cashCheckOnly),
     isPaid: Boolean(event.isPaid),
     cost: Number(event.cost || 0),
     serviceFee: Number(event.serviceFee || 0),

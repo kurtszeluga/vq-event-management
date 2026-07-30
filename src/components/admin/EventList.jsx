@@ -287,7 +287,11 @@ function EventList({
                       <span> = {formatCurrency(getEventPaymentTotal(event))} total</span>
                       <br />
                       <span>
-                        Cash/check later: {event.allowCashCheckPayment ? 'Allowed' : 'Not allowed'}
+                        Payment Method: {event.cashCheckOnly
+                          ? 'Cash/Check Only'
+                          : event.allowCashCheckPayment
+                            ? 'Online + Cash/Check'
+                            : 'Online Only'}
                       </span>
                     </>
                   ) : (

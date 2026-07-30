@@ -356,6 +356,24 @@ test('cash/check is never allowed without the cash-check-later payment preferenc
   }), false);
 });
 
+test('a cash/check-only event always allows cash/check, regardless of preference or authorization', () => {
+  const event = { allowCashCheckPayment: true, cashCheckOnly: true };
+
+  // No preference sent at all - the event has no online option to fall back
+  // to, so a tampered or stale request still cannot be charged online.
+  assert.equal(isCashCheckPaymentAllowed({
+    authorizationKind: 'firebase',
+    event,
+    paymentPreference: ''
+  }), true);
+
+  assert.equal(isCashCheckPaymentAllowed({
+    authorizationKind: 'admin',
+    event,
+    paymentPreference: 'online'
+  }), true);
+});
+
 test('an admin who confirms cash/check was collected marks the payment received', () => {
   assert.deepEqual(resolveAdminCollectedPayment({
     authorizationKind: 'admin',

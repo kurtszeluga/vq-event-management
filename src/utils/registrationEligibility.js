@@ -28,13 +28,20 @@ export function canPayLaterByCashCheck(event) {
   return isPaidEvent(event) && Boolean(event?.allowCashCheckPayment);
 }
 
+// A cash/check-only event never offers cash/check as an optional
+// alternative to online payment - it is the only method, so the registrant
+// is never actually asked to choose.
+export function mustPayByCashCheck(event) {
+  return isPaidEvent(event) && Boolean(event?.cashCheckOnly);
+}
+
 // What the registrant actually pays: the event cost plus the service fee.
 export function getEventPaymentTotal(event) {
   return Number(event?.cost || 0) + Number(event?.serviceFee || 0);
 }
 
 export function requiresSquarePayment(event, paymentPreference) {
-  return isPaidEvent(event) && paymentPreference !== CASH_CHECK_LATER;
+  return isPaidEvent(event) && !event?.cashCheckOnly && paymentPreference !== CASH_CHECK_LATER;
 }
 
 export function isJoiningWaitlist(paymentReservation) {

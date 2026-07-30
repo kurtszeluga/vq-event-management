@@ -315,9 +315,11 @@
     const cost = Number(event.cost || 0);
     const serviceFee = Number(event.serviceFee || 0);
     const total = cost + serviceFee;
-    const payLater = event.allowCashCheckPayment
-      ? '<span class="vq-feed-payment-note">Cash/check later available</span>'
-      : '';
+    const payLater = event.cashCheckOnly
+      ? '<span class="vq-feed-payment-note">Cash/check only - online payment not accepted</span>'
+      : event.allowCashCheckPayment
+        ? '<span class="vq-feed-payment-note">Cash/check later available</span>'
+        : '';
 
     return `
       <strong>${escapeHtml(formatCurrency(total))} total</strong>
@@ -1146,7 +1148,7 @@
     const location = escapeHtml(event.location || 'To be announced');
     const presenter = escapeHtml(event.presenter || 'To be announced');
     const cost = event.isPaid
-      ? `${escapeHtml(formatCurrency(getPaymentTotal(event)))} total (${escapeHtml(formatCurrency(event.cost || 0))} + ${escapeHtml(formatCurrency(event.serviceFee || 0))} service fee)`
+      ? `${escapeHtml(formatCurrency(getPaymentTotal(event)))} total (${escapeHtml(formatCurrency(event.cost || 0))} + ${escapeHtml(formatCurrency(event.serviceFee || 0))} service fee)${event.cashCheckOnly ? ' - cash/check only' : ''}`
       : 'No Charge';
     const registration = escapeHtml(event.registrationOpen ? 'Registration open' : 'Registration closed');
     const imageBlock = event.imageUrl || event.placeholderImageUrl

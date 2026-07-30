@@ -28,6 +28,7 @@ import {
   getProfileExists,
   getRegistrationUnavailableReason,
   isMembershipBlocked,
+  mustPayByCashCheck as getMustPayByCashCheck,
   needsAccountPassword as getNeedsAccountPassword,
   needsEmailVerification as getNeedsEmailVerification,
   requiresBillingAddress as getRequiresBillingAddress
@@ -146,6 +147,7 @@ function RegisterPage() {
   const profileExists = getProfileExists(lookup);
   const requiresBillingAddress = getRequiresBillingAddress(event);
   const canPayLaterByCashCheck = getCanPayLaterByCashCheck(event);
+  const mustPayByCashCheck = getMustPayByCashCheck(event);
   const showAddressFields = requiresBillingAddress || Boolean(matchedProfile);
 
   const {
@@ -194,7 +196,9 @@ function RegisterPage() {
       eventId,
       idempotencyKey: registrationAttemptKey.current,
       name: displayName,
-      paymentPreference: canPayLaterByCashCheck ? paymentPreference : '',
+      paymentPreference: canPayLaterByCashCheck
+        ? (mustPayByCashCheck ? 'cash-check-later' : paymentPreference)
+        : '',
       phone,
       profileUserId: matchedProfile?.userId || '',
       profileUpdates,
@@ -218,6 +222,7 @@ function RegisterPage() {
     firstName,
     lastName,
     matchedProfile,
+    mustPayByCashCheck,
     paymentPreference,
     phone,
     reactivateProfile,
@@ -783,7 +788,7 @@ function RegisterPage() {
               ) : null}
               {!needsProfileEdits ? (
                 <div className="registration-submit-block">
-                  {canPayLaterByCashCheck ? (
+                  {canPayLaterByCashCheck && !mustPayByCashCheck ? (
                     <label className="checkbox-label">
                       <input
                         checked={paymentPreference === 'cash-check-later'}
@@ -800,6 +805,12 @@ function RegisterPage() {
                         </span>
                       </span>
                     </label>
+                  ) : null}
+                  {mustPayByCashCheck ? (
+                    <p className="form-help">
+                      This event is paid by cash or check only - no online payment option is offered.
+                      Your spot will be registered now, and payment will remain pending until received.
+                    </p>
                   ) : null}
                   {isPaidEvent ? (
                     <RegistrationPaymentPanel

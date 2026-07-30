@@ -50,3 +50,17 @@ test('Business Listing and For Sale have no default placeholder image, matching 
   assert.equal(businessEvent.placeholderImageUrl, '');
   assert.equal(forSaleEvent.placeholderImageUrl, '');
 });
+
+test('cashCheckOnly passes through the feed so the GoDaddy widget can suppress online payment messaging', () => {
+  const cashCheckOnlyEvent = serializeEvent(
+    { ...BASE_EVENT, cashCheckOnly: true, cost: 25, isPaid: true },
+    'https://example.com'
+  );
+  const onlineEvent = serializeEvent(
+    { ...BASE_EVENT, cashCheckOnly: false, cost: 25, isPaid: true },
+    'https://example.com'
+  );
+
+  assert.equal(cashCheckOnlyEvent.cashCheckOnly, true);
+  assert.equal(onlineEvent.cashCheckOnly, false);
+});

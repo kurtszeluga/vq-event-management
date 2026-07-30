@@ -300,6 +300,7 @@ function EventForm({
       endTime: isChallengeType ? '00:00' : nextTimeOption?.endTime || '',
       capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
       allowCashCheckPayment: doesNotUseFees ? false : current.allowCashCheckPayment,
+      cashCheckOnly: doesNotUseFees ? false : current.cashCheckOnly,
       allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale' || isLectureType
         ? false
         : current.allowNonMemberRegistration,
@@ -355,19 +356,44 @@ function EventForm({
     });
   }
 
-  function handleFeeSelection(value) {
+  // Three mutually-exclusive payment types, checkbox-styled rather than a
+  // radio group per request - selecting one clears the state that would
+  // make either of the other two read as checked.
+  function handlePaymentTypeSelection(paymentType) {
     setSuccessMessage('');
-    setForm((current) => ({
-      ...current,
-      isPaid: value,
-      ...(value
-        ? {
-            serviceFee: current.serviceFee && Number(current.serviceFee) !== 0
-              ? current.serviceFee
-              : defaultServiceFee
-          }
-        : { allowCashCheckPayment: false, cost: '0', serviceFee: '0' })
-    }));
+    setForm((current) => {
+      if (paymentType === 'free') {
+        return {
+          ...current,
+          allowCashCheckPayment: false,
+          cashCheckOnly: false,
+          cost: '0',
+          isPaid: false,
+          serviceFee: '0'
+        };
+      }
+
+      const nextServiceFee = current.serviceFee && Number(current.serviceFee) !== 0
+        ? current.serviceFee
+        : defaultServiceFee;
+
+      if (paymentType === 'cashCheckOnly') {
+        return {
+          ...current,
+          allowCashCheckPayment: true,
+          cashCheckOnly: true,
+          isPaid: true,
+          serviceFee: nextServiceFee
+        };
+      }
+
+      return {
+        ...current,
+        cashCheckOnly: false,
+        isPaid: true,
+        serviceFee: nextServiceFee
+      };
+    });
     setFieldErrors((current) => {
       const next = { ...current };
       delete next.isPaid;
@@ -1254,30 +1280,37 @@ function EventForm({
         <h3>Event/Activity Fees</h3>
         <div className="form-grid compact">
           <div className={`radio-field ${fieldErrors.isPaid ? 'field-invalid' : ''}`}>
-            <span>Is There a Fee For This Event or Activity? *</span>
+            <span>Payment Type *</span>
             <span className="form-help">
-              Choose No for free events.
+              Choose how this event or activity is paid for.
             </span>
             <div className="radio-options">
               <label className="checkbox-label">
                 <input
-                  checked={form.isPaid === true}
+                  checked={form.isPaid === true && !form.cashCheckOnly}
                   disabled={!eventTypeSelected}
-                  name="isPaid"
-                  type="radio"
-                  onChange={() => handleFeeSelection(true)}
+                  type="checkbox"
+                  onChange={() => handlePaymentTypeSelection('online')}
                 />
-                <span>Yes</span>
+                <span>Online (Credit Card)</span>
+              </label>
+              <label className="checkbox-label">
+                <input
+                  checked={form.isPaid === true && Boolean(form.cashCheckOnly)}
+                  disabled={!eventTypeSelected}
+                  type="checkbox"
+                  onChange={() => handlePaymentTypeSelection('cashCheckOnly')}
+                />
+                <span>Cash/Check Only</span>
               </label>
               <label className="checkbox-label">
                 <input
                   checked={form.isPaid === false}
                   disabled={!eventTypeSelected}
-                  name="isPaid"
-                  type="radio"
-                  onChange={() => handleFeeSelection(false)}
+                  type="checkbox"
+                  onChange={() => handlePaymentTypeSelection('free')}
                 />
-                <span>No</span>
+                <span>Free</span>
               </label>
             </div>
           </div>
@@ -1313,21 +1346,23 @@ function EventForm({
                   Leave the default unless the fee changes.
                 </span>
               </label>
-              <label className="checkbox-label registration-exception-checkbox">
-                <input
-                  checked={Boolean(form.allowCashCheckPayment)}
-                  type="checkbox"
-                  onChange={(event) =>
-                    updateField('allowCashCheckPayment', event.target.checked)
-                  }
-                />
-                <span className="checkbox-label-copy">
-                  <strong>Allow cash/check payment later</strong>
-                  <small>
-                    Use only when registrants may reserve a spot now and pay by cash or check later.
-                  </small>
-                </span>
-              </label>
+              {!form.cashCheckOnly ? (
+                <label className="checkbox-label registration-exception-checkbox">
+                  <input
+                    checked={Boolean(form.allowCashCheckPayment)}
+                    type="checkbox"
+                    onChange={(event) =>
+                      updateField('allowCashCheckPayment', event.target.checked)
+                    }
+                  />
+                  <span className="checkbox-label-copy">
+                    <strong>Allow cash/check payment later</strong>
+                    <small>
+                      Use only when registrants may reserve a spot now and pay by cash or check later.
+                    </small>
+                  </span>
+                </label>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -1744,7 +1779,7 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
   return {
     additionalNotes: form.additionalNotes.trim(),
     allowCashCheckPayment: hasFees && form.isPaid === true
-      ? Boolean(form.allowCashCheckPayment)
+      ? Boolean(form.allowCashCheckPayment) || Boolean(form.cashCheckOnly)
       : false,
     allowNonMemberRegistration: !isListingOnly && Boolean(form.allowNonMemberRegistration),
     address: toTitleCase(form.address.trim()),
@@ -1752,6 +1787,7 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     businessName: toTitleCase(form.businessName.trim()),
     capacity: !hasCapacity || form.capacityUnlimited ? 0 : Number(form.capacity || 0),
     capacityUnlimited: hasCapacity ? Boolean(form.capacityUnlimited) : true,
+    cashCheckOnly: hasFees && form.isPaid === true ? Boolean(form.cashCheckOnly) : false,
     contactEmail: form.contactEmail.trim(),
     contactName: toTitleCase(form.contactName.trim()),
     contactPhone: form.contactPhone.trim(),

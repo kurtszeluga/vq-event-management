@@ -65,6 +65,14 @@ export function isCashCheckPaymentAllowed({
   event = {},
   paymentPreference = ''
 } = {}) {
+  // A cash/check-only event never has an online option to fall back to, so
+  // this must hold regardless of what paymentPreference the client sent -
+  // defense in depth against a tampered or stale request still trying to
+  // charge a card for an event that cannot accept one.
+  if (event.cashCheckOnly) {
+    return true;
+  }
+
   if (paymentPreference !== 'cash-check-later') {
     return false;
   }

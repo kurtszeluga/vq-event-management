@@ -11,6 +11,7 @@ import {
   isPaidEvent,
   isPaymentPending,
   isPaymentRequiredForSeat,
+  mustPayByCashCheck,
   needsAccountPassword,
   needsEmailVerification,
   requiresBillingAddress,
@@ -58,6 +59,25 @@ test('choosing cash or check later skips the Square payment step', () => {
 
   // Free events never require card payment whatever the preference.
   assert.equal(requiresSquarePayment(FREE_EVENT, 'online'), false);
+});
+
+test('a cash/check-only event never requires Square payment, regardless of preference', () => {
+  const cashCheckOnlyEvent = { ...PAID_EVENT, cashCheckOnly: true };
+
+  assert.equal(requiresSquarePayment(cashCheckOnlyEvent, ''), false);
+  assert.equal(requiresSquarePayment(cashCheckOnlyEvent, 'online'), false);
+  assert.equal(requiresSquarePayment(cashCheckOnlyEvent, CASH_CHECK_LATER), false);
+});
+
+test('mustPayByCashCheck is true only for a chargeable cash/check-only event', () => {
+  assert.equal(mustPayByCashCheck({ ...PAID_EVENT, cashCheckOnly: true }), true);
+  assert.equal(mustPayByCashCheck({ ...PAID_EVENT, cashCheckOnly: false }), false);
+  assert.equal(mustPayByCashCheck(PAID_EVENT), false);
+
+  // A free event is never "must pay by cash/check" even if the flag is stale.
+  assert.equal(mustPayByCashCheck({ ...FREE_EVENT, cashCheckOnly: true }), false);
+
+  assert.equal(mustPayByCashCheck(null), false);
 });
 
 test('a waitlisted hold skips the card step even on a paid event', () => {

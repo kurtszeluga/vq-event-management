@@ -54,6 +54,14 @@ const MEMBERS = [
 const FREE_EVENT = { allowCashCheckPayment: false, cost: 0, id: 'event-1', isPaid: false, title: 'Guild Meeting' };
 const PAID_CASH_CHECK_EVENT = { allowCashCheckPayment: true, cost: 20, id: 'event-2', isPaid: true, title: 'Retreat' };
 const PAID_UNSUPPORTED_EVENT = { allowCashCheckPayment: false, cost: 20, id: 'event-3', isPaid: true, title: 'Workshop' };
+const CASH_CHECK_ONLY_EVENT = {
+  allowCashCheckPayment: true,
+  cashCheckOnly: true,
+  cost: 20,
+  id: 'event-4',
+  isPaid: true,
+  title: 'Hand Quilting Basics'
+};
 
 function renderPanel(overrides = {}) {
   const props = {
@@ -300,6 +308,20 @@ describe('payment messaging by event type', () => {
 
     expect(screen.getByText(/does not support/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
+  });
+
+  // A cash/check-only event forces allowCashCheckPayment true on save, so it
+  // reaches this panel already accepted - no override checkbox, same as a
+  // regular paid event that opts into cash/check.
+  it('shows cash/check messaging with no override needed for a cash/check-only event', async () => {
+    const user = userEvent.setup();
+    renderPanel({ event: CASH_CHECK_ONLY_EVENT });
+
+    await searchAndSelect(user, 'ada', 'Ada Lovelace');
+
+    expect(screen.getByText(/pay by cash or check later/)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /Override/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
   });
 });
 

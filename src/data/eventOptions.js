@@ -61,6 +61,7 @@ export const DEFAULT_EVENT_FORM = {
   askingPrice: '',
   businessName: '',
   capacity: '20',
+  cashCheckOnly: false,
   contactEmail: '',
   contactName: '',
   contactPhone: '',

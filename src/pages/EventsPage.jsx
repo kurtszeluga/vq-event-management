@@ -98,7 +98,11 @@ function buildEventPrintHtml(event) {
     : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;
   const location = escapeHtml(event.location || 'To be announced');
   const presenter = escapeHtml(event.presenter || 'To be announced');
-  const cost = escapeHtml(event.isPaid ? formatCurrency(event.cost) : 'No Charge');
+  const cost = escapeHtml(
+    event.isPaid
+      ? `${formatCurrency(event.cost)}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+      : 'No Charge'
+  );
   const registration = isRegistrationWindowOpen(event) ? 'Registration open' : 'Registration closed';
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
@@ -541,7 +545,11 @@ function EventsPage() {
                   </div>
                   <div>
                     <dt>Cost</dt>
-                    <dd>{event.isPaid ? formatCurrency(event.cost) : 'No Charge'}</dd>
+                    <dd>
+                      {event.isPaid
+                        ? `${formatCurrency(event.cost)}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+                        : 'No Charge'}
+                    </dd>
                   </div>
                 </dl>
                 {coordinatorContact ? (

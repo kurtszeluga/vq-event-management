@@ -175,7 +175,11 @@ function EventListingPrintPage() {
             </div>
             <div>
               <dt>Cost</dt>
-              <dd>{event.isPaid ? formatCurrency(event.cost) : 'No Charge'}</dd>
+              <dd>
+                {event.isPaid
+                  ? `${formatCurrency(event.cost)}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+                  : 'No Charge'}
+              </dd>
             </div>
           </dl>
         </div>
