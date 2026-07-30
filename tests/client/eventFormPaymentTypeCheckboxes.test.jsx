@@ -70,7 +70,7 @@ describe('EventForm payment type checkboxes', () => {
     expect(cashCheckOnly).not.toBeChecked();
   });
 
-  it('shows Cost and Service Fee for both Online and Cash/Check Only, but not Free', async () => {
+  it('shows Cost and Service Fee for Online, only Cost for Cash/Check Only, and neither for Free', async () => {
     const user = await renderWorkshopForm();
 
     await user.click(screen.getByRole('checkbox', { name: 'Online (Credit Card)' }));
@@ -79,11 +79,24 @@ describe('EventForm payment type checkboxes', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'Cash/Check Only' }));
     expect(screen.getByLabelText(/^Cost/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Service Fee/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Service Fee/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('checkbox', { name: 'Free' }));
     expect(screen.queryByLabelText(/^Cost/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^Service Fee/)).not.toBeInTheDocument();
+  });
+
+  it('preserves the entered cost when switching Online -> Free -> Online instead of silently zeroing it', async () => {
+    const user = await renderWorkshopForm();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Online (Credit Card)' }));
+    await user.clear(screen.getByLabelText(/^Cost/));
+    await user.type(screen.getByLabelText(/^Cost/), '70');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Free' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Online (Credit Card)' }));
+
+    expect(screen.getByLabelText(/^Cost/)).toHaveValue(70);
   });
 
   it('only offers the "Allow cash/check payment later" sub-toggle under Online, not Cash/Check Only', async () => {

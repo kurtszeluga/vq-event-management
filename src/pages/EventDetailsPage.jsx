@@ -173,7 +173,7 @@ function EventDetailsPage() {
               <dt>Cost</dt>
               <dd>
                 {event.isPaid
-                  ? `${formatCurrency(event.cost)} plus ${formatCurrency(event.serviceFee)} service fee${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+                  ? `${formatCurrency(event.cost)}${Number(event.serviceFee || 0) > 0 ? ` plus ${formatCurrency(event.serviceFee)} service fee` : ''}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
                   : 'No Charge'}
               </dd>
             </div>

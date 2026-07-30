@@ -283,8 +283,12 @@ function EventList({
                   {event.isPaid ? (
                     <>
                       <span>{formatCurrency(event.cost || 0)} cost</span>
-                      <span> + {formatCurrency(event.serviceFee || 0)} service fee</span>
-                      <span> = {formatCurrency(getEventPaymentTotal(event))} total</span>
+                      {Number(event.serviceFee || 0) > 0 ? (
+                        <>
+                          <span> + {formatCurrency(event.serviceFee || 0)} service fee</span>
+                          <span> = {formatCurrency(getEventPaymentTotal(event))} total</span>
+                        </>
+                      ) : null}
                       <br />
                       <span>
                         Payment Method: {event.cashCheckOnly

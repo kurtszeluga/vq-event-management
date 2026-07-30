@@ -812,7 +812,12 @@ function RegisterPage() {
                       Your spot will be registered now, and payment will remain pending until received.
                     </p>
                   ) : null}
-                  {isPaidEvent ? (
+                  {!isPaidEvent ? (
+                    <p className="form-help">
+                      This event is free - no payment is required.
+                    </p>
+                  ) : null}
+                  {isPaidEvent && !mustPayByCashCheck ? (
                     <RegistrationPaymentPanel
                       amountDue={getEventPaymentTotal(event)}
                       config={squareConfig}
@@ -1017,7 +1022,7 @@ function EventSummary({ event }) {
   const cost = event.isPaid
     ? `${formatCurrency(getEventPaymentTotal(event))} total`
     : 'No Charge';
-  const paymentBreakdown = event.isPaid
+  const paymentBreakdown = event.isPaid && Number(event.serviceFee || 0) > 0
     ? `${formatCurrency(event.cost || 0)} + ${formatCurrency(event.serviceFee || 0)} service fee`
     : '';
   const registrationStartDate = getRegistrationStartDate(event);

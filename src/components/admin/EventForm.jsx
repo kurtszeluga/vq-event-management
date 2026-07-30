@@ -359,6 +359,12 @@ function EventForm({
   // Three mutually-exclusive payment types, checkbox-styled rather than a
   // radio group per request - selecting one clears the state that would
   // make either of the other two read as checked.
+  //
+  // Cost and service fee are never cleared here even though Free hides both
+  // and Cash/Check Only hides the fee - buildEventPayload already zeroes
+  // whatever isn't applicable at save time, so leaving the underlying value
+  // alone means switching back to a paid type restores what was there
+  // instead of silently saving a real event at $0.
   function handlePaymentTypeSelection(paymentType) {
     setSuccessMessage('');
     setForm((current) => {
@@ -367,25 +373,22 @@ function EventForm({
           ...current,
           allowCashCheckPayment: false,
           cashCheckOnly: false,
-          cost: '0',
-          isPaid: false,
-          serviceFee: '0'
+          isPaid: false
         };
       }
-
-      const nextServiceFee = current.serviceFee && Number(current.serviceFee) !== 0
-        ? current.serviceFee
-        : defaultServiceFee;
 
       if (paymentType === 'cashCheckOnly') {
         return {
           ...current,
           allowCashCheckPayment: true,
           cashCheckOnly: true,
-          isPaid: true,
-          serviceFee: nextServiceFee
+          isPaid: true
         };
       }
+
+      const nextServiceFee = current.serviceFee && Number(current.serviceFee) !== 0
+        ? current.serviceFee
+        : defaultServiceFee;
 
       return {
         ...current,
@@ -1330,22 +1333,28 @@ function EventForm({
                   Enter the event price before any service fee.
                 </span>
               </label>
-              <label>
-                <span>Service Fee</span>
-                <input
-                  min="0"
-                  step="0.01"
-                  type="number"
-                  value={form.serviceFee}
-                  onFocus={() => handleMoneyFieldFocus('serviceFee')}
-                  onChange={(event) =>
-                    updateField('serviceFee', event.target.value)
-                  }
-                />
-                <span className="form-help">
-                  Leave the default unless the fee changes.
-                </span>
-              </label>
+              {!form.cashCheckOnly ? (
+                <label>
+                  <span>Service Fee</span>
+                  <input
+                    min="0"
+                    step="0.01"
+                    type="number"
+                    value={form.serviceFee}
+                    onFocus={() => handleMoneyFieldFocus('serviceFee')}
+                    onChange={(event) =>
+                      updateField('serviceFee', event.target.value)
+                    }
+                  />
+                  <span className="form-help">
+                    Leave the default unless the fee changes.
+                  </span>
+                </label>
+              ) : (
+                <p className="form-help">
+                  Cash/Check Only events have no service fee - it only covers online card processing.
+                </p>
+              )}
               {!form.cashCheckOnly ? (
                 <label className="checkbox-label registration-exception-checkbox">
                   <input
@@ -1810,7 +1819,7 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     registrationMode: isListingOnly || isLecture ? 'none' : form.registrationMode,
     registrationOpen: hasRegistration && form.registrationMode === 'now',
     registrationOpenAt: hasRegistrationWindow ? form.registrationOpenAt : '',
-    serviceFee: form.isPaid && hasFees ? Number(form.serviceFee || 0) : 0,
+    serviceFee: form.isPaid && hasFees && !form.cashCheckOnly ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
     startTime: isChallenge ? '00:00' : hasTime ? form.startTime : '',
     status: asDraft ? 'Draft' : 'Published',

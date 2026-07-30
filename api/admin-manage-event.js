@@ -246,6 +246,13 @@ function sanitizeEventPayload(eventData, eventId) {
   delete payload.updatedDate;
   delete payload.id;
 
+  // Defense in depth: the admin UI never lets a Cash/Check Only event carry a
+  // service fee (there is no card transaction for it to cover), but a
+  // tampered or stale request must not be able to sneak one in either.
+  if (payload.cashCheckOnly) {
+    payload.serviceFee = 0;
+  }
+
   return removeUndefinedFields(payload);
 }
 

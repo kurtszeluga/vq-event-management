@@ -321,9 +321,13 @@
         ? '<span class="vq-feed-payment-note">Cash/check later available</span>'
         : '';
 
+    const breakdown = serviceFee > 0
+      ? `<span class="vq-feed-payment-breakdown">${escapeHtml(formatCurrency(cost))} + ${escapeHtml(formatCurrency(serviceFee))} service fee</span>`
+      : '';
+
     return `
       <strong>${escapeHtml(formatCurrency(total))} total</strong>
-      <span class="vq-feed-payment-breakdown">${escapeHtml(formatCurrency(cost))} + ${escapeHtml(formatCurrency(serviceFee))} service fee</span>
+      ${breakdown}
       ${payLater}
     `;
   }
@@ -1148,7 +1152,7 @@
     const location = escapeHtml(event.location || 'To be announced');
     const presenter = escapeHtml(event.presenter || 'To be announced');
     const cost = event.isPaid
-      ? `${escapeHtml(formatCurrency(getPaymentTotal(event)))} total (${escapeHtml(formatCurrency(event.cost || 0))} + ${escapeHtml(formatCurrency(event.serviceFee || 0))} service fee)${event.cashCheckOnly ? ' - cash/check only' : ''}`
+      ? `${escapeHtml(formatCurrency(getPaymentTotal(event)))} total${Number(event.serviceFee || 0) > 0 ? ` (${escapeHtml(formatCurrency(event.cost || 0))} + ${escapeHtml(formatCurrency(event.serviceFee || 0))} service fee)` : ''}${event.cashCheckOnly ? ' - cash/check only' : ''}`
       : 'No Charge';
     const registration = escapeHtml(event.registrationOpen ? 'Registration open' : 'Registration closed');
     const imageBlock = event.imageUrl || event.placeholderImageUrl

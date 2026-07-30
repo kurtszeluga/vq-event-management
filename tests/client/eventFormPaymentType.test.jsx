@@ -77,7 +77,7 @@ describe('buildEventPayload payment type', () => {
     expect(payloadOn.cashCheckOnly).toBe(false);
   });
 
-  it('Cash/Check Only: isPaid true, cashCheckOnly true, allowCashCheckPayment forced true even if the sub-toggle was never set', () => {
+  it('Cash/Check Only: isPaid true, cashCheckOnly true, allowCashCheckPayment forced true even if the sub-toggle was never set, and serviceFee forced to 0 - there is no card transaction for it to cover', () => {
     const form = paymentForm({
       allowCashCheckPayment: false,
       cashCheckOnly: true,
@@ -92,7 +92,7 @@ describe('buildEventPayload payment type', () => {
     expect(payload.cashCheckOnly).toBe(true);
     expect(payload.allowCashCheckPayment).toBe(true);
     expect(payload.cost).toBe(25);
-    expect(payload.serviceFee).toBe(1);
+    expect(payload.serviceFee).toBe(0);
   });
 
   it('an event type that does not use fees always saves as free with cashCheckOnly false, even if the form still holds paid values', () => {
