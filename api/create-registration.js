@@ -693,7 +693,9 @@ async function createRegistration(db, payload, authorization) {
     const reservationExpectation = { amountDue, email: payload.email, eventId: payload.eventId };
     const matchedReservation = requiresValidReservation
       ? await validatePaymentReservation(transaction, db, payload, reservationExpectation)
-      : await findMatchingReservation(transaction, db, payload, reservationExpectation);
+      : await findMatchingReservation(transaction, db, payload, reservationExpectation, {
+        requireAmountMatch: false
+      });
     const registeredCount = existingRegistrations.filter(
       (registration) => registration.status === 'Registered'
     ).length;
@@ -1471,7 +1473,7 @@ async function getVerificationChallenge(transaction, db, payload, authorization)
 // there is nothing to exclude from the capacity count or mark consumed. Only
 // callers that actually require a still-valid hold (real online payment)
 // need to turn that into a hard error; see validatePaymentReservation.
-async function findMatchingReservation(transaction, db, payload, expected) {
+async function findMatchingReservation(transaction, db, payload, expected, options) {
   if (!payload.paymentReservationId) {
     return null;
   }
@@ -1487,7 +1489,7 @@ async function findMatchingReservation(transaction, db, payload, expected) {
 
   const reservation = reservationSnap.data();
 
-  if (!reservationMatchesRequest(reservation, expected, Date.now())) {
+  if (!reservationMatchesRequest(reservation, expected, Date.now(), options)) {
     return null;
   }
 

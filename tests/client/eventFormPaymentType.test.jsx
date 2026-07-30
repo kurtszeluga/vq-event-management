@@ -12,7 +12,7 @@ vi.mock('../../src/services/storageService.js', () => ({
 }));
 
 const { DEFAULT_EVENT_FORM } = await import('../../src/data/eventOptions.js');
-const { buildEventPayload, getInitialForm } = await import('../../src/components/admin/EventForm.jsx');
+const { buildEventPayload, getInitialForm, validateEventForm } = await import('../../src/components/admin/EventForm.jsx');
 
 // These fixtures represent the form state after handlePaymentTypeSelection
 // has run for each of the three payment types - it is not exported, so the
@@ -131,5 +131,36 @@ describe('buildEventPayload payment type', () => {
     const form = getInitialForm(null, 'Workshop');
 
     expect(form.cashCheckOnly).toBe(false);
+  });
+});
+
+describe('validateEventForm cost requirement', () => {
+  it('rejects a $0 cost for Online - that is what Free is for', () => {
+    const form = paymentForm({ cost: '0', isPaid: true });
+
+    expect(validateEventForm(form).cost).toBeTruthy();
+  });
+
+  it('rejects a $0 cost for Cash/Check Only', () => {
+    const form = paymentForm({ cashCheckOnly: true, cost: '0', isPaid: true });
+
+    expect(validateEventForm(form).cost).toBeTruthy();
+  });
+
+  it('rejects an empty or negative cost the same way', () => {
+    expect(validateEventForm(paymentForm({ cost: '', isPaid: true })).cost).toBeTruthy();
+    expect(validateEventForm(paymentForm({ cost: '-5', isPaid: true })).cost).toBeTruthy();
+  });
+
+  it('accepts a positive cost', () => {
+    const form = paymentForm({ cost: '25', isPaid: true });
+
+    expect(validateEventForm(form).cost).toBeUndefined();
+  });
+
+  it('does not require a cost at all for Free', () => {
+    const form = paymentForm({ cost: '0', isPaid: false });
+
+    expect(validateEventForm(form).cost).toBeUndefined();
   });
 });

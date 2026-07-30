@@ -198,6 +198,51 @@ test('a payment hold only validates for its own event, email, and amount', () =>
   ), false);
 });
 
+test('requireAmountMatch: false lets a hold release/consume even if the event price changed underneath it', () => {
+  // Only an actual online payment is authorized against the hold's amount -
+  // everywhere else the hold just identifies the registrant's own seat, so
+  // an event edited mid-flight must not orphan it until the 5-minute
+  // timeout even though the price no longer matches.
+  const expected = {
+    amountDue: 0,
+    email: 'member@example.com',
+    eventId: 'event-a'
+  };
+  const reservation = {
+    amountDue: 25,
+    email: 'member@example.com',
+    eventId: 'event-a',
+    expiresAt: new Date(NOW + 60 * 1000).toISOString(),
+    status: 'Active'
+  };
+
+  assert.equal(reservationMatchesRequest(reservation, expected, NOW), false);
+  assert.equal(
+    reservationMatchesRequest(reservation, expected, NOW, { requireAmountMatch: false }),
+    true
+  );
+
+  // Event/email/status/expiry still gate it even with amount matching off.
+  assert.equal(
+    reservationMatchesRequest(
+      { ...reservation, eventId: 'event-b' },
+      expected,
+      NOW,
+      { requireAmountMatch: false }
+    ),
+    false
+  );
+  assert.equal(
+    reservationMatchesRequest(
+      { ...reservation, status: 'Consumed' },
+      expected,
+      NOW,
+      { requireAmountMatch: false }
+    ),
+    false
+  );
+});
+
 test('amounts compare in whole cents so float drift cannot reject a valid hold', () => {
   // 0.1 + 0.2 is 0.30000000000000004 in IEEE-754; raw equality would fail.
   assert.notEqual(0.1 + 0.2, 0.3);

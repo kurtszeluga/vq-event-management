@@ -118,4 +118,16 @@ describe('EventForm payment type checkboxes', () => {
 
     expect(screen.queryByRole('checkbox', { name: /Allow cash\/check payment later/ })).not.toBeInTheDocument();
   });
+
+  it('switching Cash/Check Only -> Online does not leave "Allow cash/check payment later" checked', async () => {
+    // Cash/Check Only forces allowCashCheckPayment true (it has no other way
+    // to accept payment). That must not survive into Online, which starts
+    // from a plain, unchecked sub-toggle unless the admin turns it on again.
+    const user = await renderWorkshopForm();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Cash/Check Only' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Online (Credit Card)' }));
+
+    expect(screen.getByRole('checkbox', { name: /Allow cash\/check payment later/ })).not.toBeChecked();
+  });
 });

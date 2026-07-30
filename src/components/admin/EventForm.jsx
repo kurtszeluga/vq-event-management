@@ -392,6 +392,11 @@ function EventForm({
 
       return {
         ...current,
+        // Cash/Check Only forces allowCashCheckPayment true above (it has no
+        // other way to accept payment). That should not survive switching to
+        // Online - only the admin's own "Allow cash/check payment later"
+        // click should turn it on from here.
+        allowCashCheckPayment: current.cashCheckOnly ? false : current.allowCashCheckPayment,
         cashCheckOnly: false,
         isPaid: true,
         serviceFee: nextServiceFee
@@ -1322,7 +1327,8 @@ function EventForm({
               <label>
                 <span>Cost</span>
                 <input
-                  min="0"
+                  className={fieldErrors.cost ? 'field-invalid' : ''}
+                  min="0.01"
                   step="0.01"
                   type="number"
                   value={form.cost}
@@ -1577,7 +1583,7 @@ function EventForm({
   );
 }
 
-function validateEventForm(form) {
+export function validateEventForm(form) {
   const errors = {};
   const isBusinessListing = form.eventType === 'Business Listing';
   const isForSale = form.eventType === 'For Sale';
@@ -1693,6 +1699,15 @@ function validateEventForm(form) {
 
   if (requiresFees && form.isPaid === null) {
     errors.isPaid = 'Select whether this event has a fee.';
+  }
+
+  // A paid event (Online or Cash/Check Only) with a $0 cost is what Free is
+  // for - letting it through here is how an event ends up charging nothing
+  // while still creating payment seat holds and Square config for the
+  // registrant to see, and how a mismatched-price hold can end up orphaned
+  // (see the seat-hold reservation matching, which is keyed on this amount).
+  if (requiresFees && form.isPaid === true && !(Number(form.cost) > 0)) {
+    errors.cost = 'Enter a cost greater than $0, or choose Free instead.';
   }
 
   if (requiresCapacity && !form.capacityUnlimited && !Number.isInteger(Number(form.capacity))) {

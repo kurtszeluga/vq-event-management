@@ -46,11 +46,19 @@ export function toAmountCents(value) {
   return Math.round(Number(value || 0) * 100);
 }
 
-export function reservationMatchesRequest(reservation = {}, expected = {}, now = Date.now()) {
+// requireAmountMatch stays true for an actual online payment - the hold's
+// amount is what a Square charge is authorized against, so a stale hold from
+// before the price changed must not be reused there. Everywhere else, the
+// hold is only ever used to identify and release the registrant's own seat,
+// so an event whose price changed while the hold was open should not orphan
+// it until the 5-minute timeout - that seat was never actually double-held.
+export function reservationMatchesRequest(reservation = {}, expected = {}, now = Date.now(), {
+  requireAmountMatch = true
+} = {}) {
   return reservation.status === 'Active'
     && reservation.eventId === expected.eventId
     && reservation.email === expected.email
-    && toAmountCents(reservation.amountDue) === toAmountCents(expected.amountDue)
+    && (!requireAmountMatch || toAmountCents(reservation.amountDue) === toAmountCents(expected.amountDue))
     && getReservationExpiryMillis(reservation) > now;
 }
 
