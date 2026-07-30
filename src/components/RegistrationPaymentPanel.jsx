@@ -4,6 +4,10 @@ import { formatCurrency } from '../utils/eventFormat.js';
 
 const squareScriptPromises = new Map();
 
+// The seat hold itself (countdown, waitlist fallback, expiry) is shown by
+// SeatHoldStatus for every registration regardless of payment type - this
+// panel only ever renders when card entry is actually needed, so it is
+// purely about the Square card/wallet UI.
 export default function RegistrationPaymentPanel({
   amountDue,
   config,
@@ -11,12 +15,8 @@ export default function RegistrationPaymentPanel({
   error,
   onCardReady,
   onEnsureReservation,
-  onReservationExpired,
   onWalletTokenReady,
   onlinePaymentRequired,
-  reservation,
-  reservationError,
-  reservationLoading,
   selectedPaymentToken
 }) {
   const applePayRef = useRef(null);
@@ -27,8 +27,6 @@ export default function RegistrationPaymentPanel({
   const [testCardMessage, setTestCardMessage] = useState('');
   const [walletMessage, setWalletMessage] = useState('');
   const [walletProcessing, setWalletProcessing] = useState('');
-  const [reservationTimeLeft, setReservationTimeLeft] = useState('');
-  const reservationExpiredHandled = useRef(false);
   const selectedPaymentTokenRef = useRef(selectedPaymentToken);
   const [walletSupport, setWalletSupport] = useState({
     applePay: false,
@@ -65,39 +63,6 @@ export default function RegistrationPaymentPanel({
       setWalletProcessing('');
     }
   }, [disabled, onWalletTokenReady]);
-
-  useEffect(() => {
-    if (!reservation?.expiresAt) {
-      setReservationTimeLeft('');
-      reservationExpiredHandled.current = false;
-      return undefined;
-    }
-
-    reservationExpiredHandled.current = false;
-
-    function updateCountdown() {
-      const millisLeft = Date.parse(reservation.expiresAt) - Date.now();
-
-      if (millisLeft <= 0) {
-        setReservationTimeLeft('expired');
-        if (!reservationExpiredHandled.current) {
-          reservationExpiredHandled.current = true;
-          onReservationExpired();
-        }
-        return;
-      }
-
-      const minutes = Math.floor(millisLeft / 60000);
-      const seconds = Math.floor((millisLeft % 60000) / 1000);
-
-      setReservationTimeLeft(`${minutes}:${String(seconds).padStart(2, '0')}`);
-    }
-
-    updateCountdown();
-    const intervalId = window.setInterval(updateCountdown, 1000);
-
-    return () => window.clearInterval(intervalId);
-  }, [onReservationExpired, reservation]);
 
   useEffect(() => {
     if (!onlinePaymentRequired || !config?.enabled) {
@@ -241,26 +206,8 @@ export default function RegistrationPaymentPanel({
         Card, Apple Pay, and Google Pay information is entered directly into Square&apos;s secure payment form.
         The Village Quilters Network does not store your card number, security code, or wallet payment details.
       </p>
-      {!onlinePaymentRequired ? (
-        <p className={reservation?.status === 'Waitlisted' ? 'waitlist-notice' : 'form-help'}>
-          {reservation?.status === 'Waitlisted'
-            ? 'No seat is currently available. Submit to join the waitlist; no payment is due now.'
-            : 'Cash/check later is selected, so online card payment is not needed now.'}
-        </p>
-      ) : null}
       {onlinePaymentRequired ? (
         <>
-          {reservationLoading || (!reservation && !reservationError) ? (
-            <p className="form-help">Holding your seat for online payment...</p>
-          ) : null}
-          {reservationError ? <p className="form-error">{reservationError}</p> : null}
-          {reservationTimeLeft ? (
-            <p className={reservationTimeLeft === 'expired' ? 'form-error' : 'form-success'}>
-              {reservationTimeLeft === 'expired'
-                ? 'Your payment seat hold expired. Returning you to the listing.'
-                : `Your seat is held for ${reservationTimeLeft} while you complete payment.`}
-            </p>
-          ) : null}
           {walletSupport.applePay || walletSupport.googlePay ? (
             <div className="square-wallet-section">
               {walletSupport.applePay ? (
@@ -353,7 +300,7 @@ async function selectSandboxTestPayment({
   } catch (error) {
     onWalletTokenReady('');
     setMessage('');
-    setLocalError(error.message || 'Payment seat hold could not be created.');
+    setLocalError(error.message || 'Seat hold could not be created.');
   }
 }
 

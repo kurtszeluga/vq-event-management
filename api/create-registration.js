@@ -114,6 +114,19 @@ export default async function handler(request, response) {
       return;
     }
 
+    if (request.body?.action === 'releaseReservation') {
+      await enforceRateLimit(db, {
+        limit: 40,
+        message: 'Too many requests. Please wait and try again later.',
+        request,
+        scope: 'release-reservation-ip',
+        windowMs: 10 * 60 * 1000
+      });
+      await releaseReservation(db, request.body || {});
+      response.status(200).json({ ok: true });
+      return;
+    }
+
     const isAdminRegister = request.body?.action === 'adminRegister';
     const payload = sanitizeRegistrationPayload(request.body || {});
     await enforceRegistrationRateLimit(db, request, 'submitRegistration', payload);
@@ -487,7 +500,7 @@ async function enforceRegistrationRateLimit(db, request, action, payload) {
   if (action === 'beginSquareReservation') {
     await enforceRateLimit(db, {
       limit: 40,
-      message: 'Too many payment seat hold requests. Please wait and try again later.',
+      message: 'Too many seat hold requests. Please wait and try again later.',
       request,
       scope: 'square-seat-reservation-ip',
       windowMs: tenMinutes
@@ -495,7 +508,7 @@ async function enforceRegistrationRateLimit(db, request, action, payload) {
     await enforceRateLimit(db, {
       keyParts: targetKey,
       limit: 8,
-      message: 'Too many payment seat hold requests for this registration. Please wait and try again later.',
+      message: 'Too many seat hold requests for this registration. Please wait and try again later.',
       scope: 'square-seat-reservation-target',
       windowMs: tenMinutes
     });
@@ -669,13 +682,18 @@ async function createRegistration(db, payload, authorization) {
     const eventCost = Number(event.cost || 0);
     const eventServiceFee = Number(event.serviceFee || 0);
     const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
-    const possiblePaymentReservation = isPaidEvent && !payLaterByCashCheck && payload.paymentReservationId
-      ? await validatePaymentReservation(transaction, db, payload, {
-        amountDue,
-        email: payload.email,
-        eventId: payload.eventId
-      })
-      : null;
+    // Every registration now takes a seat hold before this final submit,
+    // regardless of payment type, so this always looks for one to exclude
+    // from the capacity count and later mark consumed. Only a genuine
+    // online-payment registration needs that hold to still be valid -
+    // everyone else is a soft lookup (findMatchingReservation returns null
+    // instead of throwing), since their seat is decided by the live capacity
+    // check below either way.
+    const requiresValidReservation = isPaidEvent && !payLaterByCashCheck;
+    const reservationExpectation = { amountDue, email: payload.email, eventId: payload.eventId };
+    const matchedReservation = requiresValidReservation
+      ? await validatePaymentReservation(transaction, db, payload, reservationExpectation)
+      : await findMatchingReservation(transaction, db, payload, reservationExpectation);
     const registeredCount = existingRegistrations.filter(
       (registration) => registration.status === 'Registered'
     ).length;
@@ -687,7 +705,7 @@ async function createRegistration(db, payload, authorization) {
       db,
       payload.eventId,
       Date.now(),
-      possiblePaymentReservation?.id || payload.paymentReservationId
+      matchedReservation?.id || payload.paymentReservationId
     );
     const hasCapacity = hasAvailableSeat({ activeReservationCount, activeSeatCount, event });
     const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
@@ -703,7 +721,6 @@ async function createRegistration(db, payload, authorization) {
       : null;
     const paymentStatus = adminCollectedPayment ? 'Paid' : getInitialPaymentStatus({ isPaidEvent });
     const requiresSquarePayment = isPaidEvent && status === 'Pending Payment' && !payLaterByCashCheck;
-    const paymentReservation = requiresSquarePayment ? possiblePaymentReservation : null;
 
     if (requiresSquarePayment && !payload.squarePaymentToken) {
       throw httpError(400, 'Enter card payment details before submitting registration.');
@@ -756,8 +773,8 @@ async function createRegistration(db, payload, authorization) {
       });
     }
 
-    if (paymentReservation) {
-      transaction.update(paymentReservation.ref, {
+    if (matchedReservation) {
+      transaction.update(matchedReservation.ref, {
         consumedAt: FieldValue.serverTimestamp(),
         registrationId: registrationRef.id,
         status: 'Consumed',
@@ -1015,16 +1032,9 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       event,
       paymentPreference: payload.paymentPreference
     });
-
-    if (!isPaidEvent || payLaterByCashCheck) {
-      return {
-        amountDue: 0,
-        paymentRequired: false,
-        reservationId: '',
-        reservationToken: '',
-        status: 'No Reservation Needed'
-      };
-    }
+    // Every registration reserves its seat the same way regardless of how
+    // it's paid for - only the card-entry step is conditional on this.
+    const paymentRequired = isPaidEvent && !payLaterByCashCheck;
 
     const existingSnapshot = await transaction.get(
       db.collection('registrations').where('eventId', '==', payload.eventId)
@@ -1085,7 +1095,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
         return {
           amountDue: Number(existingReservation.amountDue || amountDue),
           expiresAt: new Date(existingExpiresAtMillis).toISOString(),
-          paymentRequired: true,
+          paymentRequired,
           reservationId: reservationRef.id,
           reservationToken: payload.idempotencyKey,
           status: 'Reserved'
@@ -1110,7 +1120,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     return {
       amountDue,
       expiresAt: new Date(expiresAtMillis).toISOString(),
-      paymentRequired: true,
+      paymentRequired,
       reservationId: reservationRef.id,
       reservationToken,
       status: 'Reserved'
@@ -1457,9 +1467,13 @@ async function getVerificationChallenge(transaction, db, payload, authorization)
   return { ref: challengeRef };
 }
 
-async function validatePaymentReservation(transaction, db, payload, expected) {
+// Soft lookup - a missing, expired, or non-matching reservation just means
+// there is nothing to exclude from the capacity count or mark consumed. Only
+// callers that actually require a still-valid hold (real online payment)
+// need to turn that into a hard error; see validatePaymentReservation.
+async function findMatchingReservation(transaction, db, payload, expected) {
   if (!payload.paymentReservationId) {
-    throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
+    return null;
   }
 
   const reservationRef = db
@@ -1468,16 +1482,65 @@ async function validatePaymentReservation(transaction, db, payload, expected) {
   const reservationSnap = await transaction.get(reservationRef);
 
   if (!reservationSnap.exists) {
-    throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
+    return null;
   }
 
   const reservation = reservationSnap.data();
 
   if (!reservationMatchesRequest(reservation, expected, Date.now())) {
-    throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
+    return null;
   }
 
   return { id: payload.paymentReservationId, ref: reservationRef };
+}
+
+async function validatePaymentReservation(transaction, db, payload, expected) {
+  const reservation = await findMatchingReservation(transaction, db, payload, expected);
+
+  if (!reservation) {
+    throw httpError(400, 'Your payment seat hold has expired. Start payment again.');
+  }
+
+  return reservation;
+}
+
+// A release request is legitimate only against the still-Active reservation
+// its own token was issued for - anything else (already expired, already
+// consumed by the real registration, or the wrong token) is a no-op rather
+// than an error, since releasing is best-effort cleanup on Cancel, not a
+// step the registration flow depends on.
+export function canReleaseReservation(reservation, reservationId, reservationToken) {
+  return Boolean(reservation)
+    && reservation.status === 'Active'
+    && verificationSecretsMatch(reservation.tokenHash, reservationId, reservationToken);
+}
+
+// Lets a registrant give up a payment seat hold on Cancel instead of leaving
+// it to block the seat until it naturally expires (up to
+// PAYMENT_RESERVATION_EXPIRATION_MS later).
+async function releaseReservation(db, payload) {
+  const reservationId = cleanText(payload.reservationId);
+  const reservationToken = cleanText(payload.reservationToken);
+
+  if (!reservationId || !reservationToken) {
+    return;
+  }
+
+  const reservationRef = db.collection('registrationReservations').doc(reservationId);
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(reservationRef);
+
+    if (!snapshot.exists) {
+      return;
+    }
+
+    if (!canReleaseReservation(snapshot.data(), reservationId, reservationToken)) {
+      return;
+    }
+
+    transaction.update(reservationRef, { status: 'Released' });
+  });
 }
 
 async function getActiveReservationCount(transaction, db, eventId, now, excludedReservationId = '') {

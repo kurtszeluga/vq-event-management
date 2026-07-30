@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../src/services/registrationService.js', () => ({
   beginSquareReservation: vi.fn(),
-  loadSquarePaymentConfig: vi.fn()
+  loadSquarePaymentConfig: vi.fn(),
+  releaseReservation: vi.fn()
 }));
 
 import {
   beginSquareReservation,
-  loadSquarePaymentConfig
+  loadSquarePaymentConfig,
+  releaseReservation
 } from '../../src/services/registrationService.js';
 import { usePaymentReservation } from '../../src/hooks/usePaymentReservation.js';
 
@@ -175,24 +177,30 @@ describe('ensurePaymentReservation', () => {
     expect(beginSquareReservation).toHaveBeenCalledTimes(2);
   });
 
-  it('does not reserve for a free event', async () => {
+  it('still holds a seat for a free event - the hold is about the seat, not the payment', async () => {
+    beginSquareReservation.mockResolvedValue(activeHold({ paymentRequired: false }));
     const { result } = setup({ event: FREE_EVENT });
 
     await act(async () => {
-      await expect(result.current.ensurePaymentReservation()).resolves.toBe(null);
+      await expect(result.current.ensurePaymentReservation()).resolves.toMatchObject({
+        reservationId: 'hold-1'
+      });
     });
 
-    expect(beginSquareReservation).not.toHaveBeenCalled();
+    expect(beginSquareReservation).toHaveBeenCalledTimes(1);
   });
 
-  it('does not reserve when paying by cash or check later', async () => {
+  it('still holds a seat when paying by cash or check later', async () => {
+    beginSquareReservation.mockResolvedValue(activeHold({ paymentRequired: false }));
     const { result } = setup({ paymentPreference: 'cash-check-later' });
 
     await act(async () => {
-      await expect(result.current.ensurePaymentReservation()).resolves.toBe(null);
+      await expect(result.current.ensurePaymentReservation()).resolves.toMatchObject({
+        reservationId: 'hold-1'
+      });
     });
 
-    expect(beginSquareReservation).not.toHaveBeenCalled();
+    expect(beginSquareReservation).toHaveBeenCalledTimes(1);
   });
 
   it('refuses to reserve again once the hold has been marked expired', async () => {
@@ -241,12 +249,12 @@ describe('the auto-reserve effect', () => {
     expect(beginSquareReservation).toHaveBeenCalledTimes(1);
   });
 
-  it('does not auto-reserve a free event', async () => {
-    setup({ event: FREE_EVENT, readyToReserve: true });
+  it('still auto-reserves a free event once the registrant is ready', async () => {
+    beginSquareReservation.mockResolvedValue(activeHold({ paymentRequired: false }));
+    const { result } = setup({ event: FREE_EVENT, readyToReserve: true });
 
-    await act(async () => {});
-
-    expect(beginSquareReservation).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.paymentReservation).not.toBe(null));
+    expect(beginSquareReservation).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -431,5 +439,32 @@ describe('tokenizeSquarePayment', () => {
     await act(async () => {
       await expect(result.current.tokenizeSquarePayment()).rejects.toThrow('Card declined.');
     });
+  });
+});
+
+describe('releaseCurrentReservation', () => {
+  it('releases the live hold by its id and token - e.g. when the registrant clicks Cancel', async () => {
+    beginSquareReservation.mockResolvedValue(activeHold());
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.ensurePaymentReservation();
+    });
+
+    act(() => {
+      result.current.releaseCurrentReservation();
+    });
+
+    expect(releaseReservation).toHaveBeenCalledWith('hold-1', 'token-1');
+  });
+
+  it('does nothing when there is no hold to give up', () => {
+    const { result } = setup();
+
+    act(() => {
+      result.current.releaseCurrentReservation();
+    });
+
+    expect(releaseReservation).not.toHaveBeenCalled();
   });
 });

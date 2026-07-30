@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
   canManageWaitlist,
+  canReleaseReservation,
   canRegisterOthers,
   getProfileStatus,
   validateRegistrationEligibility
 } from '../api/create-registration.js';
+import { hashVerificationSecret } from '../api/_lib/registration-verification.js';
 
 const OPEN_EVENT = {
   eventType: 'Workshop',
@@ -223,5 +225,45 @@ describe('getProfileStatus', () => {
 
   test('a missing profile returns an empty string', () => {
     assert.equal(getProfileStatus(null), '');
+  });
+});
+
+describe('canReleaseReservation', () => {
+  const RESERVATION_ID = 'reservation-1';
+  const TOKEN = 'the-real-token';
+  const ACTIVE_RESERVATION = {
+    status: 'Active',
+    tokenHash: hashVerificationSecret(RESERVATION_ID, TOKEN)
+  };
+
+  test('an Active reservation releases when the token matches', () => {
+    assert.equal(canReleaseReservation(ACTIVE_RESERVATION, RESERVATION_ID, TOKEN), true);
+  });
+
+  test('the wrong token is refused, even against a real Active reservation', () => {
+    assert.equal(canReleaseReservation(ACTIVE_RESERVATION, RESERVATION_ID, 'wrong-token'), false);
+  });
+
+  test('a token issued for a different reservation id is refused', () => {
+    assert.equal(canReleaseReservation(ACTIVE_RESERVATION, 'reservation-2', TOKEN), false);
+  });
+
+  test('a reservation that already finished (Reserved into a real registration) is refused, not silently re-released', () => {
+    assert.equal(
+      canReleaseReservation({ ...ACTIVE_RESERVATION, status: 'Consumed' }, RESERVATION_ID, TOKEN),
+      false
+    );
+  });
+
+  test('an already-Released reservation is refused rather than released twice', () => {
+    assert.equal(
+      canReleaseReservation({ ...ACTIVE_RESERVATION, status: 'Released' }, RESERVATION_ID, TOKEN),
+      false
+    );
+  });
+
+  test('a missing reservation is refused rather than throwing', () => {
+    assert.equal(canReleaseReservation(null, RESERVATION_ID, TOKEN), false);
+    assert.equal(canReleaseReservation(undefined, RESERVATION_ID, TOKEN), false);
   });
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import RegistrationPaymentPanel from '../components/RegistrationPaymentPanel.jsx';
+import SeatHoldStatus from '../components/SeatHoldStatus.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
 import { useEventRegistration } from '../hooks/useEventRegistration.js';
@@ -284,6 +285,7 @@ function RegisterPage() {
     paymentReservationError,
     paymentReservationExpired,
     paymentReservationLoading,
+    releaseCurrentReservation,
     requiresSquarePayment,
     resetPaymentReservation,
     setSquareCard,
@@ -352,11 +354,12 @@ function RegisterPage() {
 
     try {
       const registrationRequest = buildRegistrationRequest();
-      const activePaymentReservation = requiresSquarePayment
-        ? isPaymentReservationActive(paymentReservation)
-          ? paymentReservation
-          : await ensurePaymentReservation()
-        : null;
+      // Every registration holds a seat regardless of payment type now, so
+      // this always resolves - only whether a Square token is also needed
+      // stays conditional on requiresSquarePayment.
+      const activePaymentReservation = isPaymentReservationActive(paymentReservation)
+        ? paymentReservation
+        : await ensurePaymentReservation();
       const squarePaymentToken = requiresSquarePayment && activePaymentReservation?.paymentRequired !== false
         ? squareWalletToken || await tokenizeSquarePayment()
         : '';
@@ -378,6 +381,7 @@ function RegisterPage() {
   }
 
   const handleClose = useCallback(() => {
+    releaseCurrentReservation();
     window.close();
 
     window.setTimeout(() => {
@@ -393,7 +397,7 @@ function RegisterPage() {
 
       setCloseMessage('You can close this registration window or tab.');
     }, 250);
-  }, [navigate, returnTarget]);
+  }, [navigate, releaseCurrentReservation, returnTarget]);
 
   const handleCompletionClose = useCallback(() => {
     if (returnTarget) {
@@ -817,7 +821,14 @@ function RegisterPage() {
                       This event is free - no payment is required.
                     </p>
                   ) : null}
-                  {isPaidEvent && !mustPayByCashCheck ? (
+                  <SeatHoldStatus
+                    joiningWaitlist={joiningWaitlist}
+                    onExpired={handlePaymentReservationExpired}
+                    reservation={paymentReservation}
+                    reservationError={paymentReservationError}
+                    reservationLoading={paymentReservationLoading}
+                  />
+                  {paymentRequiredForCurrentSeat ? (
                     <RegistrationPaymentPanel
                       amountDue={getEventPaymentTotal(event)}
                       config={squareConfig}
@@ -825,12 +836,8 @@ function RegisterPage() {
                       error={squareError}
                       onCardReady={setSquareCard}
                       onEnsureReservation={ensurePaymentReservation}
-                      onReservationExpired={handlePaymentReservationExpired}
                       onWalletTokenReady={setSquareWalletToken}
                       onlinePaymentRequired={paymentRequiredForCurrentSeat}
-                      reservation={paymentReservation}
-                      reservationError={paymentReservationError}
-                      reservationLoading={paymentReservationLoading}
                       selectedPaymentToken={squareWalletToken}
                     />
                   ) : null}

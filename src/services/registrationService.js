@@ -225,10 +225,32 @@ export async function beginSquareReservation(registrationData) {
   const result = await parseJsonResponse(response);
 
   if (!response.ok) {
-    throw new Error(result.error || 'Payment seat hold could not be created.');
+    throw new Error(result.error || 'Seat hold could not be created.');
   }
 
   return result;
+}
+
+// Best-effort - a registrant backing out on Cancel shouldn't be blocked by a
+// release call failing, so callers fire this and move on rather than await
+// error handling the way the other registration calls do.
+export function releaseReservation(reservationId, reservationToken) {
+  if (!reservationId || !reservationToken) {
+    return Promise.resolve();
+  }
+
+  return fetch('/api/create-registration', {
+    body: JSON.stringify({
+      action: 'releaseReservation',
+      reservationId,
+      reservationToken
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    keepalive: true,
+    method: 'POST'
+  }).catch(() => {});
 }
 
 export async function sendMembershipConfirmation(kind = 'signup') {

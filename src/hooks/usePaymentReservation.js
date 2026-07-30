@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { beginSquareReservation, loadSquarePaymentConfig } from '../services/registrationService.js';
+import {
+  beginSquareReservation,
+  loadSquarePaymentConfig,
+  releaseReservation as releaseReservationRequest
+} from '../services/registrationService.js';
 import {
   getEventPaymentTotal,
   isPaidEvent as getIsPaidEvent,
@@ -53,6 +57,11 @@ export function usePaymentReservation({
   const [paymentReservationLoading, setPaymentReservationLoading] = useState(false);
   const [paymentReservationExpired, setPaymentReservationExpired] = useState(false);
   const inFlightRequest = useRef(null);
+  const paymentReservationRef = useRef(null);
+
+  useEffect(() => {
+    paymentReservationRef.current = paymentReservation;
+  }, [paymentReservation]);
 
   const isPaidEvent = getIsPaidEvent(event);
   const requiresSquarePayment = getRequiresSquarePayment(event, paymentPreference);
@@ -124,16 +133,16 @@ export function usePaymentReservation({
 
   const ensurePaymentReservation = useCallback(async () => {
     if (paymentReservationExpired) {
-      throw new Error('Your payment seat hold expired. Start registration again.');
+      throw new Error('Your seat hold expired. Start registration again.');
     }
 
     if (isPaymentReservationActive(paymentReservation)) {
       return paymentReservation;
     }
 
-    if (!requiresSquarePayment) {
-      return null;
-    }
+    // Every registration holds a seat the same way regardless of payment
+    // type - requiresSquarePayment only decides whether card entry is
+    // needed once the hold comes back, not whether to take one at all.
 
     // Concurrent callers await the same request rather than being turned
     // away. Returning null here instead would let submit proceed with no
@@ -179,21 +188,37 @@ export function usePaymentReservation({
       });
 
     return request;
-  }, [buildRegistrationRequest, paymentReservation, paymentReservationExpired, requiresSquarePayment]);
+  }, [buildRegistrationRequest, paymentReservation, paymentReservationExpired]);
 
   useEffect(() => {
-    if (!requiresSquarePayment || !readyToReserve || paymentReservation) {
+    if (!readyToReserve || paymentReservation) {
       return;
     }
 
     ensurePaymentReservation().catch(() => {});
-  }, [ensurePaymentReservation, paymentReservation, readyToReserve, requiresSquarePayment]);
+  }, [ensurePaymentReservation, paymentReservation, readyToReserve]);
 
   const markReservationExpired = useCallback(() => {
     setPaymentReservationExpired(true);
     setPaymentReservation(null);
-    setPaymentReservationError('Your payment seat hold expired. Start registration again.');
+    setPaymentReservationError('Your seat hold expired. Start registration again.');
     setSquareWalletToken('');
+  }, []);
+
+  // Fire-and-forget: called when the registrant backs out (Cancel) so the
+  // seat frees up immediately instead of sitting held until the reservation
+  // naturally expires. Reads the current reservation via a ref rather than
+  // depending on paymentReservation directly so callers can fire this from
+  // an unmount/close handler without it changing identity on every
+  // reservation refresh.
+  const releaseCurrentReservation = useCallback(() => {
+    const reservation = paymentReservationRef.current;
+
+    if (!reservation?.reservationId) {
+      return;
+    }
+
+    releaseReservationRequest(reservation.reservationId, reservation.reservationToken);
   }, []);
 
   const tokenizeSquarePayment = useCallback(async () => {
@@ -254,6 +279,7 @@ export function usePaymentReservation({
     paymentReservationError,
     paymentReservationExpired,
     paymentReservationLoading,
+    releaseCurrentReservation,
     requiresSquarePayment,
     resetPaymentReservation,
     setSquareCard,

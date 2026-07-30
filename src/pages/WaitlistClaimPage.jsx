@@ -169,12 +169,8 @@ function WaitlistClaimPage() {
             error={squareError}
             onCardReady={setSquareCard}
             onEnsureReservation={() => Promise.resolve()}
-            onReservationExpired={() => {}}
             onWalletTokenReady={setSquareWalletToken}
             onlinePaymentRequired
-            reservation={null}
-            reservationError=""
-            reservationLoading={false}
             selectedPaymentToken={squareWalletToken}
           />
           <button className="button-link button-reset" disabled={submittingPayment} type="submit">
