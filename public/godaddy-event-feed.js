@@ -909,6 +909,11 @@
         align-items: flex-start;
         display: grid;
         gap: 6px;
+        /* Pinned to the image width. Without this the column sizes to its
+           widest child, so the "Click image for larger view" hint made every
+           card carrying it wider than one showing just an image, and the text
+           beside it correspondingly narrower. */
+        width: 172px;
       }
       .vq-feed-thumb-link {
         border-radius: 8px;
@@ -1150,7 +1155,8 @@
           flex-direction: column;
         }
         .vq-feed-thumb-image,
-        .vq-feed-thumb-placeholder {
+        .vq-feed-thumb-placeholder,
+        .vq-feed-thumb-stack {
           width: 100%;
           max-width: 240px;
         }
