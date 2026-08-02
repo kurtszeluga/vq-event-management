@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getEventPlaceholderImage } from '../../shared/eventImages.js';
+import { buildListingDetails, getListingTitle, isListingEventType } from '../../shared/eventListing.js';
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 
 const EVENT_CATEGORY_CONFIG = {
@@ -190,6 +191,8 @@ function matchesCategory(event, config) {
 
 export function serializeEvent(event, origin, registrationCounts = {}, coordinatorAssignments = []) {
   const eventType = getEventTypeLabel(event);
+  const listing = { ...event, eventType };
+  const isListing = isListingEventType(eventType);
   const safeOrigin = origin.replace(/\/$/, '');
   const availability = getAvailability(event, registrationCounts);
   const coordinatorContact = getCoordinatorContact(eventType, coordinatorAssignments);
@@ -220,7 +223,14 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
   return {
     id: event.id,
     eventType,
-    title: event.title || event.businessName || eventType,
+    // Listings title off businessName first, matching the public listing
+    // pages - the embed used to show the raw event title instead.
+    title: isListing ? getListingTitle(listing) : event.title || event.businessName || eventType,
+    // The embed is a standalone script that cannot import shared/, so the
+    // rendered field list travels with the payload. Empty for real events,
+    // which keep the date/time/presenter/payment treatment below.
+    isListing,
+    listingDetails: isListing ? buildListingDetails(listing) : [],
     description: event.description || '',
     date: event.date || '',
     startTime: event.startTime || '',

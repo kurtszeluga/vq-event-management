@@ -200,6 +200,13 @@
         : 'is-closed';
     const registrationStats = getRegistrationStats(event);
     const coordinatorContact = buildCoordinatorContactMarkup(event);
+    // Business Listing and For Sale carry no date, time, presenter, payment or
+    // registration of their own, so the event treatment below reads as a wall
+    // of "TBD"/"Registration Closed" on them. The feed API sends the same
+    // field list the site's own listing cards render - see
+    // shared/eventListing.js.
+    const listingDetails = Array.isArray(event.listingDetails) ? event.listingDetails : [];
+    const isListing = Boolean(event.isListing) && listingDetails.length > 0;
 
     return `
       <article class="vq-feed-card" data-event-type="${escapeAttribute(event.eventType)}">
@@ -208,11 +215,13 @@
             <div class="vq-feed-card-top-left">
               <div class="vq-feed-pill-row">
                 <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
-                <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
-                <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
+                ${isListing ? '' : `
+                  <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
+                  <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
+                `}
               </div>
               <div class="vq-feed-title-block">
-                <div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>
+                ${isListing ? '' : `<div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>`}
                 <h3>${escapeHtml(event.title)}</h3>
               </div>
               ${description ? `
@@ -225,31 +234,53 @@
             </div>
             <div class="vq-feed-thumb">${thumbnail}</div>
           </div>
-          <dl class="vq-feed-meta">
-            ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
-            ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
-            ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
-            ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
-            <div class="vq-feed-payment-detail">
-              <dt>Payment</dt>
-              <dd>${paymentDetails}</dd>
+          ${isListing ? buildListingMetaMarkup(listingDetails) : `
+            <dl class="vq-feed-meta">
+              ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
+              ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
+              ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
+              ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
+              <div class="vq-feed-payment-detail">
+                <dt>Payment</dt>
+                <dd>${paymentDetails}</dd>
+              </div>
+            </dl>
+            <div class="vq-feed-registration-stats" aria-label="Registration statistics">
+              ${registrationStats.map((stat) => `
+                <span class="${stat.tone ? `is-${stat.tone}` : ''}">
+                  <strong>${escapeHtml(stat.value)}</strong>
+                  ${escapeHtml(stat.label)}
+                </span>
+              `).join('')}
             </div>
-          </dl>
-          <div class="vq-feed-registration-stats" aria-label="Registration statistics">
-            ${registrationStats.map((stat) => `
-              <span class="${stat.tone ? `is-${stat.tone}` : ''}">
-                <strong>${escapeHtml(stat.value)}</strong>
-                ${escapeHtml(stat.label)}
-              </span>
-            `).join('')}
-          </div>
-          ${coordinatorContact}
+            ${coordinatorContact}
+          `}
           <div class="vq-feed-actions">
             ${supplyListLink}
-            ${event.registrationOpen ? registerLink : ''}
+            ${isListing ? '' : event.registrationOpen ? registerLink : ''}
           </div>
         </div>
       </article>
+    `;
+  }
+
+  function buildListingMetaMarkup(details) {
+    return `
+      <dl class="vq-feed-meta">
+        ${details
+          .map((detail) => {
+            const value = String(detail.value == null ? '' : detail.value);
+            const safeValue = escapeHtml(value);
+            const rendered = detail.link === 'email'
+              ? `<a href="mailto:${escapeAttribute(value)}">${safeValue}</a>`
+              : detail.link === 'phone'
+                ? `<a href="tel:${escapeAttribute(value.replace(/[^0-9+]/g, ''))}">${safeValue}</a>`
+                : safeValue;
+
+            return `<div><dt>${escapeHtml(detail.label || '')}</dt><dd>${rendered}</dd></div>`;
+          })
+          .join('')}
+      </dl>
     `;
   }
 
@@ -1072,6 +1103,10 @@
       }
       .vq-feed-meta dd {
         margin: 0;
+      }
+      .vq-feed-meta dd a {
+        color: #225c56;
+        font-weight: 800;
       }
       .vq-feed-payment-detail dd {
         display: grid;
