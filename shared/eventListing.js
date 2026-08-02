@@ -66,7 +66,6 @@ export function buildListingDetails(event) {
     { label: 'Contact', value: event.contactName || 'Contact TBD' },
     { label: 'Email', value: event.contactEmail || 'Email TBD', link: event.contactEmail ? 'email' : '' },
     { label: 'Phone', value: event.contactPhone || 'Phone TBD', link: event.contactPhone ? 'phone' : '' },
-    { label: 'Posting Starts', value: formatListingDateTime(event.visibleFrom) },
     { label: 'Posting Ends', value: formatListingDateTime(event.visibleUntil) }
   ];
 }
