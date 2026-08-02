@@ -71,6 +71,9 @@
 
     try {
       root.innerHTML = '<div class="vq-feed-loading">Loading listings...</div>';
+      // Clear the previous category's type filters rather than leaving them
+      // sitting in the control row against a list they no longer describe.
+      setTypeFilterMarkup(container, '');
       const url = new URL(config.sourceUrl, window.location.href);
       url.searchParams.set('category', config.category);
 
@@ -112,17 +115,20 @@
     }
 
     const supportsFilters = payload.supportsTypeFilters;
-    const filterMarkup = supportsFilters ? buildFilterMarkup(payload, events) : '';
+
+    // The type filters render into the control row alongside the category
+    // pills rather than into the root, so the two sit on one line. That also
+    // keeps them out of the root's loading/empty/error swaps.
+    setTypeFilterMarkup(container, supportsFilters ? buildFilterMarkup(payload, events) : '');
 
     root.innerHTML = `
-      ${filterMarkup}
       <div class="vq-feed-list">
         ${events.map((event) => buildCardMarkup(event, config)).join('')}
       </div>
     `;
 
     if (supportsFilters) {
-      wireFilters(root);
+      wireFilters(container, root);
     }
 
     wireDescriptionToggles(root);
@@ -132,6 +138,25 @@
     wireEventDetailsLinks(root);
   }
 
+  function setTypeFilterMarkup(container, markup) {
+    const slot = container.querySelector('.vq-feed-filters');
+
+    if (!slot) {
+      return;
+    }
+
+    slot.innerHTML = markup;
+
+    // Both groups can be absent at once - an embed pinned to a single
+    // category, showing one that offers no type filters - and the row would
+    // otherwise still draw its border and padding around nothing.
+    const controls = container.querySelector('.vq-feed-controls');
+
+    if (controls) {
+      controls.classList.toggle('is-hidden', !controls.querySelector('button'));
+    }
+  }
+
   function buildFilterMarkup(payload, events) {
     const filters = getVisibleFilters(payload, events);
 
@@ -139,16 +164,12 @@
       return '';
     }
 
-    return `
-      <div class="vq-feed-filters" aria-label="Event type filters">
-        ${filters
-          .map(
-            (filter, index) =>
-              `<button class="vq-feed-filter${index === 0 ? ' is-active' : ''}" data-filter="${escapeHtml(filter.value)}" type="button">${escapeHtml(filter.label)} (${filter.count})</button>`
-          )
-          .join('')}
-      </div>
-    `;
+    return filters
+      .map(
+        (filter, index) =>
+          `<button class="vq-feed-filter${index === 0 ? ' is-active' : ''}" data-filter="${escapeHtml(filter.value)}" type="button">${escapeHtml(filter.label)} (${filter.count})</button>`
+      )
+      .join('');
   }
 
   function getVisibleFilters(payload, events) {
@@ -443,8 +464,8 @@
     return Number(event.cost || 0) + Number(event.serviceFee || 0);
   }
 
-  function wireFilters(root) {
-    const buttons = Array.from(root.querySelectorAll('.vq-feed-filter'));
+  function wireFilters(container, root) {
+    const buttons = Array.from(container.querySelectorAll('.vq-feed-filter'));
     const cards = Array.from(root.querySelectorAll('.vq-feed-card'));
 
     if (!buttons.length) {
@@ -553,11 +574,16 @@
   }
 
   function renderShell(container, config) {
-    // The category pills sit outside .vq-feed-root on purpose: renderFeed
-    // replaces the root wholesale for the loading, empty and error states, and
-    // an empty category would otherwise take the switcher down with it.
+    // The controls sit outside .vq-feed-root on purpose: renderFeed replaces
+    // the root wholesale for the loading, empty and error states, and an empty
+    // category would otherwise take the switcher down with it. Category and
+    // type pills share one wrapping row so the whole thing is a single line to
+    // scan.
     container.innerHTML = `
-      ${buildCategoryMarkup(config)}
+      <div class="vq-feed-controls">
+        ${buildCategoryMarkup(config)}
+        <div class="vq-feed-filters" aria-label="Event type filters"></div>
+      </div>
       <div class="vq-feed-root"></div>
     `;
     wireCategories(container, config);
@@ -776,13 +802,26 @@
         border-radius: 8px;
         padding: 18px 20px;
       }
-      .vq-feed-categories {
+      .vq-feed-controls {
+        align-items: center;
         border-bottom: 1px solid #ded5ca;
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
         margin: 0 0 18px;
         padding: 0 0 16px;
+      }
+      .vq-feed-categories {
+        display: contents;
+      }
+      /* Only a hairline between the two groups, and only when the type
+         filters are actually populated - :empty covers every category that
+         does not offer them. */
+      .vq-feed-filters:not(:empty)::before {
+        align-self: stretch;
+        border-left: 1px solid #ded5ca;
+        content: '';
+        margin: 2px 4px;
       }
       .vq-feed-category {
         appearance: none;
@@ -804,10 +843,7 @@
         color: #ffffff;
       }
       .vq-feed-filters {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin: 0 0 18px;
+        display: contents;
       }
       .vq-feed-filter {
         appearance: none;
@@ -837,6 +873,7 @@
         padding: 18px;
       }
       .vq-feed-card.is-hidden,
+      .vq-feed-controls.is-hidden,
       .vq-feed-description .is-hidden {
         display: none;
       }
