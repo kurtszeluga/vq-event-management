@@ -270,7 +270,17 @@ describe('handlePasswordSignIn', () => {
     expect(result.current.authError).toBe('Enter your password to continue.');
   });
 
-  it('falls back to the emailed code when sign-in fails, and clears the password', async () => {
+  async function failSignIn(result, password = 'wrong-password') {
+    act(() => {
+      result.current.setAuthPassword(password);
+    });
+
+    await act(async () => {
+      await result.current.handlePasswordSignIn();
+    });
+  }
+
+  it('keeps the password step on a first failure instead of forcing the code', async () => {
     lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok' });
     signInWithEmailAndPassword.mockRejectedValue(new Error('auth/wrong-password'));
     const { result } = setup();
@@ -279,18 +289,55 @@ describe('handlePasswordSignIn', () => {
       await result.current.runEmailLookup('member@example.com');
     });
 
-    act(() => {
-      result.current.setAuthPassword('wrong-password');
-    });
+    await failSignIn(result);
+
+    expect(result.current.accountVerified).toBe(false);
+    expect(result.current.authPassword).toBe('');
+    expect(result.current.showEmailVerification).toBe(false);
+    expect(result.current.authError).toMatch(/not correct/i);
+  });
+
+  it('falls back to the emailed code on the second failure, and clears the password', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok' });
+    signInWithEmailAndPassword.mockRejectedValue(new Error('auth/wrong-password'));
+    const { result } = setup();
 
     await act(async () => {
-      await result.current.handlePasswordSignIn();
+      await result.current.runEmailLookup('member@example.com');
     });
+
+    await failSignIn(result);
+    await failSignIn(result, 'wrong-again');
 
     expect(result.current.accountVerified).toBe(false);
     expect(result.current.authPassword).toBe('');
     expect(result.current.showEmailVerification).toBe(true);
     expect(result.current.emailVerificationError).toMatch(/could not sign you in/i);
+  });
+
+  it('starts the attempt count over when the email is changed', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok' });
+    signInWithEmailAndPassword.mockRejectedValue(new Error('auth/wrong-password'));
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.runEmailLookup('member@example.com');
+    });
+
+    await failSignIn(result);
+
+    act(() => {
+      result.current.handleEmailChange('someone-else@example.com');
+    });
+
+    await act(async () => {
+      await result.current.runEmailLookup('someone-else@example.com');
+    });
+
+    await failSignIn(result);
+
+    expect(result.current.showEmailVerification).toBe(false);
+    expect(result.current.authError).toMatch(/not correct/i);
   });
 
   it('re-runs the lookup as verified after a successful sign-in', async () => {

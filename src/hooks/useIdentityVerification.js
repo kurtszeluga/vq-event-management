@@ -43,6 +43,9 @@ export function useIdentityVerification({
   const [emailVerificationVerifying, setEmailVerificationVerifying] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [lookup, setLookup] = useState(null);
+  // A first wrong password stays on the password panel; only a second one
+  // hands the registrant over to the emailed code.
+  const [passwordAttempts, setPasswordAttempts] = useState(0);
   const [lookupComplete, setLookupComplete] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [reactivateProfile, setReactivateProfile] = useState(false);
@@ -131,6 +134,7 @@ export function useIdentityVerification({
     setEmailVerificationError('');
     setEmailVerificationMessage('');
     setEmailVerified(false);
+    setPasswordAttempts(0);
     setRegistrationVerificationToken('');
     setShowEmailVerification(false);
     setReactivationTermsAccepted(false);
@@ -155,15 +159,27 @@ export function useIdentityVerification({
       await signInWithEmailAndPassword(auth, email, authPassword);
       await runEmailLookup(email, { alreadyVerified: true });
     } catch {
+      const attempts = passwordAttempts + 1;
+
+      setPasswordAttempts(attempts);
       setAccountVerified(false);
       setAuthPassword('');
-      setEmailVerificationCode('');
-      setEmailVerificationError('We could not sign you in. You can continue with a code sent to your email address.');
-      setShowEmailVerification(true);
+
+      // Switching to the code panel on the first failure gives a mistyped
+      // password no second chance. Stay put once; the panel's own "Email Me A
+      // Verification Code" button is still there for anyone who wants it
+      // sooner.
+      if (attempts > 1) {
+        setEmailVerificationCode('');
+        setEmailVerificationError('We could not sign you in. You can continue with a code sent to your email address.');
+        setShowEmailVerification(true);
+      } else {
+        setAuthError('That password is not correct. Please try again.');
+      }
     } finally {
       setAuthSubmitting(false);
     }
-  }, [authPassword, email, lookup, runEmailLookup]);
+  }, [authPassword, email, lookup, passwordAttempts, runEmailLookup]);
 
   const handleStartEmailVerification = useCallback(async () => {
     setEmailVerificationSending(true);
