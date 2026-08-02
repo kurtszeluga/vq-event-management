@@ -223,7 +223,14 @@
                 `}
               </div>
               <div class="vq-feed-title-block">
-                ${isListing ? '' : `<div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>`}
+                ${isListing
+                  ? ''
+                  : event.eventType === 'Challenges'
+                    // A challenge has no date, but the row is held open so its
+                    // title still starts at the same height as every other
+                    // card in the list.
+                    ? '<div class="vq-feed-date is-blank" aria-hidden="true"></div>'
+                    : `<div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>`}
                 <h3>${escapeHtml(event.title)}</h3>
               </div>
               ${description ? `
@@ -909,6 +916,12 @@
         font-weight: 800;
         line-height: 1.1;
         margin-bottom: 4px;
+      }
+      /* Empty, so it needs the height of the line it would have held. Keyed to
+         the line-height above rather than a fixed value, so the two cannot
+         drift apart. */
+      .vq-feed-date.is-blank {
+        min-height: 1.1em;
       }
       .vq-feed-card h3 {
         font-size: 1.4rem;
