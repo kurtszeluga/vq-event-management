@@ -32,6 +32,9 @@ function LoginPage() {
   const [recoveryMessage, setRecoveryMessage] = useState('');
   const [sendingCode, setSendingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
+  // Counts only wrong-credential failures, so a network blip or a typo'd
+  // email address does not push someone toward the recovery code.
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const navigate = useNavigate();
 
   if (!loading && currentUser) {
@@ -45,9 +48,13 @@ function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
+      setFailedAttempts(0);
       navigate('/', { replace: true });
     } catch (error) {
-      setFormError(getSignInErrorMessage(error));
+      const attempts = isWrongCredentialError(error) ? failedAttempts + 1 : failedAttempts;
+
+      setFailedAttempts(attempts);
+      setFormError(getSignInErrorMessage(error, attempts));
     } finally {
       setSubmitting(false);
     }
@@ -126,7 +133,11 @@ function LoginPage() {
                 <input
                   autoComplete="email"
                   disabled={!firebaseConfigured || submitting}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    // Failures belong to the address that produced them.
+                    setEmail(event.target.value);
+                    setFailedAttempts(0);
+                  }}
                   required
                   type="email"
                   value={email}
@@ -251,11 +262,20 @@ function LoginPage() {
   );
 }
 
-function getSignInErrorMessage(error) {
-  if (error.code === 'auth/invalid-credential'
+function isWrongCredentialError(error) {
+  return error.code === 'auth/invalid-credential'
     || error.code === 'auth/wrong-password'
-    || error.code === 'auth/user-not-found') {
-    return 'That email and password combination is not correct. Try again, or use Forgot password or username below.';
+    || error.code === 'auth/user-not-found';
+}
+
+function getSignInErrorMessage(error, failedAttempts = 0) {
+  if (isWrongCredentialError(error)) {
+    // A first wrong password is usually a typo, so it just says to try again.
+    // Only from the second failure is the verification code worth raising -
+    // offering it immediately reads as though retrying is not an option.
+    return failedAttempts > 1
+      ? 'That email and password combination is not correct. Try again, or use Forgot password or username below to sign in with a verification code.'
+      : 'That email and password combination is not correct. Please try again.';
   }
 
   if (error.code === 'auth/invalid-email') {
