@@ -1,34 +1,40 @@
 (function () {
-  // Mirrors EVENT_CATEGORY_CONFIG in api/_lib/public-event-feed.js - the feed
-  // API filters by category server-side, so switching one means a re-fetch
-  // rather than hiding cards the way the type filters below do.
-  const CATEGORY_OPTIONS = [
-    { label: 'Events', value: 'events' },
-    { label: 'Challenges', value: 'challenges' },
-    { label: 'Business Listings', value: 'business' },
-    { label: 'For Sale', value: 'forsale' }
+  // One flat row of pills, each a single destination the reader picks - there
+  // is deliberately no All, and no Events pill above Programs/Workshops.
+  //
+  // Two things vary underneath. `category` is the feed API's server-side
+  // filter (EVENT_CATEGORY_CONFIG in api/_lib/public-event-feed.js), so
+  // changing it costs a fetch. `typeFilter` narrows the fetched cards in the
+  // browser, which is why Programs and Workshops - both the events category -
+  // switch between each other without another request.
+  const FEED_VIEWS = [
+    { category: 'events', label: 'Programs', typeFilter: 'Programs', value: 'programs' },
+    { category: 'events', label: 'Workshops', typeFilter: 'Workshops', value: 'workshops' },
+    { category: 'challenges', label: 'Challenges', typeFilter: '', value: 'challenges' },
+    { category: 'business', label: 'Business Listings', typeFilter: '', value: 'business' },
+    { category: 'forsale', label: 'For Sale', typeFilter: '', value: 'forsale' }
   ];
   const DEFAULTS = {
-    categories: CATEGORY_OPTIONS.map((option) => option.value),
-    category: 'events',
     emptyMessage: 'No published listings are available right now.',
     limit: 0,
     mountSelector: '[data-vq-feed]',
-    sourceUrl: `${getScriptOrigin()}/api/public-events`
+    sourceUrl: `${getScriptOrigin()}/api/public-events`,
+    view: FEED_VIEWS[0].value,
+    views: FEED_VIEWS.map((option) => option.value)
   };
   const DESCRIPTION_PREVIEW_LENGTH = 180;
   const STYLE_ID = 'vq-embed-feed-styles';
   const AUTO_ROTATE_INTERVAL_MS = 4000;
 
   function initFeed(container) {
-    const categories = parseCategoryList(container.dataset.categories);
-    const requestedCategory = container.dataset.category || DEFAULTS.category;
+    const views = parseViewList(container.dataset.categories);
+    const requestedView = normalizeViewValue(container.dataset.category) || DEFAULTS.view;
     const config = {
       ...DEFAULTS,
-      categories,
-      // An initial category outside the pill list would leave every pill
-      // inactive, so fall back to the first one actually offered.
-      category: categories.includes(requestedCategory) ? requestedCategory : categories[0],
+      views,
+      // A starting view outside the pill list would leave every pill inactive,
+      // so fall back to the first one actually offered.
+      view: views.includes(requestedView) ? requestedView : views[0],
       emptyMessage: container.dataset.emptyMessage || DEFAULTS.emptyMessage,
       limit: Number(container.dataset.limit || 0),
       sourceUrl: container.dataset.sourceUrl || DEFAULTS.sourceUrl
@@ -39,12 +45,20 @@
     loadFeed(container, config);
   }
 
-  function parseCategoryList(rawValue) {
+  // 'events' predates the pill row being flattened, when it meant one pill
+  // covering both Programs and Workshops. Treat it as Programs so an older
+  // embed keeps working instead of silently falling back to the full set.
+  function normalizeViewValue(rawValue) {
+    const value = String(rawValue || '').trim().toLowerCase();
+    return value === 'events' ? 'programs' : value;
+  }
+
+  function parseViewList(rawValue) {
     const requested = String(rawValue || '')
       .split(',')
-      .map((entry) => entry.trim().toLowerCase())
+      .map((entry) => normalizeViewValue(entry))
       .filter(Boolean);
-    const known = new Set(CATEGORY_OPTIONS.map((option) => option.value));
+    const known = new Set(FEED_VIEWS.map((option) => option.value));
     const seen = new Set();
     const resolved = [];
 
@@ -55,9 +69,13 @@
       }
     });
 
-    // No attribute, or nothing in it the feed serves, means show them all -
-    // a typo should not silently strip the switcher down to one category.
-    return resolved.length ? resolved : CATEGORY_OPTIONS.map((option) => option.value);
+    // No attribute, or nothing in it the feed serves, means show them all - a
+    // typo should not silently strip the row down to one pill.
+    return resolved.length ? resolved : FEED_VIEWS.map((option) => option.value);
+  }
+
+  function getActiveView(config) {
+    return FEED_VIEWS.find((option) => option.value === config.view) || FEED_VIEWS[0];
   }
 
   async function loadFeed(container, config) {
@@ -71,11 +89,8 @@
 
     try {
       root.innerHTML = '<div class="vq-feed-loading">Loading listings...</div>';
-      // Clear the previous category's type filters rather than leaving them
-      // sitting in the control row against a list they no longer describe.
-      setTypeFilterMarkup(container, '');
       const url = new URL(config.sourceUrl, window.location.href);
-      url.searchParams.set('category', config.category);
+      url.searchParams.set('category', getActiveView(config).category);
 
       const response = await fetch(url.toString(), {
         headers: {
@@ -98,15 +113,17 @@
       }
 
       const events = config.limit > 0 ? payload.events.slice(0, config.limit) : payload.events;
-      renderFeed(container, payload, events, config);
+      config.loadedCategory = getActiveView(config).category;
+      renderFeed(container, events, config);
     } catch {
+      config.loadedCategory = '';
       if (requestId === config.requestId) {
         root.innerHTML = '<div class="vq-feed-error">The event feed could not be loaded right now.</div>';
       }
     }
   }
 
-  function renderFeed(container, payload, events, config) {
+  function renderFeed(container, events, config) {
     const root = container.querySelector('.vq-feed-root');
 
     if (!events.length) {
@@ -114,23 +131,17 @@
       return;
     }
 
-    const supportsFilters = payload.supportsTypeFilters;
-
-    // The type filters render into the control row alongside the category
-    // pills rather than into the root, so the two sit on one line. That also
-    // keeps them out of the root's loading/empty/error swaps.
-    setTypeFilterMarkup(container, supportsFilters ? buildFilterMarkup(payload, events) : '');
-
+    // The empty notice ships alongside the list rather than replacing it,
+    // because a view like Programs can filter every fetched card out of sight
+    // and still need those cards intact for the next pill.
     root.innerHTML = `
       <div class="vq-feed-list">
         ${events.map((event) => buildCardMarkup(event, config)).join('')}
       </div>
+      <div class="vq-feed-empty is-hidden" data-role="filtered-empty">${escapeHtml(config.emptyMessage)}</div>
     `;
 
-    if (supportsFilters) {
-      wireFilters(container, root);
-    }
-
+    applyActiveView(container, config);
     wireDescriptionToggles(root);
     wireImageCarousels(root);
     wireImageViewerLinks(root);
@@ -138,58 +149,28 @@
     wireEventDetailsLinks(root);
   }
 
-  function setTypeFilterMarkup(container, markup) {
-    const slot = container.querySelector('.vq-feed-filters');
+  function applyActiveView(container, config) {
+    const root = container.querySelector('.vq-feed-root');
+    const cards = Array.from(root.querySelectorAll('.vq-feed-card'));
+    const { typeFilter } = getActiveView(config);
 
-    if (!slot) {
-      return;
+    if (typeFilter) {
+      applyFilter(typeFilter, cards);
+    } else {
+      cards.forEach((card) => card.classList.remove('is-hidden'));
     }
 
-    slot.innerHTML = markup;
+    const list = root.querySelector('.vq-feed-list');
+    const emptyNotice = root.querySelector('[data-role="filtered-empty"]');
+    const hasVisible = cards.some((card) => !card.classList.contains('is-hidden'));
 
-    // Both groups can be absent at once - an embed pinned to a single
-    // category, showing one that offers no type filters - and the row would
-    // otherwise still draw its border and padding around nothing.
-    const controls = container.querySelector('.vq-feed-controls');
-
-    if (controls) {
-      controls.classList.toggle('is-hidden', !controls.querySelector('button'));
-    }
-  }
-
-  function buildFilterMarkup(payload, events) {
-    const filters = getVisibleFilters(payload, events);
-
-    if (!filters.length) {
-      return '';
+    if (list) {
+      list.classList.toggle('is-hidden', !hasVisible);
     }
 
-    return filters
-      .map(
-        (filter, index) =>
-          `<button class="vq-feed-filter${index === 0 ? ' is-active' : ''}" data-filter="${escapeHtml(filter.value)}" type="button">${escapeHtml(filter.label)} (${filter.count})</button>`
-      )
-      .join('');
-  }
-
-  function getVisibleFilters(payload, events) {
-    if (payload.category !== 'events') {
-      return Object.keys(payload.typeCounts || {})
-        .sort((left, right) => left.localeCompare(right))
-        .map((type) => ({
-          count: payload.typeCounts[type] || 0,
-          label: type,
-          value: type
-        }));
+    if (emptyNotice) {
+      emptyNotice.classList.toggle('is-hidden', hasVisible);
     }
-
-    const programsCount = events.filter((event) => isProgramType(event.eventType)).length;
-    const workshopsCount = events.filter((event) => event.eventType === 'Workshop').length;
-
-    return [
-      { count: programsCount, label: 'Programs', value: 'Programs' },
-      { count: workshopsCount, label: 'Workshops', value: 'Workshops' }
-    ];
   }
 
   function buildCardMarkup(event, config) {
@@ -464,26 +445,6 @@
     return Number(event.cost || 0) + Number(event.serviceFee || 0);
   }
 
-  function wireFilters(container, root) {
-    const buttons = Array.from(container.querySelectorAll('.vq-feed-filter'));
-    const cards = Array.from(root.querySelectorAll('.vq-feed-card'));
-
-    if (!buttons.length) {
-      return;
-    }
-
-    applyFilter(buttons[0].dataset.filter || '', cards);
-
-    buttons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const filterValue = button.dataset.filter || 'All';
-
-        buttons.forEach((item) => item.classList.toggle('is-active', item === button));
-        applyFilter(filterValue, cards);
-      });
-    });
-  }
-
   function applyFilter(filterValue, cards) {
     cards.forEach((card) => {
       const eventType = card.dataset.eventType || '';
@@ -574,58 +535,60 @@
   }
 
   function renderShell(container, config) {
-    // The controls sit outside .vq-feed-root on purpose: renderFeed replaces
-    // the root wholesale for the loading, empty and error states, and an empty
-    // category would otherwise take the switcher down with it. Category and
-    // type pills share one wrapping row so the whole thing is a single line to
-    // scan.
+    // The pill row sits outside .vq-feed-root on purpose: renderFeed replaces
+    // the root wholesale for the loading, empty and error states, and a view
+    // with nothing in it would otherwise take the switcher down with it.
     container.innerHTML = `
-      <div class="vq-feed-controls">
-        ${buildCategoryMarkup(config)}
-        <div class="vq-feed-filters" aria-label="Event type filters"></div>
-      </div>
+      ${buildViewPillMarkup(config)}
       <div class="vq-feed-root"></div>
     `;
-    wireCategories(container, config);
+    wireViewPills(container, config);
   }
 
-  function buildCategoryMarkup(config) {
-    if (config.categories.length < 2) {
+  function buildViewPillMarkup(config) {
+    if (config.views.length < 2) {
       return '';
     }
 
     return `
-      <div class="vq-feed-categories" role="group" aria-label="Listing categories">
-        ${config.categories
+      <div class="vq-feed-controls" role="group" aria-label="Listing views">
+        ${config.views
           .map((value) => {
-            const option = CATEGORY_OPTIONS.find((entry) => entry.value === value);
-            const isActive = value === config.category;
+            const option = FEED_VIEWS.find((entry) => entry.value === value);
+            const isActive = value === config.view;
 
-            return `<button aria-pressed="${isActive}" class="vq-feed-category${isActive ? ' is-active' : ''}" data-category="${escapeAttribute(value)}" type="button">${escapeHtml(option.label)}</button>`;
+            return `<button aria-pressed="${isActive}" class="vq-feed-category${isActive ? ' is-active' : ''}" data-view="${escapeAttribute(value)}" type="button">${escapeHtml(option.label)}</button>`;
           })
           .join('')}
       </div>
     `;
   }
 
-  function wireCategories(container, config) {
+  function wireViewPills(container, config) {
     const buttons = Array.from(container.querySelectorAll('.vq-feed-category'));
 
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
-        const nextCategory = button.dataset.category || DEFAULTS.category;
+        const nextView = button.dataset.view || DEFAULTS.view;
 
-        if (nextCategory === config.category) {
+        if (nextView === config.view) {
           return;
         }
 
-        config.category = nextCategory;
+        config.view = nextView;
         buttons.forEach((item) => {
           const isActive = item === button;
           item.classList.toggle('is-active', isActive);
           item.setAttribute('aria-pressed', String(isActive));
         });
-        loadFeed(container, config);
+
+        // Programs and Workshops are both the events category, so moving
+        // between them only re-filters what is already on screen.
+        if (getActiveView(config).category === config.loadedCategory) {
+          applyActiveView(container, config);
+        } else {
+          loadFeed(container, config);
+        }
       });
     });
   }
@@ -811,18 +774,6 @@
         margin: 0 0 18px;
         padding: 0 0 16px;
       }
-      .vq-feed-categories {
-        display: contents;
-      }
-      /* Only a hairline between the two groups, and only when the type
-         filters are actually populated - :empty covers every category that
-         does not offer them. */
-      .vq-feed-filters:not(:empty)::before {
-        align-self: stretch;
-        border-left: 1px solid #ded5ca;
-        content: '';
-        margin: 2px 4px;
-      }
       .vq-feed-category {
         appearance: none;
         background: #ffffff;
@@ -842,25 +793,6 @@
         border-color: #225c56;
         color: #ffffff;
       }
-      .vq-feed-filters {
-        display: contents;
-      }
-      .vq-feed-filter {
-        appearance: none;
-        background: #ffffff;
-        border: 1px solid #c8d4d0;
-        border-radius: 999px;
-        color: #1d2927;
-        cursor: pointer;
-        font: inherit;
-        font-weight: 700;
-        padding: 10px 14px;
-      }
-      .vq-feed-filter.is-active {
-        background: #225c56;
-        border-color: #225c56;
-        color: #ffffff;
-      }
       .vq-feed-list {
         display: grid;
         gap: 18px;
@@ -873,7 +805,8 @@
         padding: 18px;
       }
       .vq-feed-card.is-hidden,
-      .vq-feed-controls.is-hidden,
+      .vq-feed-list.is-hidden,
+      .vq-feed-empty.is-hidden,
       .vq-feed-description .is-hidden {
         display: none;
       }
