@@ -1305,7 +1305,9 @@
     const title = escapeHtml(event.title || 'Event');
     const eventType = escapeHtml(event.eventType || 'Other');
     const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
-    const date = escapeHtml(formatEventDate(event.date));
+    const dateRow = event.eventType === 'Challenges'
+      ? ''
+      : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
     const timeRow = event.eventType === 'Challenges'
       ? ''
       : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;
@@ -1510,7 +1512,7 @@
         </div>
         ${imageBlock}
         <div class="meta">
-              <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+              ${dateRow}
               ${timeRow}
               ${registrationWindow}
               <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>

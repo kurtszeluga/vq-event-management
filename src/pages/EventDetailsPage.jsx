@@ -145,15 +145,17 @@ function EventDetailsPage() {
       <div className="event-detail-layout">
         <div className="detail-panel">
           <dl>
-            <div>
-              <dt>Date</dt>
-              <dd>{formatEventDate(event.date)}</dd>
-            </div>
             {event.eventType !== 'Challenges' ? (
-              <div>
-                <dt>Time</dt>
-                <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-              </div>
+              <>
+                <div>
+                  <dt>Date</dt>
+                  <dd>{formatEventDate(event.date)}</dd>
+                </div>
+                <div>
+                  <dt>Time</dt>
+                  <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                </div>
+              </>
             ) : null}
             {registrationStartDate || registrationEndDate ? (
               <div>

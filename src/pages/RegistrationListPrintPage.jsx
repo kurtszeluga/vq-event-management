@@ -224,10 +224,12 @@ function RegistrationListPrintPage() {
               </strong>
             </div>
             <dl className="registration-event-info">
-              <div>
-                <dt>Date</dt>
-                <dd>{formatEventDate(event.date)}</dd>
-              </div>
+              {event.eventType !== 'Challenges' ? (
+                <div>
+                  <dt>Date</dt>
+                  <dd>{formatEventDate(event.date)}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Location</dt>
                 <dd>{event.location || 'Not Set'}</dd>
@@ -397,7 +399,9 @@ function escapeHtml(value) {
 function buildRegistrationListPrintHtml(event, registrations, counts, totalPaid) {
   const title = escapeHtml(event.title || event.eventType || 'Event');
   const eventType = escapeHtml(event.eventType || 'Event / Activity');
-  const date = escapeHtml(formatEventDate(event.date));
+  const dateRow = event.eventType === 'Challenges'
+    ? ''
+    : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
   const location = escapeHtml(event.location || 'Not Set');
   const registrantCount = `${registrations.length} registrant${registrations.length === 1 ? '' : 's'}`;
   const totalPaidPill = event.isPaid
@@ -546,7 +550,7 @@ function buildRegistrationListPrintHtml(event, registrations, counts, totalPaid)
           <strong>${escapeHtml(registrantCount)}</strong>
         </div>
         <div class="meta">
-          <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+          ${dateRow}
           <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
         </div>
         <div class="stats">${statsPills}</div>

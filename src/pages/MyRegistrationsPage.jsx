@@ -159,12 +159,14 @@ function MyRegistrationsPage() {
                         </td>
                         <td data-label="Date">
                           {event ? (
-                            <>
-                              <span>{formatEventDate(event.date)}</span>
-                              {event.eventType !== 'Challenges' ? (
+                            event.eventType !== 'Challenges' ? (
+                              <>
+                                <span>{formatEventDate(event.date)}</span>
                                 <span className="table-subtext">{formatTimeRange(event.startTime, event.endTime)}</span>
-                              ) : null}
-                            </>
+                              </>
+                            ) : (
+                              <span>Not listed</span>
+                            )
                           ) : (
                             <span>Not listed</span>
                           )}
@@ -231,9 +233,11 @@ function MyRegistrationDetails({
       </div>
       <dl className="registration-detail-grid">
         <DetailItem label="Event Type" value={event?.eventType || registration.eventType || 'Event / Activity'} />
-        <DetailItem label="Event Date" value={event ? formatEventDate(event.date) : 'Not listed'} />
         {event?.eventType !== 'Challenges' ? (
-          <DetailItem label="Event Time" value={event ? formatTimeRange(event.startTime, event.endTime) : 'Not listed'} />
+          <>
+            <DetailItem label="Event Date" value={event ? formatEventDate(event.date) : 'Not listed'} />
+            <DetailItem label="Event Time" value={event ? formatTimeRange(event.startTime, event.endTime) : 'Not listed'} />
+          </>
         ) : null}
         <DetailItem label="Location" value={event?.location || registration.eventLocation || 'Not listed'} />
         {event && (getRegistrationStartDate(event) || getRegistrationEndDate(event)) ? (
@@ -406,8 +410,10 @@ function printRegistrationDetails({
         <h2>Registration Details</h2>
         <dl>
           <dt>Event Type</dt><dd>${escapeHtml(event?.eventType || registration.eventType || 'Event / Activity')}</dd>
-          <dt>Event Date</dt><dd>${escapeHtml(event ? formatEventDate(event.date) : 'Not listed')}</dd>
-          <dt>Event Time</dt><dd>${escapeHtml(event && event.eventType !== 'Challenges' ? formatTimeRange(event.startTime, event.endTime) : 'Not listed')}</dd>
+          ${event && event.eventType === 'Challenges' ? '' : `
+            <dt>Event Date</dt><dd>${escapeHtml(event ? formatEventDate(event.date) : 'Not listed')}</dd>
+            <dt>Event Time</dt><dd>${escapeHtml(event ? formatTimeRange(event.startTime, event.endTime) : 'Not listed')}</dd>
+          `}
           <dt>Location</dt><dd>${escapeHtml(event?.location || registration.eventLocation || 'Not listed')}</dd>
           <dt>Registered Date/Time</dt><dd>${escapeHtml(formatDateTime(registration.registrationDate))}</dd>
           <dt>Registration Status</dt><dd>${escapeHtml(registration.status || 'Registered')}</dd>

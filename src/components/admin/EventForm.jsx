@@ -119,11 +119,15 @@ function EventForm({
   const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
   const showEventScheduleFields = eventTypeSelected && !isListingOnly;
+  // A challenge runs over a posting window rather than happening on a day, so
+  // it collects no date, time or presenter - only the visibleFrom/visibleUntil
+  // pair further down.
+  const showDateField = showEventScheduleFields && !isChallenge;
   const showTimePresetField = showEventScheduleFields && !isRetreat && !isLecture && !isChallenge;
   const showDirectTimeFields = showEventScheduleFields && isRetreat;
-  const showPresenterField = showEventScheduleFields && !isRetreat;
+  const showPresenterField = showEventScheduleFields && !isRetreat && !isChallenge;
   const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge;
-  const showImageUpload = eventTypeSelected && !isChallenge;
+  const showImageUpload = eventTypeSelected;
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
   const showRegistrationSection = eventTypeSelected && !isListingOnly && !isLecture;
@@ -304,7 +308,8 @@ function EventForm({
       allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale' || isLectureType
         ? false
         : current.allowNonMemberRegistration,
-      presenter: isRetreatType ? '' : current.presenter,
+      presenter: isRetreatType || isChallengeType ? '' : current.presenter,
+      date: isChallengeType ? '' : current.date,
       supplyListFileName: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListFileName : '',
       supplyListTitle: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListTitle : '',
       supplyListUrl: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListUrl : '',
@@ -764,16 +769,18 @@ function EventForm({
 
         {showEventScheduleFields ? (
           <>
-            <label>
-              <span>{eventLabel} Date *</span>
-              <input
-                className={fieldErrors.date ? 'field-invalid' : ''}
-                type="date"
-                value={form.date}
-                onChange={(event) => updateScheduleField('date', event.target.value)}
-              />
-              {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
-            </label>
+            {showDateField ? (
+              <label>
+                <span>{eventLabel} Date *</span>
+                <input
+                  className={fieldErrors.date ? 'field-invalid' : ''}
+                  type="date"
+                  value={form.date}
+                  onChange={(event) => updateScheduleField('date', event.target.value)}
+                />
+                {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
+              </label>
+            ) : null}
 
             {showTimePresetField ? (
               <div className="form-stack-group">
@@ -1591,6 +1598,7 @@ export function validateEventForm(form) {
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
   const requiresSchedule = form.eventType && !isBusinessListing && !isForSale;
+  const requiresDate = requiresSchedule && !isChallenge;
   const requiresTime = requiresSchedule && !isLecture && !isChallenge;
   const requiresTimePreset = requiresTime && !isRetreat;
   const requiresDirectTime = requiresTime && isRetreat;
@@ -1602,7 +1610,7 @@ export function validateEventForm(form) {
     errors.eventType = 'Event type is required.';
   }
 
-  if (requiresSchedule && !form.date) {
+  if (requiresDate && !form.date) {
     errors.date = 'Event date is required.';
   }
 
@@ -1816,7 +1824,9 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     contactName: toTitleCase(form.contactName.trim()),
     contactPhone: form.contactPhone.trim(),
     cost: form.isPaid && hasFees ? Number(form.cost || 0) : 0,
-    date: hasSchedule ? form.date : '',
+    // Written as '' rather than omitted: the public feed orders by date, and
+    // Firestore drops documents missing the ordered field entirely.
+    date: hasSchedule && !isChallenge ? form.date : '',
     description: form.description.trim(),
     documentFileName: isChallenge ? form.documentFileName.trim() : '',
     documentTitle: isChallenge ? form.documentTitle.trim() : '',
@@ -1829,7 +1839,7 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     location: hasSchedule ? toTitleCase(form.location.trim()) : '',
     locationPreset: hasSchedule ? form.locationPreset : '',
     ownerName: toTitleCase(form.ownerName.trim()),
-    presenter: hasSchedule && !isRetreat ? toTitleCase(form.presenter.trim()) : '',
+    presenter: hasSchedule && !isRetreat && !isChallenge ? toTitleCase(form.presenter.trim()) : '',
     registrationCloseAt: hasRegistrationWindow ? form.registrationCloseAt : '',
     registrationMode: isListingOnly || isLecture ? 'none' : form.registrationMode,
     registrationOpen: hasRegistration && form.registrationMode === 'now',

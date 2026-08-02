@@ -275,15 +275,17 @@ function EventList({
               </dl>
             ) : (
               <dl>
-                <div>
-                  <dt>Date</dt>
-                  <dd>{formatEventDate(event.date)}</dd>
-                </div>
                 {event.eventType !== 'Challenges' ? (
-                  <div>
-                    <dt>Time</dt>
-                    <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-                  </div>
+                  <>
+                    <div>
+                      <dt>Date</dt>
+                      <dd>{formatEventDate(event.date)}</dd>
+                    </div>
+                    <div>
+                      <dt>Time</dt>
+                      <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                    </div>
+                  </>
                 ) : null}
                 <div>
                   <dt>Location</dt>

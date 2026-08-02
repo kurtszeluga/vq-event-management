@@ -149,15 +149,17 @@ function EventListingPrintPage() {
           <h2>{event.title}</h2>
           {event.description ? <p>{event.description}</p> : null}
           <dl>
-            <div className="event-card-date">
-              <dt>Date</dt>
-              <dd>{formatEventDate(event.date)}</dd>
-            </div>
             {event.eventType !== 'Challenges' ? (
-              <div>
-                <dt>Time</dt>
-                <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-              </div>
+              <>
+                <div className="event-card-date">
+                  <dt>Date</dt>
+                  <dd>{formatEventDate(event.date)}</dd>
+                </div>
+                <div>
+                  <dt>Time</dt>
+                  <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                </div>
+              </>
             ) : null}
             {registrationStartDate || registrationEndDate ? (
               <div>

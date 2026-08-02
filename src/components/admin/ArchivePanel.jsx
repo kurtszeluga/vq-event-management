@@ -116,10 +116,12 @@ function ArchivePanel({
                   </div>
                   <h3>{event.title || 'Untitled Event'}</h3>
                   <dl className="registration-event-info">
-                    <div>
-                      <dt>Date</dt>
-                      <dd>{formatEventDate(event.date)}</dd>
-                    </div>
+                    {event.eventType !== 'Challenges' ? (
+                      <div>
+                        <dt>Date</dt>
+                        <dd>{formatEventDate(event.date)}</dd>
+                      </div>
+                    ) : null}
                     <div>
                       <dt>Location</dt>
                       <dd>{event.location || 'Not Set'}</dd>
@@ -303,7 +305,9 @@ function escapeHtml(value) {
 function buildArchiveReportHtml(event, registrations, totalPaid) {
   const title = escapeHtml(event.title || 'Untitled Event');
   const eventType = escapeHtml(event.eventType || 'Event / Activity');
-  const date = escapeHtml(formatEventDate(event.date));
+  const dateRow = event.eventType === 'Challenges'
+    ? ''
+    : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
   const location = escapeHtml(event.location || 'Not Set');
   const totalPaidRow = event.isPaid
     ? `<div class="meta-row"><div class="meta-label">Total Paid</div><div>${escapeHtml(formatCurrency(totalPaid))}</div></div>`
@@ -454,7 +458,7 @@ function buildArchiveReportHtml(event, registrations, totalPaid) {
         </div>
         <div class="pill">${eventType}</div>
         <div class="meta">
-          <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+          ${dateRow}
           <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Registrants</div><div>${registrations.length}</div></div>
           ${totalPaidRow}

@@ -92,7 +92,9 @@ function buildEventPrintHtml(event) {
   const title = escapeHtml(event.title || 'Event');
   const eventType = escapeHtml(getEventTypeLabel(event));
   const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
-  const date = escapeHtml(formatEventDate(event.date));
+  const dateRow = event.eventType === 'Challenges'
+    ? ''
+    : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
   const timeRow = event.eventType === 'Challenges'
     ? ''
     : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;
@@ -250,7 +252,7 @@ function buildEventPrintHtml(event) {
         <div class="pill">${eventType}</div>
         <div class="meta">
           <div class="meta-row"><div class="meta-label">Status</div><div>${registration}</div></div>
-        <div class="meta-row"><div class="meta-label">Date</div><div>${date}</div></div>
+        ${dateRow}
         ${timeRow}
         ${registrationWindow}
         <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
@@ -523,15 +525,17 @@ function EventsPage() {
                   ))}
                 </div>
                 <dl>
-                  <div className="event-card-date">
-                    <dt>Date</dt>
-                    <dd>{formatEventDate(event.date)}</dd>
-                  </div>
                   {event.eventType !== 'Challenges' ? (
-                    <div>
-                      <dt>Time</dt>
-                      <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
-                    </div>
+                    <>
+                      <div className="event-card-date">
+                        <dt>Date</dt>
+                        <dd>{formatEventDate(event.date)}</dd>
+                      </div>
+                      <div>
+                        <dt>Time</dt>
+                        <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                      </div>
+                    </>
                   ) : null}
                   {registrationStartDate || registrationEndDate ? (
                     <div>
