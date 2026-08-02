@@ -1186,7 +1186,11 @@
       return 'Date TBD';
     }
 
-    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) {
+    // Reformatted as plain text, never through Date: an ISO date-only string
+    // parses as UTC midnight, which in any timezone behind UTC lands on the
+    // previous day. This branch sat unreachable for a while because its digit
+    // class was double-escaped, so every event date rendered a day early.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       const parts = value.split('-');
       return [parts[1], parts[2], parts[0]].join('/');
     }
