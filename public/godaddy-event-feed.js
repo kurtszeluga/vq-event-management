@@ -1,5 +1,15 @@
 (function () {
+  // Mirrors EVENT_CATEGORY_CONFIG in api/_lib/public-event-feed.js - the feed
+  // API filters by category server-side, so switching one means a re-fetch
+  // rather than hiding cards the way the type filters below do.
+  const CATEGORY_OPTIONS = [
+    { label: 'Events', value: 'events' },
+    { label: 'Challenges', value: 'challenges' },
+    { label: 'Business Listings', value: 'business' },
+    { label: 'For Sale', value: 'forsale' }
+  ];
   const DEFAULTS = {
+    categories: CATEGORY_OPTIONS.map((option) => option.value),
     category: 'events',
     emptyMessage: 'No published listings are available right now.',
     limit: 0,
@@ -11,21 +21,53 @@
   const AUTO_ROTATE_INTERVAL_MS = 4000;
 
   function initFeed(container) {
+    const categories = parseCategoryList(container.dataset.categories);
+    const requestedCategory = container.dataset.category || DEFAULTS.category;
     const config = {
       ...DEFAULTS,
-      category: container.dataset.category || DEFAULTS.category,
+      categories,
+      // An initial category outside the pill list would leave every pill
+      // inactive, so fall back to the first one actually offered.
+      category: categories.includes(requestedCategory) ? requestedCategory : categories[0],
       emptyMessage: container.dataset.emptyMessage || DEFAULTS.emptyMessage,
       limit: Number(container.dataset.limit || 0),
       sourceUrl: container.dataset.sourceUrl || DEFAULTS.sourceUrl
     };
 
     ensureStyles();
-    renderShell(container);
+    renderShell(container, config);
     loadFeed(container, config);
+  }
+
+  function parseCategoryList(rawValue) {
+    const requested = String(rawValue || '')
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean);
+    const known = new Set(CATEGORY_OPTIONS.map((option) => option.value));
+    const seen = new Set();
+    const resolved = [];
+
+    requested.forEach((value) => {
+      if (known.has(value) && !seen.has(value)) {
+        seen.add(value);
+        resolved.push(value);
+      }
+    });
+
+    // No attribute, or nothing in it the feed serves, means show them all -
+    // a typo should not silently strip the switcher down to one category.
+    return resolved.length ? resolved : CATEGORY_OPTIONS.map((option) => option.value);
   }
 
   async function loadFeed(container, config) {
     const root = container.querySelector('.vq-feed-root');
+    // Tracked per container, not globally: a page can mount several feeds, and
+    // a shared counter would let each new mount discard the others' responses.
+    // Bumping it means a slow earlier category cannot overwrite whichever one
+    // the reader has since clicked.
+    config.requestId = (config.requestId || 0) + 1;
+    const requestId = config.requestId;
 
     try {
       root.innerHTML = '<div class="vq-feed-loading">Loading listings...</div>';
@@ -38,15 +80,26 @@
         }
       });
 
+      if (requestId !== config.requestId) {
+        return;
+      }
+
       if (!response.ok) {
         throw new Error('Feed request failed.');
       }
 
       const payload = await response.json();
+
+      if (requestId !== config.requestId) {
+        return;
+      }
+
       const events = config.limit > 0 ? payload.events.slice(0, config.limit) : payload.events;
       renderFeed(container, payload, events, config);
     } catch {
-      root.innerHTML = '<div class="vq-feed-error">The event feed could not be loaded right now.</div>';
+      if (requestId === config.requestId) {
+        root.innerHTML = '<div class="vq-feed-error">The event feed could not be loaded right now.</div>';
+      }
     }
   }
 
@@ -468,8 +521,56 @@
     });
   }
 
-  function renderShell(container) {
-    container.innerHTML = '<div class="vq-feed-root"></div>';
+  function renderShell(container, config) {
+    // The category pills sit outside .vq-feed-root on purpose: renderFeed
+    // replaces the root wholesale for the loading, empty and error states, and
+    // an empty category would otherwise take the switcher down with it.
+    container.innerHTML = `
+      ${buildCategoryMarkup(config)}
+      <div class="vq-feed-root"></div>
+    `;
+    wireCategories(container, config);
+  }
+
+  function buildCategoryMarkup(config) {
+    if (config.categories.length < 2) {
+      return '';
+    }
+
+    return `
+      <div class="vq-feed-categories" role="group" aria-label="Listing categories">
+        ${config.categories
+          .map((value) => {
+            const option = CATEGORY_OPTIONS.find((entry) => entry.value === value);
+            const isActive = value === config.category;
+
+            return `<button aria-pressed="${isActive}" class="vq-feed-category${isActive ? ' is-active' : ''}" data-category="${escapeAttribute(value)}" type="button">${escapeHtml(option.label)}</button>`;
+          })
+          .join('')}
+      </div>
+    `;
+  }
+
+  function wireCategories(container, config) {
+    const buttons = Array.from(container.querySelectorAll('.vq-feed-category'));
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const nextCategory = button.dataset.category || DEFAULTS.category;
+
+        if (nextCategory === config.category) {
+          return;
+        }
+
+        config.category = nextCategory;
+        buttons.forEach((item) => {
+          const isActive = item === button;
+          item.classList.toggle('is-active', isActive);
+          item.setAttribute('aria-pressed', String(isActive));
+        });
+        loadFeed(container, config);
+      });
+    });
   }
 
   function wireImageCarousels(root) {
@@ -643,6 +744,33 @@
         border: 1px solid #ded5ca;
         border-radius: 8px;
         padding: 18px 20px;
+      }
+      .vq-feed-categories {
+        border-bottom: 1px solid #ded5ca;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0 0 18px;
+        padding: 0 0 16px;
+      }
+      .vq-feed-category {
+        appearance: none;
+        background: #ffffff;
+        border: 1px solid #c8d4d0;
+        border-radius: 999px;
+        color: #1d2927;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 16px;
+      }
+      .vq-feed-category:hover {
+        border-color: #225c56;
+      }
+      .vq-feed-category.is-active {
+        background: #225c56;
+        border-color: #225c56;
+        color: #ffffff;
       }
       .vq-feed-filters {
         display: flex;
