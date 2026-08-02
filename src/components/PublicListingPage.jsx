@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import EventImageCarousel from './EventImageCarousel.jsx';
 import PageHeader from './PageHeader.jsx';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
-import { formatCurrency, isEventVisible } from '../utils/eventFormat.js';
+import { buildListingDetails, getListingTitle, isEventVisible } from '../utils/eventFormat.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 
@@ -68,11 +68,8 @@ function PublicListingPage({
           const descriptionText = event.description || '';
           const descriptionIsLong = descriptionText.length > DESCRIPTION_PREVIEW_LENGTH;
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
-          const titleText =
-            eventType === 'Business Listing'
-              ? event.businessName || event.title || 'Business Listing'
-              : event.title || 'For Sale Listing';
-          const details = buildListingDetails(event, eventType);
+          const titleText = getListingTitle(event);
+          const details = buildListingDetails(event);
 
           return (
             <article className="public-event-card public-listing-card" key={event.id}>
@@ -103,7 +100,7 @@ function PublicListingPage({
                   {details.map((detail) => (
                     <div key={detail.label}>
                       <dt>{detail.label}</dt>
-                      <dd>{detail.value}</dd>
+                      <dd>{renderDetailValue(detail)}</dd>
                     </div>
                   ))}
                 </dl>
@@ -123,28 +120,6 @@ function PublicListingPage({
   );
 }
 
-function buildListingDetails(event, eventType) {
-  if (eventType === 'Business Listing') {
-    return [
-      { label: 'Owner', value: event.ownerName || 'Owner TBD' },
-      { label: 'Business', value: event.businessName || 'Business TBD' },
-      { label: 'Specialty', value: event.specialty || 'Specialty TBD' },
-      { label: 'Email', value: renderLink(event.contactEmail, 'email') },
-      { label: 'Phone', value: renderLink(event.contactPhone, 'phone') },
-      { label: 'Address', value: event.address || 'Address TBD' }
-    ];
-  }
-
-  return [
-    { label: 'Asking Price', value: formatCurrency(event.askingPrice) },
-    { label: 'Contact', value: event.contactName || 'Contact TBD' },
-    { label: 'Email', value: renderLink(event.contactEmail, 'email') },
-    { label: 'Phone', value: renderLink(event.contactPhone, 'phone') },
-    { label: 'Posting Starts', value: formatListingDateTime(event.visibleFrom) },
-    { label: 'Posting Ends', value: formatListingDateTime(event.visibleUntil) }
-  ];
-}
-
 function getDescriptionPreview(description) {
   if (description.length <= DESCRIPTION_PREVIEW_LENGTH) {
     return description;
@@ -153,37 +128,16 @@ function getDescriptionPreview(description) {
   return `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`;
 }
 
-function renderLink(value, type) {
-  if (!value) {
-    return type === 'email' ? 'Email TBD' : 'Phone TBD';
+function renderDetailValue(detail) {
+  if (detail.link === 'email') {
+    return <a href={`mailto:${detail.value}`}>{detail.value}</a>;
   }
 
-  if (type === 'email') {
-    return <a href={`mailto:${value}`}>{value}</a>;
+  if (detail.link === 'phone') {
+    return <a href={`tel:${detail.value.replace(/[^0-9+]/g, '')}`}>{detail.value}</a>;
   }
 
-  const phoneHref = `tel:${value.replace(/[^0-9+]/g, '')}`;
-  return <a href={phoneHref}>{value}</a>;
-}
-
-function formatListingDateTime(value) {
-  if (!value) {
-    return 'TBD';
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  }).format(parsed);
+  return detail.value;
 }
 
 export default PublicListingPage;

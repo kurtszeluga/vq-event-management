@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import { formatPhotoCount } from '../EventImageCarousel.jsx';
 import { getEventPlaceholderImage } from '../../data/eventOptions.js';
 import {
+  buildListingDetails,
   formatCurrency,
   formatEventDate,
   formatRegistrationDateRange,
   formatTimeRange,
+  getListingTitle,
   getRegistrationEndDate,
-  getRegistrationStartDate
+  getRegistrationStartDate,
+  isListingEventType
 } from '../../utils/eventFormat.js';
 import { isRegistrationWindowOpen } from '../../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
@@ -212,6 +215,7 @@ function EventList({
         const availability = getRegistrationAvailability(event, counts);
         const registrationStats = getEventRegistrationStats(event, counts, totalPaidByEventId[event.id]);
         const holdTimeLeft = formatHoldTimeLeft(counts.heldExpiresAt, now);
+        const isListing = isListingEventType(event.eventType);
 
         return (
           <article className={`event-admin-card${wasLastSaved ? ' recently-saved-card' : ''}`} key={event.id}>
@@ -220,7 +224,7 @@ function EventList({
               <span>{event.eventType || 'Type TBD'}</span>
               <strong>{event.status}</strong>
             </div>
-            <h3>{event.title || 'Untitled Draft'}</h3>
+            <h3>{isListing ? getListingTitle(event) : event.title || 'Untitled Draft'}</h3>
             {event.description ? (
               <div className="event-card-description">
                 <p>
@@ -241,145 +245,116 @@ function EventList({
             ) : (
               <p>Description TBD</p>
             )}
-            <div className="event-registration-pill-row" aria-label="Registration statistics">
-              {registrationStats.map((stat) => (
-                <span
-                  className={`event-registration-pill${stat.tone ? ` ${stat.tone}` : ''}`}
-                  key={stat.label}
-                >
-                  <strong>{stat.value}</strong>
-                  {stat.label}
-                </span>
-              ))}
-              {Number(counts.held || 0) ? (
-                <span className="event-registration-pill hold">
-                  <strong>{Number(counts.held || 0)}</strong>
-                  {holdTimeLeft ? `Held (${holdTimeLeft})` : 'Held'}
-                </span>
-              ) : null}
-            </div>
-            <dl>
-              <div>
-                <dt>Date</dt>
-                <dd>{formatEventDate(event.date)}</dd>
+            {isListing ? null : (
+              <div className="event-registration-pill-row" aria-label="Registration statistics">
+                {registrationStats.map((stat) => (
+                  <span
+                    className={`event-registration-pill${stat.tone ? ` ${stat.tone}` : ''}`}
+                    key={stat.label}
+                  >
+                    <strong>{stat.value}</strong>
+                    {stat.label}
+                  </span>
+                ))}
+                {Number(counts.held || 0) ? (
+                  <span className="event-registration-pill hold">
+                    <strong>{Number(counts.held || 0)}</strong>
+                    {holdTimeLeft ? `Held (${holdTimeLeft})` : 'Held'}
+                  </span>
+                ) : null}
               </div>
-              {event.eventType !== 'Challenges' ? (
+            )}
+            {isListing ? (
+              <dl>
+                {buildListingDetails(event).map((detail) => (
+                  <div key={detail.label}>
+                    <dt>{detail.label}</dt>
+                    <dd>{detail.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <dl>
                 <div>
-                  <dt>Time</dt>
-                  <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                  <dt>Date</dt>
+                  <dd>{formatEventDate(event.date)}</dd>
                 </div>
-              ) : null}
-              <div>
-                <dt>Location</dt>
-                <dd>{event.location || 'Location TBD'}</dd>
-              </div>
-              <div>
-                <dt>Presenter</dt>
-                <dd>{event.presenter || 'To be announced'}</dd>
-              </div>
-              <div>
-                <dt>Payment Details</dt>
-                <dd>
-                  {event.isPaid ? (
-                    <>
-                      <span>{formatCurrency(event.cost || 0)} cost</span>
-                      {Number(event.serviceFee || 0) > 0 ? (
-                        <>
-                          <span> + {formatCurrency(event.serviceFee || 0)} service fee</span>
-                          <span> = {formatCurrency(getEventPaymentTotal(event))} total</span>
-                        </>
-                      ) : null}
-                      <br />
-                      <span>
-                        Payment Method: {event.cashCheckOnly
-                          ? 'Cash/Check Only'
-                          : event.allowCashCheckPayment
-                            ? 'Online + Cash/Check'
-                            : 'Online Only'}
-                      </span>
-                    </>
-                  ) : (
-                    'No Charge'
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt>Listing</dt>
-                <dd>
-                  {event.listingMode === 'future'
-                    ? 'Scheduled for later'
-                    : event.listingMode === 'now'
-                      ? 'Listed now'
-                      : 'Listing TBD'}
-                </dd>
-              </div>
-              {event.visibleFrom ? (
+                {event.eventType !== 'Challenges' ? (
+                  <div>
+                    <dt>Time</dt>
+                    <dd>{formatTimeRange(event.startTime, event.endTime)}</dd>
+                  </div>
+                ) : null}
                 <div>
-                  <dt>Listing Starts</dt>
-                  <dd>{new Date(event.visibleFrom).toLocaleString()}</dd>
+                  <dt>Location</dt>
+                  <dd>{event.location || 'Location TBD'}</dd>
                 </div>
-              ) : null}
-              {event.visibleUntil ? (
                 <div>
-                  <dt>Listing Ends</dt>
-                  <dd>{formatListingEnd(event)}</dd>
+                  <dt>Presenter</dt>
+                  <dd>{event.presenter || 'To be announced'}</dd>
                 </div>
-              ) : null}
-              {getRegistrationStartDate(event) || getRegistrationEndDate(event) ? (
                 <div>
-                  <dt>Registration Open/Closes</dt>
-                  <dd>{formatRegistrationDateRange(event)}</dd>
+                  <dt>Payment Details</dt>
+                  <dd>
+                    {event.isPaid ? (
+                      <>
+                        <span>{formatCurrency(event.cost || 0)} cost</span>
+                        {Number(event.serviceFee || 0) > 0 ? (
+                          <>
+                            <span> + {formatCurrency(event.serviceFee || 0)} service fee</span>
+                            <span> = {formatCurrency(getEventPaymentTotal(event))} total</span>
+                          </>
+                        ) : null}
+                        <br />
+                        <span>
+                          Payment Method: {event.cashCheckOnly
+                            ? 'Cash/Check Only'
+                            : event.allowCashCheckPayment
+                              ? 'Online + Cash/Check'
+                              : 'Online Only'}
+                        </span>
+                      </>
+                    ) : (
+                      'No Charge'
+                    )}
+                  </dd>
                 </div>
-              ) : null}
-              {event.businessName ? (
                 <div>
-                  <dt>Business Name</dt>
-                  <dd>{event.businessName}</dd>
+                  <dt>Listing</dt>
+                  <dd>
+                    {event.listingMode === 'future'
+                      ? 'Scheduled for later'
+                      : event.listingMode === 'now'
+                        ? 'Listed now'
+                        : 'Listing TBD'}
+                  </dd>
                 </div>
-              ) : null}
-              {event.ownerName ? (
-                <div>
-                  <dt>Owner Name</dt>
-                  <dd>{event.ownerName}</dd>
-                </div>
-              ) : null}
-              {event.specialty ? (
-                <div>
-                  <dt>Specialty</dt>
-                  <dd>{event.specialty}</dd>
-                </div>
-              ) : null}
-              {event.contactEmail ? (
-                <div>
-                  <dt>Contact Email</dt>
-                  <dd>{event.contactEmail}</dd>
-                </div>
-              ) : null}
-              {event.contactPhone ? (
-                <div>
-                  <dt>Contact Phone</dt>
-                  <dd>{event.contactPhone}</dd>
-                </div>
-              ) : null}
-              {event.address ? (
-                <div>
-                  <dt>Address</dt>
-                  <dd>{event.address}</dd>
-                </div>
-              ) : null}
-              {event.askingPrice ? (
-                <div>
-                  <dt>Asking Price</dt>
-                  <dd>{formatCurrency(event.askingPrice)}</dd>
-                </div>
-              ) : null}
-              {event.supplyListTitle || event.documentTitle ? (
-                <div>
-                  <dt>Documents</dt>
-                  <dd>{event.supplyListTitle || event.documentTitle}</dd>
-                </div>
-              ) : null}
-            </dl>
+                {event.visibleFrom ? (
+                  <div>
+                    <dt>Listing Starts</dt>
+                    <dd>{new Date(event.visibleFrom).toLocaleString()}</dd>
+                  </div>
+                ) : null}
+                {event.visibleUntil ? (
+                  <div>
+                    <dt>Listing Ends</dt>
+                    <dd>{formatListingEnd(event)}</dd>
+                  </div>
+                ) : null}
+                {getRegistrationStartDate(event) || getRegistrationEndDate(event) ? (
+                  <div>
+                    <dt>Registration Open/Closes</dt>
+                    <dd>{formatRegistrationDateRange(event)}</dd>
+                  </div>
+                ) : null}
+                {event.supplyListTitle || event.documentTitle ? (
+                  <div>
+                    <dt>Documents</dt>
+                    <dd>{event.supplyListTitle || event.documentTitle}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            )}
           </div>
           <div className="public-event-card-thumbnail event-admin-card-thumbnail">
             {event.imageUrls?.[0] ? (
