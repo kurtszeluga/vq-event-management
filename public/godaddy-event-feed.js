@@ -753,6 +753,17 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+      /* The mount fills whatever it is dropped into. GoDaddy's HTML block
+         wraps the embed in "display: flex; justify-content: center", which
+         makes it a flex item - and a flex item sizes to max-content, so the
+         feed's width tracked whichever card happened to be widest and changed
+         every time the reader switched pills. A definite width resolves
+         against the container in both a flex and a plain block parent. */
+      [data-vq-feed] {
+        box-sizing: border-box;
+        min-width: 0;
+        width: 100%;
+      }
       .vq-feed-root {
         color: #1d2927;
         font-family: Inter, Arial, sans-serif;
