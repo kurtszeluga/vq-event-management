@@ -237,16 +237,6 @@
             <div class="vq-feed-thumb">${thumbnail}</div>
           </div>
           ${isListing ? buildListingMetaMarkup(listingDetails) : `
-            <dl class="vq-feed-meta">
-              ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
-              ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
-              ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
-              ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
-              <div class="vq-feed-payment-detail">
-                <dt>Payment</dt>
-                <dd>${paymentDetails}</dd>
-              </div>
-            </dl>
             <div class="vq-feed-registration-stats" aria-label="Registration statistics">
               ${registrationStats.map((stat) => `
                 <span class="${stat.tone ? `is-${stat.tone}` : ''}">
@@ -255,6 +245,18 @@
                 </span>
               `).join('')}
             </div>
+            <dl class="vq-feed-meta">
+              ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
+              ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
+              ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
+              ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
+            </dl>
+            <dl class="vq-feed-meta vq-feed-cost">
+              <div class="vq-feed-payment-detail">
+                <dt>Cost</dt>
+                <dd>${paymentDetails}</dd>
+              </div>
+            </dl>
             ${coordinatorContact}
           `}
           <div class="vq-feed-actions">
@@ -1098,6 +1100,12 @@
         color: #225c56;
         font-weight: 800;
       }
+      /* Cost sits on its own below the meta grid, so it takes one left-aligned
+         column instead of stretching across the auto-fit tracks. */
+      .vq-feed-cost {
+        grid-template-columns: auto;
+        justify-items: start;
+      }
       .vq-feed-payment-detail dd {
         display: grid;
         gap: 3px;
@@ -1512,7 +1520,7 @@
               ${registrationWindow}
               <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
           <div class="meta-row"><div class="meta-label">Presenter</div><div>${presenter}</div></div>
-          <div class="meta-row"><div class="meta-label">Payment</div><div>${cost}</div></div>
+          <div class="meta-row"><div class="meta-label">Cost</div><div>${cost}</div></div>
         </div>
         ${description}
       </main>
