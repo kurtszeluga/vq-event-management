@@ -174,7 +174,7 @@ export function useIdentityVerification({
         setEmailVerificationError('We could not sign you in. You can continue with a code sent to your email address.');
         setShowEmailVerification(true);
       } else {
-        setAuthError('That password is not correct. Please try again.');
+        setAuthError('That password is not correct. Please try again or use the Email Me A Verification Code option below.');
       }
     } finally {
       setAuthSubmitting(false);

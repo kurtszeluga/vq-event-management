@@ -294,7 +294,10 @@ describe('handlePasswordSignIn', () => {
     expect(result.current.accountVerified).toBe(false);
     expect(result.current.authPassword).toBe('');
     expect(result.current.showEmailVerification).toBe(false);
-    expect(result.current.authError).toMatch(/not correct/i);
+    // Points at the code option without taking the password step away.
+    expect(result.current.authError).toBe(
+      'That password is not correct. Please try again or use the Email Me A Verification Code option below.'
+    );
   });
 
   it('falls back to the emailed code on the second failure, and clears the password', async () => {
