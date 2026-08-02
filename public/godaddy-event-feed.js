@@ -1054,7 +1054,11 @@
       }
       .vq-feed-description {
         margin-top: 8px;
-        max-width: 100%;
+        /* Capped to a readable measure rather than the card width. The site's
+           own cards get this for free - their large photo column bounds the
+           text - but the embed's thumbnail is small, so a long description ran
+           the full width of the card in lines too long to track. */
+        max-width: 78ch;
       }
       .vq-feed-description p {
         line-height: 1.55;
