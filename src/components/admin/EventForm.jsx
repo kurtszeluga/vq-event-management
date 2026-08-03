@@ -1632,16 +1632,19 @@ function EventForm({
         >
           Reset Form
         </button>
-        {isEditing ? (
-          <button
-            className="button-link button-reset secondary-action"
-            disabled={saving || Boolean(uploadingField)}
-            type="button"
-            onClick={onCancelEdit}
-          >
-            Cancel Edit
-          </button>
-        ) : null}
+        {/* Offered when creating as well as editing. Reset Form only clears
+            the fields and leaves you sitting on the form, so without this
+            there was no way out of a new record except saving it. The handler
+            already falls back to the draft event type, so it knows which list
+            to return to when there is nothing being edited. */}
+        <button
+          className="button-link button-reset secondary-action"
+          disabled={saving || Boolean(uploadingField)}
+          type="button"
+          onClick={onCancelEdit}
+        >
+          {isEditing ? 'Cancel Edit' : 'Cancel'}
+        </button>
       </div>
       </form>
       <ConfirmDialog
