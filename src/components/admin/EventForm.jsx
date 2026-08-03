@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAX_EVENT_IMAGES } from '../../../shared/eventImages.js';
+import { isListingEventType } from '../../../shared/eventListing.js';
 import { isRegistrationWindowInverted } from '../../../shared/registrationWindow.js';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
@@ -310,9 +311,9 @@ function EventForm({
         : current.allowNonMemberRegistration,
       presenter: isRetreatType || isChallengeType ? '' : current.presenter,
       date: isChallengeType ? '' : current.date,
-      supplyListFileName: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListFileName : '',
-      supplyListTitle: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListTitle : '',
-      supplyListUrl: supportsSupplyList(value) || value === 'Challenges' ? current.supplyListUrl : '',
+      supplyListFileName: supportsSupplyList(value) ? current.supplyListFileName : '',
+      supplyListTitle: supportsSupplyList(value) ? current.supplyListTitle : '',
+      supplyListUrl: supportsSupplyList(value) ? current.supplyListUrl : '',
       documentFileName: value === 'Challenges' ? current.documentFileName : '',
       documentTitle: value === 'Challenges' ? current.documentTitle : '',
       documentUrl: value === 'Challenges' ? current.documentUrl : '',
@@ -1155,7 +1156,7 @@ function EventForm({
               </span>
             </div>
           ) : null}
-          {showSupplyListUpload || isChallenge ? (
+          {showSupplyListUpload ? (
             <div className="document-upload-field form-span">
               <span className="field-label">
                 Supply List Upload
@@ -1848,9 +1849,9 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     specialty: toTitleCase(form.specialty.trim()),
     startTime: isChallenge ? '00:00' : hasTime ? form.startTime : '',
     status: asDraft ? 'Draft' : 'Published',
-    supplyListFileName: showSupplyListUpload || isChallenge ? form.supplyListFileName.trim() : '',
-    supplyListTitle: showSupplyListUpload || isChallenge ? form.supplyListTitle.trim() : '',
-    supplyListUrl: showSupplyListUpload || isChallenge ? form.supplyListUrl.trim() : '',
+    supplyListFileName: showSupplyListUpload ? form.supplyListFileName.trim() : '',
+    supplyListTitle: showSupplyListUpload ? form.supplyListTitle.trim() : '',
+    supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
     timePreset: isChallenge ? 'other' : hasTime ? (isRetreat ? 'other' : form.timePreset) : '',
     title: toTitleCase(title.trim()),
     type: form.eventType,
@@ -1859,8 +1860,14 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
   };
 }
 
+// Every event type can carry a PDF except the two listing types, which nobody
+// registers for and which have no supplies to list. Expressed as "not a
+// listing" rather than an allow-list of types on purpose: the allow-list
+// version silently omitted each type as it was added - Other had to be added
+// to it after the fact, and Challenges only ever got an upload through a
+// separate `|| isChallenge` escape hatch at each call site.
 export function supportsSupplyList(eventType) {
-  return eventType.startsWith('Class') || eventType === 'Workshop' || eventType === 'Other';
+  return Boolean(eventType) && !isListingEventType(eventType);
 }
 
 function supportsClassWorkshopRegistrationDefault(eventType) {
