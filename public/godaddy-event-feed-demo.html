@@ -41,6 +41,22 @@
         font-size: 0.92rem;
         white-space: pre-wrap;
       }
+      .demo-switcher {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 18px;
+      }
+      .demo-switcher button {
+        background: #ffffff;
+        border: 1px solid #c8d4d0;
+        border-radius: 999px;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 8px 14px;
+      }
     </style>
   </head>
   <body>
@@ -71,7 +87,41 @@
           single one hides the row altogether, which is how you pin an embed to one kind of
           listing.
         </p>
+        <p>
+          <code>data-layout</code> picks the card geometry: <code>roster</code> (the default &mdash;
+          one listing per row with a large photo), <code>grid</code> (photo-forward tiles that
+          reflow to the column width), or <code>agenda</code> (dense scannable rows, worth using
+          once a page carries a dozen-plus listings). The card content is chosen separately, by
+          listing type: events show seats and cost, For Sale leads with the asking price, and
+          Business Listings are a contact block.
+        </p>
       </section>
+
+      <section class="demo-code">
+        <strong>One page per listing type:</strong>
+        <pre><code>&lt;!-- Programs &amp; Workshops page --&gt;
+&lt;div data-vq-feed data-category="programs" data-categories="programs,workshops" data-layout="roster"&gt;&lt;/div&gt;
+
+&lt;!-- Challenges page --&gt;
+&lt;div data-vq-feed data-category="challenges" data-categories="challenges" data-layout="roster"&gt;&lt;/div&gt;
+
+&lt;!-- For Sale page --&gt;
+&lt;div data-vq-feed data-category="forsale" data-categories="forsale" data-layout="grid"&gt;&lt;/div&gt;
+
+&lt;!-- Business Listings page --&gt;
+&lt;div data-vq-feed data-category="business" data-categories="business" data-layout="grid"&gt;&lt;/div&gt;</code></pre>
+        <p>
+          Each snippet still needs its own <code>data-source-url</code> and the
+          <code>&lt;script&gt;</code> tag from the block above.
+        </p>
+      </section>
+
+      <div class="demo-switcher">
+        <strong>Preview layout:</strong>
+        <button type="button" data-demo-layout="roster">Roster</button>
+        <button type="button" data-demo-layout="grid">Grid</button>
+        <button type="button" data-demo-layout="agenda">Agenda</button>
+      </div>
 
       <div
         data-vq-feed
@@ -81,5 +131,22 @@
     </main>
 
     <script src="/godaddy-event-feed.js" defer></script>
+    <script>
+      // The layout is pure CSS on .vq-feed-list, so switching it here is a
+      // class swap rather than a re-render - which is also why an embed can
+      // change layout without refetching anything.
+      document.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-demo-layout]');
+
+        if (!button) {
+          return;
+        }
+
+        document.querySelectorAll('.vq-feed-list').forEach((list) => {
+          list.classList.remove('is-roster', 'is-grid', 'is-agenda');
+          list.classList.add(`is-${button.dataset.demoLayout}`);
+        });
+      });
+    </script>
   </body>
 </html>

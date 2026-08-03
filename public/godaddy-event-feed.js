@@ -14,8 +14,15 @@
     { category: 'business', label: 'Business Listings', typeFilter: '', value: 'business' },
     { category: 'forsale', label: 'For Sale', typeFilter: '', value: 'forsale' }
   ];
+  // Each page carries its own embed, so the layout is a per-mount choice rather
+  // than one global look: `data-layout` picks the geometry, and the three card
+  // templates below fill it. Roster is the default because it is the shape
+  // every existing snippet already renders - an older embed with no attribute
+  // must not silently change on the next deploy.
+  const LAYOUTS = ['roster', 'grid', 'agenda'];
   const DEFAULTS = {
     emptyMessage: 'No published listings are available right now.',
+    layout: LAYOUTS[0],
     limit: 0,
     mountSelector: '[data-vq-feed]',
     sourceUrl: `${getScriptOrigin()}/api/public-events`,
@@ -25,6 +32,8 @@
   const DESCRIPTION_PREVIEW_LENGTH = 180;
   const STYLE_ID = 'vq-embed-feed-styles';
   const AUTO_ROTATE_INTERVAL_MS = 4000;
+  const SEAT_METER_MAX_SEGMENTS = 40;
+  const MONTH_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
   function initFeed(container) {
     const views = parseViewList(container.dataset.categories);
@@ -36,6 +45,7 @@
       // so fall back to the first one actually offered.
       view: views.includes(requestedView) ? requestedView : views[0],
       emptyMessage: container.dataset.emptyMessage || DEFAULTS.emptyMessage,
+      layout: parseLayout(container.dataset.layout),
       limit: Number(container.dataset.limit || 0),
       sourceUrl: container.dataset.sourceUrl || DEFAULTS.sourceUrl
     };
@@ -51,6 +61,11 @@
   function normalizeViewValue(rawValue) {
     const value = String(rawValue || '').trim().toLowerCase();
     return value === 'events' ? 'programs' : value;
+  }
+
+  function parseLayout(rawValue) {
+    const value = String(rawValue || '').trim().toLowerCase();
+    return LAYOUTS.includes(value) ? value : DEFAULTS.layout;
   }
 
   function parseViewList(rawValue) {
@@ -135,7 +150,7 @@
     // because a view like Programs can filter every fetched card out of sight
     // and still need those cards intact for the next pill.
     root.innerHTML = `
-      <div class="vq-feed-list">
+      <div class="vq-feed-list is-${escapeAttribute(config.layout)}">
         ${events.map((event) => buildCardMarkup(event, config)).join('')}
       </div>
       <div class="vq-feed-empty is-hidden" data-role="filtered-empty">${escapeHtml(config.emptyMessage)}</div>
@@ -173,111 +188,198 @@
     }
   }
 
+  // One template per content type, not one template with fields suppressed. An
+  // event has seats, a time and a cost; a For Sale listing has an asking price
+  // and no registration at all; a Business Listing has neither and is really a
+  // directory entry. Running all three through the event treatment is what put
+  // "Date TBD" rows and a "0 Waitlisted" pill on a sewing machine.
+  //
+  // `data-template` and the layout class on .vq-feed-list are independent: the
+  // template decides which blocks a card contains, the layout decides how the
+  // media and body sit together, so each of the four pages picks its own.
   function buildCardMarkup(event, config) {
-    const description = event.description || '';
-    const longDescription = description.length > DESCRIPTION_PREVIEW_LENGTH;
-    const preview = longDescription
-      ? `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`
-      : description;
-    const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
-    const paymentDetails = getPaymentDetails(event);
-    const thumbnail = buildThumbnailMarkup(getEventImages(event), event.title || 'Event', event.placeholderImageUrl);
-    const supplyListTitle = event.supplyListTitle || 'Supply List PDF';
-    const supplyListViewerUrl =
-      event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id);
-    const supplyListLink = event.supplyListUrl
-      ? `<a class="vq-feed-secondary" href="${escapeAttribute(supplyListViewerUrl)}" data-supply-list-url="${escapeAttribute(supplyListViewerUrl)}">View/Download ${escapeHtml(supplyListTitle)}</a>`
-      : '';
-    const registerUrl = event.registrationOpen ? buildRegistrationUrl(config.sourceUrl, event) : '';
-    const registerLink = registerUrl
-      ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
-      : '';
-    const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
-    const availabilityTone = availabilityLabel === 'Unlimited'
-      ? 'is-open'
-      : event.registrationIsFull
-      ? 'is-waitlist'
-      : event.registrationOpen
-        ? 'is-open'
-        : 'is-closed';
-    const registrationStats = getRegistrationStats(event);
-    const coordinatorContact = buildCoordinatorContactMarkup(event);
-    // Business Listing and For Sale carry no date, time, presenter, payment or
-    // registration of their own, so the event treatment below reads as a wall
-    // of "TBD"/"Registration Closed" on them. The feed API sends the same
-    // field list the site's own listing cards render - see
-    // shared/eventListing.js.
-    const listingDetails = Array.isArray(event.listingDetails) ? event.listingDetails : [];
-    const isListing = Boolean(event.isListing) && listingDetails.length > 0;
+    const template = getCardTemplate(event);
+    const title = event.title || 'Listing';
+    const media = buildThumbnailMarkup(getEventImages(event), title, event.placeholderImageUrl);
+    const body = template === 'business'
+      ? buildBusinessCardBody(event)
+      : template === 'forsale'
+        ? buildForSaleCardBody(event)
+        : buildEventCardBody(event, config);
 
     return `
-      <article class="vq-feed-card" data-event-type="${escapeAttribute(event.eventType)}">
-        <div class="vq-feed-card-main">
-          <div class="vq-feed-card-top">
-            <div class="vq-feed-card-top-left">
-              <div class="vq-feed-pill-row">
-                <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
-                ${isListing ? '' : `
-                  <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
-                  <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
-                `}
-              </div>
-              <div class="vq-feed-title-block">
-                ${isListing
-                  ? ''
-                  : event.eventType === 'Challenges'
-                    // A challenge has no date, but the row is held open so its
-                    // title still starts at the same height as every other
-                    // card in the list.
-                    ? '<div class="vq-feed-date is-blank" aria-hidden="true"></div>'
-                    : `<div class="vq-feed-date">${escapeHtml(formatEventDate(event.date))}</div>`}
-                <h3>${escapeHtml(event.title)}</h3>
-              </div>
-              ${description ? `
-                <div class="vq-feed-description">
-                  <p data-role="preview">${escapeHtml(preview)}</p>
-                  ${longDescription ? `<p class="is-hidden" data-role="full">${escapeHtml(description)}</p>` : ''}
-                  ${longDescription ? '<button class="vq-feed-text-button" data-action="toggle-description" type="button">Show Full Description</button>' : ''}
-                </div>
-              ` : ''}
-            </div>
-            <div class="vq-feed-thumb">${thumbnail}</div>
-          </div>
-          ${isListing ? buildListingMetaMarkup(listingDetails) : `
-            <div class="vq-feed-registration-stats" aria-label="Registration statistics">
-              ${registrationStats.map((stat) => `
-                <span class="${stat.tone ? `is-${stat.tone}` : ''}">
-                  <strong>${escapeHtml(stat.value)}</strong>
-                  ${escapeHtml(stat.label)}
-                </span>
-              `).join('')}
-            </div>
-            <dl class="vq-feed-meta">
-              ${event.eventType === 'Challenges' ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
-              ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
-              ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
-              ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
-            </dl>
-            <dl class="vq-feed-meta vq-feed-cost">
-              <div class="vq-feed-payment-detail">
-                <dt>Cost</dt>
-                <dd>${paymentDetails}</dd>
-              </div>
-            </dl>
-            ${coordinatorContact}
-          `}
-          <div class="vq-feed-actions">
-            ${supplyListLink}
-            ${isListing ? '' : event.registrationOpen ? registerLink : ''}
-          </div>
-        </div>
+      <article class="vq-feed-card" data-template="${template}" data-event-type="${escapeAttribute(event.eventType)}">
+        <div class="vq-feed-media">${media}</div>
+        <div class="vq-feed-body">${body}</div>
       </article>
     `;
   }
 
-  function buildListingMetaMarkup(details) {
+  function getCardTemplate(event) {
+    if (event.eventType === 'Business Listing') {
+      return 'business';
+    }
+
+    if (event.eventType === 'For Sale') {
+      return 'forsale';
+    }
+
+    return 'event';
+  }
+
+  // Pills, then the stacked date, then the title. A card with no date concept
+  // passes an empty dateBlock and the block is simply absent - under the old
+  // inline date line an absent date had to be propped open with a min-height
+  // so neighbouring titles stayed aligned, which a stacked block beside the
+  // heading does not need.
+  function buildCardHeadMarkup({ dateBlock, pills, title }) {
     return `
+      <div class="vq-feed-card-head">
+        ${dateBlock}
+        <div class="vq-feed-heading">
+          <div class="vq-feed-pill-row">${pills}</div>
+          <h3>${escapeHtml(title)}</h3>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildDescriptionMarkup(description) {
+    if (!description) {
+      return '';
+    }
+
+    const isLong = description.length > DESCRIPTION_PREVIEW_LENGTH;
+    const preview = isLong
+      ? `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`
+      : description;
+
+    return `
+      <div class="vq-feed-description">
+        <p data-role="preview">${escapeHtml(preview)}</p>
+        ${isLong ? `<p class="is-hidden" data-role="full">${escapeHtml(description)}</p>` : ''}
+        ${isLong ? '<button class="vq-feed-text-button" data-action="toggle-description" type="button">Show Full Description</button>' : ''}
+      </div>
+    `;
+  }
+
+  function buildEventCardBody(event, config) {
+    // A challenge runs over a season rather than on a day, so it gets no date
+    // block at all - not an empty one.
+    const isChallenge = event.eventType === 'Challenges';
+    const availabilityLabel = event.registrationAvailability || getRegistrationAvailability(event).label;
+    const availabilityTone = availabilityLabel === 'Unlimited'
+      ? 'is-open'
+      : event.registrationIsFull
+        ? 'is-waitlist'
+        : event.registrationOpen
+          ? 'is-open'
+          : 'is-closed';
+    const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
+    const pills = `
+      <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+      <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
+      <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
+    `;
+
+    return `
+      ${buildCardHeadMarkup({
+        dateBlock: isChallenge ? '' : buildDateStackMarkup(event.date),
+        pills,
+        title: event.title || 'Event'
+      })}
+      ${buildDescriptionMarkup(event.description || '')}
+      ${buildSeatMeterMarkup(event)}
       <dl class="vq-feed-meta">
+        ${isChallenge ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
+        ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
+        ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
+        ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
+      </dl>
+      <dl class="vq-feed-meta vq-feed-cost">
+        <div class="vq-feed-payment-detail">
+          <dt>Cost</dt>
+          <dd>${getPaymentDetails(event)}</dd>
+        </div>
+      </dl>
+      ${buildCoordinatorContactMarkup(event)}
+      ${buildActionsMarkup([
+        buildSupplyListLink(event, config),
+        event.registrationOpen ? buildRegisterLink(event, config) : ''
+      ])}
+    `;
+  }
+
+  // A directory entry: no date, no seats, no cost. The business name is
+  // already the card title (getListingTitle in shared/eventListing.js sets it),
+  // so the Business row would only repeat it - the specialty leads instead,
+  // and the contact fields become a tappable block rather than a definition
+  // grid competing with event metadata.
+  function buildBusinessCardBody(event) {
+    const details = getListingDetails(event);
+    const specialty = extractDetail(details, 'Specialty');
+    extractDetail(details, 'Business');
+
+    return `
+      ${buildCardHeadMarkup({
+        dateBlock: '',
+        pills: `
+          <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+          ${specialty ? `<span class="vq-feed-specialty">${escapeHtml(specialty.value)}</span>` : ''}
+        `,
+        title: event.title || 'Business Listing'
+      })}
+      ${buildDescriptionMarkup(event.description || '')}
+      ${buildListingContactMarkup(details)}
+    `;
+  }
+
+  // A classified. The asking price is the whole reason someone reads the card,
+  // so it leads at display size instead of sitting as the first row of a
+  // definition list weighted the same as "Posting Ends".
+  function buildForSaleCardBody(event) {
+    const details = getListingDetails(event);
+    const price = extractDetail(details, 'Asking Price');
+    const postingEnds = extractDetail(details, 'Posting Ends');
+
+    return `
+      ${buildCardHeadMarkup({
+        dateBlock: '',
+        pills: `<span class="vq-feed-type">${escapeHtml(event.eventType)}</span>`,
+        title: event.title || 'For Sale Listing'
+      })}
+      ${price ? `<p class="vq-feed-price">${escapeHtml(price.value)}</p>` : ''}
+      ${buildDescriptionMarkup(event.description || '')}
+      ${buildListingContactMarkup(details)}
+      ${postingEnds ? `<p class="vq-feed-posting-ends">Listed until ${escapeHtml(postingEnds.value)}</p>` : ''}
+    `;
+  }
+
+  // Which fields a listing has, and the "TBD" text when one is empty, stay
+  // defined once in shared/eventListing.js and arrive serialized on the
+  // payload - this file only decides where each lands. That split is
+  // deliberate: the embed is a standalone IIFE and cannot import shared/, and
+  // every helper it has re-implemented instead has eventually drifted from the
+  // app it mirrors.
+  function getListingDetails(event) {
+    return Array.isArray(event.listingDetails) ? event.listingDetails.slice() : [];
+  }
+
+  // Removes the entry so whatever is left can be rendered as the remainder,
+  // which is how each template promotes its own hero fields without having to
+  // re-list the ones it did not want.
+  function extractDetail(details, label) {
+    const index = details.findIndex((detail) => detail && detail.label === label);
+    return index === -1 ? null : details.splice(index, 1)[0];
+  }
+
+  function buildListingContactMarkup(details) {
+    if (!details.length) {
+      return '';
+    }
+
+    return `
+      <dl class="vq-feed-contact">
         ${details
           .map((detail) => {
             const value = String(detail.value == null ? '' : detail.value);
@@ -293,6 +395,30 @@
           .join('')}
       </dl>
     `;
+  }
+
+  function buildActionsMarkup(links) {
+    const rendered = links.filter(Boolean).join('');
+    return rendered ? `<div class="vq-feed-actions">${rendered}</div>` : '';
+  }
+
+  function buildSupplyListLink(event, config) {
+    if (!event.supplyListUrl) {
+      return '';
+    }
+
+    const title = event.supplyListTitle || 'Supply List PDF';
+    const viewerUrl = event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id);
+
+    return `<a class="vq-feed-secondary" href="${escapeAttribute(viewerUrl)}" data-supply-list-url="${escapeAttribute(viewerUrl)}">View/Download ${escapeHtml(title)}</a>`;
+  }
+
+  function buildRegisterLink(event, config) {
+    const registerUrl = buildRegistrationUrl(config.sourceUrl, event);
+
+    return registerUrl
+      ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
+      : '';
   }
 
   // imageUrls (the full set) only started arriving in the feed once this
@@ -522,6 +648,91 @@
         value: remaining === null ? 'N/A' : String(remaining)
       }
     ];
+  }
+
+  // The hard requirement on the event card: capacity, registered and open
+  // seats are always visible here. Guild members plan around exactly those
+  // three, so they are never folded behind a detail view. Pending Payment and
+  // Waitlisted join them only when non-zero, which is what clears the noise
+  // from the old always-five-pill row without dropping data anyone needs.
+  function buildSeatMeterMarkup(event) {
+    const registered = Number(event.registeredCount || 0);
+    const pendingPayment = Number(event.pendingPaymentCount || 0);
+    const waitlisted = Number(event.waitlistedCount || 0);
+    const held = Number(event.heldCount || 0);
+    const capacity = Number(event.capacity || 0);
+    const figures = [];
+
+    if (event.capacityUnlimited) {
+      figures.push({ label: 'capacity', value: 'Unlimited' });
+      figures.push({ label: 'registered', value: String(registered) });
+    } else {
+      const open = capacity ? Math.max(capacity - registered - pendingPayment - held, 0) : null;
+
+      figures.push({ label: 'capacity', value: capacity ? String(capacity) : 'Not set' });
+      figures.push({ label: 'registered', value: String(registered) });
+      figures.push({
+        label: open === 0 ? 'open - waitlist available' : 'open',
+        tone: open === 0 ? 'waitlist' : 'open',
+        value: open === null ? 'N/A' : String(open)
+      });
+    }
+
+    if (pendingPayment) {
+      figures.push({ label: 'pending payment', tone: 'waitlist', value: String(pendingPayment) });
+    }
+
+    if (waitlisted) {
+      figures.push({ label: 'waitlisted', tone: 'waitlist', value: String(waitlisted) });
+    }
+
+    return `
+      <div class="vq-feed-seats" aria-label="Registration statistics">
+        ${buildSeatSegmentsMarkup(event, capacity, registered, pendingPayment + held)}
+        <p class="vq-feed-seat-figures">
+          ${figures
+            .map((figure) => `<span${figure.tone ? ` class="is-${figure.tone}"` : ''}><strong>${escapeHtml(figure.value)}</strong> ${escapeHtml(figure.label)}</span>`)
+            .join('')}
+        </p>
+      </div>
+    `;
+  }
+
+  // One segment per seat is the point of the meter - the reader counts what is
+  // left rather than decoding a percentage, and the pieced row of squares is
+  // the app's own quilt-block motif. Past SEAT_METER_MAX_SEGMENTS the squares
+  // are too thin to count, so it degrades to a proportional bar; the figures
+  // line carries the exact numbers either way.
+  function buildSeatSegmentsMarkup(event, capacity, registered, pending) {
+    if (event.capacityUnlimited || !capacity) {
+      return '';
+    }
+
+    if (capacity > SEAT_METER_MAX_SEGMENTS) {
+      const takenPercent = Math.min(Math.round(((registered + pending) / capacity) * 100), 100);
+      const registeredPercent = Math.min(Math.round((registered / capacity) * 100), 100);
+
+      return `
+        <div class="vq-feed-seat-bar" role="presentation">
+          <span class="vq-feed-seat-bar-pending" style="width: ${takenPercent}%"></span>
+          <span class="vq-feed-seat-bar-fill" style="width: ${registeredPercent}%"></span>
+        </div>
+      `;
+    }
+
+    const segments = [];
+
+    for (let index = 0; index < capacity; index += 1) {
+      const tone = index < registered
+        ? ' is-filled'
+        : index < registered + pending
+          ? ' is-pending'
+          : '';
+
+      segments.push(`<span class="vq-feed-seat${tone}"></span>`);
+    }
+
+    return `<div class="vq-feed-seat-meter" role="presentation">${segments.join('')}</div>`;
   }
 
   function wireDescriptionToggles(root) {
@@ -813,16 +1024,78 @@
         border-color: #225c56;
         color: #ffffff;
       }
+      /* All three layouts render the same media + body pair; only the geometry
+         differs, and these two custom properties carry it into the shared
+         thumbnail markup so the photo resizes without a second set of rules
+         per layout. */
       .vq-feed-list {
+        --vq-media-width: 260px;
+        --vq-media-height: 190px;
         display: grid;
         gap: 18px;
+      }
+      .vq-feed-list.is-grid {
+        --vq-media-width: 100%;
+        /* Matches the stacked height the container query below applies, so a
+           tile does not change photo height as the column crosses 440px. */
+        --vq-media-height: 200px;
+        grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+      }
+      .vq-feed-list.is-agenda {
+        --vq-media-width: 88px;
+        --vq-media-height: 88px;
+        gap: 0;
       }
       .vq-feed-card {
         background: #ffffff;
         border: 1px solid #ded5ca;
         border-radius: 10px;
         box-shadow: 0 10px 24px rgba(29, 41, 39, 0.06);
+        /* Every card is its own query container. The embed sits in a GoDaddy
+           HTML block inside a column of unpredictable width, so a card has to
+           respond to the space it actually got - a viewport-keyed rule reports
+           the browser window instead, which is how a layout bug here stayed
+           invisible until someone sent a screen recording. */
+        container-type: inline-size;
+        display: flex;
+        /* Without this the media column stretches to the full card height, so
+           a short photo sits in a tall invisible box that swallows clicks
+           meant for the text beside it. */
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 16px;
         padding: 18px;
+      }
+      .vq-feed-media {
+        flex: 0 0 auto;
+        width: var(--vq-media-width);
+      }
+      .vq-feed-body {
+        align-content: start;
+        display: grid;
+        flex: 1 1 220px;
+        gap: 8px;
+        min-width: 0;
+      }
+      /* Below this the body has too little room to read beside a photo, so the
+         media takes a full line and the body wraps under it. Setting the
+         properties on .vq-feed-media rather than the card is deliberate: a
+         container query cannot match the element that establishes it. */
+      @container (max-width: 440px) {
+        .vq-feed-media {
+          --vq-media-width: 100%;
+          --vq-media-height: 200px;
+        }
+      }
+      .vq-feed-list.is-agenda .vq-feed-card {
+        border-radius: 0;
+        border-width: 0 0 1px;
+        box-shadow: none;
+        gap: 14px;
+        padding: 14px 2px;
+      }
+      .vq-feed-list.is-agenda .vq-feed-card:last-child {
+        border-bottom-width: 0;
       }
       .vq-feed-card.is-hidden,
       .vq-feed-list.is-hidden,
@@ -830,17 +1103,15 @@
       .vq-feed-description .is-hidden {
         display: none;
       }
-      .vq-feed-card-top {
-        align-items: flex-start;
+      .vq-feed-card-head {
+        align-items: start;
         display: flex;
         gap: 14px;
-        justify-content: space-between;
       }
-      .vq-feed-card-top-left {
+      .vq-feed-heading {
         display: grid;
         gap: 6px;
         min-width: 0;
-        flex: 1 1 auto;
       }
       .vq-feed-pill-row {
         align-items: center;
@@ -879,11 +1150,6 @@
         border: 1px solid #ddc66b;
         color: #7a5200;
       }
-      .vq-feed-title-block {
-        display: grid;
-        gap: 3px;
-        min-width: 0;
-      }
       .vq-feed-primary,
       .vq-feed-secondary {
         appearance: none;
@@ -910,26 +1176,48 @@
         border: 1px solid #c8d4d0;
         color: #225c56;
       }
-      .vq-feed-date {
+      /* A calendar tile rather than an inline date line. A card with no date
+         concept omits the block entirely and the flex gap closes up, which is
+         what retires the old empty-date row propped open with a min-height. */
+      .vq-feed-datestack {
+        background: #fdf6f2;
+        border: 1px solid #e6cdbf;
+        border-radius: 8px;
         color: #9a4d2f;
-        font-size: 1.48rem;
-        font-weight: 800;
-        line-height: 1.1;
-        margin-bottom: 4px;
+        display: grid;
+        flex: 0 0 auto;
+        justify-items: center;
+        line-height: 1.05;
+        padding: 8px 10px;
+        text-align: center;
+        width: 62px;
       }
-      /* Empty, so it needs the height of the line it would have held. Keyed to
-         the line-height above rather than a fixed value, so the two cannot
-         drift apart. */
-      .vq-feed-date.is-blank {
-        min-height: 1.1em;
+      .vq-feed-datestack-month {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      .vq-feed-datestack-day {
+        font-size: 1.6rem;
+        font-weight: 800;
+      }
+      .vq-feed-datestack-year {
+        color: #b07a5f;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+      .vq-feed-datestack.is-tbd .vq-feed-datestack-day {
+        font-size: 1rem;
+        padding-top: 5px;
       }
       .vq-feed-card h3 {
         font-size: 1.4rem;
         line-height: 1.2;
         margin: 0;
       }
-      .vq-feed-thumb {
-        flex: 0 0 auto;
+      .vq-feed-list.is-grid .vq-feed-card h3,
+      .vq-feed-list.is-agenda .vq-feed-card h3 {
+        font-size: 1.18rem;
       }
       .vq-feed-thumb-stack {
         align-items: flex-start;
@@ -939,7 +1227,7 @@
            widest child, so the "Click image for larger view" hint made every
            card carrying it wider than one showing just an image, and the text
            beside it correspondingly narrower. */
-        width: 172px;
+        width: var(--vq-media-width);
       }
       .vq-feed-thumb-link {
         border-radius: 8px;
@@ -956,9 +1244,9 @@
       .vq-feed-thumb-placeholder {
         border-radius: 8px;
         display: block;
-        height: 132px;
+        height: var(--vq-media-height);
         object-fit: cover;
-        width: 172px;
+        width: var(--vq-media-width);
       }
       .vq-feed-thumb-placeholder {
         background: linear-gradient(135deg, #f6efe9, #ebe3da);
@@ -971,9 +1259,9 @@
       }
       .vq-feed-carousel {
         border-radius: 8px;
-        height: 132px;
+        height: var(--vq-media-height);
         position: relative;
-        width: 172px;
+        width: var(--vq-media-width);
       }
       .vq-feed-carousel-image-button {
         appearance: none;
@@ -994,7 +1282,10 @@
         height: 26px;
         justify-content: center;
         position: absolute;
-        top: 53px;
+        /* Centred proportionally rather than at a fixed offset, because the
+           media height is now a per-layout custom property. */
+        top: 50%;
+        transform: translateY(-50%);
         width: 26px;
       }
       .vq-feed-carousel-arrow-prev {
@@ -1132,36 +1423,121 @@
         color: #225c56;
         font-weight: 800;
       }
-      .vq-feed-registration-stats {
-        align-items: center;
+      .vq-feed-seats {
+        display: grid;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      /* One square per seat, pieced in a row - the quilt-block motif the app
+         already uses, and countable in a way a percentage is not. */
+      .vq-feed-seat-meter {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin: 10px 0 0;
+        gap: 3px;
       }
-      .vq-feed-registration-stats span {
+      .vq-feed-seat {
+        background: #ffffff;
+        border: 1px solid #c3d3cf;
+        border-radius: 2px;
+        height: 13px;
+        width: 13px;
+      }
+      .vq-feed-seat.is-filled {
+        background: #225c56;
+        border-color: #225c56;
+      }
+      .vq-feed-seat.is-pending {
+        background: #e8c76a;
+        border-color: #c9a746;
+      }
+      .vq-feed-seat-bar {
+        background: #ffffff;
+        border: 1px solid #c3d3cf;
+        border-radius: 999px;
+        height: 13px;
+        overflow: hidden;
+        position: relative;
+      }
+      .vq-feed-seat-bar-pending,
+      .vq-feed-seat-bar-fill {
+        bottom: 0;
+        left: 0;
+        position: absolute;
+        top: 0;
+      }
+      .vq-feed-seat-bar-pending {
+        background: #e8c76a;
+      }
+      .vq-feed-seat-bar-fill {
+        background: #225c56;
+      }
+      /* Capacity, registered and open are always here. The meter is the quick
+         read; these are the exact numbers, in tabular figures so they stay in
+         column as counts change. */
+      .vq-feed-seat-figures {
+        color: #5a6b67;
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 0.86rem;
+        gap: 4px 12px;
+        margin: 0;
+      }
+      .vq-feed-seat-figures strong {
+        color: #1d2927;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      .vq-feed-seat-figures .is-open strong {
+        color: #1f6a31;
+      }
+      .vq-feed-seat-figures .is-waitlist strong {
+        color: #8a5a00;
+      }
+      /* For Sale leads with the price - it is the reason the card gets read. */
+      .vq-feed-price {
+        color: #225c56;
+        font-size: 1.7rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        margin: 0;
+      }
+      .vq-feed-posting-ends {
+        color: #5a6b67;
+        font-size: 0.86rem;
+        margin: 0;
+      }
+      .vq-feed-specialty {
         background: #f7f1e8;
         border: 1px solid #decfbd;
         border-radius: 999px;
-        color: #36433f;
         display: inline-flex;
         font-size: 0.82rem;
-        font-weight: 800;
-        gap: 4px;
+        font-weight: 700;
         padding: 6px 10px;
       }
-      .vq-feed-registration-stats strong {
-        color: #1d2927;
+      .vq-feed-contact {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        margin: 4px 0 0;
       }
-      .vq-feed-registration-stats .is-open {
-        background: #e7f6ea;
-        border-color: #8bc79a;
-        color: #1f6a31;
+      .vq-feed-contact div {
+        display: grid;
+        gap: 2px;
       }
-      .vq-feed-registration-stats .is-waitlist {
-        background: #fff3c4;
-        border-color: #ddc66b;
-        color: #7a5200;
+      .vq-feed-contact dt {
+        color: #5a6b67;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .vq-feed-contact dd {
+        margin: 0;
+      }
+      .vq-feed-contact dd a {
+        color: #225c56;
+        font-weight: 800;
       }
       .vq-feed-coordinator {
         align-items: center;
@@ -1186,16 +1562,27 @@
         margin-top: 14px;
         justify-content: flex-start;
       }
-      @media (max-width: 720px) {
-        .vq-feed-card-top {
-          flex-direction: column;
-        }
-        .vq-feed-thumb-image,
-        .vq-feed-thumb-placeholder,
-        .vq-feed-thumb-stack {
-          width: 100%;
-          max-width: 240px;
-        }
+      /* Agenda is a scannable index, not a card: at 88px the carousel chrome
+         and photo hints are unreadable, and the long-form blocks below the
+         heading are what the reader came past this list to open, not read
+         here. It earns its keep once a page carries a dozen-plus listings. */
+      .vq-feed-list.is-agenda .vq-feed-carousel-arrow,
+      .vq-feed-list.is-agenda .vq-feed-carousel-toggle,
+      .vq-feed-list.is-agenda .vq-feed-carousel-dots,
+      .vq-feed-list.is-agenda .vq-feed-thumb-hint,
+      .vq-feed-list.is-agenda .vq-feed-thumb-count,
+      .vq-feed-list.is-agenda .vq-feed-description,
+      .vq-feed-list.is-agenda .vq-feed-coordinator {
+        display: none;
+      }
+      .vq-feed-list.is-agenda .vq-feed-datestack {
+        background: none;
+        border: 0;
+        padding: 0;
+        width: 52px;
+      }
+      .vq-feed-list.is-agenda .vq-feed-seat-meter {
+        display: none;
       }
     `;
 
@@ -1227,6 +1614,60 @@
     }
 
     return value;
+  }
+
+  function buildDateStackMarkup(value) {
+    const parts = parseDateParts(value);
+
+    if (!parts) {
+      return `
+        <div class="vq-feed-datestack is-tbd">
+          <span class="vq-feed-datestack-month">Date</span>
+          <span class="vq-feed-datestack-day">TBD</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="vq-feed-datestack">
+        <span class="vq-feed-datestack-month">${escapeHtml(parts.month)}</span>
+        <span class="vq-feed-datestack-day">${escapeHtml(parts.day)}</span>
+        <span class="vq-feed-datestack-year">${escapeHtml(parts.year)}</span>
+      </div>
+    `;
+  }
+
+  // Same plain-text-first discipline as formatEventDate above, and for the same
+  // reason: an ISO date-only string read through Date is UTC midnight, which in
+  // any timezone behind UTC lands on the day before. Two formatters reading one
+  // field is exactly the split that let this feed render every date a day early
+  // while the app's own page stayed correct, so they must stay in step.
+  function parseDateParts(value) {
+    if (!value) {
+      return null;
+    }
+
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+
+    if (isoMatch) {
+      const label = MONTH_LABELS[Number(isoMatch[2]) - 1];
+
+      return label
+        ? { day: String(Number(isoMatch[3])), month: label, year: isoMatch[1] }
+        : null;
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return {
+      day: String(parsed.getDate()),
+      month: MONTH_LABELS[parsed.getMonth()],
+      year: String(parsed.getFullYear())
+    };
   }
 
   function formatRegistrationDateRange(event) {
