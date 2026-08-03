@@ -178,6 +178,28 @@ Card content is chosen by listing type, independently of layout: events show sea
 - `npm test` runs the focused Node test suite (`tests/*.test.js`).
 - `npm run setup:first-admin` creates or updates the first Firebase Auth Super User and matching Firestore profile.
 - `npm run backfill:member-directory` rebuilds `memberDirectoryProfiles` from eligible `users` docs (requires `FIREBASE_SERVICE_ACCOUNT_PATH`).
+- `npm run copy:events` copies event documents from one Firebase project's `events` collection into another's — normally Production into `vq-event-management-test`, so listings entered once for real can be reused as test data. See below.
+
+### Copying events between projects
+
+Production and test are separate Firebase projects sharing no data, so this script is the only route between them. It needs a service account for each side and is a **dry run unless `--commit` is passed**:
+
+```bash
+SOURCE_SERVICE_ACCOUNT_PATH=~/prod-sa.json \
+TARGET_SERVICE_ACCOUNT_PATH=~/test-sa.json \
+npm run copy:events
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--commit` | Actually write. Without it the script reports what it would do and touches nothing. |
+| `--overwrite` | Replace events already in the target. Default is to skip them, so a re-run only adds what is new. |
+| `--type="For Sale"` | Copy a single event type. Repeatable. |
+| `--limit=10` | Stop after this many source events. |
+
+Document IDs are preserved, which makes re-runs idempotent and keeps `/events/{id}` links matching on both sides. The script refuses to run if both service accounts resolve to the same project.
+
+Two limits worth knowing. Photos and PDFs are **referenced, not copied** — Firebase Storage download URLs are absolute, so a copied event renders its images but serves them from the source project's bucket; deleting those files on the source breaks the copy. And only the `events` collection is copied: registrations, payments, and users carry real people's data and are not test fixtures.
 - `node scripts/generateEventPlaceholderImages.mjs` regenerates the default per-event-type images shown when an event has no uploaded photo (`public/assets/event-placeholders/`).
 
 ## First Super User Setup
