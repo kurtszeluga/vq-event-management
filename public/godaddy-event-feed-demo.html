@@ -75,20 +75,26 @@
         <pre><code>&lt;div
   data-vq-feed
   data-category="events"
-  data-source-url="https://events.villagequilters.com/api/public-events"
 &gt;&lt;/div&gt;
-&lt;script src="https://events.villagequilters.com/godaddy-event-feed.js" defer&gt;&lt;/script&gt;</code></pre>
+&lt;script src="https://test.villagequilters.com/godaddy-event-feed.js" defer&gt;&lt;/script&gt;</code></pre>
         <p>
-          <strong>Use the custom domains, not the raw <code>*.vercel.app</code> URL.</strong>
-          <code>events.villagequilters.com</code> is production &mdash; real listings, real
-          payments. <code>test.villagequilters.com</code> is the test site; swap both URLs to it
-          while staging a page, and swap them back before that page goes live, or it will serve
-          test data and send registrants to the Square sandbox.
+          <strong>These snippets point at the test site, which is where the GoDaddy pages are
+          being built.</strong> <code>test.villagequilters.com</code> serves test listings and
+          sends registrants to the Square sandbox &mdash; which is what you want while setting a
+          page up.
         </p>
         <p>
-          <code>data-source-url</code> is optional: leave it off and the feed calls
-          <code>/api/public-events</code> on whichever host served the script, so there is only one
-          URL to change when you move a page between test and production.
+          <strong>At go-live, change <code>test</code> to <code>events</code> in the
+          <code>&lt;script&gt;</code> tag on every page.</strong> That one edit moves the whole
+          page to production: there is deliberately no <code>data-source-url</code> here, because
+          the feed defaults to <code>/api/public-events</code> on whichever host served the
+          script. Setting it explicitly means two URLs per page to keep in step, and a page that
+          serves live listings while registering people into the sandbox if you miss one.
+        </p>
+        <p>
+          Use the custom domains either way &mdash; never the raw
+          <code>vq-event-management.vercel.app</code> URL. It serves production, so pasting it
+          into a page you meant to keep on test is the same mistake with no warning.
         </p>
         <p>
           One row of pills renders above the feed &mdash; Programs, Workshops, Challenges, Business
@@ -123,10 +129,10 @@
 &lt;!-- Business Listings page --&gt;
 &lt;div data-vq-feed data-category="business" data-categories="business" data-layout="grid"&gt;&lt;/div&gt;</code></pre>
         <p>
-          Each snippet still needs the <code>&lt;script&gt;</code> tag from the block above, loaded
-          from the host you want that page to read &mdash; <code>events.villagequilters.com</code>
-          for live pages. No <code>data-source-url</code> is needed when the script host is
-          already the right one.
+          Each snippet also needs the <code>&lt;script&gt;</code> tag from the block above &mdash;
+          the <code>test.villagequilters.com</code> one while these pages are being built. The
+          script tag is the only place a URL appears, so it is the only thing to change per page
+          at go-live.
         </p>
       </section>
 
