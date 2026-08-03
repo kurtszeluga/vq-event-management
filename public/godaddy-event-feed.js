@@ -20,9 +20,11 @@
   // every existing snippet already renders - an older embed with no attribute
   // must not silently change on the next deploy.
   const LAYOUTS = ['roster', 'grid', 'agenda'];
+  const LAYOUT_LABELS = { agenda: 'Agenda', grid: 'Grid', roster: 'Roster' };
   const DEFAULTS = {
     emptyMessage: 'No published listings are available right now.',
     layout: LAYOUTS[0],
+    layoutSwitcher: false,
     limit: 0,
     mountSelector: '[data-vq-feed]',
     sourceUrl: `${getScriptOrigin()}/api/public-events`,
@@ -46,6 +48,7 @@
       view: views.includes(requestedView) ? requestedView : views[0],
       emptyMessage: container.dataset.emptyMessage || DEFAULTS.emptyMessage,
       layout: parseLayout(container.dataset.layout),
+      layoutSwitcher: parseLayoutSwitcher(container.dataset.layoutSwitcher),
       limit: Number(container.dataset.limit || 0),
       sourceUrl: container.dataset.sourceUrl || DEFAULTS.sourceUrl
     };
@@ -66,6 +69,18 @@
   function parseLayout(rawValue) {
     const value = String(rawValue || '').trim().toLowerCase();
     return LAYOUTS.includes(value) ? value : DEFAULTS.layout;
+  }
+
+  // Bare `data-layout-switcher` is the normal way to ask for it, and that
+  // arrives as an empty string rather than a value - so presence alone counts,
+  // and only an explicit off word turns it back off.
+  function parseLayoutSwitcher(rawValue) {
+    if (rawValue === undefined) {
+      return DEFAULTS.layoutSwitcher;
+    }
+
+    const value = String(rawValue).trim().toLowerCase();
+    return value !== 'false' && value !== '0' && value !== 'off' && value !== 'no';
   }
 
   function parseViewList(rawValue) {
@@ -767,9 +782,70 @@
     // with nothing in it would otherwise take the switcher down with it.
     container.innerHTML = `
       ${buildViewPillMarkup(config)}
+      ${buildLayoutSwitcherMarkup(config)}
       <div class="vq-feed-root"></div>
     `;
     wireViewPills(container, config);
+    wireLayoutSwitcher(container, config);
+  }
+
+  // Off unless a page asks for it. It is a chooser for whoever is setting the
+  // page up, not something every visitor needs - drop the attribute once a
+  // layout is settled and the feed renders that one with no controls.
+  function buildLayoutSwitcherMarkup(config) {
+    if (!config.layoutSwitcher) {
+      return '';
+    }
+
+    return `
+      <div class="vq-feed-layout-controls" role="group" aria-label="Card layout">
+        <span class="vq-feed-layout-label">Layout</span>
+        ${LAYOUTS.map((layout) => {
+          const isActive = layout === config.layout;
+
+          return `<button aria-pressed="${isActive}" class="vq-feed-layout${isActive ? ' is-active' : ''}" data-layout="${escapeAttribute(layout)}" type="button">${escapeHtml(LAYOUT_LABELS[layout])}</button>`;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  function wireLayoutSwitcher(container, config) {
+    const buttons = Array.from(container.querySelectorAll('.vq-feed-layout'));
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const nextLayout = parseLayout(button.dataset.layout);
+
+        if (nextLayout === config.layout) {
+          return;
+        }
+
+        // Recorded on the config rather than only swapped on the list that is
+        // on screen: switching category pills re-renders the list from
+        // scratch, and a layout held in the DOM alone would silently snap back
+        // to the default at that moment.
+        config.layout = nextLayout;
+        buttons.forEach((item) => {
+          const isActive = item === button;
+          item.classList.toggle('is-active', isActive);
+          item.setAttribute('aria-pressed', String(isActive));
+        });
+
+        applyLayout(container, config);
+      });
+    });
+  }
+
+  // Layout is pure CSS on the list, so changing it is a class swap - no
+  // refetch, and no re-render of the cards themselves.
+  function applyLayout(container, config) {
+    const list = container.querySelector('.vq-feed-list');
+
+    if (!list) {
+      return;
+    }
+
+    LAYOUTS.forEach((layout) => list.classList.toggle(`is-${layout}`, layout === config.layout));
   }
 
   function buildViewPillMarkup(config) {
@@ -1027,6 +1103,50 @@
         border-color: #225c56;
       }
       .vq-feed-category.is-active {
+        background: #225c56;
+        border-color: #225c56;
+        color: #ffffff;
+      }
+      .vq-feed-layout-controls {
+        align-items: center;
+        border-bottom: 1px solid #ded5ca;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 18px;
+        padding: 0 0 16px;
+      }
+      /* Only one of the two control rows carries the rule above the feed. */
+      .vq-feed-controls:has(+ .vq-feed-layout-controls) {
+        border-bottom: 0;
+        margin-bottom: 10px;
+        padding-bottom: 0;
+      }
+      .vq-feed-layout-label {
+        color: #5a6b67;
+        font-size: 0.86rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin-right: 2px;
+        text-transform: uppercase;
+      }
+      /* Deliberately the same pill as the category row - two differently
+         styled control rows stacked on one page read as a mistake. */
+      .vq-feed-layout {
+        appearance: none;
+        background: #ffffff;
+        border: 1px solid #c8d4d0;
+        border-radius: 999px;
+        color: #1d2927;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 8px 14px;
+      }
+      .vq-feed-layout:hover {
+        border-color: #225c56;
+      }
+      .vq-feed-layout.is-active {
         background: #225c56;
         border-color: #225c56;
         color: #ffffff;

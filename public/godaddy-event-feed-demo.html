@@ -28,40 +28,6 @@
         margin: 0;
         max-width: 760px;
       }
-      .demo-switcher {
-        align-items: center;
-        border-bottom: 1px solid #ded5ca;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin: 0 0 18px;
-        padding: 0 0 16px;
-      }
-      .demo-switcher-label {
-        font-weight: 700;
-        margin-right: 4px;
-      }
-      /* Matched to the feed's own category pills so the two rows of controls
-         on this page read as one control, not two styles. */
-      .demo-switcher button {
-        appearance: none;
-        background: #ffffff;
-        border: 1px solid #c8d4d0;
-        border-radius: 999px;
-        color: #1d2927;
-        cursor: pointer;
-        font: inherit;
-        font-weight: 700;
-        padding: 10px 16px;
-      }
-      .demo-switcher button:hover {
-        border-color: #225c56;
-      }
-      .demo-switcher button.is-active {
-        background: #225c56;
-        border-color: #225c56;
-        color: #ffffff;
-      }
     </style>
   </head>
   <body>
@@ -91,7 +57,10 @@
       business, forsale). data-categories limits the pill row above the feed;
       listing a single value hides that row, which is how a page is pinned to
       one kind of listing. data-layout picks the card geometry: roster, grid or
-      agenda.
+      agenda. Adding data-layout-switcher (presence alone is enough, no value
+      needed) puts a Roster/Grid/Agenda row above the feed so the three can be
+      compared on the live page - drop that attribute once a layout is settled
+      and the feed renders the chosen one with no controls.
 
       There is deliberately no data-source-url: the feed calls
       /api/public-events on whichever host served the script, so the script tag
@@ -110,63 +79,18 @@
         </p>
       </header>
 
-      <div class="demo-switcher" role="group" aria-label="Card layout">
-        <span class="demo-switcher-label">Layout:</span>
-        <button aria-pressed="true" class="is-active" type="button" data-demo-layout="roster">Roster</button>
-        <button aria-pressed="false" type="button" data-demo-layout="grid">Grid</button>
-        <button aria-pressed="false" type="button" data-demo-layout="agenda">Agenda</button>
-      </div>
-
+      <!-- The Roster/Grid/Agenda row below the pills comes from the embed
+           itself, via data-layout-switcher - this page adds no JS of its own,
+           so what is on screen here is exactly what a GoDaddy page carrying
+           the same attribute will show. -->
       <div
         data-vq-feed
         data-category="events"
+        data-layout-switcher
         data-source-url="/api/public-events"
       ></div>
     </main>
 
     <script src="/godaddy-event-feed.js" defer></script>
-    <script>
-      // The layout is pure CSS on .vq-feed-list, so switching it is a class
-      // swap rather than a re-render - which is also why an embed can change
-      // layout without refetching anything.
-      //
-      // Applied on a delay-free re-read of .vq-feed-list each time rather than
-      // cached: the feed replaces that element wholesale when the reader
-      // switches category pills, so a held reference would go stale.
-      const layoutButtons = Array.from(document.querySelectorAll('[data-demo-layout]'));
-
-      function applyLayout(layout) {
-        document.querySelectorAll('.vq-feed-list').forEach((list) => {
-          list.classList.remove('is-roster', 'is-grid', 'is-agenda');
-          list.classList.add(`is-${layout}`);
-        });
-      }
-
-      layoutButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-          layoutButtons.forEach((item) => {
-            const isActive = item === button;
-            item.classList.toggle('is-active', isActive);
-            item.setAttribute('aria-pressed', String(isActive));
-          });
-
-          applyLayout(button.dataset.demoLayout);
-        });
-      });
-
-      // Switching category pills re-renders the list with the embed's own
-      // default layout, which would silently undo the selection above.
-      document.addEventListener('click', (event) => {
-        if (!event.target.closest('.vq-feed-category')) {
-          return;
-        }
-
-        const active = layoutButtons.find((button) => button.classList.contains('is-active'));
-
-        if (active) {
-          window.setTimeout(() => applyLayout(active.dataset.demoLayout), 400);
-        }
-      });
-    </script>
   </body>
 </html>
