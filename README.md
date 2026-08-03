@@ -141,6 +141,34 @@ Top-level Vercel routes under `api/` (12):
 
 Shared helpers live under `api/_lib/` and do not count as separate functions. Registration creates and Square webhook handling are server-only.
 
+## GoDaddy Embed
+
+`public/godaddy-event-feed.js` is a dependency-free IIFE that renders the public listings inside a GoDaddy HTML block. It has no build step and cannot import from `shared/`, so the feed API serializes anything it needs into the payload rather than the script re-implementing it.
+
+Paste a mount div and the script tag:
+
+```html
+<div data-vq-feed data-category="programs" data-layout="grid"></div>
+<script src="https://events.villagequilters.com/godaddy-event-feed.js" defer></script>
+```
+
+| Attribute | Purpose |
+| --- | --- |
+| `data-vq-feed` | Marks the mount. Required. |
+| `data-category` | Which listings load: `programs`, `workshops`, `challenges`, `business`, `forsale`. `events` is a legacy alias resolving to `programs`. On its own it only sets which pill starts selected. |
+| `data-categories` | Comma-separated list controlling which pills appear and in what order. A single value hides the pill row, which is how a page is pinned to one kind of listing. |
+| `data-layout` | Card geometry: `roster` (default), `grid`, `agenda`. |
+| `data-layout-switcher` | Adds a Roster/Grid/Agenda row for comparing layouts on a live page. Presence alone enables it. |
+| `data-empty-message` | Replaces the default empty-state text. Also covers a pill filtering everything out, not just a page with nothing on it. |
+| `data-limit` | Caps how many cards render, for a teaser strip. The limit slices the fetched list **before** the Programs/Workshops filter runs in the browser, so a limit on that page can show fewer cards than asked for, or none. |
+| `data-source-url` | Overrides the API host. Normally omitted: the feed calls `/api/public-events` on whichever host served the script, so the script tag is the only URL on a page. |
+
+Card content is chosen by listing type, independently of layout: events show seats and cost, For Sale leads with the asking price, and Business Listings render as a contact block.
+
+`events.villagequilters.com` is production. `test.villagequilters.com` serves test listings and sends registrants to the Square sandbox. Never use the raw `*.vercel.app` deployment URL in an embed — it serves production with no warning and changes between deploys.
+
+`public/godaddy-event-feed-demo.html` renders the feed with the layout switcher enabled and carries a full setup reference in an HTML comment.
+
 ## Scripts
 
 - `npm run dev` starts the local Vite server.
