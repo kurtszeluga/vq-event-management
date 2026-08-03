@@ -1667,13 +1667,20 @@
       }
       .vq-feed-contact {
         display: grid;
-        gap: 10px;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px 18px;
+        /* Sized so a full member email fits on one line rather than breaking
+           mid-domain. Fewer, wider columns read better here than more, narrower
+           ones: these are addresses to be copied, not values to be compared. */
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         margin: 4px 0 0;
       }
+      /* A grid item defaults to min-width:auto, which is the width of its
+         longest unbreakable word - so an email address widened its own cell
+         and ran straight over the next column. */
       .vq-feed-contact div {
         display: grid;
         gap: 2px;
+        min-width: 0;
       }
       .vq-feed-contact dt {
         color: #5a6b67;
@@ -1682,8 +1689,14 @@
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
+      /* An email or a domain has no spaces to wrap at, so it needs explicit
+         permission to break mid-string once min-width:0 lets the cell shrink.
+         "anywhere" rather than "break-word" so the break counts while the
+         track is being sized, not only after it has already overflowed.
+         (No backticks in this stylesheet - it is a template literal.) */
       .vq-feed-contact dd {
         margin: 0;
+        overflow-wrap: anywhere;
       }
       .vq-feed-contact dd a {
         color: #225c56;

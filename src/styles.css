@@ -1755,9 +1755,13 @@ body.nav-sheet-open {
 
 .event-admin-card dd,
 .user-admin-card dd,
+/* An email address or a domain has no spaces to wrap at, so without this it
+   runs straight over the next column - the grid track is already pinned by
+   minmax(0, 1fr), so the text overflows the cell rather than widening it. */
 .public-event-card dd,
 .detail-panel dd {
   margin: 4px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .public-event-card-actions {
