@@ -339,7 +339,11 @@
     return `
       ${buildCardHeadMarkup({
         dateBlock: '',
+        // The business type leads the pill row. On a page showing nothing but
+        // business listings the "Business Listing" pill is identical on every
+        // card, so the group is the only part of that row worth scanning.
         pills: `
+          ${event.businessTypeLabel ? `<span class="vq-feed-business-type">${escapeHtml(event.businessTypeLabel)}</span>` : ''}
           <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
           ${specialty ? `<span class="vq-feed-specialty">${escapeHtml(specialty.value)}</span>` : ''}
         `,
@@ -1637,6 +1641,20 @@
         color: #5a6b67;
         font-size: 0.86rem;
         margin: 0;
+      }
+      /* Filled rather than outlined, unlike every other pill on the card - the
+         business group is the one thing that differs between listings on a
+         page that is otherwise all the same type. */
+      .vq-feed-business-type {
+        background: #225c56;
+        border: 1px solid #225c56;
+        border-radius: 999px;
+        color: #ffffff;
+        display: inline-flex;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        padding: 6px 12px;
       }
       .vq-feed-specialty {
         background: #f7f1e8;

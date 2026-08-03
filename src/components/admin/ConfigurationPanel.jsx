@@ -8,12 +8,14 @@ import {
   DEFAULT_PAYMENT_SETTINGS,
   EMAIL_INSTRUCTION_AREAS,
   archiveMembershipProfile,
+  deleteBusinessTypeDefault,
   deleteEventLocationDefault,
   deleteEventTimeDefault,
   importMembersFromCsvRows,
   reactivateMembershipProfile,
   saveDirectorySettings,
   saveEmailInstructions,
+  saveBusinessTypeDefault,
   saveEventLocationDefault,
   saveEventTimeDefault,
   saveCoordinatorAssignment,
@@ -21,6 +23,7 @@ import {
   saveMembershipProfile,
   saveMembershipSettings,
   savePaymentSettings,
+  subscribeToBusinessTypeDefaults,
   subscribeToCoordinatorAssignments,
   subscribeToDirectorySettings,
   subscribeToEmailInstructions,
@@ -30,7 +33,7 @@ import {
   subscribeToMembershipSettings,
   subscribeToPaymentSettings
 } from '../../services/configurationService.js';
-import { EVENT_LOCATIONS, EVENT_TYPES } from '../../data/eventOptions.js';
+import { BUSINESS_TYPES, EVENT_LOCATIONS, EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
 import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
 
@@ -43,6 +46,14 @@ const EMPTY_MEMBER_FORM = {
   phone: '',
   status: 'Active',
   town: ''
+};
+
+const EMPTY_BUSINESS_TYPE_FORM = {
+  id: '',
+  isActive: true,
+  label: '',
+  sortOrder: 0,
+  value: ''
 };
 
 const EMPTY_LOCATION_FORM = {
@@ -84,6 +95,9 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [emailInstructions, setEmailInstructions] = useState(DEFAULT_EMAIL_INSTRUCTIONS);
   const [emailTestArea, setEmailTestArea] = useState(EMAIL_INSTRUCTION_AREAS[0].areaId);
   const [emailTestRecipient, setEmailTestRecipient] = useState(currentUserProfile?.email || '');
+  const [businessTypes, setBusinessTypes] = useState([]);
+  const [businessTypeForm, setBusinessTypeForm] = useState(EMPTY_BUSINESS_TYPE_FORM);
+  const [businessTypeFormOpen, setBusinessTypeFormOpen] = useState(false);
   const [eventLocations, setEventLocations] = useState([]);
   const [eventTimes, setEventTimes] = useState([]);
   const [importMessage, setImportMessage] = useState('');
@@ -232,6 +246,12 @@ function ConfigurationPanel({ currentUserProfile }) {
       }, handleError),
       subscribeToMembershipProfiles((snapshot) => {
         setMembers(snapshot.docs.map((memberDoc) => ({ id: memberDoc.id, ...memberDoc.data() })));
+        markLoaded();
+      }, handleError),
+      subscribeToBusinessTypeDefaults((snapshot) => {
+        setBusinessTypes(
+          snapshot.docs.map((typeDoc) => ({ id: typeDoc.id, ...typeDoc.data() }))
+        );
         markLoaded();
       }, handleError),
       subscribeToEventLocationDefaults((snapshot) => {
@@ -413,6 +433,22 @@ function ConfigurationPanel({ currentUserProfile }) {
           : `${importResult.importedCount} profiles imported. ${importResult.updatedCount} updated, ${importResult.createdCount} created. ${importResult.reviewCount} phone-only matches need review.${skippedText}${pendingText}`
       );
       setCsvPreview(null);
+    });
+  }
+
+  async function handleSaveBusinessType(event) {
+    event.preventDefault();
+
+    if (!businessTypeForm.label.trim()) {
+      setError('Business type label is required.');
+      return;
+    }
+
+    await runSave('businessType', async () => {
+      await saveBusinessTypeDefault(businessTypeForm, currentUserProfile);
+      setBusinessTypeForm(EMPTY_BUSINESS_TYPE_FORM);
+      setBusinessTypeFormOpen(false);
+      setSuccessMessage('Business type saved.');
     });
   }
 
@@ -1095,6 +1131,136 @@ function ConfigurationPanel({ currentUserProfile }) {
     );
   }
 
+  function renderBusinessTypeCard() {
+    const displayedTypes = mergeDefaultBusinessTypes(businessTypes);
+
+    return (
+      <article className="configuration-mini-card">
+        <div className="configuration-card-header">
+          <h3>Business Types</h3>
+          <p>
+            These groups appear in the business listing type dropdown, and are shown at the top of
+            each business listing card.
+          </p>
+        </div>
+        <div className="configuration-actions">
+          <button
+            className="button-link button-reset secondary-action"
+            type="button"
+            onClick={() => {
+              setBusinessTypeForm(EMPTY_BUSINESS_TYPE_FORM);
+              setBusinessTypeFormOpen(true);
+            }}
+          >
+            Add Business Type
+          </button>
+        </div>
+        {businessTypeFormOpen ? (
+          <form className="configuration-form-grid configuration-edit-window" onSubmit={handleSaveBusinessType}>
+            <label>
+              <span>Business Type Label *</span>
+              <input
+                value={businessTypeForm.label}
+                onBlur={(event) =>
+                  setBusinessTypeForm((current) => ({
+                    ...current,
+                    label: toTitleCase(event.target.value)
+                  }))
+                }
+                onChange={(event) =>
+                  setBusinessTypeForm((current) => ({ ...current, label: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Dropdown Value</span>
+              <input
+                value={businessTypeForm.value}
+                onChange={(event) =>
+                  setBusinessTypeForm((current) => ({ ...current, value: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              <span>Sort Order</span>
+              <input
+                min="0"
+                type="number"
+                value={businessTypeForm.sortOrder}
+                onChange={(event) =>
+                  setBusinessTypeForm((current) => ({ ...current, sortOrder: event.target.value }))
+                }
+              />
+            </label>
+            <label className="checkbox-label compact-checkbox-label">
+              <input
+                checked={businessTypeForm.isActive}
+                type="checkbox"
+                onChange={(event) =>
+                  setBusinessTypeForm((current) => ({ ...current, isActive: event.target.checked }))
+                }
+              />
+              <span>Active</span>
+            </label>
+            <div className="configuration-actions configuration-span">
+              <button className="button-link button-reset" disabled={savingSection === 'businessType'} type="submit">
+                {savingSection === 'businessType'
+                  ? 'Saving...'
+                  : businessTypeForm.id
+                    ? 'Save Business Type'
+                    : 'Save New Business Type'}
+              </button>
+              <button
+                className="button-link button-reset secondary-action"
+                type="button"
+                onClick={() => {
+                  setBusinessTypeForm(EMPTY_BUSINESS_TYPE_FORM);
+                  setBusinessTypeFormOpen(false);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
+        <ConfigurationTable
+          columns={['Business Type', 'Value', 'Status', 'Actions']}
+          emptyText="No business types have been added yet."
+          rows={displayedTypes.map((businessType) => ({
+            id: businessType.id,
+            cells: [
+              <strong key={`${businessType.id}-label`}>{businessType.label}</strong>,
+              businessType.value,
+              businessType.isBuiltIn
+                ? 'Built-in Default'
+                : businessType.isActive === false
+                  ? 'Inactive'
+                  : 'Active',
+              <RowActions
+                key={businessType.id}
+                deleteConfirm="Delete this business type? Listings already using it keep the value they were saved with."
+                onDelete={
+                  businessType.isBuiltIn
+                    ? null
+                    : () => deleteBusinessTypeDefault(businessType, currentUserProfile)
+                }
+                onEdit={() => {
+                  setBusinessTypeForm({
+                    ...EMPTY_BUSINESS_TYPE_FORM,
+                    ...businessType,
+                    id: businessType.isBuiltIn ? '' : businessType.id,
+                    isActive: businessType.isActive !== false
+                  });
+                  setBusinessTypeFormOpen(true);
+                }}
+              />
+            ]
+          }))}
+        />
+      </article>
+    );
+  }
+
   function renderLocationCard() {
     const displayedLocations = mergeDefaultLocations(eventLocations);
 
@@ -1531,6 +1697,7 @@ function ConfigurationPanel({ currentUserProfile }) {
               ['emailInstructions', 'Email Instructions'],
               ['members', 'Membership Profiles'],
               ['coordinators', 'Coordinator Assignments'],
+              ['businessTypes', 'Business Types'],
               ['locations', 'Default Locations'],
               ['times', 'Default Start/End Times']
             ].map(([value, label]) => (
@@ -1552,6 +1719,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         {configurationView === 'emailInstructions' ? renderEmailInstructionsCard() : null}
         {configurationView === 'members' ? renderMemberListCard() : null}
         {configurationView === 'coordinators' ? renderCoordinatorCard() : null}
+        {configurationView === 'businessTypes' ? renderBusinessTypeCard() : null}
         {configurationView === 'locations' ? renderLocationCard() : null}
         {configurationView === 'times' ? renderTimeCard() : null}
       </section>
@@ -1598,6 +1766,26 @@ function RowActions({
       />
     </>
   );
+}
+
+// Built-ins sort after anything configured and cannot be deleted, matching how
+// default locations behave - a Super User overrides one by configuring a type
+// with the same value rather than removing it.
+function mergeDefaultBusinessTypes(configuredBusinessTypes) {
+  const configuredValues = new Set(configuredBusinessTypes.map((businessType) => businessType.value));
+
+  return [
+    ...configuredBusinessTypes,
+    ...BUSINESS_TYPES
+      .filter((businessType) => !configuredValues.has(businessType.value))
+      .map((businessType, index) => ({
+        ...businessType,
+        id: `built-in-business-type-${businessType.value}`,
+        isActive: true,
+        isBuiltIn: true,
+        sortOrder: 9000 + index
+      }))
+  ];
 }
 
 function mergeDefaultLocations(configuredLocations) {

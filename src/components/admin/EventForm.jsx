@@ -4,6 +4,7 @@ import { isListingEventType } from '../../../shared/eventListing.js';
 import { isRegistrationWindowInverted } from '../../../shared/registrationWindow.js';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
+  BUSINESS_TYPES,
   DEFAULT_EVENT_FORM,
   EVENT_LOCATIONS,
   EVENT_TIME_OPTIONS,
@@ -16,6 +17,7 @@ import {
   uploadEventPdf
 } from '../../services/storageService.js';
 import {
+  subscribeToActiveBusinessTypeDefaults,
   subscribeToActiveEventLocationDefaults,
   subscribeToActiveEventTimeDefaults,
   subscribeToPaymentSettings
@@ -52,6 +54,7 @@ function EventForm({
   const [saving, setSaving] = useState(false);
   const [savingAction, setSavingAction] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [configuredBusinessTypes, setConfiguredBusinessTypes] = useState([]);
   const [configuredLocations, setConfiguredLocations] = useState([]);
   const [configuredTimeOptions, setConfiguredTimeOptions] = useState([]);
   const [confirmNonMemberRegistrationOpen, setConfirmNonMemberRegistrationOpen] = useState(false);
@@ -63,6 +66,10 @@ function EventForm({
   }, [editingEvent, initialEventType]);
 
   useEffect(() => {
+    const unsubscribeBusinessTypes = subscribeToActiveBusinessTypeDefaults(
+      setConfiguredBusinessTypes,
+      () => setConfiguredBusinessTypes([])
+    );
     const unsubscribeLocations = subscribeToActiveEventLocationDefaults(
       setConfiguredLocations,
       () => setConfiguredLocations([])
@@ -77,6 +84,7 @@ function EventForm({
     );
 
     return () => {
+      unsubscribeBusinessTypes();
       unsubscribeLocations();
       unsubscribeTimes();
       unsubscribeSettings();
@@ -111,6 +119,7 @@ function EventForm({
 
   const eventTypeSelected = Boolean(form.eventType);
   const eventLabel = form.eventType || 'Event';
+  const businessTypeOptions = mergeOptionLists(configuredBusinessTypes, BUSINESS_TYPES);
   const eventLocations = mergeOptionLists(configuredLocations, EVENT_LOCATIONS);
   const eventTimeOptions = mergeOptionLists(configuredTimeOptions, EVENT_TIME_OPTIONS);
   const isBusinessListing = form.eventType === 'Business Listing';
@@ -683,6 +692,35 @@ function EventForm({
                 onChange={(event) => updateField('ownerName', event.target.value)}
                 onBlur={(event) => updateField('ownerName', toTitleCase(event.target.value))}
               />
+            </label>
+            <label>
+              <span>Business Type</span>
+              <select
+                className={fieldErrors.businessType ? 'field-invalid' : ''}
+                value={form.businessType}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  const selected = businessTypeOptions.find((option) => option.value === nextValue);
+
+                  // The label is stored alongside the value because the public
+                  // pages cannot read businessTypeDefaults to resolve it.
+                  setForm((current) => ({
+                    ...current,
+                    businessType: nextValue,
+                    businessTypeLabel: selected?.label || ''
+                  }));
+                }}
+              >
+                <option value="">Select One</option>
+                {businessTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <small className="form-help">
+                Groups the listing on the business pages. Managed under Configuration.
+              </small>
             </label>
             <label>
               <span>Business Name *</span>
@@ -1892,6 +1930,13 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     registrationOpenAt: hasRegistrationWindow ? form.registrationOpenAt : '',
     serviceFee: form.isPaid && hasFees && !form.cashCheckOnly ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
+    // Both halves are stored. businessTypeDefaults is admin-read-only, so the
+    // public listing page and the GoDaddy feed have no way to resolve a value
+    // into a label - they read businessTypeLabel directly. The consequence is
+    // snapshot semantics: renaming a type in Configuration does not relabel
+    // listings already saved under the old name.
+    businessType: isBusinessListing ? form.businessType.trim() : '',
+    businessTypeLabel: isBusinessListing ? (form.businessTypeLabel || '').trim() : '',
     // Stored as typed; normalizeWebsiteUrl adds the scheme where it is linked.
     website: isBusinessListing ? form.website.trim() : '',
     startTime: isChallenge ? '00:00' : hasTime ? form.startTime : '',

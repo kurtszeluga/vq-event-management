@@ -13,6 +13,10 @@ vi.mock('../../src/services/storageService.js', () => ({
   uploadEventPdf: vi.fn()
 }));
 vi.mock('../../src/services/configurationService.js', () => ({
+  subscribeToActiveBusinessTypeDefaults: (onNext) => {
+    onNext([]);
+    return () => {};
+  },
   subscribeToActiveEventLocationDefaults: (onNext) => {
     onNext([]);
     return () => {};

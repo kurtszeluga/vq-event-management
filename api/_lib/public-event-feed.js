@@ -241,6 +241,10 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     presenter: event.presenter || '',
     ownerName: event.ownerName || '',
     businessName: event.businessName || '',
+    businessType: event.businessType || '',
+    // The display label rides along because businessTypeDefaults is
+    // admin-read-only - nothing public can resolve a value into a label.
+    businessTypeLabel: event.businessTypeLabel || '',
     specialty: event.specialty || '',
     website: event.website || '',
     contactName: event.contactName || '',

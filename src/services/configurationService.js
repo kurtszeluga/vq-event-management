@@ -21,6 +21,7 @@ const membersCollection = () => collection(db, 'members');
 const usersCollection = () => collection(db, 'users');
 const eventLocationsCollection = () => collection(db, 'eventLocationDefaults');
 const eventTimeOptionsCollection = () => collection(db, 'eventTimeDefaults');
+const businessTypeDefaultsCollection = () => collection(db, 'businessTypeDefaults');
 const coordinatorAssignmentsCollection = () => collection(db, 'coordinatorAssignments');
 const auditLogsCollection = () => collection(db, 'auditLogs');
 const paymentsCollection = () => collection(db, 'payments');
@@ -214,6 +215,22 @@ export function subscribeToEventLocationDefaults(onNext, onError) {
 export function subscribeToEventTimeDefaults(onNext, onError) {
   const timesQuery = query(eventTimeOptionsCollection(), orderBy('sortOrder', 'asc'));
   return onSnapshot(timesQuery, onNext, onError);
+}
+
+export function subscribeToBusinessTypeDefaults(onNext, onError) {
+  const businessTypesQuery = query(businessTypeDefaultsCollection(), orderBy('sortOrder', 'asc'));
+  return onSnapshot(businessTypesQuery, onNext, onError);
+}
+
+export function subscribeToActiveBusinessTypeDefaults(onNext, onError) {
+  return subscribeToBusinessTypeDefaults(
+    (snapshot) => {
+      onNext(snapshot.docs
+        .map((typeDoc) => ({ id: typeDoc.id, ...typeDoc.data() }))
+        .filter((businessType) => businessType.isActive !== false));
+    },
+    onError
+  );
 }
 
 export function subscribeToCoordinatorAssignments(onNext, onError) {
@@ -742,6 +759,46 @@ export async function saveEventLocationDefault(location, actorProfile) {
     after: payload,
     entityId: locationRef.id,
     summary: `Saved event location "${payload.label}"`
+  });
+
+  return batch.commit();
+}
+
+export async function saveBusinessTypeDefault(businessType, actorProfile) {
+  const batch = writeBatch(db);
+  const businessTypeRef = businessType.id
+    ? doc(db, 'businessTypeDefaults', businessType.id)
+    : doc(businessTypeDefaultsCollection());
+  const payload = {
+    businessTypeId: businessTypeRef.id,
+    isActive: businessType.isActive !== false,
+    label: cleanText(businessType.label),
+    sortOrder: Number(businessType.sortOrder || 0),
+    updatedDate: serverTimestamp(),
+    value: makeOptionValue(businessType.value || businessType.label || businessTypeRef.id)
+  };
+
+  batch.set(businessTypeRef, payload, { merge: true });
+  addConfigurationAuditLog(batch, {
+    actorProfile,
+    after: payload,
+    entityId: businessTypeRef.id,
+    summary: `Saved business type "${payload.label}"`
+  });
+
+  return batch.commit();
+}
+
+export async function deleteBusinessTypeDefault(businessType, actorProfile) {
+  const batch = writeBatch(db);
+
+  batch.delete(doc(db, 'businessTypeDefaults', businessType.id));
+  addConfigurationAuditLog(batch, {
+    action: 'Delete',
+    actorProfile,
+    before: businessType,
+    entityId: businessType.id,
+    summary: `Deleted business type "${businessType.label}"`
   });
 
   return batch.commit();

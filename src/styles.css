@@ -1667,6 +1667,20 @@ body.nav-sheet-open {
   padding: 5px 10px;
 }
 
+/* Sits beside the type pill at the top of a business listing card. Weighted
+   heavier than the type pill on purpose - which group a business belongs to is
+   what a reader scans a directory for, while "Business Listing" is the same on
+   every card on the page. */
+.business-type-pill {
+  background: #225c56;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 5px 12px;
+}
+
 .event-admin-card p,
 .user-admin-card p,
 .public-event-card p {

@@ -41,6 +41,16 @@ export const EVENT_TIME_OPTIONS = [
   }
 ];
 
+// Built-in fallbacks for the Business Listing type dropdown. Super Users
+// extend or replace this list from Configuration; these are what the dropdown
+// offers before anything has been configured, and they stay available as
+// built-in defaults afterwards.
+export const BUSINESS_TYPES = [
+  { label: 'Longarm Quilters', value: 'longarm-quilters' },
+  { label: 'Quilt Patterns', value: 'quilt-patterns' },
+  { label: 'Retreat Facilities', value: 'retreat-facilities' }
+];
+
 export const EVENT_LOCATIONS = [
   {
     value: 'chota-rec-center-room-a',
@@ -60,6 +70,12 @@ export const DEFAULT_EVENT_FORM = {
   address: '',
   askingPrice: '',
   businessName: '',
+  // Business Listing only - which group the business belongs to, from the
+  // configurable list in BUSINESS_TYPES / businessTypeDefaults.
+  businessType: '',
+  // The label is stored with the value because businessTypeDefaults is
+  // admin-read-only - public surfaces cannot resolve one into the other.
+  businessTypeLabel: '',
   capacity: '20',
   cashCheckOnly: false,
   contactEmail: '',

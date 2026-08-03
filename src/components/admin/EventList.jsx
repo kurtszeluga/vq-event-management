@@ -222,6 +222,9 @@ function EventList({
           <div className="event-admin-card-main">
             <div className="card-kicker">
               <span>{event.eventType || 'Type TBD'}</span>
+              {event.businessTypeLabel ? (
+                <span className="business-type-pill">{event.businessTypeLabel}</span>
+              ) : null}
               <strong>{event.status}</strong>
             </div>
             <h3>{isListing ? getListingTitle(event) : event.title || 'Untitled Draft'}</h3>

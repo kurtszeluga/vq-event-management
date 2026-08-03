@@ -75,6 +75,9 @@ function PublicListingPage({
             <article className="public-event-card public-listing-card" key={event.id}>
               <div className="card-kicker">
                 <span className="event-type-pill">{eventType}</span>
+                {event.businessTypeLabel ? (
+                  <span className="business-type-pill">{event.businessTypeLabel}</span>
+                ) : null}
               </div>
               <div className="public-event-card-main">
                 <h2>{titleText}</h2>
