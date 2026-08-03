@@ -202,9 +202,9 @@
     const title = event.title || 'Listing';
     const media = buildThumbnailMarkup(getEventImages(event), title, event.placeholderImageUrl);
     const body = template === 'business'
-      ? buildBusinessCardBody(event)
+      ? buildBusinessCardBody(event, config)
       : template === 'forsale'
-        ? buildForSaleCardBody(event)
+        ? buildForSaleCardBody(event, config)
         : buildEventCardBody(event, config);
 
     return `
@@ -315,7 +315,7 @@
   // so the Business row would only repeat it - the specialty leads instead,
   // and the contact fields become a tappable block rather than a definition
   // grid competing with event metadata.
-  function buildBusinessCardBody(event) {
+  function buildBusinessCardBody(event, config) {
     const details = getListingDetails(event);
     const specialty = extractDetail(details, 'Specialty');
     extractDetail(details, 'Business');
@@ -331,13 +331,14 @@
       })}
       ${buildDescriptionMarkup(event.description || '')}
       ${buildListingContactMarkup(details)}
+      ${buildActionsMarkup([buildSupplyListLink(event, config)])}
     `;
   }
 
   // A classified. The asking price is the whole reason someone reads the card,
   // so it leads at display size instead of sitting as the first row of a
   // definition list weighted the same as "Posting Ends".
-  function buildForSaleCardBody(event) {
+  function buildForSaleCardBody(event, config) {
     const details = getListingDetails(event);
     const price = extractDetail(details, 'Asking Price');
     const postingEnds = extractDetail(details, 'Posting Ends');
@@ -352,6 +353,7 @@
       ${buildDescriptionMarkup(event.description || '')}
       ${buildListingContactMarkup(details)}
       ${postingEnds ? `<p class="vq-feed-posting-ends">Listed until ${escapeHtml(postingEnds.value)}</p>` : ''}
+      ${buildActionsMarkup([buildSupplyListLink(event, config)])}
     `;
   }
 
@@ -402,6 +404,10 @@
     return rendered ? `<div class="vq-feed-actions">${rendered}</div>` : '';
   }
 
+  // Gated purely on the file being there, never on event type - every template
+  // calls this, so whatever has a PDF attached shows the link. The feed
+  // serializes supplyListUrl for every listing regardless of type, so a type
+  // check here would only re-hide a file someone had deliberately uploaded.
   function buildSupplyListLink(event, config) {
     if (!event.supplyListUrl) {
       return '';
