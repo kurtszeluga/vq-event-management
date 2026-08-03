@@ -5,12 +5,15 @@
     <defs>
       <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#20303A" stop-opacity="0" />
-        <stop offset="100%" stop-color="#20303A" stop-opacity="0.82" />
+        <stop offset="30%" stop-color="#20303A" stop-opacity="0.78" />
+        <stop offset="70%" stop-color="#20303A" stop-opacity="0.78" />
+        <stop offset="100%" stop-color="#20303A" stop-opacity="0" />
       </linearGradient>
     </defs>
-    <rect x="0" y="410" width="800" height="190" fill="url(#scrim)" />
+    <rect x="0" y="225" width="800" height="150" fill="url(#scrim)" />
     <text
-      x="32" y="554"
+      x="400" y="315"
+      text-anchor="middle"
       font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
       font-size="42" font-weight="700" fill="#fffdfa"
       style="letter-spacing: 0.01em;"

@@ -64,17 +64,32 @@ function rect(x, y, w, h, color) {
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}" />`;
 }
 
+// Centred on both axes, because every card crops these with object-fit:cover
+// and only the middle survives. The containers run from 1:1 (the embed's
+// agenda thumbnail) to about 1.6, against an image that is 4:3 - so a wide
+// container crops the top and bottom away, and a square one crops the sides.
+// A bottom-left label, which is what this was, loses its descenders in the
+// first case and disappears completely in the second.
+//
+// Worst-case guaranteed-visible area across that range is the middle 75% of
+// the width and 83% of the height, which a centred line of 42px type sits
+// well inside.
 function labelOverlay(label) {
+  const bandHeight = 150;
+
   return `
     <defs>
       <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="${NAVY}" stop-opacity="0" />
-        <stop offset="100%" stop-color="${NAVY}" stop-opacity="0.82" />
+        <stop offset="30%" stop-color="${NAVY}" stop-opacity="0.78" />
+        <stop offset="70%" stop-color="${NAVY}" stop-opacity="0.78" />
+        <stop offset="100%" stop-color="${NAVY}" stop-opacity="0" />
       </linearGradient>
     </defs>
-    <rect x="0" y="${H - 190}" width="${W}" height="190" fill="url(#scrim)" />
+    <rect x="0" y="${H / 2 - bandHeight / 2}" width="${W}" height="${bandHeight}" fill="url(#scrim)" />
     <text
-      x="32" y="${H - 46}"
+      x="${W / 2}" y="${H / 2 + 15}"
+      text-anchor="middle"
       font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
       font-size="42" font-weight="700" fill="#fffdfa"
       style="letter-spacing: 0.01em;"
