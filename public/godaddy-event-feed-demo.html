@@ -36,7 +36,7 @@
       live demo. To embed a feed in a GoDaddy HTML block, paste a mount div
       plus the script tag:
 
-        <div data-vq-feed data-category="events"></div>
+        <div data-vq-feed data-category="programs"></div>
         <script src="https://test.villagequilters.com/godaddy-event-feed.js" defer></script>
 
       One page per listing type:
@@ -48,26 +48,62 @@
         <div data-vq-feed data-category="challenges" data-categories="challenges" data-layout="roster"></div>
 
         For Sale
-        <div data-vq-feed data-category="forsale" data-categories="forsale" data-layout="grid"></div>
+        <div data-vq-feed data-category="forsale" data-categories="forsale" data-layout="grid"
+             data-empty-message="Nothing for sale at the moment - check back soon."></div>
 
         Business Listings
-        <div data-vq-feed data-category="business" data-categories="business" data-layout="grid"></div>
+        <div data-vq-feed data-category="business" data-categories="business" data-layout="grid"
+             data-empty-message="No member businesses are listed right now."></div>
 
-      data-category picks which listings load (programs, workshops, challenges,
-      business, forsale). data-categories limits the pill row above the feed;
-      listing a single value hides that row, which is how a page is pinned to
-      one kind of listing. data-layout picks the card geometry: roster, grid or
-      agenda. Adding data-layout-switcher (presence alone is enough, no value
-      needed) puts a Roster/Grid/Agenda row above the feed so the three can be
-      compared on the live page - drop that attribute once a layout is settled
-      and the feed renders the chosen one with no controls.
+      Layouts above are placeholders, not a decision - see data-layout-switcher
+      below for comparing them on the live page.
 
-      There is deliberately no data-source-url: the feed calls
-      /api/public-events on whichever host served the script, so the script tag
-      is the only URL on a page. AT GO-LIVE, change `test` to `events` in that
-      tag on every page - test.villagequilters.com serves test listings and
-      sends registrants to the Square sandbox. Never use the raw
-      vq-event-management.vercel.app URL; it serves production with no warning.
+      ATTRIBUTES
+
+      data-category
+        Which listings load: programs, workshops, challenges, business,
+        forsale. On its own it only decides which pill starts selected - pair
+        it with data-categories to actually pin a page to one kind of listing.
+        "events" is a legacy alias that resolves to programs, kept so older
+        embeds keep working; use programs in anything new.
+
+      data-categories
+        Comma-separated list controlling which pills appear, and in what
+        order. A single value hides the pill row altogether.
+
+      data-layout
+        Card geometry: roster (default), grid, agenda. Quote the value -
+        GoDaddy's editor rewrites markup on save and unquoted values are the
+        first thing it mangles.
+
+      data-layout-switcher
+        Adds a Roster/Grid/Agenda row so the three can be compared on the live
+        page. Presence alone enables it, no value needed. Drop the attribute
+        once a layout is settled and the feed renders that one with no
+        controls.
+
+      data-empty-message
+        Replaces the default "No published listings are available right now."
+        Worth setting per page: that default reads oddly on a For Sale page
+        that happens to be empty. Also covers the case where a pill filters
+        everything out, not just a page with nothing on it.
+
+      data-limit
+        Caps how many cards render - for a teaser strip elsewhere on the site
+        rather than a full listing page. GOTCHA: the limit slices the fetched
+        list BEFORE the Programs/Workshops filter runs in the browser, so
+        data-limit="3" on that page keeps the first 3 fetched events and then
+        hides whichever are not Programs - it can show fewer, or none. The
+        single-type pages have no such filter and behave as expected.
+
+      data-source-url
+        Deliberately unused. The feed calls /api/public-events on whichever
+        host served the script, so the script tag is the only URL on a page.
+
+      AT GO-LIVE, change `test` to `events` in the script tag on every page -
+      test.villagequilters.com serves test listings and sends registrants to
+      the Square sandbox. Never use the raw vq-event-management.vercel.app
+      URL; it serves production with no warning.
     -->
     <main class="demo-shell">
       <header class="demo-header">
