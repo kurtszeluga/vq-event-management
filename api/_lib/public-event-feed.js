@@ -283,8 +283,8 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     // Same quilt-block default the site shows for an event with no uploaded
     // photo (empty string for Business Listing/For Sale, which keep the
     // plain empty state) - absolute, since GoDaddy embeds this feed cross-origin.
-    placeholderImageUrl: getEventPlaceholderImage(eventType)
-      ? `${safeOrigin}${getEventPlaceholderImage(eventType)}`
+    placeholderImageUrl: getEventPlaceholderImage(eventType, event.businessType)
+      ? `${safeOrigin}${getEventPlaceholderImage(eventType, event.businessType)}`
       : '',
     supplyListFileName: event.supplyListFileName || '',
     supplyListTitle: event.supplyListTitle || event.supplyListFileName || '',

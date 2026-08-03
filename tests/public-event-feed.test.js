@@ -43,11 +43,40 @@ test('the placeholder URL is absolute even when the origin has a trailing slash'
   assert.equal(feedEvent.placeholderImageUrl, 'https://example.com/assets/event-placeholders/workshop.svg');
 });
 
-test('Business Listing and For Sale have no default placeholder image, matching the site', () => {
-  const businessEvent = serializeEvent({ ...BASE_EVENT, eventType: 'Business Listing' }, 'https://example.com');
+test('a business listing takes the placeholder for its business type', () => {
+  const longarmEvent = serializeEvent(
+    { ...BASE_EVENT, eventType: 'Business Listing', businessType: 'longarm-quilters' },
+    'https://example.com'
+  );
+
+  assert.equal(
+    longarmEvent.placeholderImageUrl,
+    'https://example.com/assets/event-placeholders/business-longarm-quilters.svg'
+  );
+});
+
+test('a business listing with no type, or a type configured beyond the built-ins, falls back to the generic block', () => {
+  const untypedEvent = serializeEvent({ ...BASE_EVENT, eventType: 'Business Listing' }, 'https://example.com');
+  const customTypeEvent = serializeEvent(
+    { ...BASE_EVENT, eventType: 'Business Listing', businessType: 'added-in-configuration' },
+    'https://example.com'
+  );
+
+  assert.equal(
+    untypedEvent.placeholderImageUrl,
+    'https://example.com/assets/event-placeholders/business-listing.svg'
+  );
+  assert.equal(
+    customTypeEvent.placeholderImageUrl,
+    'https://example.com/assets/event-placeholders/business-listing.svg'
+  );
+});
+
+// A for-sale item is nearly always photographed, and a decorative stand-in
+// would misrepresent what is actually being sold.
+test('For Sale still has no default placeholder image', () => {
   const forSaleEvent = serializeEvent({ ...BASE_EVENT, eventType: 'For Sale' }, 'https://example.com');
 
-  assert.equal(businessEvent.placeholderImageUrl, '');
   assert.equal(forSaleEvent.placeholderImageUrl, '');
 });
 

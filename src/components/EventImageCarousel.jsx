@@ -9,7 +9,15 @@ const AUTO_ROTATE_INTERVAL_MS = 4000;
 // are 2+ photos to flip between - never a side-by-side strip - but the photo
 // count caption shows for any single image too. The pause toggle is a WCAG
 // 2.2.2 requirement for any auto-updating content, not just a nicety.
-function EventImageCarousel({ altText, eventType, imageUrls = [], placeholderLabel = 'No image uploaded' }) {
+// businessType is only meaningful for a Business Listing, where the default
+// image is chosen by group rather than by event type.
+function EventImageCarousel({
+  altText,
+  businessType = '',
+  eventType,
+  imageUrls = [],
+  placeholderLabel = 'No image uploaded'
+}) {
   const images = imageUrls.filter(Boolean);
   const hasMultiple = images.length > 1;
   const [index, setIndex] = useState(0);
@@ -31,7 +39,7 @@ function EventImageCarousel({ altText, eventType, imageUrls = [], placeholderLab
   }, [hasMultiple, isPaused, index]);
 
   if (!images.length) {
-    const defaultImage = getEventPlaceholderImage(eventType);
+    const defaultImage = getEventPlaceholderImage(eventType, businessType);
 
     if (defaultImage) {
       return <img alt={placeholderLabel} src={defaultImage} />;

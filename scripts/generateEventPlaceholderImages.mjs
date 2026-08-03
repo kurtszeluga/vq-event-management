@@ -19,8 +19,14 @@ const CREAM_LIGHT = '#FAF5EC';
 const TAN = '#E7DCC9';
 
 // One real, traditional quilt block per event type. Keys are the exact
-// EVENT_TYPES values from src/data/eventOptions.js. Business Listing and
-// For Sale are intentionally excluded - no default image for those.
+// EVENT_TYPES values from src/data/eventOptions.js. For Sale is intentionally
+// excluded - a for-sale item is nearly always photographed, and a decorative
+// stand-in would misrepresent what is being sold.
+//
+// Business listings are keyed by business type rather than event type, so a
+// directory page is scannable by group even before anyone uploads a photo.
+// The blocks are chosen to suit their group: a spool for the longarm quilters,
+// a log cabin for the retreat houses.
 const TYPES = [
   { key: 'class-half-day', label: 'Class (Half Day)', hero: '#2E77A6', block: 'ninePatch' },
   { key: 'class-full-day', label: 'Class (Full Day)', hero: '#2E77A6', block: 'ninePatch' },
@@ -28,7 +34,11 @@ const TYPES = [
   { key: 'retreat', label: 'Retreat', hero: '#5C8F6B', block: 'ohioStar' },
   { key: 'lecture', label: 'Lecture', hero: '#7A5698', block: 'flyingGeese' },
   { key: 'challenges', label: 'Challenges', hero: '#C4433A', block: 'bearPaw' },
-  { key: 'other', label: 'Other', hero: '#E3A83B', block: 'pinwheel' }
+  { key: 'other', label: 'Other', hero: '#E3A83B', block: 'pinwheel' },
+  { key: 'business-listing', label: 'Business Listing', hero: '#3F6B78', block: 'shooFly' },
+  { key: 'business-longarm-quilters', label: 'Longarm Quilters', hero: '#A85751', block: 'spool' },
+  { key: 'business-quilt-patterns', label: 'Quilt Patterns', hero: '#6E8B4A', block: 'drunkardsPath' },
+  { key: 'business-retreat-facilities', label: 'Retreat Facilities', hero: '#8A6A3D', block: 'logCabin' }
 ];
 
 function hexToRgb(hex) {
@@ -219,13 +229,84 @@ function bearPawBlock(x, y, size, focus, bg) {
   return g;
 }
 
+// --- Shoo Fly: 3x3, half-square triangles at the corners around a center square ---
+function shooFlyBlock(x, y, size, focus, bg) {
+  const c = size / 3;
+  let g = rect(x, y, size, size, bg);
+  const corners = [
+    [0, 0, [0, 0], [1, 0], [0, 1]],
+    [2, 0, [3, 0], [3, 1], [2, 0]],
+    [0, 2, [0, 2], [0, 3], [1, 3]],
+    [2, 2, [3, 3], [2, 3], [3, 2]]
+  ];
+  corners.forEach(([, , p1, p2, p3]) => {
+    g += tri([x + p1[0] * c, y + p1[1] * c], [x + p2[0] * c, y + p2[1] * c], [x + p3[0] * c, y + p3[1] * c], focus);
+  });
+  g += rect(x + c, y + c, c, c, focus);
+  return g;
+}
+
+// --- Spool: two flanges and a body, with the wound thread reading as a gap ---
+function spoolBlock(x, y, size, focus, bg) {
+  const t = size / 4;
+  let g = rect(x, y, size, size, bg);
+  g += `<polygon points="${x},${y} ${x + size},${y} ${x + size - t},${y + t} ${x + t},${y + t}" fill="${focus}" />`;
+  g += `<polygon points="${x},${y + size} ${x + size},${y + size} ${x + size - t},${y + size - t} ${x + t},${y + size - t}" fill="${focus}" />`;
+  g += rect(x + t, y + t, size - 2 * t, size - 2 * t, focus);
+  g += rect(x + size / 2 - t * 0.22, y + t, t * 0.44, size - 2 * t, bg);
+  return g;
+}
+
+// --- Log Cabin: strips added around a center square, light half against dark ---
+function logCabinBlock(x, y, size, focus, bg) {
+  const strips = 4;
+  const w = size / (strips * 2 + 1);
+  let g = rect(x, y, size, size, bg);
+  let left = x;
+  let top = y;
+  let right = x + size;
+  let bottom = y + size;
+
+  for (let i = 0; i < strips; i += 1) {
+    const light = i % 2 === 0 ? focus : bg;
+    const dark = i % 2 === 0 ? bg : focus;
+
+    g += rect(left, top, right - left, w, light);
+    top += w;
+    g += rect(right - w, top, w, bottom - top, light);
+    right -= w;
+    g += rect(left, bottom - w, right - left, w, dark);
+    bottom -= w;
+    g += rect(left, top, w, bottom - top, dark);
+    left += w;
+  }
+
+  g += rect(left, top, right - left, bottom - top, focus);
+  return g;
+}
+
+// --- Drunkard's Path: quarter circles, the one curved block in the set ---
+function drunkardsPathBlock(x, y, size, focus, bg) {
+  const c = size / 2;
+  let g = rect(x, y, size, size, bg);
+  g += `<path d="M ${x} ${y + c} A ${c} ${c} 0 0 1 ${x + c} ${y} L ${x} ${y} Z" fill="${focus}" />`;
+  g += `<path d="M ${x + c} ${y} A ${c} ${c} 0 0 1 ${x + size} ${y + c} L ${x + size} ${y} Z" fill="${focus}" />`;
+  g += `<path d="M ${x} ${y + c} A ${c} ${c} 0 0 0 ${x + c} ${y + size} L ${x} ${y + size} Z" fill="${focus}" />`;
+  g += `<path d="M ${x + size} ${y + c} A ${c} ${c} 0 0 0 ${x + c} ${y + size} L ${x + size} ${y + size} Z" fill="${focus}" />`;
+  return g;
+}
+
 const BLOCK_BUILDERS = {
   pinwheel: { fn: pinwheelBlock, size: 150 },
   ninePatch: { fn: ninePatchBlock, size: 150 },
   ohioStar: { fn: ohioStarBlock, size: 180 },
   flyingGeese: { fn: flyingGeeseBlock, size: 160 },
   churnDash: { fn: churnDashBlock, size: 180 },
-  bearPaw: { fn: bearPawBlock, size: 210 }
+  bearPaw: { fn: bearPawBlock, size: 210 },
+  shooFly: { fn: shooFlyBlock, size: 165 },
+  spool: { fn: spoolBlock, size: 155 },
+  logCabin: { fn: logCabinBlock, size: 190 },
+  drunkardsPath: { fn: drunkardsPathBlock, size: 145 }
 };
 
 function buildBlockImage(label, hero, blockKey) {

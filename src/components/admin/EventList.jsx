@@ -377,8 +377,8 @@ function EventList({
                   {formatPhotoCount(event.imageUrls.filter(Boolean).length)}
                 </p>
               </>
-            ) : getEventPlaceholderImage(event.eventType) ? (
-              <img alt="No image uploaded" src={getEventPlaceholderImage(event.eventType)} />
+            ) : getEventPlaceholderImage(event.eventType, event.businessType) ? (
+              <img alt="No image uploaded" src={getEventPlaceholderImage(event.eventType, event.businessType)} />
             ) : (
               <div className="image-placeholder" aria-label="No image uploaded" />
             )}

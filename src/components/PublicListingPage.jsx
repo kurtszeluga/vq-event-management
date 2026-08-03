@@ -111,6 +111,7 @@ function PublicListingPage({
               <div className="public-event-card-thumbnail">
                 <EventImageCarousel
                   altText={`${titleText} thumbnail`}
+                  businessType={event.businessType}
                   eventType={event.eventType}
                   imageUrls={event.imageUrls}
                 />

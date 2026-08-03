@@ -86,3 +86,32 @@ describe('buildEventPayload business type fields', () => {
     expect(payload.businessTypeLabel).toBe('');
   });
 });
+
+describe('business listing placeholder images', () => {
+  it('picks the image for the business type when there is one', async () => {
+    const { getEventPlaceholderImage } = await import('../../shared/eventImages.js');
+
+    expect(getEventPlaceholderImage('Business Listing', 'longarm-quilters'))
+      .toBe('/assets/event-placeholders/business-longarm-quilters.svg');
+    expect(getEventPlaceholderImage('Business Listing', 'retreat-facilities'))
+      .toBe('/assets/event-placeholders/business-retreat-facilities.svg');
+  });
+
+  it('falls back to the generic business block for an untyped or custom type', async () => {
+    const { getEventPlaceholderImage } = await import('../../shared/eventImages.js');
+
+    expect(getEventPlaceholderImage('Business Listing', ''))
+      .toBe('/assets/event-placeholders/business-listing.svg');
+    expect(getEventPlaceholderImage('Business Listing', 'a-type-added-in-configuration'))
+      .toBe('/assets/event-placeholders/business-listing.svg');
+  });
+
+  // The second argument is optional so the callers that predate it keep working.
+  it('ignores businessType for a non-business event type', async () => {
+    const { getEventPlaceholderImage } = await import('../../shared/eventImages.js');
+
+    expect(getEventPlaceholderImage('Workshop'))
+      .toBe('/assets/event-placeholders/workshop.svg');
+    expect(getEventPlaceholderImage('For Sale')).toBeNull();
+  });
+});
