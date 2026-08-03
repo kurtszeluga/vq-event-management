@@ -31,6 +31,14 @@ vi.mock('../../src/services/configurationService.js', async () => {
     saveMembershipSettings: vi.fn(),
     savePaymentSettings: vi.fn(),
     sendEmailInstructionsTest: vi.fn(),
+    // Every subscription the panel makes has to be stubbed here. An unstubbed
+    // one falls through to the real implementation, which calls collection()
+    // on a `db` that is null without VITE_FIREBASE_* set - so it passes on a
+    // machine with .env.local and throws anywhere without one.
+    subscribeToBusinessTypeDefaults: (onNext) => {
+      onNext({ docs: [] });
+      return () => {};
+    },
     subscribeToCoordinatorAssignments: (onNext) => {
       onNext({ docs: [] });
       return () => {};
