@@ -71,6 +71,9 @@ export const DEFAULT_EVENT_FORM = {
   documentFileName: '',
   documentTitle: '',
   documentUrl: '',
+  // A retreat runs across days, so it pairs an end date with `date`. Every
+  // other type leaves this empty and reads as a single-day event.
+  endDate: '',
   endTime: '',
   eventType: '',
   capacityUnlimited: false,

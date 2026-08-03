@@ -291,6 +291,7 @@
       ${buildDescriptionMarkup(event.description || '')}
       ${buildSeatMeterMarkup(event)}
       <dl class="vq-feed-meta">
+        ${hasDateRange(event) ? `<div><dt>Dates</dt><dd>${escapeHtml(formatEventDateRange(event))}</dd></div>` : ''}
         ${isChallenge ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
         ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
         ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
@@ -1622,6 +1623,21 @@
     return value;
   }
 
+  // A Retreat runs across days and carries endDate; every other type leaves it
+  // empty. The date tile still shows the start - it is what a reader scans for
+  // - and the full span goes in a Dates row beside the time.
+  function hasDateRange(event) {
+    return Boolean(event.endDate) && event.endDate !== event.date;
+  }
+
+  function formatEventDateRange(event) {
+    if (!event.date) {
+      return formatEventDate(event.endDate);
+    }
+
+    return `${formatEventDate(event.date)} - ${formatEventDate(event.endDate)}`;
+  }
+
   function buildDateStackMarkup(value) {
     const parts = parseDateParts(value);
 
@@ -1770,7 +1786,7 @@
     const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
     const dateRow = event.eventType === 'Challenges'
       ? ''
-      : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
+      : `<div class="meta-row"><div class="meta-label">${hasDateRange(event) ? 'Dates' : 'Date'}</div><div>${escapeHtml(hasDateRange(event) ? formatEventDateRange(event) : formatEventDate(event.date))}</div></div>`;
     const timeRow = event.eventType === 'Challenges'
       ? ''
       : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;

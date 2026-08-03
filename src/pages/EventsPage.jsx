@@ -7,7 +7,7 @@ import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
   formatCurrency,
-  formatEventDate,
+  formatEventDateRange,
   formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
@@ -92,9 +92,10 @@ function buildEventPrintHtml(event) {
   const title = escapeHtml(event.title || 'Event');
   const eventType = escapeHtml(getEventTypeLabel(event));
   const description = event.description ? `<p class="description">${escapeHtml(event.description)}</p>` : '';
+  const hasDateRange = Boolean(event.endDate) && event.endDate !== event.date;
   const dateRow = event.eventType === 'Challenges'
     ? ''
-    : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
+    : `<div class="meta-row"><div class="meta-label">${hasDateRange ? 'Dates' : 'Date'}</div><div>${escapeHtml(formatEventDateRange(event))}</div></div>`;
   const timeRow = event.eventType === 'Challenges'
     ? ''
     : `<div class="meta-row"><div class="meta-label">Time</div><div>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</div></div>`;
@@ -528,8 +529,8 @@ function EventsPage() {
                   {event.eventType !== 'Challenges' ? (
                     <>
                       <div className="event-card-date">
-                        <dt>Date</dt>
-                        <dd>{formatEventDate(event.date)}</dd>
+                        <dt>{event.endDate && event.endDate !== event.date ? 'Dates' : 'Date'}</dt>
+                        <dd>{formatEventDateRange(event)}</dd>
                       </div>
                       <div>
                         <dt>Time</dt>

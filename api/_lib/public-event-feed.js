@@ -233,6 +233,9 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     listingDetails: isListing ? buildListingDetails(listing) : [],
     description: event.description || '',
     date: event.date || '',
+    // Empty for everything except a Retreat, which runs across days. Additive,
+    // so an embed that predates this keeps rendering `date` alone.
+    endDate: event.endDate || '',
     startTime: event.startTime || '',
     endTime: event.endTime || '',
     presenter: event.presenter || '',

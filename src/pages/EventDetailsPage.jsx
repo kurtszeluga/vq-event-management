@@ -6,7 +6,7 @@ import { getEvent } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
   formatCurrency,
-  formatEventDate,
+  formatEventDateRange,
   formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
@@ -148,8 +148,8 @@ function EventDetailsPage() {
             {event.eventType !== 'Challenges' ? (
               <>
                 <div>
-                  <dt>Date</dt>
-                  <dd>{formatEventDate(event.date)}</dd>
+                  <dt>{event.endDate && event.endDate !== event.date ? 'Dates' : 'Date'}</dt>
+                  <dd>{formatEventDateRange(event)}</dd>
                 </div>
                 <div>
                   <dt>Time</dt>

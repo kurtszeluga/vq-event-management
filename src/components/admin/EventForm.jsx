@@ -124,6 +124,9 @@ function EventForm({
   // it collects no date, time or presenter - only the visibleFrom/visibleUntil
   // pair further down.
   const showDateField = showEventScheduleFields && !isChallenge;
+  // A retreat runs across days, so its single date becomes a start/end pair.
+  // The direct time fields below already give it a start and end time.
+  const showEndDateField = showEventScheduleFields && isRetreat;
   const showTimePresetField = showEventScheduleFields && !isRetreat && !isLecture && !isChallenge;
   const showDirectTimeFields = showEventScheduleFields && isRetreat;
   const showPresenterField = showEventScheduleFields && !isRetreat && !isChallenge;
@@ -311,6 +314,7 @@ function EventForm({
         : current.allowNonMemberRegistration,
       presenter: isRetreatType || isChallengeType ? '' : current.presenter,
       date: isChallengeType ? '' : current.date,
+      endDate: isRetreatType ? current.endDate : '',
       supplyListFileName: supportsSupplyList(value) ? current.supplyListFileName : '',
       supplyListTitle: supportsSupplyList(value) ? current.supplyListTitle : '',
       supplyListUrl: supportsSupplyList(value) ? current.supplyListUrl : '',
@@ -772,7 +776,7 @@ function EventForm({
           <>
             {showDateField ? (
               <label>
-                <span>{eventLabel} Date *</span>
+                <span>{showEndDateField ? `${eventLabel} Start Date *` : `${eventLabel} Date *`}</span>
                 <input
                   className={fieldErrors.date ? 'field-invalid' : ''}
                   type="date"
@@ -780,6 +784,20 @@ function EventForm({
                   onChange={(event) => updateScheduleField('date', event.target.value)}
                 />
                 {fieldErrors.date ? <small>{fieldErrors.date}</small> : null}
+              </label>
+            ) : null}
+
+            {showEndDateField ? (
+              <label>
+                <span>{eventLabel} End Date *</span>
+                <input
+                  className={fieldErrors.endDate ? 'field-invalid' : ''}
+                  min={form.date || undefined}
+                  type="date"
+                  value={form.endDate}
+                  onChange={(event) => updateScheduleField('endDate', event.target.value)}
+                />
+                {fieldErrors.endDate ? <small>{fieldErrors.endDate}</small> : null}
               </label>
             ) : null}
 
@@ -1600,6 +1618,7 @@ export function validateEventForm(form) {
   const isLecture = form.eventType === 'Lecture';
   const requiresSchedule = form.eventType && !isBusinessListing && !isForSale;
   const requiresDate = requiresSchedule && !isChallenge;
+  const requiresEndDate = requiresDate && isRetreat;
   const requiresTime = requiresSchedule && !isLecture && !isChallenge;
   const requiresTimePreset = requiresTime && !isRetreat;
   const requiresDirectTime = requiresTime && isRetreat;
@@ -1613,6 +1632,16 @@ export function validateEventForm(form) {
 
   if (requiresDate && !form.date) {
     errors.date = 'Event date is required.';
+  }
+
+  if (requiresEndDate && !form.endDate) {
+    errors.endDate = 'End date is required.';
+  }
+
+  // Caught here rather than left to the date input's `min`, which a browser
+  // enforces on the picker but not on a typed or pasted value.
+  if (requiresEndDate && form.date && form.endDate && form.endDate < form.date) {
+    errors.endDate = 'End date cannot be before the start date.';
   }
 
   if (requiresTimePreset && !form.timePreset) {
@@ -1828,6 +1857,7 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     // Written as '' rather than omitted: the public feed orders by date, and
     // Firestore drops documents missing the ordered field entirely.
     date: hasSchedule && !isChallenge ? form.date : '',
+    endDate: hasSchedule && isRetreat ? form.endDate : '',
     description: form.description.trim(),
     documentFileName: isChallenge ? form.documentFileName.trim() : '',
     documentTitle: isChallenge ? form.documentTitle.trim() : '',

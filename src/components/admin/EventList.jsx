@@ -5,7 +5,7 @@ import { getEventPlaceholderImage } from '../../data/eventOptions.js';
 import {
   buildListingDetails,
   formatCurrency,
-  formatEventDate,
+  formatEventDateRange,
   formatRegistrationDateRange,
   formatTimeRange,
   getListingTitle,
@@ -278,8 +278,8 @@ function EventList({
                 {event.eventType !== 'Challenges' ? (
                   <>
                     <div>
-                      <dt>Date</dt>
-                      <dd>{formatEventDate(event.date)}</dd>
+                      <dt>{event.endDate && event.endDate !== event.date ? 'Dates' : 'Date'}</dt>
+                      <dd>{formatEventDateRange(event)}</dd>
                     </div>
                     <div>
                       <dt>Time</dt>

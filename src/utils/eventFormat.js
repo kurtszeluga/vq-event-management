@@ -22,6 +22,24 @@ export function formatEventDate(dateValue) {
   return dateValue;
 }
 
+// A retreat spans days, so it carries `endDate` alongside `date`. Every other
+// type leaves endDate empty and formats exactly as it did before, which is why
+// display sites can call this unconditionally instead of branching on type.
+export function formatEventDateRange(event) {
+  const startDate = event?.date || '';
+  const endDate = event?.endDate || '';
+
+  if (!endDate || endDate === startDate) {
+    return formatEventDate(startDate);
+  }
+
+  if (!startDate) {
+    return formatEventDate(endDate);
+  }
+
+  return `${formatEventDate(startDate)} - ${formatEventDate(endDate)}`;
+}
+
 export function formatDateOnly(dateValue) {
   if (!dateValue) {
     return 'Date TBD';
