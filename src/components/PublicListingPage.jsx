@@ -137,6 +137,16 @@ function renderDetailValue(detail) {
     return <a href={`tel:${detail.value.replace(/[^0-9+]/g, '')}`}>{detail.value}</a>;
   }
 
+  // detail.href carries the scheme-normalized URL; detail.value is the host
+  // on its own, which is what a reader recognises.
+  if (detail.link === 'website') {
+    return (
+      <a href={detail.href} rel="noopener noreferrer" target="_blank">
+        {detail.value}
+      </a>
+    );
+  }
+
   return detail.value;
 }
 

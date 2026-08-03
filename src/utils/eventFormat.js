@@ -5,8 +5,10 @@ export {
   buildListingDetails,
   formatCurrency,
   formatListingDateTime,
+  formatWebsiteLabel,
   getListingTitle,
-  isListingEventType
+  isListingEventType,
+  normalizeWebsiteUrl
 } from '../../shared/eventListing.js';
 
 export function formatEventDate(dateValue) {

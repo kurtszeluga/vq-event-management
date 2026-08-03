@@ -402,11 +402,16 @@
           .map((detail) => {
             const value = String(detail.value == null ? '' : detail.value);
             const safeValue = escapeHtml(value);
+            // A website arrives with its scheme already normalized on
+            // detail.href, since the embed cannot import the shared helper
+            // that does it - value is the bare host, for display.
             const rendered = detail.link === 'email'
               ? `<a href="mailto:${escapeAttribute(value)}">${safeValue}</a>`
               : detail.link === 'phone'
                 ? `<a href="tel:${escapeAttribute(value.replace(/[^0-9+]/g, ''))}">${safeValue}</a>`
-                : safeValue;
+                : detail.link === 'website' && detail.href
+                  ? `<a href="${escapeAttribute(detail.href)}" target="_blank" rel="noopener noreferrer">${safeValue}</a>`
+                  : safeValue;
 
             return `<div><dt>${escapeHtml(detail.label || '')}</dt><dd>${rendered}</dd></div>`;
           })

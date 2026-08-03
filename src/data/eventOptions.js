@@ -98,5 +98,8 @@ export const DEFAULT_EVENT_FORM = {
   timePreset: '',
   title: '',
   visibleFrom: '',
-  visibleUntil: ''
+  visibleUntil: '',
+  // Business Listing only, and optional - stored exactly as typed, with the
+  // scheme added at render time by normalizeWebsiteUrl.
+  website: ''
 };

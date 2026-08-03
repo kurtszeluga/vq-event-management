@@ -694,13 +694,24 @@ function EventForm({
               />
             </label>
             <label>
-              <span>Specialty *</span>
+              <span>Specialty</span>
               <input
                 className={fieldErrors.specialty ? 'field-invalid' : ''}
                 value={form.specialty}
                 onChange={(event) => updateField('specialty', event.target.value)}
                 onBlur={(event) => updateField('specialty', toTitleCase(event.target.value))}
               />
+            </label>
+            <label>
+              <span>Website</span>
+              <input
+                className={fieldErrors.website ? 'field-invalid' : ''}
+                inputMode="url"
+                placeholder="villagequilters.com"
+                value={form.website}
+                onChange={(event) => updateField('website', event.target.value)}
+              />
+              {fieldErrors.website ? <small>{fieldErrors.website}</small> : null}
             </label>
             <label>
               <span>Email *</span>
@@ -1683,7 +1694,10 @@ export function validateEventForm(form) {
     errors.title = 'Event title is required.';
   }
 
-  if (!form.description.trim()) {
+  // A business listing is a directory entry - the contact details are the
+  // payload, and plenty of members have nothing to write beyond them. Every
+  // other type still needs a description to be worth publishing.
+  if (!isBusinessListing && !form.description.trim()) {
     errors.description = 'Event description is required.';
   }
 
@@ -1696,8 +1710,9 @@ export function validateEventForm(form) {
       errors.businessName = 'Business name is required.';
     }
 
-    if (!form.specialty.trim()) {
-      errors.specialty = 'Specialty is required.';
+    // Specialty and website are optional; not every member has one.
+    if (form.website.trim() && !isPlausibleWebsite(form.website)) {
+      errors.website = 'Enter a website like villagequilters.com';
     }
 
     if (!form.contactEmail.trim()) {
@@ -1877,6 +1892,8 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     registrationOpenAt: hasRegistrationWindow ? form.registrationOpenAt : '',
     serviceFee: form.isPaid && hasFees && !form.cashCheckOnly ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
+    // Stored as typed; normalizeWebsiteUrl adds the scheme where it is linked.
+    website: isBusinessListing ? form.website.trim() : '',
     startTime: isChallenge ? '00:00' : hasTime ? form.startTime : '',
     status: asDraft ? 'Draft' : 'Published',
     supplyListFileName: showSupplyListUpload ? form.supplyListFileName.trim() : '',
@@ -1896,6 +1913,18 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
 // version silently omitted each type as it was added - Other had to be added
 // to it after the fact, and Challenges only ever got an upload through a
 // separate `|| isChallenge` escape hatch at each call site.
+// Deliberately loose: this only catches a value that could never be a web
+// address, so a typed host, a full URL, or a path all pass. Rejecting valid
+// but unusual addresses would be worse than letting one through - the link
+// is visible on the card either way.
+export function isPlausibleWebsite(value) {
+  const withoutScheme = String(value || '')
+    .trim()
+    .replace(/^https?:\/\//i, '');
+
+  return /^[^\s./]+(\.[^\s./]+)+(\/\S*)?$/.test(withoutScheme);
+}
+
 export function supportsSupplyList(eventType) {
   return Boolean(eventType) && !isListingEventType(eventType);
 }

@@ -49,16 +49,60 @@ export function formatListingDateTime(value) {
   }).format(parsed);
 }
 
+// Members type "villagequilters.com" far more often than a full URL, and a
+// bare host in an href resolves as a path relative to the current page - so
+// the stored value is left exactly as entered and the scheme is added here,
+// at the point it becomes a link.
+export function normalizeWebsiteUrl(value) {
+  const trimmed = String(value || '').trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+// The scheme is noise on a card; the host is what a reader recognises.
+export function formatWebsiteLabel(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '');
+}
+
 export function buildListingDetails(event) {
   if (event.eventType === 'Business Listing') {
-    return [
+    const details = [
       { label: 'Owner', value: event.ownerName || 'Owner TBD' },
-      { label: 'Business', value: event.businessName || 'Business TBD' },
-      { label: 'Specialty', value: event.specialty || 'Specialty TBD' },
-      { label: 'Email', value: event.contactEmail || 'Email TBD', link: event.contactEmail ? 'email' : '' },
-      { label: 'Phone', value: event.contactPhone || 'Phone TBD', link: event.contactPhone ? 'phone' : '' },
-      { label: 'Address', value: event.address || 'Address TBD' }
+      { label: 'Business', value: event.businessName || 'Business TBD' }
     ];
+
+    // Specialty and Website are both optional - not every member has one to
+    // name. An absent optional field drops its row entirely rather than
+    // printing "Specialty TBD", which would otherwise appear on every listing
+    // that legitimately has none.
+    if (event.specialty) {
+      details.push({ label: 'Specialty', value: event.specialty });
+    }
+
+    details.push(
+      { label: 'Email', value: event.contactEmail || 'Email TBD', link: event.contactEmail ? 'email' : '' },
+      { label: 'Phone', value: event.contactPhone || 'Phone TBD', link: event.contactPhone ? 'phone' : '' }
+    );
+
+    if (event.website) {
+      details.push({
+        href: normalizeWebsiteUrl(event.website),
+        label: 'Website',
+        link: 'website',
+        value: formatWebsiteLabel(event.website)
+      });
+    }
+
+    details.push({ label: 'Address', value: event.address || 'Address TBD' });
+
+    return details;
   }
 
   return [

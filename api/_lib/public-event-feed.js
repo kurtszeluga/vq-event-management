@@ -242,6 +242,7 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     ownerName: event.ownerName || '',
     businessName: event.businessName || '',
     specialty: event.specialty || '',
+    website: event.website || '',
     contactName: event.contactName || '',
     contactEmail: event.contactEmail || '',
     contactPhone: event.contactPhone || '',

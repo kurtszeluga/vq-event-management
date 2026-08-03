@@ -269,7 +269,15 @@ function EventList({
                 {buildListingDetails(event).map((detail) => (
                   <div key={detail.label}>
                     <dt>{detail.label}</dt>
-                    <dd>{detail.value}</dd>
+                    <dd>
+                      {detail.link === 'website' ? (
+                        <a href={detail.href} rel="noopener noreferrer" target="_blank">
+                          {detail.value}
+                        </a>
+                      ) : (
+                        detail.value
+                      )}
+                    </dd>
                   </div>
                 ))}
               </dl>
