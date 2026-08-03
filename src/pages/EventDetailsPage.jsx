@@ -16,6 +16,7 @@ import {
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 import { openManagedPopup } from '../utils/popupWindow.js';
+import { listEventDocuments } from '../../shared/eventDocuments.js';
 
 function EventDetailsPage() {
   const navigate = useNavigate();
@@ -28,14 +29,14 @@ function EventDetailsPage() {
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
 
-  function openSupplyListPopup(clickEvent) {
-    if (!event?.supplyListUrl) {
+  function openDocumentPopup(eventDocument, clickEvent) {
+    if (!eventDocument) {
       return;
     }
 
     openManagedPopup(
-      `/events/${eventId}/supply-list`,
-      'vq-supply-list',
+      `/events/${eventId}/${eventDocument.kind}`,
+      `vq-${eventDocument.kind}`,
       'popup,width=1100,height=900',
       clickEvent.currentTarget
     );
@@ -184,15 +185,16 @@ function EventDetailsPage() {
               <dd>{availability.label}</dd>
             </div>
           </dl>
-          {event.supplyListUrl ? (
+          {listEventDocuments(event).map((eventDocument) => (
             <button
               className="text-button"
+              key={eventDocument.kind}
               type="button"
-              onClick={openSupplyListPopup}
+              onClick={(clickEvent) => openDocumentPopup(eventDocument, clickEvent)}
             >
-              View, print, or save {event.supplyListTitle || event.supplyListFileName || 'supply list'}
+              View, print, or save {eventDocument.title}
             </button>
-          ) : null}
+          ))}
           {!isRegistrationWindowOpen(event) ? (
             <p className="form-error">Registration is not currently open.</p>
           ) : null}

@@ -11,8 +11,12 @@ function App() {
   const [navSheetOpen, setNavSheetOpen] = useState(false);
   const menuButtonRef = useRef(null);
   const normalizedPath = location.pathname.replace(/\/+$/, '');
+  // Both document viewers open in a popup window, so neither wants the site
+  // chrome around it.
   const isPopupMode =
-    normalizedPath.endsWith('/supply-list') || normalizedPath.endsWith('/print');
+    normalizedPath.endsWith('/supply-list')
+    || normalizedPath.endsWith('/challenge-pdf')
+    || normalizedPath.endsWith('/print');
   const pullState = usePullToRefresh(isPopupMode);
   const showAdminSignupLink =
     currentUser

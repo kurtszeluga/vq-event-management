@@ -17,6 +17,7 @@ import {
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 import { openManagedPopup } from '../utils/popupWindow.js';
+import { listEventDocuments } from '../../shared/eventDocuments.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
@@ -55,14 +56,14 @@ function getDescriptionPreview(description) {
   return `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trim()}...`;
 }
 
-function openSupplyListPopup(event, triggerElement) {
-  if (!event?.supplyListUrl) {
+function openDocumentPopup(event, eventDocument, triggerElement) {
+  if (!event?.id || !eventDocument) {
     return;
   }
 
   openManagedPopup(
-    `/events/${event.id}/supply-list`,
-    'vq-supply-list',
+    `/events/${event.id}/${eventDocument.kind}`,
+    `vq-${eventDocument.kind}`,
     'popup,width=1100,height=900',
     triggerElement
   );
@@ -577,16 +578,18 @@ function EventsPage() {
                 />
               </div>
               <div className="public-event-card-actions">
-                {event.supplyListUrl ? (
+                {listEventDocuments(event).map((eventDocument) => (
                   <button
                     className="button-link secondary-action"
+                    key={eventDocument.kind}
                     type="button"
-                    onClick={(clickEvent) => openSupplyListPopup(event, clickEvent.currentTarget)}
+                    onClick={(clickEvent) =>
+                      openDocumentPopup(event, eventDocument, clickEvent.currentTarget)
+                    }
                   >
-                    View, print, or save{' '}
-                    {event.supplyListTitle || event.supplyListFileName || 'supply list'}
+                    View, print, or save {eventDocument.title}
                   </button>
-                ) : null}
+                ))}
                 <button
                   className="button-link secondary-action"
                   type="button"

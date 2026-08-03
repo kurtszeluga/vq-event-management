@@ -4,9 +4,14 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
 import { isEventVisible } from '../utils/eventFormat.js';
+import { getEventDocument, getEventDocumentKind } from '../../shared/eventDocuments.js';
 
-function SupplyListViewerPage() {
+// Serves both of an event's PDFs. `documentKind` comes from the route, so
+// /events/:id/supply-list and /events/:id/challenge-pdf are the same viewer
+// pointed at different fields rather than two near-identical pages.
+function SupplyListViewerPage({ documentKind = 'supply-list' }) {
   const { eventId } = useParams();
+  const kind = getEventDocumentKind(documentKind);
   const navigate = useNavigate();
   const headingRef = useRef(null);
   const previewRef = useRef(null);
@@ -19,9 +24,10 @@ function SupplyListViewerPage() {
   const [previewError, setPreviewError] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [printDocumentHtml, setPrintDocumentHtml] = useState('');
-  const inlineProxyUrl = buildProxyUrl(event, 'inline');
-  const attachmentProxyUrl = buildProxyUrl(event, 'attachment');
-  const fileName = event?.supplyListFileName || `${event?.supplyListTitle || 'supply-list'}.pdf`;
+  const eventDocument = getEventDocument(event, documentKind);
+  const inlineProxyUrl = buildProxyUrl(eventDocument, 'inline');
+  const attachmentProxyUrl = buildProxyUrl(eventDocument, 'attachment');
+  const fileName = eventDocument?.fileName || kind.fallbackFileName;
 
   useEffect(() => {
     let active = true;
@@ -151,7 +157,7 @@ function SupplyListViewerPage() {
   }, []);
 
   useEffect(() => {
-    if (loading || error || !event || !isEventVisible(event) || !event.supplyListUrl) {
+    if (loading || error || !event || !isEventVisible(event) || !eventDocument) {
       return;
     }
 
@@ -239,7 +245,7 @@ function SupplyListViewerPage() {
       return;
     }
 
-    const title = event?.supplyListTitle || event?.supplyListFileName || event?.title || 'Supply List';
+    const title = eventDocument?.title || event?.title || kind.fallbackTitle;
     setPrintDocumentHtml(buildSupplyListPrintHtml(title, pages));
   }
 
@@ -251,12 +257,12 @@ function SupplyListViewerPage() {
     );
   }
 
-  if (error || !event || !isEventVisible(event) || !event.supplyListUrl) {
+  if (error || !event || !isEventVisible(event) || !eventDocument) {
     return (
       <section className="viewer-page">
         <PageHeader
-          eyebrow="Supply list"
-          title="Supply list unavailable"
+          eyebrow={kind.linkLabel}
+          title={`${kind.linkLabel} unavailable`}
           description={error || 'This document is not currently available.'}
         />
         <Link className="button-link" to={`/events/${eventId}`}>
@@ -270,9 +276,9 @@ function SupplyListViewerPage() {
     <section className="viewer-page">
       <div className="viewer-toolbar">
         <div>
-          <p className="viewer-eyebrow">Supply List</p>
+          <p className="viewer-eyebrow">{kind.linkLabel}</p>
           <h1 ref={headingRef} tabIndex={-1}>
-            {event.supplyListTitle || event.supplyListFileName || event.title}
+            {eventDocument.title || event.title}
           </h1>
         </div>
         <div className="viewer-actions">
@@ -454,16 +460,16 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;');
 }
 
-function buildProxyUrl(event, disposition) {
-  if (!event?.supplyListUrl) {
+function buildProxyUrl(eventDocument, disposition) {
+  if (!eventDocument) {
     return '';
   }
 
   const params = new URLSearchParams({
     cv: '20260715-1',
     disposition,
-    filename: event.supplyListFileName || `${event.supplyListTitle || 'supply-list'}.pdf`,
-    url: event.supplyListUrl
+    filename: eventDocument.fileName,
+    url: eventDocument.url
   });
 
   return `/api/file-proxy?${params.toString()}`;

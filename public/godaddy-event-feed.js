@@ -320,7 +320,7 @@
       </dl>
       ${buildCoordinatorContactMarkup(event)}
       ${buildActionsMarkup([
-        buildSupplyListLink(event, config),
+        ...buildDocumentLinks(event, config),
         event.registrationOpen ? buildRegisterLink(event, config) : ''
       ])}
     `;
@@ -351,7 +351,7 @@
       })}
       ${buildDescriptionMarkup(event.description || '')}
       ${buildListingContactMarkup(details)}
-      ${buildActionsMarkup([buildSupplyListLink(event, config)])}
+      ${buildActionsMarkup(buildDocumentLinks(event, config))}
     `;
   }
 
@@ -373,7 +373,7 @@
       ${buildDescriptionMarkup(event.description || '')}
       ${buildListingContactMarkup(details)}
       ${postingEnds ? `<p class="vq-feed-posting-ends">Listed until ${escapeHtml(postingEnds.value)}</p>` : ''}
-      ${buildActionsMarkup([buildSupplyListLink(event, config)])}
+      ${buildActionsMarkup(buildDocumentLinks(event, config))}
     `;
   }
 
@@ -433,15 +433,27 @@
   // calls this, so whatever has a PDF attached shows the link. The feed
   // serializes supplyListUrl for every listing regardless of type, so a type
   // check here would only re-hide a file someone had deliberately uploaded.
-  function buildSupplyListLink(event, config) {
-    if (!event.supplyListUrl) {
-      return '';
-    }
+  // An event can carry more than one PDF - a Challenge has a Challenge PDF and
+  // a separate supply list - so this returns a link per document. The feed
+  // resolves them into `documents` with their viewer URLs already built;
+  // supplyListUrl is the fallback for a feed response that predates that.
+  function buildDocumentLinks(event, config) {
+    const documents = Array.isArray(event.documents) && event.documents.length
+      ? event.documents
+      : event.supplyListUrl
+        ? [{
+          kind: 'supply-list',
+          title: event.supplyListTitle || 'Supply List PDF',
+          viewerUrl: event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id)
+        }]
+        : [];
 
-    const title = event.supplyListTitle || 'Supply List PDF';
-    const viewerUrl = event.supplyListViewerUrl || buildSupplyListViewerUrl(config.sourceUrl, event.id);
+    return documents.map((eventDocument) => {
+      const viewerUrl = eventDocument.viewerUrl
+        || buildDocumentViewerUrl(config.sourceUrl, event.id, eventDocument.kind);
 
-    return `<a class="vq-feed-secondary" href="${escapeAttribute(viewerUrl)}" data-supply-list-url="${escapeAttribute(viewerUrl)}">View/Download ${escapeHtml(title)}</a>`;
+      return `<a class="vq-feed-secondary" href="${escapeAttribute(viewerUrl)}" data-supply-list-url="${escapeAttribute(viewerUrl)}">View/Download ${escapeHtml(eventDocument.title || 'PDF')}</a>`;
+    });
   }
 
   function buildRegisterLink(event, config) {
@@ -1891,6 +1903,12 @@
       || eventType === 'Class (Half-Day)'
       || eventType === 'Class (Full-Day)'
       || eventType === 'Other';
+  }
+
+  function buildDocumentViewerUrl(sourceUrl, eventId, kind) {
+    const origin = getSourceOrigin(sourceUrl);
+
+    return `${origin}/events/${encodeURIComponent(eventId || '')}/${encodeURIComponent(kind || 'supply-list')}`;
   }
 
   function buildSupplyListViewerUrl(sourceUrl, eventId) {

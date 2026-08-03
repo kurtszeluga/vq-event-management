@@ -2,6 +2,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getEventPlaceholderImage } from '../../shared/eventImages.js';
 import { buildListingDetails, getListingTitle, isListingEventType } from '../../shared/eventListing.js';
+import { listEventDocuments } from '../../shared/eventDocuments.js';
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 
 const EVENT_CATEGORY_CONFIG = {
@@ -298,6 +299,18 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     supplyListViewerUrl: event.supplyListUrl
       ? `${safeOrigin}/events/${event.id}/supply-list`
       : '',
+    // Every PDF the event carries, with its URLs already resolved. A Challenge
+    // has two - a Challenge PDF and a supply list - and the embed cannot
+    // import shared/eventDocuments.js to work them out for itself. The
+    // supplyList* fields above stay for embeds that predate this.
+    documents: listEventDocuments(event).map((eventDocument) => ({
+      downloadUrl: buildFileProxyUrl(safeOrigin, eventDocument.url, eventDocument.fileName, 'attachment'),
+      fileName: eventDocument.fileName,
+      kind: eventDocument.kind,
+      proxyUrl: buildFileProxyUrl(safeOrigin, eventDocument.url, eventDocument.fileName),
+      title: eventDocument.title,
+      viewerUrl: `${safeOrigin}/events/${event.id}/${eventDocument.kind}`
+    })),
     detailUrl: `${safeOrigin}/events/${event.id}`,
     registerUrl: event.registrationOpen ? `${safeOrigin}/register?eventId=${event.id}` : '',
     printUrl: `${safeOrigin}/events/${event.id}/print`
