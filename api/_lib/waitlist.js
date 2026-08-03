@@ -29,6 +29,15 @@ export function waitlistOfferTokenMatches(registrationId, token, tokenHash) {
 // go unclaimed, by the daily cron sweep advancing to the next person.
 export async function createNextWaitlistOffer(db, event) {
   const now = Date.now();
+
+  // An unlimited-capacity event has no seat scarcity, so nothing is ever
+  // freed by a cancellation and nobody can be waiting for a seat. Running the
+  // rest of this would only produce a coordinator email about a seat that was
+  // never contended.
+  if (event.capacityUnlimited) {
+    return null;
+  }
+
   const waitlistedSnapshot = await db.collection('registrations')
     .where('eventId', '==', event.id)
     .where('status', '==', 'Waitlisted')
@@ -39,7 +48,14 @@ export async function createNextWaitlistOffer(db, event) {
     .find((registration) => !hasActiveWaitlistOfferField(registration, now));
 
   if (!candidate) {
-    await sendWaitlistExhaustedEmail(db, event);
+    // Only worth telling a coordinator when there WAS a waitlist and it could
+    // not be drawn from - everyone on it already holds an offer, or the last
+    // of them just came off it. An empty waitlist means nobody ever wanted the
+    // seat, which is the ordinary case on a cancellation and not news.
+    if (!waitlistedSnapshot.empty) {
+      await sendWaitlistExhaustedEmail(db, event);
+    }
+
     return null;
   }
 

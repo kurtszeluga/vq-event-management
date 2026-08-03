@@ -816,7 +816,7 @@ function buildRefundNotificationHtml({ coordinatorContact, registration, squareR
                     ['Refunded', 'Refund Pending'].includes(registration.paymentStatus) ? 'Refund Status' : 'Payment Status',
                     refundStatus
                   )}
-                  ${buildDetailRowHtml('Event Date', formatEventDate(registration.eventDate))}
+                  ${hasEventDate(registration) ? buildDetailRowHtml('Event Date', formatEventDate(registration.eventDate)) : ''}
                   ${buildDetailRowHtml('Amount', formatCurrency(registration.amountPaid || registration.amountDue || 0))}
                   ${registration.squareRefundId ? buildDetailRowHtml('Square Refund ID', registration.squareRefundId) : ''}
                 </section>
@@ -851,7 +851,7 @@ function buildRefundNotificationText({ coordinatorContact, registration, squareR
     `Event: ${registration.eventTitle || registration.eventType || 'Event'}`,
     `Registration Status: ${registration.status || 'Cancelled'}`,
     `${isRefundCancellation ? 'Refund Status' : 'Payment Status'}: ${getRefundStatusText(registration, squareRefund)}`,
-    `Event Date: ${formatEventDate(registration.eventDate)}`,
+    hasEventDate(registration) ? `Event Date: ${formatEventDate(registration.eventDate)}` : '',
     `Amount: ${formatCurrency(registration.amountPaid || registration.amountDue || 0)}`,
     registration.squareRefundId ? `Square Refund ID: ${registration.squareRefundId}` : '',
     ...buildCoordinatorContactText(coordinatorContact)
@@ -951,6 +951,13 @@ function getEmailInstructionArea(eventType) {
 
 function buildDetailRowHtml(label, value) {
   return `<p style="margin:0 0 8px;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">${escapeHtml(label)}:</strong> ${escapeHtml(value || '')}</p>`;
+}
+
+// A challenge runs over a season rather than on a day, so it genuinely has no
+// date - printing "Date TBD" implies one is still coming. Any other type with
+// a missing date does still keep the row, where TBD is accurate.
+function hasEventDate(registration) {
+  return registration.eventType !== 'Challenges';
 }
 
 function formatEventDate(value) {
