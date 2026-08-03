@@ -75,9 +75,21 @@
         <pre><code>&lt;div
   data-vq-feed
   data-category="events"
-  data-source-url="https://vq-event-management.vercel.app/api/public-events"
+  data-source-url="https://events.villagequilters.com/api/public-events"
 &gt;&lt;/div&gt;
-&lt;script src="https://vq-event-management.vercel.app/godaddy-event-feed.js" defer&gt;&lt;/script&gt;</code></pre>
+&lt;script src="https://events.villagequilters.com/godaddy-event-feed.js" defer&gt;&lt;/script&gt;</code></pre>
+        <p>
+          <strong>Use the custom domains, not the raw <code>*.vercel.app</code> URL.</strong>
+          <code>events.villagequilters.com</code> is production &mdash; real listings, real
+          payments. <code>test.villagequilters.com</code> is the test site; swap both URLs to it
+          while staging a page, and swap them back before that page goes live, or it will serve
+          test data and send registrants to the Square sandbox.
+        </p>
+        <p>
+          <code>data-source-url</code> is optional: leave it off and the feed calls
+          <code>/api/public-events</code> on whichever host served the script, so there is only one
+          URL to change when you move a page between test and production.
+        </p>
         <p>
           One row of pills renders above the feed &mdash; Programs, Workshops, Challenges, Business
           Listings, For Sale &mdash; and <code>data-category</code> decides which starts selected
@@ -111,8 +123,10 @@
 &lt;!-- Business Listings page --&gt;
 &lt;div data-vq-feed data-category="business" data-categories="business" data-layout="grid"&gt;&lt;/div&gt;</code></pre>
         <p>
-          Each snippet still needs its own <code>data-source-url</code> and the
-          <code>&lt;script&gt;</code> tag from the block above.
+          Each snippet still needs the <code>&lt;script&gt;</code> tag from the block above, loaded
+          from the host you want that page to read &mdash; <code>events.villagequilters.com</code>
+          for live pages. No <code>data-source-url</code> is needed when the script host is
+          already the right one.
         </p>
       </section>
 
