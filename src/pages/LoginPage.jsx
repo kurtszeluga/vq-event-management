@@ -270,12 +270,19 @@ function isWrongCredentialError(error) {
 
 function getSignInErrorMessage(error, failedAttempts = 0) {
   if (isWrongCredentialError(error)) {
-    // A first wrong password is usually a typo, so it just says to try again.
-    // Only from the second failure is the verification code worth raising -
-    // offering it immediately reads as though retrying is not an option.
+    // The verification code is offered from the very first failure, because
+    // for most of the membership a failed password is not a typo: profiles
+    // imported from the membership CSV have never had a password set, so
+    // their first attempt is certain to fail and retyping cannot help.
+    //
+    // It cannot be told apart from a genuine typo either. Firebase's email
+    // enumeration protection deliberately returns auth/invalid-credential for
+    // both an unknown account and a wrong password, so there is nothing here
+    // to branch on - the wording has to serve both readings at once, and the
+    // repeated-failure variant only adds emphasis.
     return failedAttempts > 1
-      ? 'That email and password combination is not correct. Try again, or use Forgot password or username below to sign in with a verification code.'
-      : 'That email and password combination is not correct. Please try again.';
+      ? 'That still did not work. If you have not set a password yet, use Forgot password or username below to sign in with a verification code.'
+      : 'That email and password combination was not accepted. If you have not set a password yet, use Forgot password or username below to sign in with a verification code.';
   }
 
   if (error.code === 'auth/invalid-email') {

@@ -3,9 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// A wrong password should read as "try again", not as a nudge toward the
-// verification code. The code is only worth offering once retrying has
-// actually failed twice.
+// The verification code is offered from the FIRST failure. That reverses the
+// earlier "let a first wrong password just be a retry" behaviour, and the
+// reason it changed is the membership CSV import: 250-odd profiles have never
+// had a password, so their first attempt is certain to fail and telling them
+// to retype cannot help. Firebase's email enumeration protection returns
+// auth/invalid-credential for both an unknown account and a wrong password,
+// so the page cannot tell a first-time member from a typo and the wording has
+// to serve both.
+//
+// The retry itself is still unimpeded - the field stays usable and the count
+// still resets per email; only the wording changed.
 
 const signInWithEmailAndPassword = vi.fn();
 
@@ -50,17 +58,17 @@ async function renderLogin() {
   return user;
 }
 
-describe('wrong password lets you retry before the code is offered', () => {
-  it('the first failure says to try again and does not mention the code', async () => {
+describe('a failed password points at the verification code straight away', () => {
+  it('the first failure already offers the code', async () => {
     signInWithEmailAndPassword.mockRejectedValue(wrongPassword());
     const user = await renderLogin();
 
     await attemptSignIn(user);
 
     await waitFor(() => {
-      expect(screen.getByText(/not correct\. Please try again\./)).toBeTruthy();
+      expect(screen.getByText(/was not accepted/)).toBeTruthy();
     });
-    expect(screen.queryByText(/verification code/)).toBeNull();
+    expect(screen.getByText(/sign in with a verification code/)).toBeTruthy();
   });
 
   it('leaves the password field usable so a second attempt is possible', async () => {
@@ -74,7 +82,7 @@ describe('wrong password lets you retry before the code is offered', () => {
     expect(screen.getByRole('button', { name: /^Sign in$/ }).disabled).toBe(false);
   });
 
-  it('offers the verification code from the second failure', async () => {
+  it('keeps offering the code on a repeated failure, with different wording', async () => {
     signInWithEmailAndPassword.mockRejectedValue(wrongPassword());
     const user = await renderLogin();
 
@@ -82,8 +90,9 @@ describe('wrong password lets you retry before the code is offered', () => {
     await attemptSignIn(user);
 
     await waitFor(() => {
-      expect(screen.getByText(/sign in with a verification code/)).toBeTruthy();
+      expect(screen.getByText(/That still did not work/)).toBeTruthy();
     });
+    expect(screen.getByText(/sign in with a verification code/)).toBeTruthy();
     expect(signInWithEmailAndPassword).toHaveBeenCalledTimes(2);
   });
 
@@ -95,10 +104,11 @@ describe('wrong password lets you retry before the code is offered', () => {
     await user.type(screen.getByLabelText(/Email/), '.uk');
     await attemptSignIn(user);
 
+    // Back to the first-failure wording, not the repeated-failure one.
     await waitFor(() => {
-      expect(screen.getByText(/not correct\. Please try again\./)).toBeTruthy();
+      expect(screen.getByText(/was not accepted/)).toBeTruthy();
     });
-    expect(screen.queryByText(/verification code/)).toBeNull();
+    expect(screen.queryByText(/That still did not work/)).toBeNull();
   });
 
   it('does not count a network failure toward the code prompt', async () => {

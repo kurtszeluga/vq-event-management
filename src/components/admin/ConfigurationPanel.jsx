@@ -2008,6 +2008,14 @@ function getMemberCsvRowIssues(row) {
 
   if (!row.email && !row.phoneDigitCount) {
     issues.push('Missing email and phone number - at least one is required');
+  } else if (!row.email) {
+    // Flagged on its own, not only when the phone is missing too. A member
+    // with a phone but no email imports perfectly cleanly and is then
+    // unreachable by everything this system sends - registration
+    // confirmations, waitlist offers, cancellation notices - and can never be
+    // sent a verification code by email. One such member went unnoticed from
+    // the July import until August. Not a blocker; the row still imports.
+    issues.push('Missing email - this member cannot be emailed');
   }
 
   return { emailInvalid, issues, phoneInvalid };

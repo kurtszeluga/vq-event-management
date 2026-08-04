@@ -138,7 +138,12 @@ describe('analyzeMemberCsv (preview, before anything is imported)', () => {
 });
 
 describe('analyzeMemberCsv row validation (issues flag rows for review, not exclusion)', () => {
-  it('accepts a row with a name and only a phone number - no email required', () => {
+  // Still accepted and still imported - an email is not required. It is now
+  // flagged for review, though, because a member with no email is unreachable
+  // by everything this system sends and can never be sent a verification code
+  // by email. One such member went unnoticed from the July import until
+  // August.
+  it('accepts a row with a name and only a phone number, but flags the missing email', () => {
     const csv = [
       'Last Name,First Name,Email,Phone',
       'Adams,Nancy,,919 349-2725'
@@ -147,7 +152,9 @@ describe('analyzeMemberCsv row validation (issues flag rows for review, not excl
     const analysis = analyzeMemberCsv(csv);
 
     expect(analysis.validRows).toHaveLength(1);
-    expect(analysis.validRows[0].issues).toEqual([]);
+    expect(analysis.validRows[0].issues).toEqual([
+      'Missing email - this member cannot be emailed'
+    ]);
   });
 
   it('accepts a row with a name and only an email - no phone required', () => {
@@ -197,6 +204,17 @@ describe('analyzeMemberCsv row validation (issues flag rows for review, not excl
     expect(analysis.validRows[0].issues).toEqual([
       'Missing email and phone number - at least one is required'
     ]);
+  });
+
+  it('does not flag a missing email when the row has one', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Vachino,Susan,svachino1@gmail.com,(717) 926-8522'
+    ].join('\n');
+
+    const analysis = analyzeMemberCsv(csv);
+
+    expect(analysis.validRows[0].issues).toEqual([]);
   });
 
   it('flags an invalid email format and marks emailInvalid', () => {
