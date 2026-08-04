@@ -2,6 +2,7 @@ import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
+import { ensureAuthUserForProfile } from './_lib/auth-account.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 import {
   EMAIL_CODE_EXPIRATION_MS,
@@ -61,7 +62,7 @@ export default async function handler(request, response) {
     }
 
     if (action === 'verifyAccountRecoveryCode') {
-      await verifyAccountRecoveryCode(request, response, db);
+      await verifyAccountRecoveryCode(request, response, db, app.options.projectId);
       return;
     }
 
@@ -306,7 +307,7 @@ async function startAccountRecovery(request, response, db) {
   response.status(200).json({ challengeId, message: ACCOUNT_RECOVERY_GENERIC_MESSAGE });
 }
 
-async function verifyAccountRecoveryCode(request, response, db) {
+async function verifyAccountRecoveryCode(request, response, db, projectId) {
   const challengeId = cleanText(request.body?.challengeId);
   const code = cleanText(request.body?.code);
 
@@ -350,6 +351,21 @@ async function verifyAccountRecoveryCode(request, response, db) {
 
   if (!challenge.profileFound || !challenge.profileUserId) {
     throw httpError(400, "We couldn't find an account for that email or phone number.");
+  }
+
+  // Complete the Auth record BEFORE minting the token. Signing in with a
+  // custom token makes Firebase create the account if it does not exist, and
+  // it creates one carrying only the uid - no email - which permanently locks
+  // that member out of password sign-in. Doing it here means a member who
+  // arrives by code still ends up able to set a password afterwards.
+  //
+  // Deliberately non-fatal: a member in front of a code prompt should not be
+  // refused entry because this could not be tidied up. Worst case they sign in
+  // exactly as they did before this existed.
+  try {
+    await ensureAuthUserForProfile(db, projectId, challenge.profileUserId);
+  } catch (error) {
+    console.error('Could not complete the Auth record before recovery sign-in', error);
   }
 
   let customToken;
