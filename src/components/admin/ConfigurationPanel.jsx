@@ -889,7 +889,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   }
 
   function renderCsvPreview() {
-    const { duplicateEmails, fileName, skippedRows, totalDataRows, validRows } = csvPreview;
+    const { columns, duplicateEmails, fileName, skippedRows, totalDataRows, validRows } = csvPreview;
     const canImport = validRows.length > 0 && savingSection !== 'csv';
     const rowsNeedingReview = validRows.filter((row) => row.issues.length);
 
@@ -906,6 +906,39 @@ function ConfigurationPanel({ currentUserProfile }) {
             None of these rows have a name, email, or phone number. Check that the file has First
             Name/Last Name, Email, and Phone columns, then choose the file again.
           </p>
+        ) : null}
+        {/* Which columns were recognised, shown before anything is imported.
+            An unmatched column is silent otherwise - every value in it comes
+            back empty and the per-row issues look identical to a file where
+            that data is genuinely blank. */}
+        {columns ? (
+          <div className={columns.unmatched.length ? 'csv-preview-warning' : 'form-help'}>
+            <p>
+              <strong>Columns found:</strong>{' '}
+              {columns.described
+                .filter((column) => column.found)
+                .map((column) => `${column.label} ("${column.sourceHeader}")`)
+                .join(', ') || 'none'}
+              .
+            </p>
+            {columns.unmatched.length ? (
+              <p>
+                <strong>Not found: {columns.unmatched.join(', ')}.</strong> Those columns will be
+                empty for every row. If the file does have them under a different heading, rename
+                the heading and choose the file again rather than importing and fixing 250 profiles
+                by hand.
+              </p>
+            ) : null}
+            {columns.unusedHeaders.length ? (
+              <p>
+                Columns in the file that were not used:{' '}
+                {columns.unusedHeaders.map((header) => `"${header}"`).join(', ')}.
+              </p>
+            ) : null}
+            {!columns.hasAnyName ? (
+              <p><strong>No name column was found at all - every row will import unnamed.</strong></p>
+            ) : null}
+          </div>
         ) : null}
         {rowsNeedingReview.length ? (
           <div className="csv-preview-warning">
@@ -2096,6 +2129,7 @@ export function analyzeMemberCsv(text) {
     .map(([email, rowNumbers]) => ({ email, rowNumbers }));
 
   return {
+    columns: describeMemberCsvColumns(headerRow, headers, columnMap),
     duplicateEmails,
     headerFound,
     skippedRows,
@@ -2104,16 +2138,68 @@ export function analyzeMemberCsv(text) {
   };
 }
 
+// What the header row was understood as. A column that matched nothing is the
+// failure worth surfacing: it is silent, it affects every row at once, and the
+// per-row issues cannot distinguish it from a file where that data is simply
+// blank.
+function describeMemberCsvColumns(headerRow, headers, columnMap) {
+  const described = [
+    { aliases: FIRST_NAME_HEADERS, key: 'firstName', label: 'First name' },
+    { aliases: LAST_NAME_HEADERS, key: 'lastName', label: 'Last name' },
+    { aliases: NAME_COLUMN_HEADERS, key: 'name', label: 'Full name' },
+    { aliases: EMAIL_HEADERS, key: 'email', label: 'Email' },
+    { aliases: PHONE_HEADERS, key: 'phone', label: 'Phone' },
+    { aliases: TOWN_HEADERS, key: 'town', label: 'Town' }
+  ].map(({ aliases, key, label }) => {
+    const index = key === 'name' ? getHeaderIndex(headers, aliases) : columnMap[key] ?? -1;
+
+    return {
+      found: index >= 0,
+      key,
+      label,
+      // The header exactly as it appears in the file, so the admin can see
+      // what to rename rather than guessing at the normalized form.
+      sourceHeader: index >= 0 ? String(headerRow[index] || '').trim() : ''
+    };
+  });
+
+  // A member needs a name, and needs at least one way to be contacted.
+  const hasAnyName = described.some((column) => column.found
+    && ['firstName', 'lastName', 'name'].includes(column.key));
+
+  return {
+    described,
+    hasAnyName,
+    unmatched: described.filter((column) => !column.found).map((column) => column.label),
+    unusedHeaders: headerRow
+      .map((header, index) => ({ header: String(header || '').trim(), index }))
+      .filter(({ header, index }) => header
+        && !described.some((column) => column.found && column.sourceHeader === header && index >= 0))
+      .map(({ header }) => header)
+  };
+}
+
 export function parseMemberCsv(text) {
   return analyzeMemberCsv(text).validRows;
 }
 
-const FIRST_NAME_HEADERS = ['firstName', 'firstname', 'first', 'givenName', 'givenname'];
-const LAST_NAME_HEADERS = ['lastName', 'lastname', 'last', 'surname', 'familyName', 'familyname'];
-const EMAIL_HEADERS = ['email', 'emailAddress', 'eMail'];
-const PHONE_HEADERS = ['phone', 'phoneNumber', 'telephone', 'mobile'];
+// Matching is exact against a normalized header (normalizeCsvHeader lowercases
+// and camel-cases), so every spelling a roster export might use has to be
+// listed. A header that matches nothing maps the whole column to -1 and every
+// value silently comes back empty - which is why unmatched columns are now
+// reported to the admin rather than left to be discovered months later.
+const FIRST_NAME_HEADERS = ['firstName', 'firstname', 'first', 'givenName', 'givenname', 'fName'];
+const LAST_NAME_HEADERS = ['lastName', 'lastname', 'last', 'surname', 'familyName', 'familyname', 'lName'];
+const EMAIL_HEADERS = [
+  'email', 'emailAddress', 'eMail', 'eMailAddress', 'primaryEmail', 'memberEmail',
+  'emailAddr', 'contactEmail', 'homeEmail'
+];
+const PHONE_HEADERS = [
+  'phone', 'phoneNumber', 'telephone', 'mobile', 'primaryPhone', 'memberPhone',
+  'cell', 'cellPhone', 'homePhone', 'contactPhone', 'phoneNo'
+];
 const NAME_COLUMN_HEADERS = ['name', 'member', 'memberName', 'fullName', 'displayName'];
-const TOWN_HEADERS = ['town', 'city', 'townCity', 'cityTown'];
+const TOWN_HEADERS = ['town', 'city', 'townCity', 'cityTown', 'homeTown'];
 const HEADER_ROW_HINT_TOKENS = new Set([
   ...FIRST_NAME_HEADERS,
   ...LAST_NAME_HEADERS,

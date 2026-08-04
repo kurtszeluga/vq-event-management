@@ -293,3 +293,59 @@ describe('analyzeMemberCsv row validation (issues flag rows for review, not excl
     expect(analysis.validRows[0].issues).toEqual([]);
   });
 });
+
+// A column that matches no alias maps to -1 and every value comes back empty.
+// That is silent at row level - it looks exactly like a file where the data is
+// genuinely blank - so the analysis reports what it recognised.
+describe('analyzeMemberCsv column detection', () => {
+  it('reports the columns it found, with the heading as written in the file', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone,Town',
+      'Adams,Nancy,nancy@example.org,919 349-2725,Oak Ridge'
+    ].join('\n');
+
+    const { columns } = analyzeMemberCsv(csv);
+    const found = Object.fromEntries(
+      columns.described.filter((c) => c.found).map((c) => [c.key, c.sourceHeader])
+    );
+
+    expect(found.email).toBe('Email');
+    expect(found.phone).toBe('Phone');
+    expect(found.firstName).toBe('First Name');
+    expect(columns.unmatched).not.toContain('Email');
+  });
+
+  it('reports a heading it could not match, which is the silent failure', () => {
+    const csv = [
+      'Last Name,First Name,Contact Details,Phone',
+      'Adams,Nancy,nancy@example.org,919 349-2725'
+    ].join('\n');
+
+    const { columns } = analyzeMemberCsv(csv);
+
+    expect(columns.unmatched).toContain('Email');
+    expect(columns.unusedHeaders).toContain('Contact Details');
+  });
+
+  it('matches the email heading variants a roster export actually uses', () => {
+    ['Email Address', 'E-Mail', 'Primary Email', 'Member Email'].forEach((heading) => {
+      const csv = [
+        `Last Name,First Name,${heading},Phone`,
+        'Adams,Nancy,nancy@example.org,919 349-2725'
+      ].join('\n');
+
+      const { columns, validRows } = analyzeMemberCsv(csv);
+
+      expect(columns.unmatched, `${heading} should map to Email`).not.toContain('Email');
+      expect(validRows[0].email).toBe('nancy@example.org');
+    });
+  });
+
+  it('flags when no name column was found at all', () => {
+    const csv = ['Email,Phone', 'nancy@example.org,919 349-2725'].join('\n');
+
+    const { columns } = analyzeMemberCsv(csv);
+
+    expect(columns.hasAnyName).toBe(false);
+  });
+});
