@@ -312,7 +312,7 @@ describe('analyzeMemberCsv column detection', () => {
     expect(found.email).toBe('Email');
     expect(found.phone).toBe('Phone');
     expect(found.firstName).toBe('First Name');
-    expect(columns.unmatched).not.toContain('Email');
+    expect(columns.missing).not.toContain('Email');
   });
 
   it('reports a heading it could not match, which is the silent failure', () => {
@@ -323,7 +323,7 @@ describe('analyzeMemberCsv column detection', () => {
 
     const { columns } = analyzeMemberCsv(csv);
 
-    expect(columns.unmatched).toContain('Email');
+    expect(columns.missing).toContain('Email');
     expect(columns.unusedHeaders).toContain('Contact Details');
   });
 
@@ -336,7 +336,7 @@ describe('analyzeMemberCsv column detection', () => {
 
       const { columns, validRows } = analyzeMemberCsv(csv);
 
-      expect(columns.unmatched, `${heading} should map to Email`).not.toContain('Email');
+      expect(columns.missing, `${heading} should map to Email`).not.toContain('Email');
       expect(validRows[0].email).toBe('nancy@example.org');
     });
   });
@@ -347,5 +347,51 @@ describe('analyzeMemberCsv column detection', () => {
     const { columns } = analyzeMemberCsv(csv);
 
     expect(columns.hasAnyName).toBe(false);
+    expect(columns.missing.join(' ')).toMatch(/name/i);
+  });
+
+  // First/Last and Full name are alternatives. Reporting the unused one as
+  // missing buries the gap that actually matters.
+  it('does not report Full name as missing when First and Last are present', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,nancy@example.org,919 349-2725'
+    ].join('\n');
+
+    const { columns } = analyzeMemberCsv(csv);
+
+    expect(columns.hasAnyName).toBe(true);
+    expect(columns.missing).toEqual([]);
+  });
+
+  it('does not report First/Last as missing when a Full name column is present', () => {
+    const csv = ['Name,Email,Phone', 'Nancy Adams,nancy@example.org,919 349-2725'].join('\n');
+
+    const { columns } = analyzeMemberCsv(csv);
+
+    expect(columns.hasAnyName).toBe(true);
+    expect(columns.missing).toEqual([]);
+  });
+
+  it('says so when only half a split name is present', () => {
+    const csv = ['First Name,Email,Phone', 'Nancy,nancy@example.org,919 349-2725'].join('\n');
+
+    const { columns } = analyzeMemberCsv(csv);
+
+    expect(columns.hasAnyName).toBe(false);
+    expect(columns.missing.join(' ')).toMatch(/other half/i);
+  });
+
+  // Town is decoration - absent is fine, and it must not appear in the warning.
+  it('keeps an absent Town out of the warning list', () => {
+    const csv = [
+      'Last Name,First Name,Email,Phone',
+      'Adams,Nancy,nancy@example.org,919 349-2725'
+    ].join('\n');
+
+    const { columns } = analyzeMemberCsv(csv);
+
+    expect(columns.missing).toEqual([]);
+    expect(columns.missingOptional).toEqual(['Town']);
   });
 });

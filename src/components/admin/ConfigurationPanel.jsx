@@ -910,9 +910,11 @@ function ConfigurationPanel({ currentUserProfile }) {
         {/* Which columns were recognised, shown before anything is imported.
             An unmatched column is silent otherwise - every value in it comes
             back empty and the per-row issues look identical to a file where
-            that data is genuinely blank. */}
+            that data is genuinely blank. Only genuine gaps are warned about:
+            a full-name column is the alternative to first/last rather than an
+            extra requirement, and town is decoration. */}
         {columns ? (
-          <div className={columns.unmatched.length ? 'csv-preview-warning' : 'form-help'}>
+          <div className={columns.missing.length ? 'csv-preview-warning' : 'form-help'}>
             <p>
               <strong>Columns found:</strong>{' '}
               {columns.described
@@ -921,22 +923,23 @@ function ConfigurationPanel({ currentUserProfile }) {
                 .join(', ') || 'none'}
               .
             </p>
-            {columns.unmatched.length ? (
+            {columns.missing.length ? (
               <p>
-                <strong>Not found: {columns.unmatched.join(', ')}.</strong> Those columns will be
-                empty for every row. If the file does have them under a different heading, rename
-                the heading and choose the file again rather than importing and fixing 250 profiles
-                by hand.
+                <strong>Could not find: {columns.missing.join(', ')}.</strong> Those will be empty
+                for every row. If the file does have them under a different heading, rename the
+                heading and choose the file again rather than importing and fixing{' '}
+                {totalDataRows} profile{totalDataRows === 1 ? '' : 's'} by hand.
               </p>
             ) : null}
             {columns.unusedHeaders.length ? (
               <p>
                 Columns in the file that were not used:{' '}
-                {columns.unusedHeaders.map((header) => `"${header}"`).join(', ')}.
+                {columns.unusedHeaders.map((header) => `"${header}"`).join(', ')}
+                {columns.missing.length ? ' - one of these may be what is missing above' : ''}.
               </p>
             ) : null}
-            {!columns.hasAnyName ? (
-              <p><strong>No name column was found at all - every row will import unnamed.</strong></p>
+            {columns.missingOptional.length ? (
+              <p>Not present, which is fine: {columns.missingOptional.join(', ')}.</p>
             ) : null}
           </div>
         ) : null}
@@ -2142,6 +2145,11 @@ export function analyzeMemberCsv(text) {
 // failure worth surfacing: it is silent, it affects every row at once, and the
 // per-row issues cannot distinguish it from a file where that data is simply
 // blank.
+//
+// Not every absent column is a problem, though, and saying so indiscriminately
+// buries the one that matters. A full-name column is the ALTERNATIVE to
+// first/last, not an additional requirement, and town is decoration. Only
+// genuine gaps are reported as such.
 function describeMemberCsvColumns(headerRow, headers, columnMap) {
   const described = [
     { aliases: FIRST_NAME_HEADERS, key: 'firstName', label: 'First name' },
@@ -2155,6 +2163,7 @@ function describeMemberCsvColumns(headerRow, headers, columnMap) {
 
     return {
       found: index >= 0,
+      index,
       key,
       label,
       // The header exactly as it appears in the file, so the admin can see
@@ -2163,18 +2172,36 @@ function describeMemberCsvColumns(headerRow, headers, columnMap) {
     };
   });
 
-  // A member needs a name, and needs at least one way to be contacted.
-  const hasAnyName = described.some((column) => column.found
-    && ['firstName', 'lastName', 'name'].includes(column.key));
+  const byKey = Object.fromEntries(described.map((column) => [column.key, column]));
+  // Either spelling of a name satisfies the requirement.
+  const hasAnyName = byKey.name.found || (byKey.firstName.found && byKey.lastName.found);
+  const missing = [];
+
+  if (!hasAnyName) {
+    missing.push(byKey.firstName.found || byKey.lastName.found
+      ? 'the other half of the name (only one of First name / Last name was found)'
+      : 'a name (no First name / Last name or Full name column)');
+  }
+
+  if (!byKey.email.found) {
+    missing.push('Email');
+  }
+
+  if (!byKey.phone.found) {
+    missing.push('Phone');
+  }
+
+  const matchedIndexes = new Set(described.filter((column) => column.found).map((column) => column.index));
 
   return {
     described,
     hasAnyName,
-    unmatched: described.filter((column) => !column.found).map((column) => column.label),
+    // Absent but harmless - worth a neutral mention, not a warning.
+    missingOptional: byKey.town.found ? [] : ['Town'],
+    missing,
     unusedHeaders: headerRow
       .map((header, index) => ({ header: String(header || '').trim(), index }))
-      .filter(({ header, index }) => header
-        && !described.some((column) => column.found && column.sourceHeader === header && index >= 0))
+      .filter(({ header, index }) => header && !matchedIndexes.has(index))
       .map(({ header }) => header)
   };
 }
