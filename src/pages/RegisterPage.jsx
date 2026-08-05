@@ -519,15 +519,18 @@ function RegisterPage() {
 
   // Deferred to here on purpose: the token was minted when the code was
   // verified, but signing in mid-registration would move the gates the rest of
-  // the flow stands on. /profile?passwordReset=1 is the module the login
-  // page's recovery flow already sends people to, and it focuses the field.
+  // the flow stands on. passwordSetup=1 puts the profile page into a mode that
+  // focuses the password field, leaves the profile details alone, and signs
+  // this provisional session out again if they leave without saving one -
+  // otherwise abandoning it leaves a member signed in to an account that still
+  // has no password.
   async function handleSetUpPassword() {
     setPasswordSetupError('');
     setPasswordSetupPending(true);
 
     try {
       await signInWithCustomToken(auth, passwordSetupToken);
-      navigate('/profile?passwordReset=1', { replace: true });
+      navigate('/profile?passwordSetup=1', { replace: true });
     } catch {
       // The registration itself already succeeded, so this must not read as a
       // registration failure - it is an optional extra that can be retried

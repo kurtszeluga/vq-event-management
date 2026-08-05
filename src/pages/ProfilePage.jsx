@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import {
+  signOut,
   updatePassword,
   updateProfile
 } from 'firebase/auth';
@@ -9,7 +10,7 @@ import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles.js';
 import { US_STATES } from '../data/usStates.js';
-import { db, firebaseConfigured } from '../lib/firebase.js';
+import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import { applyMemberDirectorySync } from '../services/memberDirectoryProfile.js';
 import { subscribeToMembershipPayments } from '../services/registrationService.js';
 import { formatCurrency } from '../utils/eventFormat.js';
@@ -50,6 +51,13 @@ function ProfilePage() {
   const [membershipPayments, setMembershipPayments] = useState([]);
   const [searchParams] = useSearchParams();
   const showPasswordResetBanner = searchParams.get('passwordReset') === '1';
+  // Arriving from a registration that was verified by emailed code. The
+  // sign-in behind it is provisional: it exists only so a password can be set,
+  // and the account still has none until one is saved here. Distinct from
+  // passwordReset above, which comes from account recovery and is a real
+  // session the member asked for.
+  const passwordSetupMode = searchParams.get('passwordSetup') === '1';
+  const passwordSetupSavedRef = useRef(false);
   const newPasswordInputRef = useRef(null);
   // Fires setIsEditing(true) at most once - without this guard, every
   // Firestore snapshot update to userProfile would re-run the effect below
@@ -61,21 +69,37 @@ function ProfilePage() {
   // draw attention to the password field they came here to fill in rather
   // than leaving them to notice the section on their own.
   useEffect(() => {
-    if (showPasswordResetBanner && currentUser) {
+    if ((showPasswordResetBanner || passwordSetupMode) && currentUser) {
       newPasswordInputRef.current?.focus();
     }
-  }, [showPasswordResetBanner, currentUser]);
+  }, [showPasswordResetBanner, passwordSetupMode, currentUser]);
+
+  // Leaving without saving one takes the provisional session with it.
+  // Otherwise abandoning this page leaves someone signed in on an account that
+  // has no password - which is what happened: a member backed out here, opened
+  // another event, and was already signed in without having entered anything.
+  useEffect(() => {
+    if (!passwordSetupMode) {
+      return undefined;
+    }
+
+    return () => {
+      if (!passwordSetupSavedRef.current) {
+        signOut(auth).catch(() => {});
+      }
+    };
+  }, [passwordSetupMode]);
 
   // Also open the profile details straight into edit mode so they can fix
   // up their name/phone/address in the same visit, not just the password.
   // Waits for userProfile so the sync effect below has already populated
   // the form fields from real data before edit mode reveals them.
   useEffect(() => {
-    if (showPasswordResetBanner && currentUser && userProfile && !autoEditOpenedRef.current) {
+    if (showPasswordResetBanner && !passwordSetupMode && currentUser && userProfile && !autoEditOpenedRef.current) {
       autoEditOpenedRef.current = true;
       setIsEditing(true);
     }
-  }, [showPasswordResetBanner, currentUser, userProfile]);
+  }, [showPasswordResetBanner, passwordSetupMode, currentUser, userProfile]);
 
   // Membership-type payments (dues), not event registration payments -
   // subscribeToMembershipPayments() queries entityId === the signed-in
@@ -224,9 +248,16 @@ function ProfilePage() {
 
     try {
       await updatePassword(currentUser, newPassword);
+      // Before any state update, so the unmount cleanup above cannot race it
+      // and sign out the session that now has a password behind it.
+      passwordSetupSavedRef.current = true;
       setNewPassword('');
       setConfirmPassword('');
-      setPasswordSuccessMessage('Password changed.');
+      setPasswordSuccessMessage(
+        passwordSetupMode
+          ? 'Password set. You are signed in and can use this password from now on.'
+          : 'Password changed.'
+      );
     } catch (error) {
       setPasswordError(getPasswordErrorMessage(error));
     } finally {
@@ -455,7 +486,14 @@ function ProfilePage() {
           <div className="form-section-header">
             <h2>Change Password</h2>
           </div>
-          {showPasswordResetBanner ? (
+          {passwordSetupMode && !passwordSuccessMessage ? (
+            <p className="form-help">
+              Your registration is complete. Choose a password to finish setting
+              up your account - until you save one, this account still has no
+              password and you are not signed in.
+            </p>
+          ) : null}
+          {showPasswordResetBanner && !passwordSetupMode ? (
             <p className="form-success">
               You&apos;re signed in. Set a new password below to finish
               recovering your account.
@@ -491,9 +529,20 @@ function ProfilePage() {
           {passwordSuccessMessage ? (
             <p className="form-success">{passwordSuccessMessage}</p>
           ) : null}
-          <button className="button-link button-reset" disabled={savingPassword} type="submit">
-            {savingPassword ? 'Changing...' : 'Change Password'}
-          </button>
+          <div className="form-actions">
+            <button className="button-link button-reset" disabled={savingPassword} type="submit">
+              {savingPassword
+                ? 'Saving...'
+                : passwordSetupMode ? 'Set Password' : 'Change Password'}
+            </button>
+            {passwordSetupMode && !passwordSuccessMessage ? (
+              // Navigating away is what signs them out - the cleanup above
+              // does it, so this only has to leave.
+              <Link className="button-link button-reset secondary-action" to="/events">
+                Skip For Now
+              </Link>
+            ) : null}
+          </div>
           </form>
         </>
       )}
