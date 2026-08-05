@@ -21,6 +21,24 @@ export const REGISTRATION_WINDOW_MODES = ['future', 'now'];
 // Listings, not events - they never accept registrations regardless of dates.
 export const NON_REGISTRABLE_EVENT_TYPES = ['Business Listing', 'For Sale'];
 
+// Go-live transition only. An event carrying `externalRegistrationUrl` is still
+// run by the guild's previous registration system, so the Register control
+// points there instead of into this app. Delete this and its callers once the
+// last such event has passed.
+//
+// Only http(s) is accepted. The value becomes a link members click, so a
+// javascript: or data: URL typed into the admin form would be a script
+// injection route through a field that exists to hold someone else's address.
+export function getExternalRegistrationUrl(event) {
+  const value = String(event?.externalRegistrationUrl || '').trim();
+
+  if (!/^https?:\/\/\S+$/i.test(value)) {
+    return '';
+  }
+
+  return value;
+}
+
 const NAIVE_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
 
 // Offset, in ms, that must be added to a UTC instant to get the given zone's

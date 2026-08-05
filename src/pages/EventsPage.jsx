@@ -14,7 +14,10 @@ import {
   getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
-import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
+import {
+  getExternalRegistrationUrl,
+  isRegistrationWindowOpen
+} from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 import { openManagedPopup } from '../utils/popupWindow.js';
 import { listEventDocuments } from '../../shared/eventDocuments.js';
@@ -467,6 +470,8 @@ function EventsPage() {
           // Derived from the configured dates, not the stored registrationOpen
           // flag, so a passed close date actually reads as closed here.
           const registrationOpen = isRegistrationWindowOpen(event);
+          // Go-live transition: the previous system still owns this event.
+          const externalRegistrationUrl = getExternalRegistrationUrl(event);
           const availabilityTone = availability.label === 'Unlimited'
             ? availability.tone
             : registrationOpen
@@ -483,8 +488,12 @@ function EventsPage() {
                 <strong className={`event-availability-pill ${availabilityTone}`}>
                   {availability.label}
                 </strong>
-                <strong className={`event-availability-pill ${registrationOpen ? 'open' : 'closed'}`}>
-                  {registrationOpen ? 'Registration open' : 'Registration closed'}
+                <strong
+                  className={`event-availability-pill ${externalRegistrationUrl || registrationOpen ? 'open' : 'closed'}`}
+                >
+                  {externalRegistrationUrl || registrationOpen
+                    ? 'Registration open'
+                    : 'Registration closed'}
                 </strong>
               </div>
               <div className="public-event-card-main">
@@ -597,7 +606,16 @@ function EventsPage() {
                 >
                   Print the {getEventTypeLabel(event)}
                 </button>
-                {registrationOpen ? (
+                {externalRegistrationUrl ? (
+                  <a
+                    className="button-link public-event-register-action"
+                    href={externalRegistrationUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Register
+                  </a>
+                ) : registrationOpen ? (
                   <Link
                     className="button-link public-event-register-action"
                     to={`/register?eventId=${event.id}`}

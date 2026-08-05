@@ -1585,6 +1585,31 @@ function EventForm({
                 </label>
               </div>
             ) : null}
+            {/*
+              Go-live transition only. Delete this field, its validation and
+              getExternalRegistrationUrl() once the last event still run by the
+              previous system has passed.
+            */}
+            <label>
+              <span>Use Previous Registration System (URL)</span>
+              <input
+                className={fieldErrors.externalRegistrationUrl ? 'field-invalid' : ''}
+                disabled={!eventTypeSelected}
+                placeholder="https://..."
+                type="url"
+                value={form.externalRegistrationUrl || ''}
+                onChange={(event) => updateField('externalRegistrationUrl', event.target.value)}
+              />
+              {fieldErrors.externalRegistrationUrl ? (
+                <small>{fieldErrors.externalRegistrationUrl}</small>
+              ) : (
+                <span className="form-help">
+                  Temporary. Fill this in and the Register button sends members to
+                  that address instead of registering them here. Leave it empty for
+                  everything else.
+                </span>
+              )}
+            </label>
             <label className="checkbox-label registration-exception-checkbox">
               <input
                 checked={Boolean(form.allowNonMemberRegistration)}
@@ -1680,6 +1705,16 @@ export function validateEventForm(form) {
 
   if (!form.eventType) {
     errors.eventType = 'Event type is required.';
+  }
+
+  // Go-live transition. Rejected rather than silently ignored: the field is
+  // dropped by getExternalRegistrationUrl() unless it is http(s), so a typo
+  // would leave the event registering here while the admin believed otherwise.
+  if (
+    String(form.externalRegistrationUrl || '').trim()
+    && !/^https?:\/\/\S+$/i.test(String(form.externalRegistrationUrl).trim())
+  ) {
+    errors.externalRegistrationUrl = 'Enter a full address starting with http:// or https://';
   }
 
   if (requiresDate && !form.date) {
@@ -1920,6 +1955,8 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     documentUrl: isChallenge ? form.documentUrl.trim() : '',
     endTime: isChallenge ? '00:00' : hasTime ? form.endTime : '',
     eventType: form.eventType,
+    // Go-live transition, remove with the field in EventForm.
+    externalRegistrationUrl: isListingOnly ? '' : String(form.externalRegistrationUrl || '').trim(),
     imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, MAX_EVENT_IMAGES),
     isPaid: form.isPaid === true && hasFees,
     listingMode: form.listingMode,

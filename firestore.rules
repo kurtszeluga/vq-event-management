@@ -112,6 +112,7 @@ service cloud.firestore {
           'contactName',
           'contactPhone',
           'eventType',
+          'externalRegistrationUrl',
           'title',
           'description',
           'documentFileName',
@@ -153,6 +154,10 @@ service cloud.firestore {
           || request.resource.data.allowCashCheckPayment is bool)
         && (!('allowNonMemberRegistration' in request.resource.data)
           || request.resource.data.allowNonMemberRegistration is bool)
+        // Go-live transition, remove with the EventForm field.
+        && (!('externalRegistrationUrl' in request.resource.data)
+          || request.resource.data.externalRegistrationUrl is string
+            && request.resource.data.externalRegistrationUrl.size() <= 500)
         && (!('address' in request.resource.data) || request.resource.data.address is string)
         && (!('askingPrice' in request.resource.data) || request.resource.data.askingPrice is number)
         && (!('businessName' in request.resource.data) || request.resource.data.businessName is string)

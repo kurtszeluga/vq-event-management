@@ -357,7 +357,9 @@
       ${buildCoordinatorContactMarkup(event)}
       ${buildActionsMarkup([
         ...buildDocumentLinks(event, config),
-        event.registrationOpen ? buildRegisterLink(event, config) : ''
+        event.registrationOpen || getExternalRegistrationUrl(event)
+          ? buildRegisterLink(event, config)
+          : ''
       ])}
     `;
   }
@@ -493,7 +495,11 @@
   }
 
   function buildRegisterLink(event, config) {
-    const registerUrl = buildRegistrationUrl(config.sourceUrl, event);
+    // Go-live transition. An event still run by the guild's previous
+    // registration system publishes its own address, and Register points there
+    // instead of at this app. Remove once no event carries the field.
+    const registerUrl = getExternalRegistrationUrl(event)
+      || buildRegistrationUrl(config.sourceUrl, event);
 
     return registerUrl
       ? `<a class="vq-feed-primary vq-feed-register-action" href="${escapeAttribute(registerUrl)}" target="_blank" rel="noopener noreferrer">${event.registrationIsFull ? 'Join Waitlist' : 'Register'}</a>`
@@ -644,6 +650,12 @@
     } catch {
       return event.registerUrl || '';
     }
+  }
+
+  function getExternalRegistrationUrl(event) {
+    const value = String(event.externalRegistrationUrl || '').trim();
+
+    return /^https?:\/\/\S+$/i.test(value) ? value : '';
   }
 
   function getSafeReturnUrl(value) {

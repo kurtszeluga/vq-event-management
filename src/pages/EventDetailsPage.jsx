@@ -13,7 +13,10 @@ import {
   getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
-import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
+import {
+  getExternalRegistrationUrl,
+  isRegistrationWindowOpen
+} from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 import { openManagedPopup } from '../utils/popupWindow.js';
 import { listEventDocuments } from '../../shared/eventDocuments.js';
@@ -130,6 +133,7 @@ function EventDetailsPage() {
   }
 
   const availability = getRegistrationAvailability(event, registrationCounts);
+  const externalRegistrationUrl = getExternalRegistrationUrl(event);
   const alreadyRegisteredView = searchParams.get('registered') === '1';
 
   return (
@@ -195,7 +199,7 @@ function EventDetailsPage() {
               View, print, or save {eventDocument.title}
             </button>
           ))}
-          {!isRegistrationWindowOpen(event) ? (
+          {!externalRegistrationUrl && !isRegistrationWindowOpen(event) ? (
             <p className="form-error">Registration is not currently open.</p>
           ) : null}
           <div className="detail-actions">
@@ -208,7 +212,19 @@ function EventDetailsPage() {
                 Return To My Registrations
               </button>
             ) : null}
-            {isRegistrationWindowOpen(event) && !alreadyRegisteredView ? (
+            {externalRegistrationUrl && !alreadyRegisteredView ? (
+              // rel is not optional: the URL is admin-entered and points
+              // off-site, so the opened page must not get a handle on this one.
+              <a
+                className="button-link"
+                href={externalRegistrationUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                Register
+              </a>
+            ) : null}
+            {!externalRegistrationUrl && isRegistrationWindowOpen(event) && !alreadyRegisteredView ? (
               <Link className="button-link" to={`/register?eventId=${event.id}`}>
                 {availability.isFull ? 'Join Waitlist' : 'Register'}
               </Link>

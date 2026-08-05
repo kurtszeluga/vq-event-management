@@ -92,6 +92,9 @@ export const DEFAULT_EVENT_FORM = {
   endDate: '',
   endTime: '',
   eventType: '',
+  // Go-live transition: when set, the Register button links here instead of
+  // registering in this app. Remove with the EventForm field.
+  externalRegistrationUrl: '',
   capacityUnlimited: false,
   imageUrls: Array(MAX_EVENT_IMAGES).fill(''),
   isPaid: null,

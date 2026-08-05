@@ -3,7 +3,10 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getEventPlaceholderImage } from '../../shared/eventImages.js';
 import { buildListingDetails, getListingTitle, isListingEventType } from '../../shared/eventListing.js';
 import { listEventDocuments } from '../../shared/eventDocuments.js';
-import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
+import {
+  getExternalRegistrationUrl,
+  isRegistrationWindowOpen
+} from '../../shared/registrationWindow.js';
 
 const EVENT_CATEGORY_CONFIG = {
   business: {
@@ -224,6 +227,9 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
   return {
     id: event.id,
     eventType,
+    // Go-live transition: when set, the embed's Register button links straight
+    // here instead of back into this app. Remove with the EventForm field.
+    externalRegistrationUrl: getExternalRegistrationUrl(event),
     // Listings title off businessName first, matching the public listing
     // pages - the embed used to show the raw event title instead.
     title: isListing ? getListingTitle(listing) : event.title || event.businessName || eventType,

@@ -1,5 +1,8 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
-import { getRegistrationWindowState } from '../shared/registrationWindow.js';
+import {
+  getExternalRegistrationUrl,
+  getRegistrationWindowState
+} from '../shared/registrationWindow.js';
 import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
@@ -1228,6 +1231,13 @@ export function validateRegistrationEligibility(
   // window is resolved in guild-local time deliberately - this runtime is UTC,
   // and reading the admin's naive datetime strings as UTC would shut
   // registration hours early.
+  // Go-live transition: the previous system owns this event, so a request
+  // reaching here is a stale page or a replay. Refuse it rather than take a
+  // registration the coordinator will never see.
+  if (getExternalRegistrationUrl(event)) {
+    throw httpError(400, 'Please register for this event using the registration link shown on the event.');
+  }
+
   const { state } = getRegistrationWindowState(event);
 
   if (state === 'not-registrable') {
