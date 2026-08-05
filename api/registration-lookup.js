@@ -247,8 +247,12 @@ async function verifyEmailCode(request, response, db, projectId) {
 
   if (context.profile) {
     try {
-      await ensureAuthUserForProfile(db, projectId, context.profile.userId || context.profile.id);
-      passwordSetupToken = createFirebaseCustomToken(context.profile.userId || context.profile.id);
+      const profileUserId = context.profile.userId || context.profile.id;
+      const account = await ensureAuthUserForProfile(db, projectId, profileUserId);
+
+      if (canSetUpPassword(account)) {
+        passwordSetupToken = createFirebaseCustomToken(profileUserId);
+      }
     } catch (error) {
       console.error('Could not prepare password setup after code verification', error);
       passwordSetupToken = '';
@@ -388,8 +392,15 @@ async function verifyAccountRecoveryCode(request, response, db, projectId) {
   // Deliberately non-fatal: a member in front of a code prompt should not be
   // refused entry because this could not be tidied up. Worst case they sign in
   // exactly as they did before this existed.
+  // True means "do not treat this session as provisional", which is the
+  // conservative answer whenever the question cannot be answered: it leaves the
+  // member signed in exactly as they were before this existed, rather than
+  // signing them out over a check that failed.
+  let hasPassword = true;
+
   try {
-    await ensureAuthUserForProfile(db, projectId, challenge.profileUserId);
+    const account = await ensureAuthUserForProfile(db, projectId, challenge.profileUserId);
+    hasPassword = !canSetUpPassword(account);
   } catch (error) {
     console.error('Could not complete the Auth record before recovery sign-in', error);
   }
@@ -403,7 +414,7 @@ async function verifyAccountRecoveryCode(request, response, db, projectId) {
     throw httpError(500, 'Could not sign you in. Please try again.');
   }
 
-  response.status(200).json({ customToken, verified: true });
+  response.status(200).json({ customToken, hasPassword, verified: true });
 }
 
 async function enforceRecoveryRateLimit(db, request, action, targetKey) {
@@ -562,6 +573,15 @@ async function enforceLookupRateLimit(db, request, action, email, eventId) {
     scope: 'registration-lookup-target',
     windowMs: tenMinutes
   });
+}
+
+// Whether it is worth asking this member to set a password. Two ways the
+// answer is no: they already have one, so the question is just confusing; or
+// the profile carries no email, in which case ensureAuthUserForProfile bailed
+// without touching Identity Platform and a password could not be used to sign
+// in even if one were set - see the note at the top of that module.
+function canSetUpPassword(account) {
+  return account.reason !== 'no-profile-email' && !account.hasPassword;
 }
 
 async function loadLookupContext(db, email, eventId) {

@@ -19,13 +19,13 @@ function stubDb(profile) {
 test('a profile with no email is left alone rather than creating a bare record', async () => {
   const result = await ensureAuthUserForProfile(stubDb({ email: '' }), 'p', 'some-user');
 
-  assert.deepEqual(result, { changed: false, reason: 'no-profile-email' });
+  assert.deepEqual(result, { changed: false, hasPassword: false, reason: 'no-profile-email' });
 });
 
 test('a missing profile is left alone', async () => {
   const result = await ensureAuthUserForProfile(stubDb(null), 'p', 'missing-user');
 
-  assert.deepEqual(result, { changed: false, reason: 'no-profile-email' });
+  assert.deepEqual(result, { changed: false, hasPassword: false, reason: 'no-profile-email' });
 });
 
 test('a whitespace-only email counts as no email', async () => {

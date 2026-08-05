@@ -104,7 +104,14 @@ function LoginPage() {
     try {
       const result = await verifyAccountRecoveryCode({ challengeId: recoveryChallengeId, code: recoveryCode });
       await signInWithCustomToken(auth, result.customToken);
-      navigate('/profile?passwordReset=1', { replace: true });
+      // An account with no password gets the setup mode, which says so and
+      // signs the session back out if they leave without saving one. Recovering
+      // an account that does have a password is an ordinary reset: the session
+      // is one they asked for and it stays whether or not they change it.
+      navigate(
+        result.hasPassword === false ? '/profile?passwordSetup=1' : '/profile?passwordReset=1',
+        { replace: true }
+      );
     } catch (error) {
       setRecoveryError(error.message);
     } finally {
