@@ -1248,7 +1248,27 @@
         /* Matches the stacked height the container query below applies, so a
            tile does not change photo height as the column crosses 440px. */
         --vq-media-height: 200px;
-        grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+        /* auto-fit, not auto-fill: auto-fill keeps the empty tracks, so a
+           category with two listings sat in a three-column grid with a blank
+           third and two narrow cards. auto-fit collapses the empty tracks and
+           lets the cards that exist share the row. */
+        grid-template-columns: repeat(auto-fit, minmax(285px, 1fr));
+        /* Cards centre in their track rather than stretching across it, which
+           only matters once the cap below bites. */
+        justify-items: center;
+      }
+      /* With auto-fit a lone card would otherwise span the whole row as a
+         banner - and a single listing is common, Challenges being the obvious
+         case. Capped at roughly the two-column width so one or two listings
+         read as large tiles rather than either a stripe or a stamp. Above three
+         cards the tracks are narrower than this and it has no effect. */
+      .vq-feed-list.is-grid .vq-feed-card {
+        /* The card is content-box - [data-vq-feed] sets border-box on itself
+           only, not on descendants - so width:100% would add its 18px padding
+           on top of the track and overflow. */
+        box-sizing: border-box;
+        max-width: 560px;
+        width: 100%;
       }
       .vq-feed-list.is-agenda {
         --vq-media-width: 88px;

@@ -84,10 +84,10 @@ test('a default layout outside the switcher list is corrected', () => {
 // shortest card - a Lecture, which carries no seats or registration rows - and
 // that is how it was reported.
 test('a wrapping card packs its lines to the top', () => {
-  const cardRule = SOURCE.slice(
-    SOURCE.indexOf('.vq-feed-card {'),
-    SOURCE.indexOf('}', SOURCE.indexOf('.vq-feed-card {'))
-  );
+  // Anchored to the start of the line: '.vq-feed-list.is-grid .vq-feed-card {'
+  // contains this selector as a substring and would otherwise match first.
+  const start = SOURCE.indexOf('\n      .vq-feed-card {');
+  const cardRule = SOURCE.slice(start, SOURCE.indexOf('}', start));
 
   assert.match(cardRule, /flex-wrap:\s*wrap/, 'the card wraps, which is what makes this possible');
   assert.match(
@@ -113,4 +113,29 @@ test('both image wrappers reset the browser button box', () => {
     assert.match(rule, /padding:\s*0/, `${selector} must drop the UA padding`);
     assert.match(rule, /width:\s*100%/, `${selector} must fill its container`);
   });
+});
+
+// A category with two listings sat in a three-column grid with a blank third
+// and two narrow cards, because auto-fill keeps its empty tracks. auto-fit
+// collapses them so the cards that exist share the row - but it also lets a
+// lone card span the whole width as a banner, and a single listing is common
+// (Challenges has one), hence the cap.
+test('the grid collapses empty tracks and caps a lone card', () => {
+  const gridRule = SOURCE.slice(
+    SOURCE.indexOf('.vq-feed-list.is-grid {'),
+    SOURCE.indexOf('}', SOURCE.indexOf('.vq-feed-list.is-grid {'))
+  );
+
+  assert.match(gridRule, /repeat\(auto-fit,/, 'auto-fill would keep the empty tracks');
+  assert.doesNotMatch(gridRule, /repeat\(auto-fill,/);
+
+  const cardRule = SOURCE.slice(
+    SOURCE.indexOf('.vq-feed-list.is-grid .vq-feed-card {'),
+    SOURCE.indexOf('}', SOURCE.indexOf('.vq-feed-list.is-grid .vq-feed-card {'))
+  );
+
+  assert.match(cardRule, /max-width:\s*560px/, 'a lone card must not span the row');
+  // The card is content-box, so width:100% without this overflows its track by
+  // the 18px padding on each side.
+  assert.match(cardRule, /box-sizing:\s*border-box/);
 });
