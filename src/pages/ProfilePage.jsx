@@ -6,6 +6,7 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { doc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles.js';
@@ -58,6 +59,8 @@ function ProfilePage() {
   // session the member asked for.
   const passwordSetupMode = searchParams.get('passwordSetup') === '1';
   const passwordSetupSavedRef = useRef(false);
+  const [passwordResetPromptOpen, setPasswordResetPromptOpen] = useState(false);
+  const passwordResetAskedRef = useRef(false);
   const newPasswordInputRef = useRef(null);
   // Fires setIsEditing(true) at most once - without this guard, every
   // Firestore snapshot update to userProfile would re-run the effect below
@@ -71,6 +74,22 @@ function ProfilePage() {
   useEffect(() => {
     if ((showPasswordResetBanner || passwordSetupMode) && currentUser) {
       newPasswordInputRef.current?.focus();
+    }
+  }, [showPasswordResetBanner, passwordSetupMode, currentUser]);
+
+  // A member who recovered with a code is signed in on the password they could
+  // not remember, so nothing yet prompts them to replace it - the banner below
+  // sits under the profile details and is easy to scroll past. Asked once, and
+  // not in setup mode, which already interrupts with its own question.
+  useEffect(() => {
+    if (
+      showPasswordResetBanner
+      && !passwordSetupMode
+      && currentUser
+      && !passwordResetAskedRef.current
+    ) {
+      passwordResetAskedRef.current = true;
+      setPasswordResetPromptOpen(true);
     }
   }, [showPasswordResetBanner, passwordSetupMode, currentUser]);
 
@@ -265,8 +284,28 @@ function ProfilePage() {
     }
   }
 
+  function handleUpdatePasswordNow() {
+    setPasswordResetPromptOpen(false);
+    // The field is further down a long page, so land them on it rather than
+    // closing the dialog onto the profile details they did not come for.
+    // Optional on the method too, not just the ref - jsdom has no
+    // scrollIntoView, and focus alone is the useful half anyway.
+    newPasswordInputRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    newPasswordInputRef.current?.focus();
+  }
+
   return (
     <section>
+      <ConfirmDialog
+        cancelLabel="Not Now"
+        confirmLabel="Update Password"
+        description={'You signed in with an emailed code rather than a password. Set a new one '
+          + 'now and you can sign in with it from next time, instead of requesting another code.'}
+        open={passwordResetPromptOpen}
+        title="Update Your Password?"
+        onCancel={() => setPasswordResetPromptOpen(false)}
+        onConfirm={handleUpdatePasswordNow}
+      />
       <PageHeader
         eyebrow="Account"
         title="My Profile"

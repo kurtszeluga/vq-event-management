@@ -153,3 +153,67 @@ describe('the ordinary profile page', () => {
     expect(signOut).not.toHaveBeenCalled();
   });
 });
+
+// Recovering an account that DOES have a password lands on passwordReset=1.
+// The member is signed in on a password they could not remember, and the only
+// thing telling them to replace it was a banner below the profile details.
+describe('arriving from account recovery', () => {
+  it('interrupts with the offer to update the password', () => {
+    searchParams = new URLSearchParams('passwordReset=1');
+    render(<ProfilePage />);
+
+    expect(screen.getByRole('heading', { name: /update your password\?/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /update password/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /not now/i })).toBeTruthy();
+  });
+
+  it('puts the member on the password field when they accept', async () => {
+    searchParams = new URLSearchParams('passwordReset=1');
+    const user = userEvent.setup();
+    render(<ProfilePage />);
+
+    await user.click(screen.getByRole('button', { name: /update password/i }));
+
+    expect(screen.queryByRole('heading', { name: /update your password\?/i })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText(/^New Password/i));
+  });
+
+  it('closes on Not Now and does not ask again', async () => {
+    searchParams = new URLSearchParams('passwordReset=1');
+    const user = userEvent.setup();
+    const { rerender } = render(<ProfilePage />);
+
+    await user.click(screen.getByRole('button', { name: /not now/i }));
+    rerender(<ProfilePage />);
+
+    expect(screen.queryByRole('heading', { name: /update your password\?/i })).toBeNull();
+  });
+
+  it('does not sign the member out - this session is one they asked for', async () => {
+    searchParams = new URLSearchParams('passwordReset=1');
+    const { unmount } = render(<ProfilePage />);
+
+    unmount();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe('the setup arrival', () => {
+  it('is not interrupted twice', () => {
+    // passwordSetup=1 already states the account has no password and signs out
+    // if they leave, so the recovery dialog would be a second question.
+    searchParams = new URLSearchParams('passwordSetup=1');
+    render(<ProfilePage />);
+
+    expect(screen.queryByRole('heading', { name: /update your password\?/i })).toBeNull();
+  });
+
+  it('leaves an ordinary profile visit alone', () => {
+    searchParams = new URLSearchParams();
+    render(<ProfilePage />);
+
+    expect(screen.queryByRole('heading', { name: /update your password\?/i })).toBeNull();
+  });
+});
