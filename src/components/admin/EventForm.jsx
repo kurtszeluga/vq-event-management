@@ -6,6 +6,7 @@ import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
   BUSINESS_TYPES,
   DEFAULT_EVENT_FORM,
+  NO_REGISTRATION_EVENT_TYPES,
   EVENT_LOCATIONS,
   EVENT_TIME_OPTIONS,
   EVENT_TYPES
@@ -146,7 +147,7 @@ function EventForm({
   const showRegistrationSection = eventTypeSelected && !isListingOnly && !isLecture;
   const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge && !isLecture;
   const showRegistrationDateFields = ['future', 'now'].includes(form.registrationMode);
-  const supportsRegistrationNa = form.eventType === 'Other';
+  const supportsNoRegistration = NO_REGISTRATION_EVENT_TYPES.includes(form.eventType);
 
   function updateField(name, value) {
     setSuccessMessage('');
@@ -333,7 +334,13 @@ function EventForm({
       isPaid: doesNotUseFees ? false : current.isPaid,
       registrationMode: value === 'Business Listing' || value === 'For Sale' || isLectureType
         ? 'none'
-        : current.registrationMode,
+        // Switching to a type that offers no None option would otherwise leave
+        // 'none' selected with no matching <option> - the dropdown renders
+        // blank, validation still passes because the value is set, and the
+        // event saves taking no registrations without anyone choosing that.
+        : current.registrationMode === 'none' && !NO_REGISTRATION_EVENT_TYPES.includes(value)
+          ? ''
+          : current.registrationMode,
       registrationCloseAt: isClassOrWorkshop && ['future', 'now'].includes(current.registrationMode)
         ? getRegistrationDefaultCloseAt({
             ...current,
@@ -1530,12 +1537,15 @@ function EventForm({
                 <option value="">Select One</option>
                 <option value="now">Now</option>
                 <option value="future">In The Future</option>
-                {supportsRegistrationNa ? (
-                  <option value="none">N/A</option>
+                {supportsNoRegistration ? (
+                  <option value="none">None</option>
                 ) : null}
               </select>
               <span className="form-help">
                 Choose Now to let members register as soon as it is saved.
+                {supportsNoRegistration
+                  ? ' Choose None for an event that takes no registrations at all.'
+                  : ''}
               </span>
             </label>
             {showRegistrationDateFields ? (

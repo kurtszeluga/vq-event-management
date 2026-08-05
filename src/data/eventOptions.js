@@ -2,6 +2,13 @@ import { MAX_EVENT_IMAGES } from '../../shared/eventImages.js';
 
 export { getEventPlaceholderImage } from '../../shared/eventImages.js';
 
+// Types that can legitimately run without any registration - a Workshop is
+// often just an open session members turn up to. These are the only types
+// offered a None option in EventForm, and the list is read twice there: once
+// to render the option, once to clear a stale 'none' when the type changes to
+// one that does not offer it.
+export const NO_REGISTRATION_EVENT_TYPES = ['Other', 'Workshop'];
+
 export const EVENT_TYPES = [
   'Class (Half Day)',
   'Class (Full Day)',
