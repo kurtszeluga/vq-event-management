@@ -739,12 +739,15 @@ service cloud.firestore {
           'enableMemberDirectory',
           'showCityState',
           'showEmail',
+          'showEventRegistrantNames',
           'showFullAddress',
           'showPhone',
           'updatedDate'
         ])
         && request.resource.data.directoryNote is string
         && request.resource.data.enableMemberDirectory is bool
+        && (!('showEventRegistrantNames' in request.resource.data)
+          || request.resource.data.showEventRegistrantNames is bool)
         && request.resource.data.showCityState is bool
         && request.resource.data.showEmail is bool
         && request.resource.data.showFullAddress is bool
@@ -889,6 +892,33 @@ service cloud.firestore {
         && request.resource.data.isActive is bool
         && request.resource.data.sortOrder is number
         && request.resource.data.updatedDate is timestamp;
+    }
+
+    // Names only, derived from registrations so members can see who else is
+    // coming without the registrations themselves being readable - those carry
+    // email, phone, amounts and Square transaction ids, and rules cannot
+    // project fields. Same shape as memberDirectoryProfiles and for the same
+    // reason. Written by whoever may already see registrations; read by an
+    // active member, and only while the board has the setting switched on.
+    function registrantNamesEnabled() {
+      return exists(/databases/$(database)/documents/appSettings/directorySettings)
+        && get(/databases/$(database)/documents/appSettings/directorySettings).data.showEventRegistrantNames == true;
+    }
+
+    function validEventRegistrantNames(eventId) {
+      return request.resource.data.keys().hasOnly(['eventId', 'names', 'updatedDate'])
+        && request.resource.data.eventId == eventId
+        && request.resource.data.names is list
+        && request.resource.data.names.size() <= 500
+        && request.resource.data.updatedDate is timestamp;
+    }
+
+    match /eventRegistrantNames/{eventId} {
+      allow read: if isActiveMember() && registrantNamesEnabled()
+        || hasPermission('viewRegistrations');
+      allow create, update: if hasPermission('viewRegistrations')
+        && validEventRegistrantNames(eventId);
+      allow delete: if hasPermission('manageEvents');
     }
 
     match /events/{eventId} {

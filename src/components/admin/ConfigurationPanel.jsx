@@ -732,6 +732,26 @@ function ConfigurationPanel({ currentUserProfile }) {
               <small>Allow active members to view the member-only directory.</small>
             </span>
           </label>
+          <label className="checkbox-label registration-exception-checkbox">
+            <input
+              checked={Boolean(directorySettings.showEventRegistrantNames)}
+              type="checkbox"
+              onChange={(event) =>
+                setDirectorySettings((current) => ({
+                  ...current,
+                  showEventRegistrantNames: event.target.checked
+                }))
+              }
+            />
+            <span className="checkbox-label-copy">
+              <strong>Show Who Is Registered</strong>
+              <small>
+                Let signed-in active members see the names of everyone registered
+                for an event. Names only - never email, phone, or payment details.
+                Waitlisted members are not listed.
+              </small>
+            </span>
+          </label>
           <div className="configuration-checkbox-panel">
             <strong>Directory Fields</strong>
             <div className="configuration-checkbox-grid">

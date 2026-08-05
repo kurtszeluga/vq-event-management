@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
+import { syncEventRegistrantNames } from './_lib/event-registrant-names.js';
 import { getSquareAmount, isRefundSidePaymentUpdate } from './_lib/square-reconciliation.js';
 
 const REGISTRATION_PAID_UPDATE = {
@@ -121,6 +122,11 @@ async function recordSquareWebhookEvent(db, event, request) {
   }, { merge: true });
 
   await batch.commit();
+
+  // Both Registered and Pending Payment are already on the member-visible list,
+  // so most webhook outcomes do not change it - rebuilt regardless rather than
+  // encoding which transitions matter here as well as in the projection.
+  await syncEventRegistrantNames(db, reconciliation?.context?.eventId || '');
 }
 
 async function buildPaymentReconciliation(db, squarePayment) {
@@ -351,6 +357,10 @@ function buildWebhookEventSummary(reconciliation) {
 
 function buildPaymentContext({ payment = {}, registration = {}, registrationId = '' }) {
   return {
+    // Not stored on the webhook event - buildWebhookEventSummary picks its
+    // fields explicitly. Carried so the registrant name list can be rebuilt
+    // for the right event after reconciliation lands.
+    eventId: cleanText(registration?.eventId || payment?.eventId || ''),
     eventTitle: cleanText(registration?.eventTitle || payment?.eventTitle || ''),
     registrationEmail: cleanText(registration?.email || payment?.createdByEmail || ''),
     registrationId: cleanText(registrationId || registration?.registrationId || payment?.registrationId || ''),

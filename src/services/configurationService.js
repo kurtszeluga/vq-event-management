@@ -93,6 +93,10 @@ export const DEFAULT_DIRECTORY_SETTINGS = {
   enableMemberDirectory: false,
   showCityState: true,
   showEmail: true,
+  // Lets a signed-in member see who else is registered for an event, names
+  // only. Off by default: event attendance is more exposing than being listed
+  // in the directory, so the board switches it on deliberately.
+  showEventRegistrantNames: false,
   showFullAddress: false,
   showPhone: true
 };

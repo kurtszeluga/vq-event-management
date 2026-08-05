@@ -4033,3 +4033,27 @@ div.csv-preview-warning {
     max-width: 100%;
   }
 }
+
+/* Member-visible registrant list on the event details page. Names only, read
+   from the derived eventRegistrantNames document - see
+   shared/eventRegistrantNames.js for what is deliberately not in it. */
+.event-registrant-panel {
+  border-top: 1px solid #ded5ca;
+  margin-top: 18px;
+  padding-top: 14px;
+}
+
+.event-registrant-names {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+@media (max-width: 640px) {
+  .event-registrant-names {
+    grid-template-columns: 1fr;
+  }
+}

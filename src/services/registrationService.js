@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
+import { syncEventRegistrantNames } from './eventRegistrantNames.js';
 
 const registrationsCollection = () => collection(db, 'registrations');
 const paymentsCollection = () => collection(db, 'payments');
@@ -370,7 +371,11 @@ export async function updateRegistrationStatus(registrationId, status, actorProf
     summary: `Updated registration "${before.name || before.email || registrationId}" to ${status}`
   });
 
-  return batch.commit();
+  await batch.commit();
+
+  // After the commit, not inside the batch: the rebuild reads the state it is
+  // summarising. A cancelled member drops off the member-visible list here.
+  return syncEventRegistrantNames(before.eventId);
 }
 
 export async function updateRegistrationPayment(registrationId, paymentData) {

@@ -3,6 +3,9 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import EventImageCarousel from '../components/EventImageCarousel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { getEvent } from '../services/eventService.js';
+import { subscribeToDirectorySettings } from '../services/configurationService.js';
+import { subscribeToEventRegistrantNames } from '../services/eventRegistrantNames.js';
+import { useAuth } from '../context/useAuth.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
   formatCurrency,
@@ -29,6 +32,14 @@ function EventDetailsPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [registrationCounts, setRegistrationCounts] = useState({});
+  const { userProfile } = useAuth();
+  const [registrantNames, setRegistrantNames] = useState([]);
+  const [showRegistrantNames, setShowRegistrantNames] = useState(false);
+  // Active membership, the same bar the member directory uses and the same
+  // one isActiveMember() enforces in the rules - the read is refused for
+  // anyone else, so asking is pointless as well as wrong.
+  const canSeeRegistrants = userProfile?.status === 'Active'
+    && userProfile?.membershipStatus === 'Active';
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
 
@@ -104,6 +115,31 @@ function EventDetailsPage() {
       window.clearInterval(intervalId);
     };
   }, [event?.id]);
+
+  useEffect(() => {
+    if (!canSeeRegistrants) {
+      setShowRegistrantNames(false);
+      return undefined;
+    }
+
+    return subscribeToDirectorySettings(
+      (settings) => setShowRegistrantNames(Boolean(settings.showEventRegistrantNames)),
+      () => setShowRegistrantNames(false)
+    );
+  }, [canSeeRegistrants]);
+
+  useEffect(() => {
+    if (!event?.id || !canSeeRegistrants || !showRegistrantNames) {
+      setRegistrantNames([]);
+      return undefined;
+    }
+
+    return subscribeToEventRegistrantNames(
+      event.id,
+      setRegistrantNames,
+      () => setRegistrantNames([])
+    );
+  }, [event?.id, canSeeRegistrants, showRegistrantNames]);
 
   if (loading) {
     return (
@@ -189,6 +225,20 @@ function EventDetailsPage() {
               <dd>{availability.label}</dd>
             </div>
           </dl>
+          {canSeeRegistrants && showRegistrantNames ? (
+            <div className="event-registrant-panel">
+              <strong>Who Is Registered</strong>
+              {registrantNames.length ? (
+                <ul className="event-registrant-names">
+                  {registrantNames.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="form-help">Nobody is registered yet.</p>
+              )}
+            </div>
+          ) : null}
           {listEventDocuments(event).map((eventDocument) => (
             <button
               className="text-button"
