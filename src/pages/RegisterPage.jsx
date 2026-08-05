@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import RegistrationPaymentPanel from '../components/RegistrationPaymentPanel.jsx';
 import SeatHoldStatus from '../components/SeatHoldStatus.jsx';
@@ -84,6 +85,11 @@ function RegisterPage() {
   const [closeMessage, setCloseMessage] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [wantsPasswordSetup, setWantsPasswordSetup] = useState(false);
+  const [passwordSetupPromptOpen, setPasswordSetupPromptOpen] = useState(false);
+  // Asked once. Without the ref the effect below would re-open the dialog on
+  // every later render that still satisfies the condition, so declining it
+  // would not stick.
+  const passwordSetupAskedRef = useRef(false);
   const [passwordSetupPending, setPasswordSetupPending] = useState(false);
   const [passwordSetupError, setPasswordSetupError] = useState('');
   const [formError, setFormError] = useState('');
@@ -280,6 +286,17 @@ function RegisterPage() {
   // exists, so its presence is the check.
   const offerPasswordSetup = emailVerified && Boolean(passwordSetupToken);
 
+  // A card here was too easy to scroll past on the way to the rest of the
+  // form, so the offer interrupts instead - it cannot be missed, and both
+  // buttons are an answer.
+  useEffect(() => {
+    if (offerPasswordSetup && !passwordSetupAskedRef.current) {
+      passwordSetupAskedRef.current = true;
+      setPasswordSetupPromptOpen(true);
+    }
+  }, [offerPasswordSetup]);
+
+
   const readyToReserve = canShowRegistrantFields
     && !needsProfileEdits
     && !confirmation
@@ -473,6 +490,20 @@ function RegisterPage() {
     );
   }
 
+  // Both buttons are an answer, and either closes the dialog. Escape and the
+  // backdrop route to the same place as No Thanks, so declining is always
+  // possible - the point is that it cannot be scrolled past unanswered, not
+  // that the member is trapped.
+  function handleAcceptPasswordSetup() {
+    setWantsPasswordSetup(true);
+    setPasswordSetupPromptOpen(false);
+  }
+
+  function handleDeclinePasswordSetup() {
+    setWantsPasswordSetup(false);
+    setPasswordSetupPromptOpen(false);
+  }
+
   // Deferred to here on purpose: the token was minted when the code was
   // verified, but signing in mid-registration would move the gates the rest of
   // the flow stands on. /profile?passwordReset=1 is the module the login
@@ -535,6 +566,18 @@ function RegisterPage() {
         eyebrow="Registration"
         title={`Register For ${event.title}`}
         description="Start with your email address so we can check your profile and membership."
+      />
+      <ConfirmDialog
+        cancelLabel="No Thanks"
+        confirmLabel="Yes, Set Up A Password"
+        description={'This account has no password yet, which is why you signed in with a code. '
+          + 'Setting one lets you sign in directly next time, and gives you the member directory '
+          + 'and your registration history. Finish registering first - we will take you straight '
+          + 'there afterwards so you do not lose your place.'}
+        open={passwordSetupPromptOpen}
+        title="Set Up A Password?"
+        onCancel={handleDeclinePasswordSetup}
+        onConfirm={handleAcceptPasswordSetup}
       />
       <div className="registration-layout">
         <EventSummary event={event} />
@@ -676,29 +719,7 @@ function RegisterPage() {
               ) : null}
             </div>
           ) : null}
-          {offerPasswordSetup ? (
-            <div className="registration-lookup-card">
-              <strong>Set Up A Password?</strong>
-              <span>
-                You signed in with a code because this account has no password yet.
-                Setting one lets you sign in directly next time, and gives you the
-                member directory and your registration history.
-              </span>
-              <label className="checkbox-label">
-                <input
-                  checked={wantsPasswordSetup}
-                  disabled={Boolean(confirmation)}
-                  type="checkbox"
-                  onChange={(inputEvent) => setWantsPasswordSetup(inputEvent.target.checked)}
-                />
-                <span>Yes, help me set a password after I finish registering</span>
-              </label>
-              <span className="form-help">
-                Finish your registration first - we will take you straight to it
-                afterwards so you do not lose your place.
-              </span>
-            </div>
-          ) : null}
+
           {canShowRegistrantFields ? (
             <>
               {(!matchedProfile || needsProfileEdits) ? (

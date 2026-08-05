@@ -6,6 +6,7 @@ vi.mock('../../src/lib/firebase.js', () => ({ auth: {} }));
 vi.mock('firebase/auth', () => ({ signInWithCustomToken: vi.fn() }));
 
 const { RegistrationCompletion } = await import('../../src/pages/RegisterPage.jsx');
+const { default: ConfirmDialog } = await import('../../src/components/ConfirmDialog.jsx');
 
 const EVENT = {
   date: '2026-09-14',
@@ -81,5 +82,54 @@ describe('the password offer on the completion screen', () => {
 
     expect(screen.getByText(/could not open the password page/i)).toBeTruthy();
     expect(screen.getByText(/registration confirmed/i)).toBeTruthy();
+  });
+});
+
+// The offer used to be an inline card, which was easy to scroll straight past
+// on the way to the rest of the form. It is a modal now, so it has to be
+// answered before the member carries on. ConfirmDialog is the app's existing
+// dialog, so what matters here is that both answers are present and distinct.
+describe('the password offer dialog', () => {
+  function renderDialog(overrides = {}) {
+    return render(
+      <ConfirmDialog
+        cancelLabel="No Thanks"
+        confirmLabel="Yes, Set Up A Password"
+        description="This account has no password yet, which is why you signed in with a code."
+        open
+        title="Set Up A Password?"
+        onCancel={() => {}}
+        onConfirm={() => {}}
+        {...overrides}
+      />
+    );
+  }
+
+  it('puts the question in front of the member with both answers', () => {
+    renderDialog();
+
+    expect(screen.getByRole('heading', { name: /set up a password/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /yes, set up a password/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /no thanks/i })).toBeTruthy();
+  });
+
+  it('renders nothing at all when closed', () => {
+    renderDialog({ open: false });
+
+    expect(screen.queryByRole('heading', { name: /set up a password/i })).toBeNull();
+  });
+
+  it('reports which answer was given', async () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    const user = userEvent.setup();
+    renderDialog({ onCancel, onConfirm });
+
+    await user.click(screen.getByRole('button', { name: /yes, set up a password/i }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /no thanks/i }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
