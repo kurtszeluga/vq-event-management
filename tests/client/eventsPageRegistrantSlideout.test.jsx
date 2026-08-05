@@ -173,12 +173,21 @@ describe('an event that takes no registrations', () => {
     expect(screen.queryByLabelText('Registration statistics')).toBeNull();
   });
 
+  it('offers no Show Who Is Registered toggle either', async () => {
+    // Nobody can register, so there is nobody to list - the toggle would only
+    // ever open onto "Nobody is registered yet".
+    await renderWithEvent({ capacityUnlimited: true, eventType: 'Lecture', registrationMode: 'none' });
+
+    expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
+  });
+
   it('shows none of it for a Workshop set to None either', async () => {
     // Keyed on the stored mode, not the event type, so this follows for free.
     await renderWithEvent({ eventType: 'Other', registrationMode: 'none' });
 
     expect(screen.queryByText(/^Registration closed$/i)).toBeNull();
     expect(screen.queryByLabelText('Registration statistics')).toBeNull();
+    expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
   });
 
   it('still shows them for an event that does take registrations', async () => {
@@ -186,5 +195,6 @@ describe('an event that takes no registrations', () => {
 
     expect(screen.getByLabelText('Registration statistics')).toBeTruthy();
     expect(screen.getByText(/^Registration (open|closed)$/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /who is registered/i })).toBeTruthy();
   });
 });

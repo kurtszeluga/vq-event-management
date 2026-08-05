@@ -641,7 +641,7 @@ function EventsPage() {
                     </dd>
                   </div>
                 </dl>
-                {canSeeRegistrants && showRegistrantNames ? (
+                {canSeeRegistrants && showRegistrantNames && takesRegistrations ? (
                   <div className="event-registrant-panel">
                     <button
                       aria-expanded={registrantsExpanded}

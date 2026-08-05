@@ -18,6 +18,7 @@ import {
 } from '../utils/eventFormat.js';
 import {
   getExternalRegistrationUrl,
+  getRegistrationWindowState,
   isRegistrationWindowOpen
 } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
@@ -170,6 +171,10 @@ function EventDetailsPage() {
 
   const availability = getRegistrationAvailability(event, registrationCounts);
   const externalRegistrationUrl = getExternalRegistrationUrl(event);
+  // Nothing to list for an event that takes no registrations - a Lecture, or
+  // a Workshop set to None. Same rule the events list applies to its pills.
+  const takesRegistrations = Boolean(externalRegistrationUrl)
+    || !['disabled', 'not-registrable'].includes(getRegistrationWindowState(event).state);
   const alreadyRegisteredView = searchParams.get('registered') === '1';
 
   return (
@@ -225,7 +230,7 @@ function EventDetailsPage() {
               <dd>{availability.label}</dd>
             </div>
           </dl>
-          {canSeeRegistrants && showRegistrantNames ? (
+          {canSeeRegistrants && showRegistrantNames && takesRegistrations ? (
             <div className="event-registrant-panel">
               <strong>Who Is Registered</strong>
               {registrantNames.length ? (
