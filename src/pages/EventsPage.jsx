@@ -19,6 +19,9 @@ import {
   isRegistrationWindowOpen
 } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
+import { subscribeToDirectorySettings } from '../services/configurationService.js';
+import { subscribeToEventRegistrantNames } from '../services/eventRegistrantNames.js';
+import { useAuth } from '../context/useAuth.js';
 import { openManagedPopup } from '../utils/popupWindow.js';
 import { listEventDocuments } from '../../shared/eventDocuments.js';
 
@@ -288,6 +291,17 @@ function EventsPage() {
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
   const [loading, setLoading] = useState(true);
   const [registrationCounts, setRegistrationCounts] = useState({});
+  const { userProfile } = useAuth();
+  // Which cards have been opened, and the names for those - nothing is
+  // fetched until a card is opened, so browsing the list costs no reads and a
+  // page of twenty events opens no listeners.
+  const [expandedRegistrants, setExpandedRegistrants] = useState({});
+  const [registrantNames, setRegistrantNames] = useState({});
+  const [showRegistrantNames, setShowRegistrantNames] = useState(false);
+  // The same bar isActiveMember() enforces in the rules, so the toggle is
+  // only offered to someone whose read would actually be allowed.
+  const canSeeRegistrants = userProfile?.status === 'Active'
+    && userProfile?.membershipStatus === 'Active';
 
   useEffect(() => {
     const unsubscribe = subscribeToPublishedEvents(
@@ -417,6 +431,48 @@ function EventsPage() {
     };
   }, [registerableEvents]);
 
+  useEffect(() => {
+    if (!canSeeRegistrants) {
+      setShowRegistrantNames(false);
+      return undefined;
+    }
+
+    return subscribeToDirectorySettings(
+      (settings) => setShowRegistrantNames(Boolean(settings.showEventRegistrantNames)),
+      () => setShowRegistrantNames(false)
+    );
+  }, [canSeeRegistrants]);
+
+  // One listener per opened card, torn down when it closes. Keyed on the sorted
+  // id list rather than the object so re-rendering the page does not churn the
+  // subscriptions.
+  const openRegistrantIds = Object.keys(expandedRegistrants)
+    .filter((eventId) => expandedRegistrants[eventId])
+    .sort()
+    .join(',');
+
+  useEffect(() => {
+    if (!openRegistrantIds || !canSeeRegistrants || !showRegistrantNames) {
+      return undefined;
+    }
+
+    const unsubscribes = openRegistrantIds.split(',').map((eventId) =>
+      subscribeToEventRegistrantNames(
+        eventId,
+        (names) => setRegistrantNames((current) => ({ ...current, [eventId]: names })),
+        () => setRegistrantNames((current) => ({ ...current, [eventId]: [] }))
+      ));
+
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, [openRegistrantIds, canSeeRegistrants, showRegistrantNames]);
+
+  function toggleRegistrants(eventId) {
+    setExpandedRegistrants((current) => ({
+      ...current,
+      [eventId]: !current[eventId]
+    }));
+  }
+
   function toggleDescription(eventId) {
     setExpandedDescriptions((current) => ({
       ...current,
@@ -463,6 +519,8 @@ function EventsPage() {
           const description = event.description || '';
           const descriptionIsLong = description.length > DESCRIPTION_PREVIEW_LENGTH;
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
+          const registrantsExpanded = Boolean(expandedRegistrants[event.id]);
+          const namesForEvent = registrantNames[event.id];
           const counts = registrationCounts[event.id] || {};
           const availability = getRegistrationAvailability(event, counts);
           const registrationStats = getEventRegistrationStats(event, counts);
@@ -567,6 +625,33 @@ function EventsPage() {
                     </dd>
                   </div>
                 </dl>
+                {canSeeRegistrants && showRegistrantNames ? (
+                  <div className="event-registrant-panel">
+                    <button
+                      aria-expanded={registrantsExpanded}
+                      className="text-button event-description-toggle"
+                      onClick={() => toggleRegistrants(event.id)}
+                      type="button"
+                    >
+                      {registrantsExpanded ? 'Hide Who Is Registered' : 'Show Who Is Registered'}
+                    </button>
+                    {registrantsExpanded ? (
+                      // undefined means the listener has not answered yet; an
+                      // empty array means it has, and nobody is registered.
+                      namesForEvent === undefined ? (
+                        <p className="form-help">Loading...</p>
+                      ) : namesForEvent.length ? (
+                        <ul className="event-registrant-names">
+                          {namesForEvent.map((name) => (
+                            <li key={name}>{name}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="form-help">Nobody is registered yet.</p>
+                      )
+                    ) : null}
+                  </div>
+                ) : null}
                 {coordinatorContact ? (
                   <p className="event-coordinator-contact">
                     <strong>For Questions Contact:</strong> {coordinatorContact.name || 'To be announced'}
