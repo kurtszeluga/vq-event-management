@@ -58,7 +58,7 @@ export default async function handler(request, response) {
     if (request.body?.action === 'claimWaitlistOffer') {
       await enforceRateLimit(db, {
         limit: 20,
-        message: 'Too many waitlist claim attempts. Please wait and try again later.',
+        message: 'Too many waitlist claim attempts.',
         request,
         scope: 'waitlist-claim-ip',
         windowMs: 10 * 60 * 1000
@@ -70,7 +70,7 @@ export default async function handler(request, response) {
     if (request.body?.action === 'manuallyPromoteWaitlisted') {
       await enforceRateLimit(db, {
         limit: 40,
-        message: 'Too many waitlist promotion requests. Please wait and try again later.',
+        message: 'Too many waitlist promotion requests.',
         request,
         scope: 'waitlist-promote-ip',
         windowMs: 10 * 60 * 1000
@@ -82,7 +82,7 @@ export default async function handler(request, response) {
     if (request.body?.action === 'squareConfig') {
       await enforceRateLimit(db, {
         limit: 120,
-        message: 'Too many payment setup requests. Please wait and try again later.',
+        message: 'Too many payment setup requests.',
         request,
         scope: 'square-config-ip',
         windowMs: 10 * 60 * 1000
@@ -94,7 +94,7 @@ export default async function handler(request, response) {
     if (request.body?.action === 'sendMembershipConfirmation') {
       await enforceRateLimit(db, {
         limit: 6,
-        message: 'Too many membership confirmation email requests. Please wait and try again later.',
+        message: 'Too many membership confirmation email requests.',
         request,
         scope: 'membership-confirmation-email-ip',
         windowMs: 60 * 60 * 1000
@@ -120,7 +120,7 @@ export default async function handler(request, response) {
     if (request.body?.action === 'releaseReservation') {
       await enforceRateLimit(db, {
         limit: 40,
-        message: 'Too many requests. Please wait and try again later.',
+        message: 'Too many requests.',
         request,
         scope: 'release-reservation-ip',
         windowMs: 10 * 60 * 1000
@@ -166,7 +166,7 @@ export default async function handler(request, response) {
       await enforceRateLimit(db, {
         keyParts: [authorization.actorUserId],
         limit: 30,
-        message: 'Too many admin-initiated registrations. Please wait and try again later.',
+        message: 'Too many admin-initiated registrations.',
         scope: 'admin-register-actor',
         windowMs: 10 * 60 * 1000
       });
@@ -503,7 +503,7 @@ async function enforceRegistrationRateLimit(db, request, action, payload) {
   if (action === 'beginSquareReservation') {
     await enforceRateLimit(db, {
       limit: 40,
-      message: 'Too many seat hold requests. Please wait and try again later.',
+      message: 'Too many seat hold requests.',
       request,
       scope: 'square-seat-reservation-ip',
       windowMs: tenMinutes
@@ -511,7 +511,7 @@ async function enforceRegistrationRateLimit(db, request, action, payload) {
     await enforceRateLimit(db, {
       keyParts: targetKey,
       limit: 8,
-      message: 'Too many seat hold requests for this registration. Please wait and try again later.',
+      message: 'Too many seat hold requests for this registration.',
       scope: 'square-seat-reservation-target',
       windowMs: tenMinutes
     });
@@ -520,7 +520,7 @@ async function enforceRegistrationRateLimit(db, request, action, payload) {
 
   await enforceRateLimit(db, {
     limit: 30,
-    message: 'Too many registration submissions. Please wait and try again later.',
+    message: 'Too many registration submissions.',
     request,
     scope: 'registration-submit-ip',
     windowMs: tenMinutes
@@ -528,7 +528,7 @@ async function enforceRegistrationRateLimit(db, request, action, payload) {
   await enforceRateLimit(db, {
     keyParts: targetKey,
     limit: 6,
-    message: 'Too many registration submissions for this event. Please wait and try again later.',
+    message: 'Too many registration submissions for this event.',
     scope: 'registration-submit-target',
     windowMs: oneHour
   });

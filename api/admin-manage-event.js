@@ -64,7 +64,7 @@ export default async function handler(request, response) {
     await enforceRateLimit(db, {
       keyParts: [actorUid, request.body?.action || 'update'],
       limit: 60,
-      message: 'Too many event management requests. Please wait and try again later.',
+      message: 'Too many event management requests.',
       request,
       scope: 'admin-manage-event',
       windowMs: 10 * 60 * 1000

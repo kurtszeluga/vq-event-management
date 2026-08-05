@@ -424,7 +424,7 @@ async function enforceRecoveryRateLimit(db, request, action, targetKey) {
   if (action === 'startAccountRecovery') {
     await enforceRateLimit(db, {
       limit: 10,
-      message: 'Too many verification code requests. Please wait and try again later.',
+      message: 'Too many verification code requests.',
       request,
       scope: 'account-recovery-send-ip',
       windowMs: oneHour
@@ -432,7 +432,7 @@ async function enforceRecoveryRateLimit(db, request, action, targetKey) {
     await enforceRateLimit(db, {
       keyParts: [targetKey],
       limit: 5,
-      message: 'Too many verification code requests for this email or phone number. Please wait and try again later.',
+      message: 'Too many verification code requests for this email or phone number.',
       scope: 'account-recovery-send-target',
       windowMs: oneHour
     });
@@ -441,7 +441,7 @@ async function enforceRecoveryRateLimit(db, request, action, targetKey) {
 
   await enforceRateLimit(db, {
     limit: 40,
-    message: 'Too many verification attempts. Please wait and try again later.',
+    message: 'Too many verification attempts.',
     request,
     scope: 'account-recovery-verify-ip',
     windowMs: tenMinutes
@@ -449,7 +449,7 @@ async function enforceRecoveryRateLimit(db, request, action, targetKey) {
   await enforceRateLimit(db, {
     keyParts: [targetKey],
     limit: 10,
-    message: 'Too many verification attempts for this request. Please request a new code later.',
+    message: 'Too many verification attempts for this request.',
     scope: 'account-recovery-verify-target',
     windowMs: tenMinutes
   });
@@ -526,7 +526,7 @@ async function enforceLookupRateLimit(db, request, action, email, eventId) {
   if (action === 'startEmailVerification') {
     await enforceRateLimit(db, {
       limit: 10,
-      message: 'Too many verification code requests. Please wait and try again later.',
+      message: 'Too many verification code requests.',
       request,
       scope: 'registration-email-code-send-ip',
       windowMs: oneHour
@@ -534,7 +534,7 @@ async function enforceLookupRateLimit(db, request, action, email, eventId) {
     await enforceRateLimit(db, {
       keyParts: [email, eventId],
       limit: 5,
-      message: 'Too many verification code requests for this email and event. Please wait and try again later.',
+      message: 'Too many verification code requests for this email and event.',
       scope: 'registration-email-code-send-target',
       windowMs: oneHour
     });
@@ -544,7 +544,7 @@ async function enforceLookupRateLimit(db, request, action, email, eventId) {
   if (action === 'verifyEmailCode') {
     await enforceRateLimit(db, {
       limit: 40,
-      message: 'Too many verification attempts. Please wait and try again later.',
+      message: 'Too many verification attempts.',
       request,
       scope: 'registration-email-code-verify-ip',
       windowMs: tenMinutes
@@ -552,7 +552,7 @@ async function enforceLookupRateLimit(db, request, action, email, eventId) {
     await enforceRateLimit(db, {
       keyParts: [email, eventId],
       limit: 10,
-      message: 'Too many verification attempts for this registration. Please request a new code later.',
+      message: 'Too many verification attempts for this registration.',
       scope: 'registration-email-code-verify-target',
       windowMs: tenMinutes
     });
@@ -561,7 +561,7 @@ async function enforceLookupRateLimit(db, request, action, email, eventId) {
 
   await enforceRateLimit(db, {
     limit: 80,
-    message: 'Too many registration lookup requests. Please wait and try again later.',
+    message: 'Too many registration lookup requests.',
     request,
     scope: 'registration-lookup-ip',
     windowMs: tenMinutes
@@ -569,7 +569,7 @@ async function enforceLookupRateLimit(db, request, action, email, eventId) {
   await enforceRateLimit(db, {
     keyParts: [email, eventId],
     limit: 20,
-    message: 'Too many registration lookup requests for this email and event. Please wait and try again later.',
+    message: 'Too many registration lookup requests for this email and event.',
     scope: 'registration-lookup-target',
     windowMs: tenMinutes
   });

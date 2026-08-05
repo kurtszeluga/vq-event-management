@@ -29,7 +29,7 @@ export default async function handler(request, response) {
 
     await enforceRateLimit(db, {
       limit: 120,
-      message: 'Too many requests. Please wait and try again later.',
+      message: 'Too many requests.',
       request,
       scope: 'public-registration-counts-ip',
       windowMs: 10 * 60 * 1000

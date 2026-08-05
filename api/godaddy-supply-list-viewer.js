@@ -24,7 +24,7 @@ export default async function handler(request, response) {
 
     await enforceRateLimit(db, {
       limit: 60,
-      message: 'Too many supply list requests. Please wait and try again later.',
+      message: 'Too many supply list requests.',
       request,
       scope: 'godaddy-supply-list-viewer-ip',
       windowMs: 10 * 60 * 1000

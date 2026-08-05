@@ -66,7 +66,7 @@ export default async function handler(request, response) {
     await enforceRateLimit(db, {
       keyParts: [actorUid],
       limit: 30,
-      message: 'Too many admin user-create requests. Please wait and try again later.',
+      message: 'Too many admin user-create requests.',
       request,
       scope: 'admin-create-user',
       windowMs: 10 * 60 * 1000

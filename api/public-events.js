@@ -24,7 +24,7 @@ export default async function handler(request, response) {
     initializeAdminApp();
     await enforceRateLimit(getFirestore(), {
       limit: 120,
-      message: 'Too many requests. Please wait and try again later.',
+      message: 'Too many requests.',
       request,
       scope: 'public-events-ip',
       windowMs: 10 * 60 * 1000

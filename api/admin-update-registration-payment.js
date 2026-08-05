@@ -228,7 +228,7 @@ async function enforceAdminPaymentRateLimit(db, request, actorUid, action, paylo
   await enforceRateLimit(db, {
     keyParts: [actorUid, action],
     limit: action === 'resolvePaymentReview' ? 60 : 40,
-    message: 'Too many admin payment updates. Please wait and try again later.',
+    message: 'Too many admin payment updates.',
     request,
     scope: 'admin-payment-update-ip-user',
     windowMs: tenMinutes
@@ -238,14 +238,14 @@ async function enforceAdminPaymentRateLimit(db, request, actorUid, action, paylo
     await enforceRateLimit(db, {
       keyParts: [actorUid],
       limit: 8,
-      message: 'Too many refund requests. Please wait and try again later.',
+      message: 'Too many refund requests.',
       scope: 'admin-square-refund-user',
       windowMs: oneHour
     });
     await enforceRateLimit(db, {
       keyParts: [registrationId],
       limit: 3,
-      message: 'Too many refund requests for this registration. Please wait and review the payment history.',
+      message: 'Too many refund requests for this registration. Review the payment history.',
       scope: 'admin-square-refund-registration',
       windowMs: oneHour
     });

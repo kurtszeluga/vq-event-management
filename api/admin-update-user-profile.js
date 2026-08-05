@@ -66,7 +66,7 @@ export default async function handler(request, response) {
     await enforceRateLimit(db, {
       keyParts: [actorUid, request.body?.action || 'update'],
       limit: 60,
-      message: 'Too many admin profile update requests. Please wait and try again later.',
+      message: 'Too many admin profile update requests.',
       request,
       scope: 'admin-update-user-profile',
       windowMs: 10 * 60 * 1000

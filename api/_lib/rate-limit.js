@@ -48,10 +48,15 @@ export async function enforceRateLimit(db, {
     const currentCount = snapshot.exists ? Number(snapshot.data().count || 0) : 0;
 
     if (currentCount >= limit) {
-      const error = new Error(message);
+      const retryAfterSeconds = Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000));
+      // The exact wait was already known here and thrown away, leaving every
+      // caller to say "later". Windows are fixed rather than rolling, so this
+      // is usually far shorter than the window itself - a one-hour limit hit at
+      // five to the hour clears in five minutes, and "later" reads like an hour.
+      const error = new Error(`${message} ${describeWait(retryAfterSeconds)}`);
 
       error.statusCode = 429;
-      error.retryAfterSeconds = Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000));
+      error.retryAfterSeconds = retryAfterSeconds;
       throw error;
     }
 
@@ -64,6 +69,21 @@ export async function enforceRateLimit(db, {
       windowMs
     }, { merge: true });
   });
+}
+
+// Deliberately approximate above a minute. The exact second is noise to
+// someone who has to wait, and rounding up never tells them to come back
+// before the window has actually turned over.
+function describeWait(seconds) {
+  if (seconds <= 60) {
+    return `Try again in ${seconds} second${seconds === 1 ? '' : 's'}.`;
+  }
+
+  // Always rounded up. Rounding down would send someone back before the window
+  // had turned over, so they would meet the same refusal again. That also means
+  // anything past 60 seconds is at least two minutes - there is no singular
+  // case to handle here.
+  return `Try again in about ${Math.ceil(seconds / 60)} minutes.`;
 }
 
 function cleanPart(value) {

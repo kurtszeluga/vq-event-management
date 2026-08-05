@@ -26,7 +26,7 @@ export default async function handler(request, response) {
     initializeAdminApp();
     await enforceRateLimit(getFirestore(), {
       limit: 90,
-      message: 'Too many file requests. Please wait and try again later.',
+      message: 'Too many file requests.',
       request,
       scope: 'file-proxy-ip',
       windowMs: 10 * 60 * 1000
