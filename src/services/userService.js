@@ -55,8 +55,9 @@ export async function updateUserProfile(userId, updates) {
 }
 
 // Sign-in history for the admin user list, read live from Firebase Auth rather
-// than from a mirrored field - see api/admin-user-auth-status.js for why there
-// is no stored copy. Returns {} rather than throwing: the list is perfectly
+// than from a mirrored field - see the handleAuthStatus note in
+// api/admin-update-user-profile.js for why there is no stored copy, and why it
+// shares that endpoint. Returns {} rather than throwing: the list is perfectly
 // usable without it, and a failed lookup should not blank the page.
 export async function loadUserAuthStatus(userIds) {
   const ids = [...new Set((userIds || []).filter(Boolean))];
@@ -72,8 +73,8 @@ export async function loadUserAuthStatus(userIds) {
   }
 
   try {
-    const response = await fetch('/api/admin-user-auth-status', {
-      body: JSON.stringify({ userIds: ids }),
+    const response = await fetch('/api/admin-update-user-profile', {
+      body: JSON.stringify({ action: 'authStatus', userIds: ids }),
       headers: {
         Authorization: `Bearer ${idToken}`,
         'Content-Type': 'application/json'

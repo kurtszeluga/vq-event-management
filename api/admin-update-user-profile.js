@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getGoogleAccessToken } from './_lib/google-access-token.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
+import { lookupAuthAccounts } from './_lib/auth-account.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 
 let firebaseProjectId = '';
@@ -78,6 +79,11 @@ export default async function handler(request, response) {
 
     if (request.body?.action === 'setPassword') {
       await handleSetPassword(request, response, db, actorUid, actorProfile);
+      return;
+    }
+
+    if (request.body?.action === 'authStatus') {
+      await handleAuthStatus(request, response, actorProfile);
       return;
     }
 
@@ -514,6 +520,43 @@ async function updateAuthUserPassword(localId, password) {
   }
 
   return data;
+}
+
+// Sign-in history for the admin user list: when each member last signed in and
+// whether they have a password at all. Read-only, and read live from Firebase
+// Auth rather than mirrored onto the profile - Auth already records both, so a
+// copy in Firestore would need a write hooked to a client-side auth event plus
+// a rules change to permit it, and would drift silently whenever that write
+// failed.
+//
+// This started as its own endpoint, which is the better shape: nothing here
+// writes, and the capability it needs is "may see the user list" rather than
+// "may change a profile". It lives here because Vercel's Hobby plan caps a
+// deployment at 12 serverless functions and api/ was already at exactly 12, so
+// a thirteenth file failed the deploy outright. Any future endpoint has the
+// same problem - fold it into an existing file, or the plan has to change.
+async function handleAuthStatus(request, response, actorProfile) {
+  if (!canUpdateUsers(actorProfile)) {
+    response.status(403).json({ error: 'This account cannot read sign-in history.' });
+    return;
+  }
+
+  const requested = Array.isArray(request.body?.userIds) ? request.body.userIds : [];
+  // Bounded so one request cannot fan out into an unbounded number of Identity
+  // Platform calls. The member list pages well inside this.
+  const userIds = requested
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .slice(0, 1000);
+
+  if (!userIds.length) {
+    response.status(200).json({ accounts: {} });
+    return;
+  }
+
+  response.status(200).json({
+    accounts: await lookupAuthAccounts(firebaseProjectId, userIds)
+  });
 }
 
 function canUpdateUsers(actorProfile) {
