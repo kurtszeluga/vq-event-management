@@ -93,3 +93,57 @@ test('cashCheckOnly passes through the feed so the GoDaddy widget can suppress o
   assert.equal(cashCheckOnlyEvent.cashCheckOnly, true);
   assert.equal(onlineEvent.cashCheckOnly, false);
 });
+
+// Lectures, and Workshops set to None, take no registrations at all. Seats, an
+// availability pill, an open/closed pill and the registration dates are all
+// answers to a question nobody asked of them - and "Registration Closed" reads
+// as though it had once been open and been missed.
+test('an event with no registration mode is published as taking no registrations', () => {
+  const feedEvent = serializeEvent(
+    { ...BASE_EVENT, eventType: 'Lecture', registrationMode: 'none' },
+    'https://example.com'
+  );
+
+  assert.equal(feedEvent.takesRegistrations, false);
+});
+
+test('a Workshop set to None is published the same way', () => {
+  // The rule is the stored mode, not the event type, so this follows for free.
+  const feedEvent = serializeEvent(
+    { ...BASE_EVENT, eventType: 'Workshop', registrationMode: 'none' },
+    'https://example.com'
+  );
+
+  assert.equal(feedEvent.takesRegistrations, false);
+});
+
+test('an event with a registration window still takes registrations', () => {
+  ['now', 'future'].forEach((registrationMode) => {
+    const feedEvent = serializeEvent(
+      {
+        ...BASE_EVENT,
+        registrationCloseAt: '2026-07-31T17:00',
+        registrationMode,
+        registrationOpenAt: '2026-07-01T09:00'
+      },
+      'https://example.com'
+    );
+
+    assert.equal(feedEvent.takesRegistrations, true, registrationMode);
+  });
+});
+
+test('an event handed to the previous registration system still takes registrations', () => {
+  // Go-live transition: it registers people, just not here, so the card keeps
+  // its Register action rather than being stripped like a Lecture.
+  const feedEvent = serializeEvent(
+    {
+      ...BASE_EVENT,
+      externalRegistrationUrl: 'https://old.example.com/signup',
+      registrationMode: 'none'
+    },
+    'https://example.com'
+  );
+
+  assert.equal(feedEvent.takesRegistrations, true);
+});

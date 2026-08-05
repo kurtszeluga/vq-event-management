@@ -327,10 +327,19 @@
           ? 'is-open'
           : 'is-closed';
     const presenterLabel = event.presenter || event.contactName || event.ownerName || '';
+    // A Lecture takes no registrations, and neither does a Workshop set to
+    // None. Seats, availability, an open/closed pill and the registration dates
+    // are all answers to a question nobody asked of those - and "Registration
+    // Closed" in particular reads as though it had once been open and been
+    // missed. Older feed responses predate the field, so an absent value falls
+    // back to the previous behaviour rather than blanking every card.
+    const takesRegistrations = event.takesRegistrations !== false;
     const pills = `
       <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
-      <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
-      <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
+      ${takesRegistrations ? `
+        <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
+        <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
+      ` : ''}
     `;
 
     return `
@@ -340,11 +349,11 @@
         title: event.title || 'Event'
       })}
       ${buildDescriptionMarkup(event.description || '')}
-      ${buildSeatMeterMarkup(event)}
+      ${takesRegistrations ? buildSeatMeterMarkup(event) : ''}
       <dl class="vq-feed-meta">
         ${hasDateRange(event) ? `<div><dt>Dates</dt><dd>${escapeHtml(formatEventDateRange(event))}</dd></div>` : ''}
         ${isChallenge ? '' : `<div><dt>Time</dt><dd>${escapeHtml(formatTimeRange(event.startTime, event.endTime))}</dd></div>`}
-        ${event.registrationOpenAt || event.registrationCloseAt ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
+        ${takesRegistrations && (event.registrationOpenAt || event.registrationCloseAt) ? `<div><dt>Registration Open/Closes</dt><dd>${escapeHtml(formatRegistrationDateRange(event))}</dd></div>` : ''}
         ${presenterLabel ? `<div><dt>Presenter</dt><dd>${escapeHtml(presenterLabel)}</dd></div>` : ''}
         ${event.location ? `<div><dt>Location</dt><dd>${escapeHtml(event.location)}</dd></div>` : ''}
       </dl>

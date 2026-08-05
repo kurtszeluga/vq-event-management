@@ -269,6 +269,12 @@ export function serializeEvent(event, origin, registrationCounts = {}, coordinat
     serviceFee: Number(event.serviceFee || 0),
     capacity: Number(event.capacity || 0),
     capacityUnlimited: Boolean(event.capacityUnlimited),
+    // Whether this event takes registrations at all. A Lecture is saved with
+    // registrationMode 'none', and so is a Workshop set to None, so seats, an
+    // open/closed line and a Register button are all answers to a question
+    // nobody asked of them. An event handled by the previous registration
+    // system does take registrations, just elsewhere.
+    takesRegistrations: hasRegistrationWindow || Boolean(getExternalRegistrationUrl(event)),
     registrationOpen,
     registrationOpenAt,
     registrationCloseAt,
