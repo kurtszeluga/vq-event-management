@@ -343,6 +343,15 @@ function ProfilePage() {
                   <dd>{formatDateTime(userProfile?.createdDate)}</dd>
                 </div>
                 <div>
+                  {/*
+                    Straight off the Firebase Auth user - nothing stores this on
+                    the profile. Reads "This visit" on a first ever sign-in,
+                    where Firebase records the current session as the last one.
+                  */}
+                  <dt>Last Sign-In</dt>
+                  <dd>{formatSignInTime(currentUser?.metadata?.lastSignInTime)}</dd>
+                </div>
+                <div>
                   <dt>Profile Last Updated</dt>
                   <dd>{formatDateTime(userProfile?.updatedDate)}</dd>
                 </div>
@@ -575,6 +584,16 @@ function getPasswordErrorMessage(error) {
   }
 
   return error.message;
+}
+
+function formatSignInTime(value) {
+  if (!value) {
+    return 'Not recorded';
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? 'Not recorded' : date.toLocaleString();
 }
 
 function getPermissionSummary(permissions) {

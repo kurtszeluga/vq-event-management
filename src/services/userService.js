@@ -54,6 +54,45 @@ export async function updateUserProfile(userId, updates) {
   return result;
 }
 
+// Sign-in history for the admin user list, read live from Firebase Auth rather
+// than from a mirrored field - see api/admin-user-auth-status.js for why there
+// is no stored copy. Returns {} rather than throwing: the list is perfectly
+// usable without it, and a failed lookup should not blank the page.
+export async function loadUserAuthStatus(userIds) {
+  const ids = [...new Set((userIds || []).filter(Boolean))];
+
+  if (!ids.length) {
+    return {};
+  }
+
+  const idToken = await getAdminIdToken();
+
+  if (!idToken) {
+    return {};
+  }
+
+  try {
+    const response = await fetch('/api/admin-user-auth-status', {
+      body: JSON.stringify({ userIds: ids }),
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json'
+      },
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      return {};
+    }
+
+    const result = await parseJsonResponse(response);
+
+    return result.accounts || {};
+  } catch {
+    return {};
+  }
+}
+
 export async function archiveUserProfile(userId, actorProfile) {
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);

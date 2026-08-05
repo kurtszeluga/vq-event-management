@@ -27,6 +27,9 @@ vi.mock('../../src/lib/firebase.js', () => ({ auth: {}, db: {} }));
 vi.mock('../../src/services/userService.js', () => ({
   archiveUserProfile: vi.fn(),
   createUserByAdmin: vi.fn(),
+  // The panel loads sign-in history for the listed members; nothing here
+  // depends on it, so it resolves empty and every row shows a dash.
+  loadUserAuthStatus: vi.fn(() => Promise.resolve({})),
   reactivateUserProfile: vi.fn(),
   subscribeToUsers: (onNext) => {
     onNext({ docs: [{ id: MEMBER.id, data: () => MEMBER }] });

@@ -15,6 +15,7 @@ import {
   createUserByAdmin,
   archiveUserProfile,
   reactivateUserProfile,
+  loadUserAuthStatus,
   subscribeToUsers,
   updateUserPasswordByAdmin,
   updateUserProfile
@@ -63,6 +64,10 @@ function UserControlPanel({
   const [successMessage, setSuccessMessage] = useState('');
   const [pendingArchiveUser, setPendingArchiveUser] = useState(null);
   const [users, setUsers] = useState([]);
+  // Read live from Firebase Auth rather than stored on the profile - see
+  // api/admin-user-auth-status.js. Keyed by uid; an absent entry just means
+  // not loaded yet, which renders as a dash rather than as 'Never'.
+  const [authStatus, setAuthStatus] = useState({});
   const canEditMembershipStatus =
     canManageAdminUsers || Boolean(currentUserProfile?.permissions?.manageMembershipStatus);
   const pendingReviewCount = getFilteredUsers(users, 'pending-review', 'All', 'All', payments).length;
@@ -98,6 +103,35 @@ function UserControlPanel({
 
     return unsubscribe;
   }, [canManageAdminUsers]);
+
+  // Keyed on the id list, not the array, so an unrelated profile edit
+  // re-rendering the list does not re-fetch the whole roster's history.
+  const userIdKey = users.map((user) => user.userId || user.id).sort().join(',');
+
+  useEffect(() => {
+    let active = true;
+
+    if (!userIdKey) {
+      setAuthStatus({});
+      return undefined;
+    }
+
+    loadUserAuthStatus(userIdKey.split(','))
+      .then((accounts) => {
+        if (active) {
+          setAuthStatus(accounts);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAuthStatus({});
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [userIdKey]);
 
   useEffect(() => {
     const unsubscribe = subscribeToPayments(
@@ -871,6 +905,7 @@ function UserControlPanel({
         ) : null}
         {!editingUserId ? (
           <UserTable
+            authStatus={authStatus}
             canManageAdminUsers={canManageAdminUsers}
             currentUserProfile={currentUserProfile}
             detailsUserId={detailsUserId}
@@ -1350,6 +1385,21 @@ function formatAddress(address = {}) {
     .join(', ') || 'No Billing Address';
 }
 
+// Three distinct states, and the difference matters to whoever is reading the
+// list: not loaded yet, loaded and never signed in, and a real date. "Never"
+// must not be shown for a lookup that simply has not answered.
+function formatLastSignIn(account) {
+  if (!account) {
+    return '-';
+  }
+
+  if (!account.lastSignInAt) {
+    return 'Never';
+  }
+
+  return formatDateTime(new Date(account.lastSignInAt));
+}
+
 function formatDateTime(value) {
   if (!value) {
     return 'Not Set';
@@ -1500,6 +1550,7 @@ function formatCurrencyValue(value) {
 }
 
 function UserTable({
+  authStatus,
   canManageAdminUsers,
   currentUserProfile,
   detailsUserId,
@@ -1530,6 +1581,7 @@ function UserTable({
             <SortableHeader label="Email" sortKey="email" sortConfig={sortConfig} onSort={onSort} />
             <th>Membership</th>
             <th>Profile Status</th>
+            <th>Last Sign-In</th>
             <th>Permissions</th>
             <th>Actions</th>
             <th>Details</th>
@@ -1560,6 +1612,7 @@ function UserTable({
                   <td data-label="Email">{user.email || 'Email TBD'}</td>
                   <td data-label="Membership">{displayMembership}</td>
                   <td data-label="Profile Status">{displayStatus}</td>
+                  <td data-label="Last Sign-In">{formatLastSignIn(authStatus[userId])}</td>
                   <td data-label="Permissions">
                     {user.role === 'Super User'
                       ? 'All Permissions'
@@ -1596,7 +1649,7 @@ function UserTable({
                 </tr>
                 {detailsOpen ? (
                   <tr className="configuration-detail-row">
-                    <td className="configuration-detail-cell" colSpan={8}>
+                    <td className="configuration-detail-cell" colSpan={9}>
                       <div className="user-detail-grid">
                         <span>
                           <strong>Name</strong>
