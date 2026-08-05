@@ -96,3 +96,21 @@ test('a wrapping card packs its lines to the top', () => {
     'without this the stretched height is shared between the wrapped lines'
   );
 });
+
+// Both image wrappers are <button>s. A button is sized by its content and
+// carries UA border and padding, so each needs the same reset - otherwise a
+// card with several photos and a card with one render their images at
+// different widths side by side in the grid.
+test('both image wrappers reset the browser button box', () => {
+  ['.vq-feed-carousel-image-button', '.vq-feed-thumb-link'].forEach((selector) => {
+    const start = SOURCE.indexOf(`${selector} {`);
+
+    assert.notEqual(start, -1, `expected a rule for ${selector}`);
+
+    const rule = SOURCE.slice(start, SOURCE.indexOf('}', start));
+
+    assert.match(rule, /border:\s*0/, `${selector} must drop the UA border`);
+    assert.match(rule, /padding:\s*0/, `${selector} must drop the UA padding`);
+    assert.match(rule, /width:\s*100%/, `${selector} must fill its container`);
+  });
+});

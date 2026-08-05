@@ -1451,6 +1451,18 @@
         border-radius: 8px;
         display: block;
         overflow: hidden;
+        /* Both image wrappers are buttons, but only the carousel one reset the
+           browser defaults - so a single photo sat inside 2px of outset border
+           and 6px of padding, rendering 16px narrower than the carousel beside
+           it and framed in a way nothing else on the card is. Same reset, same
+           full-bleed result, whether a card has one photo or several. */
+        appearance: none;
+        background: none;
+        border: 0;
+        cursor: pointer;
+        height: 100%;
+        padding: 0;
+        width: 100%;
       }
       .vq-feed-thumb-hint {
         color: #5a6b67;
@@ -1488,6 +1500,14 @@
         cursor: pointer;
         display: block;
         padding: 0;
+        /* A button is sized by its content even at display:block, so without
+           these the image's width:100% resolved against the button rather than
+           against the carousel - a multi-image card rendered its photo
+           noticeably narrower than a single-image one beside it. Sizing the
+           button to the carousel also keeps the click target the same shape as
+           the picture it opens. */
+        height: 100%;
+        width: 100%;
       }
       .vq-feed-carousel-arrow {
         align-items: center;
