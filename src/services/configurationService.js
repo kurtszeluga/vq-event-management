@@ -309,15 +309,25 @@ export async function savePaymentSettings(settings, actorProfile) {
   return batch.commit();
 }
 
+// Built from DEFAULT_DIRECTORY_SETTINGS rather than a hand-listed set of
+// fields. The hand-listed version silently dropped whichever setting was added
+// last: the checkbox moved, the save reported success, and the subscription
+// then re-emitted the stored document without it, so the box sprang back. A
+// setting that exists in the defaults and on the form is now written by
+// construction.
+export function buildDirectorySettingsPayload(settings = {}) {
+  return Object.keys(DEFAULT_DIRECTORY_SETTINGS).reduce((payload, key) => ({
+    ...payload,
+    [key]: typeof DEFAULT_DIRECTORY_SETTINGS[key] === 'boolean'
+      ? Boolean(settings[key])
+      : cleanText(settings[key])
+  }), {});
+}
+
 export async function saveDirectorySettings(settings, actorProfile) {
   const batch = writeBatch(db);
   const payload = {
-    directoryNote: cleanText(settings.directoryNote),
-    enableMemberDirectory: Boolean(settings.enableMemberDirectory),
-    showCityState: Boolean(settings.showCityState),
-    showEmail: Boolean(settings.showEmail),
-    showFullAddress: Boolean(settings.showFullAddress),
-    showPhone: Boolean(settings.showPhone),
+    ...buildDirectorySettingsPayload(settings),
     updatedDate: serverTimestamp()
   };
 

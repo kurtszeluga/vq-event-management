@@ -15,6 +15,7 @@
     "test:client": "vitest run",
     "setup:first-admin": "node scripts/setupFirstAdmin.mjs",
     "backfill:member-directory": "node scripts/backfillMemberDirectoryProfiles.mjs",
+    "backfill:registrant-names": "node scripts/backfillEventRegistrantNames.mjs",
     "audit:zero-capacity": "node scripts/auditZeroCapacityEvents.mjs",
     "copy:events": "node scripts/copyEventsBetweenProjects.mjs",
     "test:rules": "firebase emulators:exec --only firestore,storage --project vq-rules-test \"node --test --test-concurrency=1 tests/rules/*.test.js\""

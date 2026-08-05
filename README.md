@@ -178,6 +178,7 @@ Card content is chosen by listing type, independently of layout: events show sea
 - `npm test` runs the focused Node test suite (`tests/*.test.js`).
 - `npm run setup:first-admin` creates or updates the first Firebase Auth Super User and matching Firestore profile.
 - `npm run backfill:member-directory` rebuilds `memberDirectoryProfiles` from eligible `users` docs (requires `FIREBASE_SERVICE_ACCOUNT_PATH`).
+- `npm run backfill:registrant-names` builds `eventRegistrantNames` for events that already had registrations when the member-visible list shipped (requires `FIREBASE_SERVICE_ACCOUNT_PATH`). Dry run unless `--commit`; the app maintains these documents from each registration change onwards, so this is only needed once per project.
 - `npm run copy:events` copies event documents from one Firebase project's `events` collection into another's — normally Production into `vq-event-management-test`, so listings entered once for real can be reused as test data. See below.
 
 ### Copying events between projects
