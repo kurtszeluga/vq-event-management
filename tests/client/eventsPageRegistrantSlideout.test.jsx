@@ -13,6 +13,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const authState = { userProfile: { membershipStatus: 'Active', status: 'Active' } };
 let directorySettings = { showEventRegistrantNames: true };
 const registrantSubscriptions = [];
+// Lets a test swap the event's shape before the page module is imported.
+let eventOverrides = {};
 
 vi.mock('../../src/context/useAuth.js', () => ({ useAuth: () => authState }));
 vi.mock('../../src/lib/firebase.js', () => ({ auth: {}, db: {}, firebaseConfigured: true }));
@@ -35,7 +37,8 @@ vi.mock('../../src/services/eventService.js', () => ({
           registrationOpenAt: '2026-08-01T09:00',
           startTime: '13:00',
           status: 'Published',
-          title: 'Open Sew'
+          title: 'Open Sew',
+          ...eventOverrides
         })
       }]
     });
@@ -77,6 +80,7 @@ beforeEach(() => {
   registrantSubscriptions.length = 0;
   directorySettings = { showEventRegistrantNames: true };
   authState.userProfile = { membershipStatus: 'Active', status: 'Active' };
+  eventOverrides = {};
 });
 
 afterEach(cleanup);
@@ -137,5 +141,50 @@ describe('the registrant slideout on an event card', () => {
 
     await screen.findByText('Open Sew');
     expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
+  });
+});
+
+// A Lecture takes no registrations, and neither does a Workshop set to None.
+// Seats, availability and an open/closed pill are answers to a question nobody
+// asked of those events - "Registration closed" in particular reads as though
+// registration had once been open.
+describe('an event that takes no registrations', () => {
+  async function renderWithEvent(overrides) {
+    vi.resetModules();
+    eventOverrides = overrides;
+    cleanup();
+    const { default: Page } = await import('../../src/pages/EventsPage.jsx');
+
+    render(
+      <MemoryRouter>
+        <Page />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Open Sew');
+  }
+
+  it('shows no registration pills or seat row for a Lecture', async () => {
+    await renderWithEvent({ capacityUnlimited: true, eventType: 'Lecture', registrationMode: 'none' });
+
+    expect(screen.queryByText(/^Registration closed$/i)).toBeNull();
+    expect(screen.queryByText(/^Registration open$/i)).toBeNull();
+    expect(screen.queryByText('Unlimited')).toBeNull();
+    expect(screen.queryByLabelText('Registration statistics')).toBeNull();
+  });
+
+  it('shows none of it for a Workshop set to None either', async () => {
+    // Keyed on the stored mode, not the event type, so this follows for free.
+    await renderWithEvent({ eventType: 'Other', registrationMode: 'none' });
+
+    expect(screen.queryByText(/^Registration closed$/i)).toBeNull();
+    expect(screen.queryByLabelText('Registration statistics')).toBeNull();
+  });
+
+  it('still shows them for an event that does take registrations', async () => {
+    await renderWithEvent({});
+
+    expect(screen.getByLabelText('Registration statistics')).toBeTruthy();
+    expect(screen.getByText(/^Registration (open|closed)$/i)).toBeTruthy();
   });
 });

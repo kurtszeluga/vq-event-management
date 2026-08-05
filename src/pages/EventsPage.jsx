@@ -16,6 +16,7 @@ import {
 } from '../utils/eventFormat.js';
 import {
   getExternalRegistrationUrl,
+  getRegistrationWindowState,
   isRegistrationWindowOpen
 } from '../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
@@ -530,6 +531,15 @@ function EventsPage() {
           const registrationOpen = isRegistrationWindowOpen(event);
           // Go-live transition: the previous system still owns this event.
           const externalRegistrationUrl = getExternalRegistrationUrl(event);
+          // A Lecture takes no registrations at all, and neither does a
+          // Workshop set to None. Keyed on the stored mode rather than the
+          // event type so both are covered by one rule. Seats, availability and
+          // an open/closed pill are all answers to a question nobody asked of
+          // these events - "Registration closed" in particular reads as though
+          // it were once open.
+          const registrationState = getRegistrationWindowState(event).state;
+          const takesRegistrations = Boolean(externalRegistrationUrl)
+            || !['disabled', 'not-registrable'].includes(registrationState);
           const availabilityTone = availability.label === 'Unlimited'
             ? availability.tone
             : registrationOpen
@@ -543,16 +553,20 @@ function EventsPage() {
             <article className="public-event-card" key={event.id}>
               <div className="card-kicker">
                 <span className="event-type-pill">{getEventTypeLabel(event)}</span>
-                <strong className={`event-availability-pill ${availabilityTone}`}>
-                  {availability.label}
-                </strong>
-                <strong
-                  className={`event-availability-pill ${externalRegistrationUrl || registrationOpen ? 'open' : 'closed'}`}
-                >
-                  {externalRegistrationUrl || registrationOpen
-                    ? 'Registration open'
-                    : 'Registration closed'}
-                </strong>
+                {takesRegistrations ? (
+                  <>
+                    <strong className={`event-availability-pill ${availabilityTone}`}>
+                      {availability.label}
+                    </strong>
+                    <strong
+                      className={`event-availability-pill ${externalRegistrationUrl || registrationOpen ? 'open' : 'closed'}`}
+                    >
+                      {externalRegistrationUrl || registrationOpen
+                        ? 'Registration open'
+                        : 'Registration closed'}
+                    </strong>
+                  </>
+                ) : null}
               </div>
               <div className="public-event-card-main">
                 <h2>{event.title}</h2>
@@ -570,6 +584,7 @@ function EventsPage() {
                     ) : null}
                   </div>
                 ) : null}
+                {takesRegistrations ? (
                 <div className="event-registration-pill-row" aria-label="Registration statistics">
                   <span
                     className={`event-registration-pill${registrationStats.primary.tone ? ` ${registrationStats.primary.tone}` : ''}`}
@@ -593,6 +608,7 @@ function EventsPage() {
                     </span>
                   ))}
                 </div>
+                ) : null}
                 <dl>
                   {event.eventType !== 'Challenges' ? (
                     <>
