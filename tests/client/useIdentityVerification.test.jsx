@@ -496,3 +496,92 @@ describe('email code verification', () => {
     expect(result.current.emailVerificationSending).toBe(false);
   });
 });
+
+// The password-setup token rides along with code verification so the register
+// page can offer to set a password afterwards. It is deliberately held rather
+// than used at verification time - signing in there would move the gates the
+// rest of the registration is standing on.
+describe('password setup token', () => {
+  async function verifyWith(response) {
+    startRegistrationEmailVerification.mockResolvedValue({ challengeId: 'challenge-1' });
+    verifyRegistrationEmailCode.mockResolvedValue(response);
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.handleStartEmailVerification();
+    });
+    act(() => {
+      result.current.setEmailVerificationCode('123456');
+    });
+    await act(async () => {
+      await result.current.handleVerifyEmailCode();
+    });
+
+    return result;
+  }
+
+  it('is kept when the endpoint returns one', async () => {
+    const result = await verifyWith({
+      passwordSetupToken: 'custom-token-xyz',
+      profile: { status: 'Active' },
+      registrationToken: 'token-abc'
+    });
+
+    expect(result.current.passwordSetupToken).toBe('custom-token-xyz');
+    expect(result.current.emailVerified).toBe(true);
+  });
+
+  it('is empty when the endpoint could not mint one', async () => {
+    // Minting is non-fatal on the server - a member must still be able to
+    // register when the optional extra could not be prepared.
+    const result = await verifyWith({
+      profile: { status: 'Active' },
+      registrationToken: 'token-abc'
+    });
+
+    expect(result.current.passwordSetupToken).toBe('');
+    expect(result.current.emailVerified).toBe(true);
+  });
+
+  it('does not sign anyone in at verification time', async () => {
+    await verifyWith({
+      passwordSetupToken: 'custom-token-xyz',
+      profile: { status: 'Active' },
+      registrationToken: 'token-abc'
+    });
+
+    expect(signInWithEmailAndPassword).not.toHaveBeenCalled();
+  });
+
+  it('is cleared when the code is rejected', async () => {
+    startRegistrationEmailVerification.mockResolvedValue({ challengeId: 'challenge-1' });
+    verifyRegistrationEmailCode.mockResolvedValue({
+      passwordSetupToken: 'custom-token-xyz',
+      registrationToken: 'token-abc'
+    });
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.handleStartEmailVerification();
+    });
+    act(() => {
+      result.current.setEmailVerificationCode('123456');
+    });
+    await act(async () => {
+      await result.current.handleVerifyEmailCode();
+    });
+
+    expect(result.current.passwordSetupToken).toBe('custom-token-xyz');
+
+    verifyRegistrationEmailCode.mockRejectedValue(new Error('That code is incorrect.'));
+    act(() => {
+      result.current.setEmailVerificationCode('654321');
+    });
+    await act(async () => {
+      await result.current.handleVerifyEmailCode();
+    });
+
+    expect(result.current.passwordSetupToken).toBe('');
+    expect(result.current.emailVerified).toBe(false);
+  });
+});

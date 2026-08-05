@@ -52,7 +52,7 @@ export default async function handler(request, response) {
     }
 
     if (action === 'verifyEmailCode') {
-      await verifyEmailCode(request, response, db);
+      await verifyEmailCode(request, response, db, app.options.projectId);
       return;
     }
 
@@ -167,7 +167,7 @@ async function startEmailVerification(request, response, db) {
   });
 }
 
-async function verifyEmailCode(request, response, db) {
+async function verifyEmailCode(request, response, db, projectId) {
   const email = normalizeEmail(request.body?.email);
   const eventId = cleanText(request.body?.eventId);
   const challengeId = cleanText(request.body?.challengeId);
@@ -230,9 +230,35 @@ async function verifyEmailCode(request, response, db) {
     verifiedAt: FieldValue.serverTimestamp()
   });
 
+  // A member who arrived by code has a profile but often no password, so the
+  // registration page offers to set one afterwards. That needs them signed in,
+  // which needs a custom token - the same pair of steps account recovery does
+  // below, and for the same reason: signing in with a custom token creates the
+  // Auth record if it is missing, and one created that way carries only a uid
+  // with no email, permanently locking the member out of password sign-in.
+  // Completing the record first is what avoids that.
+  //
+  // Both steps are deliberately non-fatal and the token is deliberately not
+  // used here. Registration must not fail because an optional convenience
+  // could not be prepared, and the page holds the token until the member
+  // actually asks to set a password - signing them in mid-registration would
+  // change the gates the rest of the flow is standing on.
+  let passwordSetupToken = '';
+
+  if (context.profile) {
+    try {
+      await ensureAuthUserForProfile(db, projectId, context.profile.userId || context.profile.id);
+      passwordSetupToken = createFirebaseCustomToken(context.profile.userId || context.profile.id);
+    } catch (error) {
+      console.error('Could not prepare password setup after code verification', error);
+      passwordSetupToken = '';
+    }
+  }
+
   response.status(200).json({
     ...buildVerifiedLookupResponse(context),
     challengeId,
+    passwordSetupToken,
     registrationToken
   });
 }

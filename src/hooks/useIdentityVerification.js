@@ -42,6 +42,10 @@ export function useIdentityVerification({
   const [emailVerificationSending, setEmailVerificationSending] = useState(false);
   const [emailVerificationVerifying, setEmailVerificationVerifying] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  // Minted by the code-verification endpoint so the member can be signed in
+  // later to set a password. Held rather than used: signing in here would
+  // move the gates the rest of the registration is standing on.
+  const [passwordSetupToken, setPasswordSetupToken] = useState('');
   const [lookup, setLookup] = useState(null);
   // A first wrong password stays on the password panel; only a second one
   // hands the registrant over to the emailed code.
@@ -225,6 +229,7 @@ export function useIdentityVerification({
       setAccountVerified(false);
       setEmailVerified(true);
       setRegistrationVerificationToken(result.registrationToken || '');
+      setPasswordSetupToken(result.passwordSetupToken || '');
       setEmailVerificationError('');
       setEmailVerificationMessage('Email verified. You can continue with registration.');
       setShowEmailVerification(false);
@@ -241,6 +246,7 @@ export function useIdentityVerification({
     } catch (error) {
       setEmailVerified(false);
       setRegistrationVerificationToken('');
+      setPasswordSetupToken('');
       setEmailVerificationError(error.message);
     } finally {
       setEmailVerificationVerifying(false);
@@ -268,6 +274,7 @@ export function useIdentityVerification({
     lookup,
     lookupComplete,
     lookupLoading,
+    passwordSetupToken,
     reactivateProfile,
     reactivationTermsAccepted,
     registrationVerificationToken,

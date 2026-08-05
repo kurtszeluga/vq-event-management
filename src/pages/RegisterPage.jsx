@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader.jsx';
 import RegistrationPaymentPanel from '../components/RegistrationPaymentPanel.jsx';
 import SeatHoldStatus from '../components/SeatHoldStatus.jsx';
+import { signInWithCustomToken } from 'firebase/auth';
+import { auth } from '../lib/firebase.js';
 import { useAuth } from '../context/useAuth.js';
 import { US_STATES } from '../data/usStates.js';
 import { useEventRegistration } from '../hooks/useEventRegistration.js';
@@ -81,6 +83,9 @@ function RegisterPage() {
   } = useRegistrantForm();
   const [closeMessage, setCloseMessage] = useState('');
   const [confirmation, setConfirmation] = useState(null);
+  const [wantsPasswordSetup, setWantsPasswordSetup] = useState(false);
+  const [passwordSetupPending, setPasswordSetupPending] = useState(false);
+  const [passwordSetupError, setPasswordSetupError] = useState('');
   const [formError, setFormError] = useState('');
   const [paymentPreference, setPaymentPreference] = useState('');
   const [registrationFinalizing, setRegistrationFinalizing] = useState(false);
@@ -119,6 +124,7 @@ function RegisterPage() {
     lookup,
     lookupComplete,
     lookupLoading,
+    passwordSetupToken,
     reactivateProfile,
     reactivationTermsAccepted,
     registrationVerificationToken,
@@ -269,6 +275,11 @@ function RegisterPage() {
 
   // Collapses the caller-side half of the auto-reserve guard. The hook adds
   // the payment-side conditions (a paid event needing Square, no live hold).
+  // Only worth offering to someone who actually arrived by code and has an
+  // account to attach a password to. A token is only minted when the profile
+  // exists, so its presence is the check.
+  const offerPasswordSetup = emailVerified && Boolean(passwordSetupToken);
+
   const readyToReserve = canShowRegistrantFields
     && !needsProfileEdits
     && !confirmation
@@ -462,6 +473,28 @@ function RegisterPage() {
     );
   }
 
+  // Deferred to here on purpose: the token was minted when the code was
+  // verified, but signing in mid-registration would move the gates the rest of
+  // the flow stands on. /profile?passwordReset=1 is the module the login
+  // page's recovery flow already sends people to, and it focuses the field.
+  async function handleSetUpPassword() {
+    setPasswordSetupError('');
+    setPasswordSetupPending(true);
+
+    try {
+      await signInWithCustomToken(auth, passwordSetupToken);
+      navigate('/profile?passwordReset=1', { replace: true });
+    } catch {
+      // The registration itself already succeeded, so this must not read as a
+      // registration failure - it is an optional extra that can be retried
+      // from the login page's "forgot password" flow instead.
+      setPasswordSetupError(
+        'We could not open the password page. You can still set a password from the sign-in page using "Forgot password".'
+      );
+      setPasswordSetupPending(false);
+    }
+  }
+
   if (confirmation) {
     return (
       <section>
@@ -481,7 +514,10 @@ function RegisterPage() {
             closeMessage={closeMessage}
             confirmation={confirmation}
             event={event}
+            passwordSetupError={passwordSetupError}
+            passwordSetupPending={passwordSetupPending}
             onReturn={handleCompletionClose}
+            onSetUpPassword={wantsPasswordSetup && passwordSetupToken ? handleSetUpPassword : null}
           />
         </div>
       </section>
@@ -638,6 +674,29 @@ function RegisterPage() {
                   {emailVerificationSending ? 'Sending...' : 'Send A New Code'}
                 </button>
               ) : null}
+            </div>
+          ) : null}
+          {offerPasswordSetup ? (
+            <div className="registration-lookup-card">
+              <strong>Set Up A Password?</strong>
+              <span>
+                You signed in with a code because this account has no password yet.
+                Setting one lets you sign in directly next time, and gives you the
+                member directory and your registration history.
+              </span>
+              <label className="checkbox-label">
+                <input
+                  checked={wantsPasswordSetup}
+                  disabled={Boolean(confirmation)}
+                  type="checkbox"
+                  onChange={(inputEvent) => setWantsPasswordSetup(inputEvent.target.checked)}
+                />
+                <span>Yes, help me set a password after I finish registering</span>
+              </label>
+              <span className="form-help">
+                Finish your registration first - we will take you straight to it
+                afterwards so you do not lose your place.
+              </span>
             </div>
           ) : null}
           {canShowRegistrantFields ? (
@@ -1081,7 +1140,18 @@ function EventSummary({ event }) {
   );
 }
 
-function RegistrationCompletion({ closeMessage, confirmation, event, onReturn }) {
+// Exported for tests: the completion card is where the password offer is
+// actually acted on, and the page around it needs the whole registration
+// flow standing up before it can be rendered.
+export function RegistrationCompletion({
+  closeMessage,
+  confirmation,
+  event,
+  passwordSetupError,
+  passwordSetupPending,
+  onReturn,
+  onSetUpPassword
+}) {
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
 
@@ -1137,10 +1207,21 @@ function RegistrationCompletion({ closeMessage, confirmation, event, onReturn })
         </div>
       </dl>
       <div className="form-actions">
+        {onSetUpPassword ? (
+          <button
+            className="button-link"
+            disabled={passwordSetupPending}
+            type="button"
+            onClick={onSetUpPassword}
+          >
+            {passwordSetupPending ? 'Opening...' : 'Create Your Password'}
+          </button>
+        ) : null}
         <button className="button-link button-reset" type="button" onClick={onReturn}>
           Return To List
         </button>
       </div>
+      {passwordSetupError ? <p className="form-error">{passwordSetupError}</p> : null}
       {closeMessage ? <p className="form-help">{closeMessage}</p> : null}
     </div>
   );
