@@ -3,6 +3,10 @@ import ConfirmDialog from '../ConfirmDialog.jsx';
 import { PROFILE_TAG_OPTIONS, normalizeProfileTags } from '../../data/profileTags.js';
 import { US_STATES } from '../../data/usStates.js';
 import {
+  MEMBERSHIP_PAYMENT_STATUSES,
+  normalizeMembershipPayment
+} from '../../data/membershipPayments.js';
+import {
   ALL_USER_PERMISSIONS,
   DEFAULT_USER_PERMISSIONS,
   USER_PERMISSION_OPTIONS,
@@ -31,8 +35,7 @@ import {
 } from '../../utils/profileFormat.js';
 
 const MEMBERSHIP_FILTERS = ['All', 'Pending', 'Active', 'Inactive', 'Archived', 'Unknown'];
-const MEMBERSHIP_PAYMENT_FILTERS = ['All', 'Pending', 'Paid', 'Waived', 'Refunded'];
-const MEMBERSHIP_PAYMENT_STATUSES = ['Pending', 'Paid', 'Waived', 'Refunded'];
+const MEMBERSHIP_PAYMENT_FILTERS = ['All', 'Pending', 'Paid', 'Imported', 'Waived', 'Refunded'];
 const MEMBERSHIP_PAYMENT_METHODS = ['Cash', 'Check', 'Comped'];
 const QUICK_FILTERS = [
   { key: 'all', label: 'All Profiles' },
@@ -265,6 +268,15 @@ function UserControlPanel({
           ...current,
           membershipPaymentAmount: '0',
           membershipPaymentMethod: 'Comped',
+          membershipPaymentStatus: paymentStatus
+        };
+      }
+
+      if (paymentStatus === 'Imported') {
+        return {
+          ...current,
+          membershipPaymentAmount: '0',
+          membershipPaymentMethod: '',
           membershipPaymentStatus: paymentStatus
         };
       }
@@ -1410,59 +1422,6 @@ function formatDateTime(value) {
   return Number.isNaN(date.getTime()) ? 'Not Set' : date.toLocaleString();
 }
 
-function normalizeMembershipPayment(form) {
-  const paymentStatus = MEMBERSHIP_PAYMENT_STATUSES.includes(form.membershipPaymentStatus)
-    ? form.membershipPaymentStatus
-    : 'Pending';
-  const paymentNote = String(form.membershipPaymentNote || '').trim();
-
-  if (paymentStatus === 'Pending') {
-    return {
-      amount: 0,
-      method: '',
-      note: paymentNote,
-      status: 'Pending'
-    };
-  }
-
-  if (paymentStatus === 'Waived') {
-    return {
-      amount: 0,
-      method: 'Comped',
-      note: paymentNote,
-      status: 'Waived'
-    };
-  }
-
-  if (paymentStatus === 'Refunded') {
-    if (!paymentNote) {
-      throw new Error('Enter refund details: when, who approved it, and why.');
-    }
-
-    return {
-      amount: Number(form.membershipPaymentAmount || 0),
-      method: form.membershipPaymentMethod || '',
-      note: paymentNote,
-      status: 'Refunded'
-    };
-  }
-
-  const method = ['Cash', 'Check'].includes(form.membershipPaymentMethod)
-    ? form.membershipPaymentMethod
-    : 'Cash';
-  const amount = Number(form.membershipPaymentAmount || 0);
-
-  if (amount <= 0) {
-    throw new Error('Enter the amount received for a membership cash or check payment.');
-  }
-
-  return {
-    amount,
-    method,
-    note: paymentNote,
-    status: 'Paid'
-  };
-}
 
 function MembershipPaymentHistory({ payments }) {
   if (!payments.length) {

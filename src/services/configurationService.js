@@ -994,7 +994,7 @@ export function buildImportedExistingProfile(existingProfile, importedProfile, m
       ? 'Membership marked paid from CSV import. Amount and method were not included in the CSV.'
       : existingProfile.membershipPaymentNote || '',
     membershipPaymentStatus: membershipStatus === 'Active'
-      ? 'Paid'
+      ? 'Imported'
       : existingProfile.membershipPaymentStatus || 'Pending',
     membershipPaymentUpdatedDate: membershipStatus === 'Active'
       ? serverTimestamp()
@@ -1038,7 +1038,7 @@ export function buildImportedNewProfile(importedProfile, termsVersion) {
     membershipPaymentNote: membershipStatus === 'Active'
       ? 'Membership marked paid from CSV import. Amount and method were not included in the CSV.'
       : '',
-    membershipPaymentStatus: membershipStatus === 'Active' ? 'Paid' : 'Pending',
+    membershipPaymentStatus: membershipStatus === 'Active' ? 'Imported' : 'Pending',
     membershipPaymentUpdatedDate: serverTimestamp(),
     membershipReviewNote: buildCsvReviewNote('', issues),
     membershipStatus,
@@ -1114,7 +1114,10 @@ function buildCsvMembershipPaymentRecord({
     registrationId: '',
     registrationStatus: '',
     squareTransactionId: '',
-    status: 'Paid',
+    // The edit form seeds itself from the latest payments row, not from the
+    // profile fields, so this has to carry the same status or an imported
+    // profile still opens as Paid with nothing to save.
+    status: 'Imported',
     updatedMembershipSnapshot: {
       membershipStatus: profile.membershipStatus || 'Active',
       profileStatus: profile.status || 'Active',

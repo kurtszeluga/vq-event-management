@@ -343,7 +343,7 @@ service cloud.firestore {
         && (!('membershipPaymentNote' in request.resource.data)
           || request.resource.data.membershipPaymentNote is string)
         && (!('membershipPaymentStatus' in request.resource.data)
-          || validStatus(request.resource.data.membershipPaymentStatus, ['Pending', 'Paid', 'Refunded', 'Waived']))
+          || validStatus(request.resource.data.membershipPaymentStatus, ['Pending', 'Paid', 'Imported', 'Refunded', 'Waived']))
         && (!('membershipPaymentUpdatedDate' in request.resource.data)
           || request.resource.data.membershipPaymentUpdatedDate is timestamp)
         && (!('membershipReviewNote' in request.resource.data)

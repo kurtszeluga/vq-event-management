@@ -91,7 +91,9 @@ describe('a CSV row with blocking issues imports as Pending; lesser issues are o
     const profile = buildImportedNewProfile(imported, 'v1');
 
     expect(profile.membershipStatus).toBe('Active');
-    expect(profile.membershipPaymentStatus).toBe('Paid');
+    // 'Imported', not 'Paid': the CSV says who is a member in good standing,
+    // not what they paid, and Paid with a zero amount could not be re-saved.
+    expect(profile.membershipPaymentStatus).toBe('Imported');
     // Still recorded, just not a demotion.
     expect(profile.membershipReviewNote)
       .toBe('CSV import: Missing email - this member cannot be emailed.');
@@ -114,7 +116,9 @@ describe('a CSV row with blocking issues imports as Pending; lesser issues are o
 
     expect(profile.membershipStatus).toBe('Active');
     expect(profile.membershipReviewNote).toBe('');
-    expect(profile.membershipPaymentStatus).toBe('Paid');
+    // 'Imported', not 'Paid': the CSV says who is a member in good standing,
+    // not what they paid, and Paid with a zero amount could not be re-saved.
+    expect(profile.membershipPaymentStatus).toBe('Imported');
   });
 
   it('forces Pending on an existing profile update even during an Annual Refresh', () => {

@@ -350,7 +350,7 @@ function sanitizeMembershipPayment(payment = null) {
     return null;
   }
 
-  const status = ['Pending', 'Paid', 'Refunded', 'Waived'].includes(payment.status)
+  const status = ['Pending', 'Paid', 'Imported', 'Refunded', 'Waived'].includes(payment.status)
     ? payment.status
     : 'Pending';
   const note = cleanText(payment.note);
@@ -372,6 +372,18 @@ function sanitizeMembershipPayment(payment = null) {
     return {
       amount: 0,
       method: 'Comped',
+      note,
+      status
+    };
+  }
+
+  // Membership CSV import: a member in good standing, with no amount or method
+  // ever recorded. Demanding one here is what blocked every imported profile
+  // from being edited at all.
+  if (status === 'Imported') {
+    return {
+      amount: 0,
+      method: '',
       note,
       status
     };
