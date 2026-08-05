@@ -90,6 +90,8 @@ function RegisterPage() {
   // every later render that still satisfies the condition, so declining it
   // would not stick.
   const passwordSetupAskedRef = useRef(false);
+  const [passwordHandoffOpen, setPasswordHandoffOpen] = useState(false);
+  const passwordHandoffRaisedRef = useRef(false);
   const [passwordSetupPending, setPasswordSetupPending] = useState(false);
   const [passwordSetupError, setPasswordSetupError] = useState('');
   const [formError, setFormError] = useState('');
@@ -295,6 +297,17 @@ function RegisterPage() {
       setPasswordSetupPromptOpen(true);
     }
   }, [offerPasswordSetup]);
+
+  // The button alone was missed - it sits below the registration details on a
+  // screen someone reads as "done". Since they already said yes at the code
+  // step, and were told they would be taken there afterwards, this is that
+  // promise arriving rather than a fresh question.
+  useEffect(() => {
+    if (confirmation && wantsPasswordSetup && passwordSetupToken && !passwordHandoffRaisedRef.current) {
+      passwordHandoffRaisedRef.current = true;
+      setPasswordHandoffOpen(true);
+    }
+  }, [confirmation, passwordSetupToken, wantsPasswordSetup]);
 
 
   const readyToReserve = canShowRegistrantFields
@@ -538,6 +551,18 @@ function RegisterPage() {
           eyebrow="Registration"
           title="Registration Complete"
           description="Your registration has been received."
+        />
+        <ConfirmDialog
+          busy={passwordSetupPending}
+          cancelLabel="Not Now"
+          confirmLabel="Create Your Password"
+          description={'Your registration is confirmed. Set your password now and you can sign in '
+            + 'directly from then on, instead of waiting for a code each time. It takes a moment.'}
+          error={passwordSetupError}
+          open={passwordHandoffOpen}
+          title="One Last Step"
+          onCancel={() => setPasswordHandoffOpen(false)}
+          onConfirm={handleSetUpPassword}
         />
         <div className="registration-layout">
           <EventSummary event={event} />

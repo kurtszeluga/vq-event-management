@@ -133,3 +133,55 @@ describe('the password offer dialog', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
+
+// The completion-screen handoff. The button below the registration details was
+// missed on a screen people read as "done", so the offer they already accepted
+// is raised as a dialog instead - the button stays as the way back to it after
+// Not Now.
+describe('the completion handoff dialog', () => {
+  function renderHandoff(overrides = {}) {
+    return render(
+      <ConfirmDialog
+        busy={false}
+        cancelLabel="Not Now"
+        confirmLabel="Create Your Password"
+        description="Your registration is confirmed."
+        error=""
+        open
+        title="One Last Step"
+        onCancel={() => {}}
+        onConfirm={() => {}}
+        {...overrides}
+      />
+    );
+  }
+
+  it('leads with the password action and offers a way past it', () => {
+    renderHandoff();
+
+    expect(screen.getByRole('button', { name: /create your password/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /not now/i })).toBeTruthy();
+  });
+
+  it('locks both buttons while the sign-in is in flight', async () => {
+    // Two clicks would mean two custom-token sign-ins.
+    const onConfirm = vi.fn();
+    const user = userEvent.setup();
+    renderHandoff({ busy: true, onConfirm });
+
+    const button = screen.getByRole('button', { name: /working/i });
+
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('keeps the failure in front of the member rather than closing', () => {
+    renderHandoff({
+      error: 'We could not open the password page. You can still set a password from the sign-in page using "Forgot password".'
+    });
+
+    expect(screen.getByText(/could not open the password page/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /create your password/i })).toBeTruthy();
+  });
+});
