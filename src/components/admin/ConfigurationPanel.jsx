@@ -2018,13 +2018,23 @@ function getMemberCsvPhoneDigits(phone) {
 // find and fix it right in the profile list. emailInvalid/phoneInvalid flag
 // which field (if any) is malformed enough that it should not be written
 // as-is, so a bad value doesn't overwrite a good existing one.
+// `issues` are everything worth showing the admin. `blockingIssues` are the
+// subset that make the row untrustworthy as a member record, and only those
+// force a Pending membership status.
+//
+// The distinction matters because the working assumption of this module is
+// that anything in the roster CSV is a member in good standing. A member with
+// no email is still a member - worth flagging, since nothing can be sent to
+// them, but not a reason to demote an existing Active profile to Pending.
 function getMemberCsvRowIssues(row) {
   const issues = [];
+  const blockingIssues = [];
   const emailInvalid = Boolean(row.email) && !EMAIL_FORMAT.test(row.email);
   const phoneInvalid = Boolean(row.phoneDigitCount) && row.phoneDigitCount !== 10;
 
   if (!row.name) {
     issues.push('Missing name');
+    blockingIssues.push('Missing name');
   } else if (!row.hasFullNameColumn) {
     if (!row.firstName) {
       issues.push('Missing first name');
@@ -2044,6 +2054,9 @@ function getMemberCsvRowIssues(row) {
 
   if (!row.email && !row.phoneDigitCount) {
     issues.push('Missing email and phone number - at least one is required');
+    // Nothing to contact them by, and nothing to match them to an existing
+    // profile by either.
+    blockingIssues.push('Missing email and phone number - at least one is required');
   } else if (!row.email) {
     // Flagged on its own, not only when the phone is missing too. A member
     // with a phone but no email imports perfectly cleanly and is then
@@ -2054,7 +2067,7 @@ function getMemberCsvRowIssues(row) {
     issues.push('Missing email - this member cannot be emailed');
   }
 
-  return { emailInvalid, issues, phoneInvalid };
+  return { blockingIssues, emailInvalid, issues, phoneInvalid };
 }
 
 // Parses every data row and sorts it into rows ready to import vs. rows
@@ -2096,6 +2109,10 @@ export function analyzeMemberCsv(text) {
       || getCsvColumnValue(row, columnMap.phone);
     const town = getCsvValue(record, TOWN_HEADERS)
       || getCsvColumnValue(row, columnMap.town);
+    const street = getCsvValue(record, STREET_HEADERS)
+      || getCsvColumnValue(row, columnMap.street);
+    const postalCode = getCsvValue(record, POSTAL_CODE_HEADERS)
+      || getCsvColumnValue(row, columnMap.postalCode);
 
     return {
       dataRowNumber: index + 1,
@@ -2107,9 +2124,11 @@ export function analyzeMemberCsv(text) {
       notes: getCsvValue(record, ['notes', 'note', 'comments']),
       phone: formatPhoneNumber(phone),
       phoneDigitCount: getMemberCsvPhoneDigits(phone).length,
+      postalCode,
       status: getCsvValue(record, ['status']).toLowerCase() === 'inactive'
         ? 'Inactive'
         : 'Active',
+      street: toTitleCase(street),
       town: toTitleCase(town)
     };
   });
@@ -2157,7 +2176,9 @@ function describeMemberCsvColumns(headerRow, headers, columnMap) {
     { aliases: NAME_COLUMN_HEADERS, key: 'name', label: 'Full name' },
     { aliases: EMAIL_HEADERS, key: 'email', label: 'Email' },
     { aliases: PHONE_HEADERS, key: 'phone', label: 'Phone' },
-    { aliases: TOWN_HEADERS, key: 'town', label: 'Town' }
+    { aliases: TOWN_HEADERS, key: 'town', label: 'Town' },
+    { aliases: STREET_HEADERS, key: 'street', label: 'Street address' },
+    { aliases: POSTAL_CODE_HEADERS, key: 'postalCode', label: 'Zip code' }
   ].map(({ aliases, key, label }) => {
     const index = key === 'name' ? getHeaderIndex(headers, aliases) : columnMap[key] ?? -1;
 
@@ -2197,7 +2218,11 @@ function describeMemberCsvColumns(headerRow, headers, columnMap) {
     described,
     hasAnyName,
     // Absent but harmless - worth a neutral mention, not a warning.
-    missingOptional: byKey.town.found ? [] : ['Town'],
+    missingOptional: [
+      ...(byKey.town.found ? [] : ['Town']),
+      ...(byKey.street.found ? [] : ['Street address']),
+      ...(byKey.postalCode.found ? [] : ['Zip code'])
+    ],
     missing,
     unusedHeaders: headerRow
       .map((header, index) => ({ header: String(header || '').trim(), index }))
@@ -2227,6 +2252,13 @@ const PHONE_HEADERS = [
 ];
 const NAME_COLUMN_HEADERS = ['name', 'member', 'memberName', 'fullName', 'displayName'];
 const TOWN_HEADERS = ['town', 'city', 'townCity', 'cityTown', 'homeTown'];
+const STREET_HEADERS = [
+  'address', 'street', 'streetAddress', 'address1', 'addressLine1',
+  'mailingAddress', 'homeAddress'
+];
+const POSTAL_CODE_HEADERS = [
+  'zip', 'zipCode', 'postalCode', 'postCode', 'zipcode', 'postcode'
+];
 const HEADER_ROW_HINT_TOKENS = new Set([
   ...FIRST_NAME_HEADERS,
   ...LAST_NAME_HEADERS,
@@ -2282,6 +2314,8 @@ function getMemberCsvColumnMap(headers) {
     firstName: getHeaderIndex(headers, FIRST_NAME_HEADERS),
     lastName: getHeaderIndex(headers, LAST_NAME_HEADERS),
     phone: getHeaderIndex(headers, PHONE_HEADERS),
+    postalCode: getHeaderIndex(headers, POSTAL_CODE_HEADERS),
+    street: getHeaderIndex(headers, STREET_HEADERS),
     town: getHeaderIndex(headers, TOWN_HEADERS)
   };
 }

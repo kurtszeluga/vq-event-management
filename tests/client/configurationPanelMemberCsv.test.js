@@ -392,6 +392,8 @@ describe('analyzeMemberCsv column detection', () => {
     const { columns } = analyzeMemberCsv(csv);
 
     expect(columns.missing).toEqual([]);
-    expect(columns.missingOptional).toEqual(['Town']);
+    // Address columns are optional too - absent is fine, and none of them
+    // belong in the warning.
+    expect(columns.missingOptional).toEqual(['Town', 'Street address', 'Zip code']);
   });
 });

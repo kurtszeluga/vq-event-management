@@ -45,15 +45,22 @@ describe('buildProfileImportPayload quarantines malformed contact info', () => {
   });
 });
 
-describe('a CSV row with issues imports as Pending instead of being excluded or accepted as-is', () => {
-  it('marks a brand-new profile Pending and records the issues as a review note', () => {
+// A roster CSV is taken to list members in good standing, so only an issue
+// that makes the row untrustworthy as a member record demotes it - no name at
+// all, or no email and no phone so it can neither be contacted nor matched.
+// Everything else imports at its stated status with the issue in the review
+// note, because demoting a real member over a missing field is worse than
+// recording it.
+describe('a CSV row with blocking issues imports as Pending; lesser issues are only noted', () => {
+  it('marks a brand-new profile Pending when the row has a blocking issue', () => {
     const imported = {
-      email: 'a@example.com',
+      blockingIssues: ['Missing email and phone number - at least one is required'],
+      email: '',
       firstName: 'Sam',
-      issues: ['Missing last name'],
+      issues: ['Missing email and phone number - at least one is required'],
       lastName: '',
       name: 'Sam',
-      phone: '(555) 201-9813',
+      phone: '',
       profileId: 'p1',
       status: 'Active',
       town: ''
@@ -62,8 +69,32 @@ describe('a CSV row with issues imports as Pending instead of being excluded or 
     const profile = buildImportedNewProfile(imported, 'v1');
 
     expect(profile.membershipStatus).toBe('Pending');
-    expect(profile.membershipReviewNote).toBe('CSV import: Missing last name.');
+    expect(profile.membershipReviewNote)
+      .toBe('CSV import: Missing email and phone number - at least one is required.');
     expect(profile.membershipPaymentStatus).toBe('Pending');
+  });
+
+  it('keeps a member Active when the only issue is a missing email', () => {
+    const imported = {
+      blockingIssues: [],
+      email: '',
+      firstName: 'Susan',
+      issues: ['Missing email - this member cannot be emailed'],
+      lastName: 'Vachino',
+      name: 'Susan Vachino',
+      phone: '(717) 926-8522',
+      profileId: 'p1',
+      status: 'Active',
+      town: ''
+    };
+
+    const profile = buildImportedNewProfile(imported, 'v1');
+
+    expect(profile.membershipStatus).toBe('Active');
+    expect(profile.membershipPaymentStatus).toBe('Paid');
+    // Still recorded, just not a demotion.
+    expect(profile.membershipReviewNote)
+      .toBe('CSV import: Missing email - this member cannot be emailed.');
   });
 
   it('does not mark a clean row Pending - it keeps the imported status', () => {
@@ -89,11 +120,13 @@ describe('a CSV row with issues imports as Pending instead of being excluded or 
   it('forces Pending on an existing profile update even during an Annual Refresh', () => {
     const existing = { id: 'u1', membershipStatus: 'Active', name: 'Judy Egan', role: 'General User', status: 'Active' };
     const imported = {
+      blockingIssues: ['Missing email and phone number - at least one is required'],
       email: '',
-      issues: ['Invalid email format'],
+      issues: ['Missing email and phone number - at least one is required'],
       name: 'Judy Egan',
       // importMembersFromCsvRows forces status to 'Active' during Annual Refresh
-      // before this ever runs - Pending must still win when there are issues.
+      // before this ever runs - Pending must still win when the row is
+      // untrustworthy.
       status: 'Active'
     };
 

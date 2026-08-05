@@ -937,6 +937,7 @@ export function buildProfileImportPayload(profile, profileId) {
   const phone = profile.phoneInvalid ? '' : cleanText(profile.phone);
 
   return {
+    blockingIssues: Array.isArray(profile.blockingIssues) ? profile.blockingIssues : [],
     email,
     firstName,
     issues: Array.isArray(profile.issues) ? profile.issues : [],
@@ -944,8 +945,10 @@ export function buildProfileImportPayload(profile, profileId) {
     name,
     normalizedPhone: normalizePhone(phone),
     phone,
+    postalCode: cleanText(profile.postalCode),
     profileId,
     status: getValidMemberStatus(profile.status),
+    street: cleanText(profile.street),
     town: cleanText(profile.town)
   };
 }
@@ -956,16 +959,22 @@ export function buildImportedExistingProfile(existingProfile, importedProfile, m
   const name = importedProfile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' ');
   const termsAcceptance = buildOfflineTermsAcceptance(existingProfile, termsVersion);
   const issues = Array.isArray(importedProfile.issues) ? importedProfile.issues : [];
-  // A row with issues never becomes Active from a CSV import, even during
-  // an Annual Refresh that would otherwise force it - Pending keeps it
-  // visible for review instead of silently treating bad data as paid.
-  const membershipStatus = issues.length ? 'Pending' : importedProfile.status;
+  // Only an issue that makes the row untrustworthy demotes the membership.
+  // A roster CSV is taken to list members in good standing, so a missing
+  // email - which the existing profile may well already have - must not flip
+  // an Active member to Pending. It stays in the review note either way.
+  const blockingIssues = Array.isArray(importedProfile.blockingIssues)
+    ? importedProfile.blockingIssues
+    : [];
+  const membershipStatus = blockingIssues.length ? 'Pending' : importedProfile.status;
   const role = getMembershipAllowedRole(existingProfile, membershipStatus);
 
   return {
     billingAddress: {
       ...(existingProfile.billingAddress || getEmptyBillingAddress()),
-      city: importedProfile.town || existingProfile.billingAddress?.city || ''
+      city: importedProfile.town || existingProfile.billingAddress?.city || '',
+      postalCode: importedProfile.postalCode || existingProfile.billingAddress?.postalCode || '',
+      street: importedProfile.street || existingProfile.billingAddress?.street || ''
     },
     createdDate: existingProfile.createdDate || serverTimestamp(),
     email: importedProfile.email || existingProfile.email || '',
@@ -1005,10 +1014,18 @@ export function buildImportedExistingProfile(existingProfile, importedProfile, m
 
 export function buildImportedNewProfile(importedProfile, termsVersion) {
   const issues = Array.isArray(importedProfile.issues) ? importedProfile.issues : [];
-  const membershipStatus = issues.length ? 'Pending' : importedProfile.status;
+  const blockingIssues = Array.isArray(importedProfile.blockingIssues)
+    ? importedProfile.blockingIssues
+    : [];
+  const membershipStatus = blockingIssues.length ? 'Pending' : importedProfile.status;
 
   return {
-    billingAddress: { ...getEmptyBillingAddress(), city: importedProfile.town || '' },
+    billingAddress: {
+      ...getEmptyBillingAddress(),
+      city: importedProfile.town || '',
+      postalCode: importedProfile.postalCode || '',
+      street: importedProfile.street || ''
+    },
     createdDate: serverTimestamp(),
     email: importedProfile.email,
     firstName: importedProfile.firstName,
