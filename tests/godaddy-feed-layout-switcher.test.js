@@ -76,3 +76,23 @@ test('a default layout outside the switcher list is corrected', () => {
     'expected initFeed to fall back to the first offered layout'
   );
 });
+
+// A card is a wrapping flex row: in the grid layout the media takes a full
+// line and the body wraps under it. A CSS grid row stretches every card to the
+// tallest one, so without packing the lines to the top the leftover height is
+// shared between them and shows up as a gap under the photo. It is worst on the
+// shortest card - a Lecture, which carries no seats or registration rows - and
+// that is how it was reported.
+test('a wrapping card packs its lines to the top', () => {
+  const cardRule = SOURCE.slice(
+    SOURCE.indexOf('.vq-feed-card {'),
+    SOURCE.indexOf('}', SOURCE.indexOf('.vq-feed-card {'))
+  );
+
+  assert.match(cardRule, /flex-wrap:\s*wrap/, 'the card wraps, which is what makes this possible');
+  assert.match(
+    cardRule,
+    /align-content:\s*flex-start/,
+    'without this the stretched height is shared between the wrapped lines'
+  );
+});

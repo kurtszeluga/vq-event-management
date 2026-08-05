@@ -1271,6 +1271,15 @@
            a short photo sits in a tall invisible box that swallows clicks
            meant for the text beside it. */
         align-items: flex-start;
+        /* align-items handles items within a line; this handles the lines
+           themselves. In the grid layout the media takes a full line and the
+           body wraps under it, and a grid row stretches every card to the
+           tallest one - so on a short card the leftover height was shared out
+           between the two lines and appeared as a gap under the photo. Packing
+           the lines to the top puts the slack at the bottom of the card, where
+           it belongs. Worst on a Lecture, which carries no seats or
+           registration rows and is therefore the shortest card of all. */
+        align-content: flex-start;
         flex-wrap: wrap;
         gap: 16px;
         padding: 18px;
