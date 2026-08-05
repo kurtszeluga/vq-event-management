@@ -158,7 +158,7 @@ Paste a mount div and the script tag:
 | `data-category` | Which listings load: `programs`, `workshops`, `challenges`, `business`, `forsale`. `events` is a legacy alias resolving to `programs`. On its own it only sets which pill starts selected. |
 | `data-categories` | Comma-separated list controlling which pills appear and in what order. A single value hides the pill row, which is how a page is pinned to one kind of listing. |
 | `data-layout` | Card geometry: `roster` (default), `grid`, `agenda`. |
-| `data-layout-switcher` | Adds a Roster/Grid/Agenda row for comparing layouts on a live page. Presence alone enables it. |
+| `data-layout-switcher` | Adds a layout row readers can switch with. Presence alone offers all three; a comma-separated list (`"grid,roster"`) narrows it to those, in that order. `false`/`0`/`off`/`no` turns it back off, and fewer than two renders nothing. A `data-layout` the list does not offer falls back to its first entry, so no page starts with every pill unpressed. |
 | `data-empty-message` | Replaces the default empty-state text. Also covers a pill filtering everything out, not just a page with nothing on it. |
 | `data-limit` | Caps how many cards render, for a teaser strip. The limit slices the fetched list **before** the Programs/Workshops filter runs in the browser, so a limit on that page can show fewer cards than asked for, or none. |
 | `data-source-url` | Overrides the API host. Normally omitted: the feed calls `/api/public-events` on whichever host served the script, so the script tag is the only URL on a page. |

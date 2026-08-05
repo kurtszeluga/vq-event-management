@@ -53,6 +53,12 @@
       sourceUrl: container.dataset.sourceUrl || DEFAULTS.sourceUrl
     };
 
+    // A starting layout the switcher does not offer would leave every layout
+    // button unpressed - the same trap as a starting view outside the pills.
+    if (config.layoutSwitcher && !config.layoutSwitcher.includes(config.layout)) {
+      config.layout = config.layoutSwitcher[0];
+    }
+
     ensureStyles();
     renderShell(container, config);
     loadFeed(container, config);
@@ -73,14 +79,44 @@
 
   // Bare `data-layout-switcher` is the normal way to ask for it, and that
   // arrives as an empty string rather than a value - so presence alone counts,
-  // and only an explicit off word turns it back off.
+  // and only an explicit off word turns it back off. A comma-separated list
+  // narrows the row to those layouts, in that order, for a page that wants to
+  // offer a reader two shapes without putting a third in front of them.
+  // Returns false or a layout list, never a bare true, so the caller has the
+  // pills to render rather than having to reach for LAYOUTS itself.
   function parseLayoutSwitcher(rawValue) {
     if (rawValue === undefined) {
       return DEFAULTS.layoutSwitcher;
     }
 
     const value = String(rawValue).trim().toLowerCase();
-    return value !== 'false' && value !== '0' && value !== 'off' && value !== 'no';
+
+    if (value === 'false' || value === '0' || value === 'off' || value === 'no') {
+      return false;
+    }
+
+    const requested = parseLayoutList(value);
+
+    // Bare attribute, or nothing in it the embed renders, means offer them all
+    // - a typo should not quietly strip the row down to one button.
+    return requested.length ? requested : LAYOUTS.slice();
+  }
+
+  function parseLayoutList(rawValue) {
+    const seen = new Set();
+    const resolved = [];
+
+    String(rawValue)
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .forEach((entry) => {
+        if (LAYOUTS.includes(entry) && !seen.has(entry)) {
+          seen.add(entry);
+          resolved.push(entry);
+        }
+      });
+
+    return resolved;
   }
 
   function parseViewList(rawValue) {
@@ -814,14 +850,18 @@
   // page up, not something every visitor needs - drop the attribute once a
   // layout is settled and the feed renders that one with no controls.
   function buildLayoutSwitcherMarkup(config) {
-    if (!config.layoutSwitcher) {
+    const layouts = config.layoutSwitcher || [];
+
+    // One button is not a choice, so it renders nothing - matching the view
+    // pills, which a single category hides the same way.
+    if (layouts.length < 2) {
       return '';
     }
 
     return `
       <div class="vq-feed-layout-controls" role="group" aria-label="Card layout">
         <span class="vq-feed-layout-label">Layout</span>
-        ${LAYOUTS.map((layout) => {
+        ${layouts.map((layout) => {
           const isActive = layout === config.layout;
 
           return `<button aria-pressed="${isActive}" class="vq-feed-layout${isActive ? ' is-active' : ''}" data-layout="${escapeAttribute(layout)}" type="button">${escapeHtml(LAYOUT_LABELS[layout])}</button>`;
