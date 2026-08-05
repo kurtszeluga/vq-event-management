@@ -5,6 +5,11 @@ import { getEvent } from '../services/eventService.js';
 import { getRegistrationsForEvent } from '../services/registrationService.js';
 import { formatCurrency, formatEventDate } from '../utils/eventFormat.js';
 import { getTotalPaidAmount } from '../utils/registrationFinancials.js';
+import {
+  buildCsvFilename,
+  buildRegistrationCsv,
+  downloadCsv
+} from '../utils/registrationCsv.js';
 import { isPaymentPending } from '../utils/registrationEligibility.js';
 
 // Reached via a direct link from the coordinator registration-notification
@@ -198,6 +203,16 @@ function RegistrationListPrintPage() {
     );
   }
 
+  function handleExportCsv() {
+    downloadCsv(
+      buildCsvFilename(event.title || event.eventType, event.date),
+      buildRegistrationCsv(sortedRegistrations, {
+        formatDateTime,
+        formatPayment: formatPaymentSummary
+      })
+    );
+  }
+
   return (
     <section className="viewer-page">
       <header className="viewer-toolbar">
@@ -206,6 +221,14 @@ function RegistrationListPrintPage() {
           <h1>{event.title || event.eventType || 'Event'}</h1>
         </div>
         <div className="viewer-actions">
+          <button
+            className="button-link secondary-action"
+            disabled={!sortedRegistrations.length}
+            type="button"
+            onClick={handleExportCsv}
+          >
+            Export CSV
+          </button>
           <button className="button-link secondary-action" type="button" onClick={handlePrint}>
             Print
           </button>
@@ -269,6 +292,7 @@ function RegistrationListPrintPage() {
                   <th>Registered</th>
                   <th>Status</th>
                   <th>Payment</th>
+                  <th>Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,6 +306,7 @@ function RegistrationListPrintPage() {
                     <td data-label="Registered">{formatDateTime(registration.registrationDate)}</td>
                     <td data-label="Status">{registration.status || 'Registered'}</td>
                     <td data-label="Payment">{formatPaymentSummary(registration)}</td>
+                    <td data-label="Amount">{formatRegistrationAmount(registration)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -373,6 +398,14 @@ function normalizePaymentMethod(method) {
   return method === 'None' ? '' : method || '';
 }
 
+// Blank rather than $0.00 when nothing was taken - a zero reads as a payment
+// of nought, when the truth is that no money changed hands.
+function formatRegistrationAmount(registration) {
+  const amount = Number(registration?.amountPaid || 0);
+
+  return amount > 0 ? formatCurrency(amount) : '-';
+}
+
 function formatPaymentSummary(registration) {
   if (!registration) {
     return 'Pending';
@@ -424,12 +457,13 @@ function buildRegistrationListPrintHtml(event, registrations, counts, totalPaid)
       <td>${escapeHtml(formatDateTime(registration.registrationDate))}</td>
       <td>${escapeHtml(registration.status || 'Registered')}</td>
       <td>${escapeHtml(formatPaymentSummary(registration))}</td>
+      <td>${escapeHtml(formatRegistrationAmount(registration))}</td>
     </tr>
   `).join('');
   const tableOrEmpty = registrations.length
     ? `<table>
         <thead>
-          <tr><th>Registrant</th><th>Phone</th><th>Registered</th><th>Status</th><th>Payment</th></tr>
+          <tr><th>Registrant</th><th>Phone</th><th>Registered</th><th>Status</th><th>Payment</th><th>Amount</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>`
