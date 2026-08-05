@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase.js';
 import { applyMemberDirectorySync, syncMemberDirectoryProfile } from './memberDirectoryProfile.js';
+import { normalizePermissions } from '../data/userRoles.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const paymentSettingsRef = () => doc(db, 'appSettings', 'paymentSettings');
@@ -1183,7 +1184,7 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
   };
 }
 
-function buildMembershipStatusProfile(profile, membershipStatus) {
+export function buildMembershipStatusProfile(profile, membershipStatus) {
   const firstName = profile.firstName || getFirstNameFallback(profile.name);
   const lastName = profile.lastName || getLastNameFallback(profile.name);
   const name = profile.name || [firstName, lastName].filter(Boolean).join(' ');
@@ -1291,15 +1292,13 @@ function getEmptyBillingAddress() {
 // a full-document replace), not just CSV import - every permission key an
 // Admin can hold must be listed here, or the next archive/reactivate of their
 // profile silently deletes any key missing from this object.
+// Delegates to the shared list rather than restating it. This used to be its
+// own literal and had fallen a key behind USER_PERMISSION_OPTIONS, which is
+// worse here than it sounds: archiveMembershipProfile and
+// reactivateMembershipProfile replace users/{id} with merge:false, so a key
+// missing from this map is a key deleted from the stored profile.
 export function normalizeUserPermissions(permissions = {}) {
-  return {
-    addUsers: Boolean(permissions.addUsers),
-    manageEvents: Boolean(permissions.manageEvents),
-    manageMembershipStatus: Boolean(permissions.manageMembershipStatus),
-    managePayments: Boolean(permissions.managePayments),
-    registerOthers: Boolean(permissions.registerOthers),
-    viewRegistrations: Boolean(permissions.viewRegistrations)
-  };
+  return normalizePermissions(permissions);
 }
 
 function getMembershipAllowedRole(profile, membershipStatus) {
@@ -1318,6 +1317,26 @@ function getMembershipAllowedPermissions(profile, membershipStatus) {
   return getMembershipAllowedRole(profile, membershipStatus) === 'Admin'
     ? normalizeUserPermissions(profile.permissions)
     : normalizeUserPermissions();
+}
+
+// A membership going Inactive or Archived has to take admin authority with it.
+// The member-record sync used to write only the membership fields, so archiving
+// someone in Setup > Membership left a matched Admin profile still an Admin,
+// holding every permission, while no longer being a member at all - the one
+// path where a lapsed membership did not demote. Returns nothing when the role
+// is unchanged, so an ordinary sync still touches only the membership fields
+// rather than rewriting role and permissions across the whole roster.
+export function getMembershipDemotion(profile, membershipStatus) {
+  const role = getMembershipAllowedRole(profile, membershipStatus);
+
+  if (role === (profile.role || 'General User')) {
+    return {};
+  }
+
+  return {
+    permissions: getMembershipAllowedPermissions(profile, membershipStatus),
+    role
+  };
 }
 
 async function addMembershipSyncWrites(batch, members) {
@@ -1366,12 +1385,15 @@ async function getMembershipSyncWrites(members) {
         return;
       }
 
+      const demotion = getMembershipDemotion(user, nextStatus);
+
       syncByUserId.set(userDoc.id, {
         directorySource: {
           ...user,
           membershipMatchedBy: matchedBy,
           membershipMemberId: member.memberId || member.id || '',
-          membershipStatus: nextStatus
+          membershipStatus: nextStatus,
+          ...demotion
         },
         ref: doc(db, 'users', userDoc.id),
         type: 'set',
@@ -1379,7 +1401,8 @@ async function getMembershipSyncWrites(members) {
           membershipMatchedBy: matchedBy,
           membershipMemberId: member.memberId || member.id || '',
           membershipStatus: nextStatus,
-          membershipUpdatedDate: serverTimestamp()
+          membershipUpdatedDate: serverTimestamp(),
+          ...demotion
         }
       });
     });

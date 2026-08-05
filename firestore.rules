@@ -368,7 +368,8 @@ service cloud.firestore {
           'managePayments',
           'addUsers',
           'manageMembershipStatus',
-          'registerOthers'
+          'registerOthers',
+          'manageWaitlist'
         ])
         && request.resource.data.permissions.manageEvents is bool
         && request.resource.data.permissions.viewRegistrations is bool
@@ -378,6 +379,8 @@ service cloud.firestore {
         && request.resource.data.permissions.manageMembershipStatus is bool
         && (!('registerOthers' in request.resource.data.permissions)
           || request.resource.data.permissions.registerOthers is bool)
+        && (!('manageWaitlist' in request.resource.data.permissions)
+          || request.resource.data.permissions.manageWaitlist is bool)
         && validStatus(request.resource.data.role, ['Super User', 'Admin', 'General User'])
         && validStatus(request.resource.data.status, ['Active', 'Inactive', 'Archived'])
         && (!('termsAccepted' in request.resource.data)
@@ -512,7 +515,8 @@ service cloud.firestore {
           'managePayments',
           'addUsers',
           'manageMembershipStatus',
-          'registerOthers'
+          'registerOthers',
+          'manageWaitlist'
         ])
         && (request.resource.data.role == 'Super User'
           || request.resource.data.role == 'Admin'
@@ -530,7 +534,9 @@ service cloud.firestore {
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers == false)
         && (!('registerOthers' in request.resource.data.permissions)
-          || request.resource.data.permissions.registerOthers == false);
+          || request.resource.data.permissions.registerOthers == false)
+        && (!('manageWaitlist' in request.resource.data.permissions)
+          || request.resource.data.permissions.manageWaitlist == false);
     }
 
     function canManageMembershipStatus() {

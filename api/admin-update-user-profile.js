@@ -285,7 +285,7 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
       : before.membershipReviewNote || '',
     membershipStatus,
     name: buildDisplayName(payload.firstName, payload.lastName),
-    permissions: payload.permissions || {},
+    permissions: getPermissionsForRole(role, payload.permissions),
     phone: cleanText(payload.phone),
     profileTags: isSuperUser
       ? normalizeProfileTags(payload.profileTags)
@@ -308,24 +308,35 @@ function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedR
   return 'General User';
 }
 
-export function getPermissionsForRole(role, permissions = {}) {
-  const normalized = {
-    addUsers: Boolean(permissions.addUsers),
-    manageEvents: Boolean(permissions.manageEvents),
-    managePayments: Boolean(permissions.managePayments),
-    manageMembershipStatus: Boolean(permissions.manageMembershipStatus),
-    registerOthers: Boolean(permissions.registerOthers),
-    viewRegistrations: Boolean(permissions.viewRegistrations)
-  };
+// Mirrors USER_PERMISSION_OPTIONS in src/data/userRoles.js - kept literal
+// because api/ is bundled separately and cannot import from src/.
+const USER_PERMISSION_KEYS = [
+  'manageEvents',
+  'viewRegistrations',
+  'managePayments',
+  'addUsers',
+  'manageMembershipStatus',
+  'registerOthers',
+  'manageWaitlist'
+];
 
-  return role === 'Admin' ? normalized : {
-    addUsers: false,
-    manageEvents: false,
-    managePayments: false,
-    manageMembershipStatus: false,
-    registerOthers: false,
-    viewRegistrations: false
-  };
+// Takes the role the server resolved, not the one the caller asked for. That
+// matters because getAllowedRoleForMembership() above demotes an Admin whose
+// membership or profile status has lapsed: without this, the role dropped to
+// General User while every admin flag stayed true underneath it. Nothing
+// granted access on that - hasPermission() needs the Admin role - but the
+// profile read back as an admin, and Firestore's own hasNoAdminPermissions()
+// refuses the shape, which left the record unwritable from the client
+// afterwards. A Super User gets the full map: its authority never comes from
+// these flags, so a false one only misreports what the account can do.
+export function getPermissionsForRole(role, permissions = {}) {
+  return USER_PERMISSION_KEYS.reduce(
+    (resolved, key) => ({
+      ...resolved,
+      [key]: role === 'Super User' ? true : role === 'Admin' && Boolean(permissions[key])
+    }),
+    {}
+  );
 }
 
 function sanitizeMembershipPayment(payment = null) {

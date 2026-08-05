@@ -102,10 +102,17 @@ await userRef.set(
     email,
     phone: formatPhoneNumber(FIRST_ADMIN_PHONE),
     profileTags: existingProfile.exists ? existingProfile.data().profileTags || [] : [],
+    // Every key in USER_PERMISSION_OPTIONS, not the four this once listed - a
+    // partial map is what left both projects' Super User reading as though it
+    // held nothing beyond those four on the profile screen. Kept literal
+    // because this script runs standalone and cannot import from src/.
     permissions: {
       addUsers: true,
       manageEvents: true,
+      manageMembershipStatus: true,
       managePayments: true,
+      manageWaitlist: true,
+      registerOthers: true,
       viewRegistrations: true
     },
     role: 'Super User',

@@ -40,6 +40,16 @@ export const DEFAULT_USER_PERMISSIONS = USER_PERMISSION_OPTIONS.reduce(
   {}
 );
 
+// What a Super User's stored map should say. Their authority never depends on
+// it - hasPermission() below, the same helper in firestore.rules, and the API
+// all short-circuit on the role - but the map is what the profile screen and
+// the user list read back, so leaving it false made a Super User look stripped
+// of everything it can actually do.
+export const ALL_USER_PERMISSIONS = USER_PERMISSION_OPTIONS.reduce(
+  (permissions, option) => ({ ...permissions, [option.key]: true }),
+  {}
+);
+
 export function normalizePermissions(permissions = {}) {
   return USER_PERMISSION_OPTIONS.reduce(
     (normalized, option) => ({

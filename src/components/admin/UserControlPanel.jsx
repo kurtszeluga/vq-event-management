@@ -3,6 +3,7 @@ import ConfirmDialog from '../ConfirmDialog.jsx';
 import { PROFILE_TAG_OPTIONS, normalizeProfileTags } from '../../data/profileTags.js';
 import { US_STATES } from '../../data/usStates.js';
 import {
+  ALL_USER_PERMISSIONS,
   DEFAULT_USER_PERMISSIONS,
   USER_PERMISSION_OPTIONS,
   MEMBERSHIP_STATUS_OPTIONS,
@@ -335,10 +336,17 @@ function UserControlPanel({
         requestedRole: form.role,
         status: statusForSave
       });
+      // A Super User falls through neither of the branches below, so saving one
+      // used to write DEFAULT_USER_PERMISSIONS - every flag false. Nothing
+      // enforcing authority reads the map for that role, so it never removed
+      // access, but the profile screen and the user list both read it back, and
+      // an unrelated edit to the account quietly emptied what they showed.
       const permissionsForSave =
-        canManageAdminUsers && roleForSave === 'Admin'
-          ? normalizedPermissions
-          : DEFAULT_USER_PERMISSIONS;
+        roleForSave === 'Super User'
+          ? ALL_USER_PERMISSIONS
+          : canManageAdminUsers && roleForSave === 'Admin'
+            ? normalizedPermissions
+            : DEFAULT_USER_PERMISSIONS;
 
       if (
         canManageAdminUsers &&

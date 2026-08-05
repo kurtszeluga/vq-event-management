@@ -14,6 +14,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
 import { applyMemberDirectorySync, syncMemberDirectoryProfile } from './memberDirectoryProfile.js';
+import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
 
 const usersCollection = () => collection(db, 'users');
 const auditLogsCollection = () => collection(db, 'auditLogs');
@@ -63,7 +64,17 @@ export async function archiveUserProfile(userId, actorProfile) {
     archivedBy,
     archivedDate: serverTimestamp(),
     status: 'Inactive',
-    updatedDate: serverTimestamp()
+    updatedDate: serverTimestamp(),
+    // An archived account keeps no admin authority. Demoting here is what makes
+    // the write legal at all: the closing clause of validUserAdminUpdate() only
+    // accepts role Admin alongside status Active, so archiving one while it
+    // stayed Admin was refused outright as "Missing or insufficient
+    // permissions" - the Archive button simply did nothing on an admin row.
+    // A Super User is left alone; the rule accepts that role unconditionally,
+    // and demoting the account able to promote people would be a trap.
+    ...(before.role === 'Admin'
+      ? { permissions: DEFAULT_USER_PERMISSIONS, role: 'General User' }
+      : {})
   };
 
   batch.update(userRef, after);
@@ -76,7 +87,9 @@ export async function archiveUserProfile(userId, actorProfile) {
     after,
     before,
     entityId: userId,
-    summary: `Archived user "${before.name || before.email || userId}"`
+    summary: before.role === 'Admin'
+      ? `Archived user "${before.name || before.email || userId}" and demoted it from Admin to General User`
+      : `Archived user "${before.name || before.email || userId}"`
   });
 
   return batch.commit();

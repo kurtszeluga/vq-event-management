@@ -30,6 +30,7 @@ describe('normalizeUserPermissions', () => {
       'manageEvents',
       'manageMembershipStatus',
       'managePayments',
+      'manageWaitlist',
       'registerOthers',
       'viewRegistrations'
     ]);
