@@ -24,6 +24,51 @@ export function formatEventDate(dateValue) {
   return dateValue;
 }
 
+const MONTH_LABELS = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'
+];
+
+// Month/day/year for the stacked date box on an event card, so a date can be
+// scanned down a list rather than read out of the card body.
+//
+// Same plain-text-first discipline as formatEventDate above, and for the same
+// reason: an ISO date-only string read through Date is UTC midnight, which in
+// any timezone behind UTC lands on the day before. The GoDaddy embed carries
+// its own copy of this because it is a standalone IIFE and cannot import from
+// here - the two must stay in step, and a split exactly like this once had the
+// feed rendering every date a day early while the app's page stayed correct.
+//
+// Returns null rather than a placeholder, so the caller decides whether an
+// undated event shows a TBD box or no box at all.
+export function getEventDateParts(dateValue) {
+  if (!dateValue) {
+    return null;
+  }
+
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateValue));
+
+  if (isoMatch) {
+    const month = MONTH_LABELS[Number(isoMatch[2]) - 1];
+
+    return month
+      ? { day: String(Number(isoMatch[3])), month, year: isoMatch[1] }
+      : null;
+  }
+
+  const parsed = new Date(dateValue);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return {
+    day: String(parsed.getDate()),
+    month: MONTH_LABELS[parsed.getMonth()],
+    year: String(parsed.getFullYear())
+  };
+}
+
 // A retreat spans days, so it carries `endDate` alongside `date`. Every other
 // type leaves endDate empty and formats exactly as it did before, which is why
 // display sites can call this unconditionally instead of branching on type.

@@ -11,6 +11,7 @@ import {
   formatRegistrationDateRange,
   formatTimeRange,
   getRegistrationEndDate,
+  getEventDateParts,
   getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
@@ -537,6 +538,12 @@ function EventsPage() {
           // an open/closed pill are all answers to a question nobody asked of
           // these events - "Registration closed" in particular reads as though
           // it were once open.
+          // A Challenge carries no date and its card already omits the Date
+          // row, so it gets no box rather than a TBD one. Retreats show their
+          // start date; the full range stays in the card body.
+          const dateParts = event.eventType === 'Challenges'
+            ? null
+            : getEventDateParts(event.date);
           const registrationState = getRegistrationWindowState(event).state;
           const takesRegistrations = Boolean(externalRegistrationUrl)
             || !['disabled', 'not-registrable'].includes(registrationState);
@@ -552,6 +559,13 @@ function EventsPage() {
           return (
             <article className="public-event-card" key={event.id}>
               <div className="card-kicker">
+                {dateParts ? (
+                  <span className="event-date-stack" aria-hidden="true">
+                    <span className="event-date-stack-month">{dateParts.month}</span>
+                    <span className="event-date-stack-day">{dateParts.day}</span>
+                    <span className="event-date-stack-year">{dateParts.year}</span>
+                  </span>
+                ) : null}
                 <span className="event-type-pill">{getEventTypeLabel(event)}</span>
                 {takesRegistrations ? (
                   <>

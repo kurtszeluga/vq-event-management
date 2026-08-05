@@ -190,6 +190,27 @@ describe('an event that takes no registrations', () => {
     expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
   });
 
+  it('heads the card with a stacked date box', async () => {
+    // The reason this exists: the date in the card body was hard to scan down
+    // a list.
+    await renderWithEvent({});
+
+    expect(screen.getByText('SEP')).toBeTruthy();
+    expect(screen.getByText('14')).toBeTruthy();
+    expect(screen.getByText('2026')).toBeTruthy();
+  });
+
+  it('shows no date box for an event with no date', async () => {
+    // A Challenge is the real case, but it lives behind its own filter pill so
+    // it cannot be rendered under the Programs filter this page opens on.
+    // Undated is the same branch: getEventDateParts returns null and no box
+    // renders.
+    await renderWithEvent({ date: '' });
+
+    expect(screen.queryByText('SEP')).toBeNull();
+    expect(screen.queryByText('2026')).toBeNull();
+  });
+
   it('still shows them for an event that does take registrations', async () => {
     await renderWithEvent({});
 

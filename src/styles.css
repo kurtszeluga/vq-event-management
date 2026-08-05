@@ -4057,3 +4057,42 @@ div.csv-preview-warning {
     grid-template-columns: 1fr;
   }
 }
+
+/* Stacked date box at the head of an event card. Deliberately the same shape
+   and palette as .vq-feed-datestack in the GoDaddy embed, so an event looks the
+   same whether a member sees it on the site or on villagequilters.com. The
+   embed cannot import this file, so the two are kept in step by hand.
+
+   aria-hidden in the markup: the same date is already in the card's Date row,
+   and a screen reader should not hear "AUG 13 2026" twice. */
+.event-date-stack {
+  background: #fdf6f2;
+  border: 1px solid #e6cdbf;
+  border-radius: 8px;
+  color: #9a4d2f;
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: center;
+  line-height: 1.05;
+  padding: 8px 10px;
+  text-align: center;
+  text-transform: none;
+  width: 62px;
+}
+
+.event-date-stack-month {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.event-date-stack-day {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.event-date-stack-year {
+  color: #b07a5f;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
