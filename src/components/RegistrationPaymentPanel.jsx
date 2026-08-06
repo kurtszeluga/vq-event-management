@@ -103,18 +103,50 @@ export default function RegistrationPaymentPanel({
           }
 
           cardInstance = await payments.card();
+
+          // The effect re-runs whenever config or amountDue arrives, and its
+          // cleanup destroys whatever cardInstance holds. Without a check at
+          // each await boundary the destroyed instance was then attached, which
+          // is what produced the intermittent "An unexpected error occurred
+          // while using Card" on first load - a race, which is why it looked
+          // random and why calling payments.card() by hand always worked.
+          if (cancelled) {
+            destroyPaymentMethod(cardInstance);
+            cardInstance = null;
+            return;
+          }
+
           const cardContainer = document.getElementById(cardContainerId.current);
 
           if (!cardContainer || selectedPaymentTokenRef.current === 'cnon:card-nonce-ok') {
+            // Destroyed here rather than left for the cleanup: this path
+            // abandons the instance, and an unattached card left behind holds
+            // the Square iframe open.
+            destroyPaymentMethod(cardInstance);
+            cardInstance = null;
             onCardReady(null);
             return;
           }
 
-          await cardInstance.attach(`#${cardContainerId.current}`);
+          try {
+            await cardInstance.attach(`#${cardContainerId.current}`);
+          } catch (attachError) {
+            // A cleanup landing mid-attach rejects here. That is an unmount,
+            // not something the member needs to be told about.
+            if (cancelled) {
+              return;
+            }
 
-          if (!cancelled) {
-            onCardReady(cardInstance);
+            throw attachError;
           }
+
+          if (cancelled) {
+            destroyPaymentMethod(cardInstance);
+            cardInstance = null;
+            return;
+          }
+
+          onCardReady(cardInstance);
         }
 
         if (config.enableApplePay) {
@@ -184,15 +216,8 @@ export default function RegistrationPaymentPanel({
         googlePayContainer.removeEventListener('click', googlePayClickHandler);
       }
 
-      if (cardInstance && typeof cardInstance.destroy === 'function') {
-        cardInstance.destroy();
-      }
-
-      walletInstances.forEach((paymentMethod) => {
-        if (paymentMethod && typeof paymentMethod.destroy === 'function') {
-          paymentMethod.destroy();
-        }
-      });
+      destroyPaymentMethod(cardInstance);
+      walletInstances.forEach(destroyPaymentMethod);
     };
   }, [amountDue, config, handleWalletPayment, onCardReady, onWalletTokenReady, onlinePaymentRequired]);
 
@@ -282,6 +307,22 @@ export default function RegistrationPaymentPanel({
       ) : null}
     </div>
   );
+}
+
+// Square throws if an instance is destroyed twice, or destroyed before it
+// finished attaching. That throw would escape a React cleanup function and
+// take the unmount with it, so nothing here is allowed to be fatal - the
+// instance is being discarded either way.
+function destroyPaymentMethod(paymentMethod) {
+  if (!paymentMethod || typeof paymentMethod.destroy !== 'function') {
+    return;
+  }
+
+  try {
+    paymentMethod.destroy();
+  } catch {
+    // Discarded regardless.
+  }
 }
 
 async function selectSandboxTestPayment({
