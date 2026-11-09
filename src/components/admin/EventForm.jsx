@@ -26,9 +26,14 @@ import {
 import { formatTimeRange } from '../../utils/eventFormat.js';
 import { formatPhoneNumber } from '../../utils/profileFormat.js';
 
+// Which Default Start/End Time entry a type opens with. Keyed on the entry's
+// Dropdown Value, which a Super User sets in Configuration - so a type here
+// whose entry has not been created yet simply falls back to Other with the
+// times left blank, exactly as an unmapped type always has.
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
   'Class (Full Day)': 'full-day',
+  Lecture: 'lecture',
   Workshop: 'workshop'
 };
 
@@ -92,6 +97,44 @@ function EventForm({
     };
   }, []);
 
+  // An event saved before its type collected a time carries no timePreset and
+  // no startTime - every published Lecture is in that state, since Lecture had
+  // no time field until now. Editing one would open with the dropdown unset
+  // and block the save on a field the admin never saw a default for, so seed
+  // it from the type's own default the way creating one does.
+  //
+  // Runs after the options arrive rather than in getInitialForm, because the
+  // defaults come from a Firestore subscription and are empty on first render.
+  // Only ever fills a blank: an event saved as Other with its own times has a
+  // truthy timePreset and is left alone.
+  useEffect(() => {
+    const presetValue = eventTypeTimePresetMap[form.eventType];
+
+    if (!presetValue || form.timePreset || form.startTime) {
+      return;
+    }
+
+    const option = eventTimeOptions.find((item) => item.value === presetValue);
+
+    if (!option) {
+      return;
+    }
+
+    setForm((current) => (
+      current.timePreset || current.startTime
+        ? current
+        : {
+            ...current,
+            timePreset: option.value,
+            startTime: option.startTime || '',
+            endTime: option.endTime || ''
+          }
+    ));
+    // eventTimeOptions is rebuilt every render, so it is deliberately not a
+    // dependency - configuredTimeOptions is the state that actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configuredTimeOptions, form.eventType, form.startTime, form.timePreset]);
+
   useEffect(() => {
     if (!['future', 'now'].includes(form.registrationMode)) {
       return;
@@ -137,7 +180,7 @@ function EventForm({
   // A retreat runs across days, so its single date becomes a start/end pair.
   // The direct time fields below already give it a start and end time.
   const showEndDateField = showEventScheduleFields && isRetreat;
-  const showTimePresetField = showEventScheduleFields && !isRetreat && !isLecture && !isChallenge;
+  const showTimePresetField = showEventScheduleFields && !isRetreat && !isChallenge;
   const showDirectTimeFields = showEventScheduleFields && isRetreat;
   const showPresenterField = showEventScheduleFields && !isRetreat && !isChallenge;
   const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge;
@@ -313,7 +356,7 @@ function EventForm({
       eventType: value,
       location: defaultLocation ? getLocationSelectionValue(defaultLocation) : '',
       locationPreset: defaultLocation?.value || (value && !isListingType ? 'other' : ''),
-      timePreset: isChallengeType ? 'other' : value && !isLectureType ? nextTimeOption?.value || 'other' : '',
+      timePreset: isChallengeType ? 'other' : value ? nextTimeOption?.value || 'other' : '',
       startTime: isChallengeType ? '00:00' : nextTimeOption?.startTime || '',
       endTime: isChallengeType ? '00:00' : nextTimeOption?.endTime || '',
       capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
@@ -1706,7 +1749,7 @@ export function validateEventForm(form) {
   const requiresSchedule = form.eventType && !isBusinessListing && !isForSale;
   const requiresDate = requiresSchedule && !isChallenge;
   const requiresEndDate = requiresDate && isRetreat;
-  const requiresTime = requiresSchedule && !isLecture && !isChallenge;
+  const requiresTime = requiresSchedule && !isChallenge;
   const requiresTimePreset = requiresTime && !isRetreat;
   const requiresDirectTime = requiresTime && isRetreat;
   const requiresCapacity = requiresSchedule && !isLecture && !isChallenge;
@@ -1926,7 +1969,7 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const isLecture = form.eventType === 'Lecture';
   const isListingOnly = isBusinessListing || isForSale;
   const hasSchedule = !isListingOnly;
-  const hasTime = hasSchedule && !isLecture && !isChallenge;
+  const hasTime = hasSchedule && !isChallenge;
   const hasCapacity = hasSchedule && !isLecture && !isChallenge;
   const hasFees = hasSchedule && !isLecture && !isChallenge;
   const hasRegistration = !isListingOnly && !isLecture && form.registrationMode !== 'none';
