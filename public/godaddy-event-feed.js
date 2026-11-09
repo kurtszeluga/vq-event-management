@@ -1408,7 +1408,7 @@
       .vq-feed-summary-grid > .vq-feed-card:last-child {
         border-bottom: 0;
       }
-      @container (min-width: 640px) {
+      @container (min-width: 700px) {
         .vq-feed-summary-grid {
           column-gap: 22px;
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1434,7 +1434,7 @@
         display: grid;
         column-gap: 14px;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        padding: 14px 12px;
+        padding: 16px 13px;
         text-decoration: none;
         transition: background-color 120ms ease;
       }
@@ -1445,15 +1445,15 @@
       /* The tile is the card's, just smaller - the summary is a denser list
          and the full-size tile dominates a single-line row. */
       .vq-feed-list.is-summary .vq-feed-datestack {
-        padding: 6px 8px;
-        width: 60px;
+        padding: 7px 9px;
+        width: 66px;
       }
       .vq-feed-list.is-summary .vq-feed-datestack-day {
-        font-size: 1.45rem;
+        font-size: 1.6rem;
       }
       .vq-feed-list.is-summary .vq-feed-datestack-month,
       .vq-feed-list.is-summary .vq-feed-datestack-year {
-        font-size: 0.68rem;
+        font-size: 0.74rem;
       }
       .vq-feed-summary-body {
         display: grid;
@@ -1462,7 +1462,7 @@
       }
       .vq-feed-summary-title {
         color: #225c56;
-        font-size: 1.12rem;
+        font-size: 1.22rem;
         font-weight: 700;
         line-height: 1.35;
         overflow-wrap: anywhere;
@@ -1479,14 +1479,14 @@
       }
       /* Shares .vq-feed-type with the cards, dialled down for a list row. */
       .vq-feed-list.is-summary .vq-feed-type {
-        font-size: 0.76rem;
+        font-size: 0.82rem;
         letter-spacing: 0.04em;
         padding: 3px 9px;
         text-transform: uppercase;
       }
       .vq-feed-summary-span {
         color: #5a6b67;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         font-variant-numeric: tabular-nums;
       }
       /* CSS-drawn rather than a character, so no font substitution can turn it
