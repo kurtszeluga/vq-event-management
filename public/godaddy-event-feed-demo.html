@@ -28,6 +28,21 @@
         margin: 0;
         max-width: 760px;
       }
+      .demo-section-header {
+        border-top: 1px solid #ded5ca;
+        margin: 40px 0 20px;
+        padding-top: 24px;
+      }
+      .demo-section-header h2 {
+        font-size: 1.3rem;
+        margin: 0 0 6px;
+      }
+      .demo-section-header p {
+        color: #5a6b67;
+        line-height: 1.5;
+        margin: 0;
+        max-width: 760px;
+      }
     </style>
   </head>
   <body>
@@ -60,6 +75,13 @@
         <div data-vq-feed data-category="forsale" data-categories="forsale" data-layout="grid"
              data-empty-message="Nothing for sale at the moment - check back soon."></div>
 
+      Home page - one chronological list of every upcoming event, date, type
+      and title only. No category or layout attributes: the summary brings its
+      own, and the pill row and layout switcher are suppressed for it.
+
+        <div data-vq-feed data-template="summary"
+             data-empty-message="No events are scheduled right now - check back soon."></div>
+
       These layouts are the user's 2026-08-05 decision, not the earlier
       placeholders. Programs keeps a two-way switcher so readers can drop to
       Roster on a page that runs long; the other four render one shape.
@@ -76,6 +98,29 @@
       data-categories
         Comma-separated list controlling which pills appear, and in what
         order. A single value hides the pill row altogether.
+
+      data-template="summary"
+        Switches the mount from cards to summary rows: one line per event
+        carrying the date, the event type and the title, nothing else, with
+        the title linking to the event page in a new tab. Built for the home
+        page.
+
+        It loads its own set - every dated event, Challenges included,
+        ordered by date and with anything already past left out server-side.
+        That is a different set from any pill: "programs" excludes Challenges,
+        and the per-type pages keep showing an event after its date passes.
+        So a summary mount needs no data-category, and ignores data-categories
+        and data-layout-switcher if they are left on a pasted snippet - there
+        is no second category to switch to and no second geometry.
+
+        A multi-day event shows its span; an event missing a date shows
+        "Date TBD" rather than being hidden. data-limit and
+        data-empty-message both still apply.
+
+        Summary is deliberately NOT a data-layout value. Layouts are a CSS
+        class swap with no re-render, and these rows are different markup, so
+        a Summary button in the layout row would swap the class and leave the
+        cards in place.
 
       data-layout
         Card geometry: roster (default), grid, agenda. Quote the value -
@@ -134,6 +179,22 @@
         data-vq-feed
         data-category="events"
         data-layout-switcher
+        data-source-url="/api/public-events"
+      ></div>
+
+      <div class="demo-section-header">
+        <h2>Home page summary</h2>
+        <p>
+          Every upcoming event in date order &mdash; date, type and title only, each one linking
+          through to its own page. Programs, workshops, classes, lectures, retreats and challenges
+          together in one list, with anything already past left off.
+        </p>
+      </div>
+
+      <div
+        data-vq-feed
+        data-template="summary"
+        data-empty-message="No events are scheduled right now - check back soon."
         data-source-url="/api/public-events"
       ></div>
     </main>

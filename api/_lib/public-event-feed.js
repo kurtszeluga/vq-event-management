@@ -4,6 +4,7 @@ import { getEventPlaceholderImage } from '../../shared/eventImages.js';
 import { buildListingDetails, getListingTitle, isListingEventType } from '../../shared/eventListing.js';
 import { listEventDocuments } from '../../shared/eventDocuments.js';
 import {
+  GUILD_TIME_ZONE,
   getExternalRegistrationUrl,
   isRegistrationWindowOpen
 } from '../../shared/registrationWindow.js';
@@ -28,6 +29,21 @@ const EVENT_CATEGORY_CONFIG = {
     allowedTypes: ['For Sale'],
     label: 'For Sale',
     supportsTypeFilters: false
+  },
+  // Every dated event in one chronological list, for the home page summary
+  // embed. Deliberately not the same set as `events`: that category excludes
+  // Challenges because each type has its own page, while a summary is the one
+  // place a reader sees all of them together. Business Listings and For Sale
+  // stay out because they carry no date and cannot sort into a calendar.
+  //
+  // `upcomingOnly` is unique to this category and is the reason it exists
+  // rather than reusing `events` with a client-side filter - see
+  // isUpcomingEvent below for why the date cutoff has to be applied here.
+  upcoming: {
+    excludedTypes: ['Business Listing', 'For Sale'],
+    label: 'Upcoming Events',
+    supportsTypeFilters: false,
+    upcomingOnly: true
   }
 };
 
@@ -73,10 +89,12 @@ export async function loadPublicFeed(category, origin) {
     .orderBy('date', 'asc')
     .get();
 
+  const guildToday = getGuildToday();
   const events = snapshot.docs
     .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
     .filter(isEventVisible)
-    .filter((event) => matchesCategory(event, config));
+    .filter((event) => matchesCategory(event, config))
+    .filter((event) => !config.upcomingOnly || isUpcomingEvent(event, guildToday));
   const registrationCounts = await loadRegistrationCounts(db, events.map((event) => event.id));
   const coordinatorAssignments = await loadCoordinatorAssignments(db);
   const serializedEvents = events.map((event) =>
@@ -453,6 +471,56 @@ function isEventVisible(event) {
   }
 
   return true;
+}
+
+// Today's date as the guild reads it, 'YYYY-MM-DD'. Built from parts rather
+// than a locale format string so no locale can reorder the fields, and in
+// GUILD_TIME_ZONE rather than the server's: a Vercel function runs in UTC, so
+// from 7pm Eastern onwards a plain UTC "today" is already tomorrow and would
+// drop that evening's event off the home page while it is still happening.
+export function getGuildToday(now = new Date(), timeZone = GUILD_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now);
+  const read = {};
+
+  for (const part of parts) {
+    if (part.type !== 'literal') {
+      read[part.type] = part.value;
+    }
+  }
+
+  return `${read.year}-${read.month}-${read.day}`;
+}
+
+// Whether an event still belongs on a forward-looking list.
+//
+// This cannot be left to isEventVisible: that gate reads visibleFrom and
+// visibleUntil, not the event date, so a published event with no visibleUntil
+// stays in the payload indefinitely. That is right for a per-type page, where
+// an archive still reads sensibly, and wrong for a home page summary, which
+// must not open with last month's lecture.
+//
+// Compared as plain ISO text, never through Date, for the same reason
+// formatEventDate in the embed avoids it: an ISO date-only string read through
+// Date is UTC midnight, which lands a day early anywhere behind UTC. A
+// multi-day event counts as current until its endDate has passed, so a retreat
+// does not vanish from the home page on its second morning.
+//
+// An event with no date at all is kept rather than hidden - the dateless types
+// are already excluded by category, so a dated type with an empty date is a
+// data problem that should stay visible to whoever can fix it.
+export function isUpcomingEvent(event, today) {
+  const lastDay = String(event.endDate || event.date || '').slice(0, 10);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(lastDay)) {
+    return true;
+  }
+
+  return lastDay >= today;
 }
 
 function buildTypeCounts(events) {

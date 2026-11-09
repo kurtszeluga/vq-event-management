@@ -21,6 +21,21 @@
   // must not silently change on the next deploy.
   const LAYOUTS = ['roster', 'grid', 'agenda'];
   const LAYOUT_LABELS = { agenda: 'Agenda', grid: 'Grid', roster: 'Roster' };
+  // The summary view is held apart from FEED_VIEWS on purpose. Adding it there
+  // would make it a pill, and would also put it in the default view list that
+  // parseViewList falls back to - so any embed without data-categories would
+  // quietly grow a sixth pill on the next deploy.
+  //
+  // Its category is the feed API's `upcoming`, which is every dated event
+  // including Challenges, already date-filtered and ordered by date server-side
+  // (EVENT_CATEGORY_CONFIG in api/_lib/public-event-feed.js).
+  const SUMMARY_TEMPLATE = 'summary';
+  const SUMMARY_VIEW = {
+    category: 'upcoming',
+    label: 'Upcoming Events',
+    typeFilter: '',
+    value: 'summary'
+  };
   const DEFAULTS = {
     emptyMessage: 'No published listings are available right now.',
     layout: LAYOUTS[0],
@@ -28,6 +43,7 @@
     limit: 0,
     mountSelector: '[data-vq-feed]',
     sourceUrl: `${getScriptOrigin()}/api/public-events`,
+    template: '',
     view: FEED_VIEWS[0].value,
     views: FEED_VIEWS.map((option) => option.value)
   };
@@ -50,8 +66,21 @@
       layout: parseLayout(container.dataset.layout),
       layoutSwitcher: parseLayoutSwitcher(container.dataset.layoutSwitcher),
       limit: Number(container.dataset.limit || 0),
-      sourceUrl: container.dataset.sourceUrl || DEFAULTS.sourceUrl
+      sourceUrl: container.dataset.sourceUrl || DEFAULTS.sourceUrl,
+      template: parseTemplate(container.dataset.template)
     };
+
+    // A summary mount is one chronological list of every dated event, so the
+    // pill row and the layout switcher have nothing to offer it: there is no
+    // other category to swap to, and no second geometry. Forcing both off here
+    // means a stray attribute left on a pasted snippet cannot render controls
+    // that would either do nothing or swap in a layout class the summary rows
+    // have no CSS for.
+    if (config.template === SUMMARY_TEMPLATE) {
+      config.views = [];
+      config.view = SUMMARY_VIEW.value;
+      config.layoutSwitcher = false;
+    }
 
     // A starting layout the switcher does not offer would leave every layout
     // button unpressed - the same trap as a starting view outside the pills.
@@ -70,6 +99,14 @@
   function normalizeViewValue(rawValue) {
     const value = String(rawValue || '').trim().toLowerCase();
     return value === 'events' ? 'programs' : value;
+  }
+
+  // Only `summary` is recognised. Anything else - including a card template
+  // name like `event` or `business` - falls back to the normal per-type
+  // dispatch, so a typo renders the ordinary cards rather than nothing.
+  function parseTemplate(rawValue) {
+    const value = String(rawValue || '').trim().toLowerCase();
+    return value === SUMMARY_TEMPLATE ? SUMMARY_TEMPLATE : DEFAULTS.template;
   }
 
   function parseLayout(rawValue) {
@@ -141,6 +178,10 @@
   }
 
   function getActiveView(config) {
+    if (config.view === SUMMARY_VIEW.value) {
+      return SUMMARY_VIEW;
+    }
+
     return FEED_VIEWS.find((option) => option.value === config.view) || FEED_VIEWS[0];
   }
 
@@ -200,9 +241,19 @@
     // The empty notice ships alongside the list rather than replacing it,
     // because a view like Programs can filter every fetched card out of sight
     // and still need those cards intact for the next pill.
+    // A summary mount replaces both axes at once - its own row markup and its
+    // own list geometry - so it does not take a layout class. The rows still
+    // carry .vq-feed-card and data-event-type, which is what applyActiveView
+    // and the empty notice below work on.
+    const isSummary = config.template === SUMMARY_TEMPLATE;
+    const listClass = isSummary ? 'is-summary' : `is-${escapeAttribute(config.layout)}`;
+    const rows = isSummary
+      ? events.map((event) => buildSummaryRowMarkup(event)).join('')
+      : events.map((event) => buildCardMarkup(event, config)).join('');
+
     root.innerHTML = `
-      <div class="vq-feed-list is-${escapeAttribute(config.layout)}">
-        ${events.map((event) => buildCardMarkup(event, config)).join('')}
+      <div class="vq-feed-list ${listClass}">
+        ${rows}
       </div>
       <div class="vq-feed-empty is-hidden" data-role="filtered-empty">${escapeHtml(config.emptyMessage)}</div>
     `;
@@ -262,6 +313,36 @@
       <article class="vq-feed-card" data-template="${template}" data-event-type="${escapeAttribute(event.eventType)}">
         <div class="vq-feed-media">${media}</div>
         <div class="vq-feed-body">${body}</div>
+      </article>
+    `;
+  }
+
+  // Date, event type, title. Nothing else, by request.
+  //
+  // Deliberately its own row builder rather than the event template with
+  // fields hidden - the same principle as the three content templates above.
+  // That card carries a photo, a seat meter, a cost, a coordinator and a
+  // description toggle; CSS-suppressing all of it would keep building markup
+  // nobody can see and would break the first time the card changed shape.
+  //
+  // The title links out with target="_blank", matching the Register action:
+  // this embed renders inside GoDaddy's sandboxed iframe, so a same-tab
+  // navigation would try to replace the frame rather than the page.
+  function buildSummaryRowMarkup(event) {
+    const title = event.title || 'Listing';
+    const dateLabel = hasDateRange(event)
+      ? formatEventDateRange(event)
+      : formatEventDate(event.date);
+    const safeTitle = escapeHtml(title);
+    const titleMarkup = event.detailUrl
+      ? `<a href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>`
+      : safeTitle;
+
+    return `
+      <article class="vq-feed-card" data-template="${SUMMARY_TEMPLATE}" data-event-type="${escapeAttribute(event.eventType)}">
+        <span class="vq-feed-summary-date">${escapeHtml(dateLabel)}</span>
+        <span class="vq-feed-summary-type">${escapeHtml(event.eventType || '')}</span>
+        <span class="vq-feed-summary-title">${titleMarkup}</span>
       </article>
     `;
   }
@@ -1274,6 +1355,79 @@
         --vq-media-width: 88px;
         --vq-media-height: 88px;
         gap: 0;
+      }
+      /* Summary rows. The list is the query container here, not each row:
+         every row has to break to two lines at the same width, or a long title
+         wraps while the row above it stays on one line and the date column
+         stops lining up. A container query cannot match the element that
+         establishes it, so the rules below target the rows, which are
+         descendants. */
+      .vq-feed-list.is-summary {
+        container-type: inline-size;
+        display: block;
+        gap: 0;
+      }
+      .vq-feed-card[data-template="summary"] {
+        align-items: baseline;
+        background: none;
+        border: 0;
+        border-bottom: 1px solid #ded5ca;
+        border-radius: 0;
+        box-shadow: none;
+        /* Not a query container, unlike the content cards - see the list. */
+        container-type: normal;
+        display: grid;
+        /* Date and type take only what they need; the title absorbs the rest.
+           minmax(0, …) on the title is what lets a long one ellipsize instead
+           of forcing the row wider than the mount. */
+        grid-template-columns: max-content max-content minmax(0, 1fr);
+        column-gap: 16px;
+        row-gap: 2px;
+        padding: 10px 2px;
+      }
+      .vq-feed-card[data-template="summary"]:last-child {
+        border-bottom: 0;
+      }
+      .vq-feed-summary-date {
+        color: #9a4d2f;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.86rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .vq-feed-summary-type {
+        color: #5a6b67;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .vq-feed-summary-title {
+        color: #1d2927;
+        font-weight: 600;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .vq-feed-summary-title a {
+        color: #225c56;
+        text-decoration: none;
+      }
+      .vq-feed-summary-title a:hover,
+      .vq-feed-summary-title a:focus-visible {
+        text-decoration: underline;
+      }
+      /* Narrow column: date and type ride together on the first line and the
+         title takes the second, rather than three columns crushing the title
+         to a few characters. */
+      @container (max-width: 420px) {
+        .vq-feed-card[data-template="summary"] {
+          grid-template-columns: max-content minmax(0, 1fr);
+        }
+        .vq-feed-summary-title {
+          grid-column: 1 / -1;
+        }
       }
       .vq-feed-card {
         background: #ffffff;
