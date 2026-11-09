@@ -330,20 +330,40 @@
   // navigation would try to replace the frame rather than the page.
   function buildSummaryRowMarkup(event) {
     const title = event.title || 'Listing';
-    const dateLabel = hasDateRange(event)
-      ? formatEventDateRange(event)
-      : formatEventDate(event.date);
-    const safeTitle = escapeHtml(title);
-    const titleMarkup = event.detailUrl
-      ? `<a href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>`
-      : safeTitle;
+    // The same date tile and type pill the cards use, rather than a second
+    // visual vocabulary for the same two facts - a reader moving from the home
+    // page to a listing page should recognise them. buildDateStackMarkup also
+    // brings its own "Date TBD" state, which a Challenge needs.
+    const dateBlock = buildDateStackMarkup(event.date);
+    const span = hasDateRange(event)
+      ? `<span class="vq-feed-summary-span">through ${escapeHtml(formatEventDate(event.endDate))}</span>`
+      : '';
+    const body = `
+        <span class="vq-feed-summary-body">
+          <span class="vq-feed-summary-title">${escapeHtml(title)}</span>
+          <span class="vq-feed-summary-meta">
+            <span class="vq-feed-type">${escapeHtml(event.eventType || '')}</span>
+            ${span}
+          </span>
+        </span>
+        <span class="vq-feed-summary-chevron" aria-hidden="true"></span>
+    `;
+    const attributes = `data-template="${SUMMARY_TEMPLATE}" data-event-type="${escapeAttribute(event.eventType)}"`;
 
-    return `
-      <article class="vq-feed-card" data-template="${SUMMARY_TEMPLATE}" data-event-type="${escapeAttribute(event.eventType)}">
-        <span class="vq-feed-summary-date">${escapeHtml(dateLabel)}</span>
-        <span class="vq-feed-summary-type">${escapeHtml(event.eventType || '')}</span>
-        <span class="vq-feed-summary-title">${titleMarkup}</span>
-      </article>
+    // The whole row is the link, not just the title - a one-line row is an
+    // awkward target otherwise, and the chevron promises the row is clickable.
+    // An event with no detail URL still has to render, so it falls back to a
+    // div rather than an anchor with nowhere to go.
+    return event.detailUrl
+      ? `
+      <a class="vq-feed-card" ${attributes} href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">
+        ${dateBlock}${body}
+      </a>
+    `
+      : `
+      <div class="vq-feed-card" ${attributes}>
+        ${dateBlock}${body}
+      </div>
     `;
   }
 
@@ -1357,76 +1377,117 @@
         gap: 0;
       }
       /* Summary rows. The list is the query container here, not each row:
-         every row has to break to two lines at the same width, or a long title
-         wraps while the row above it stays on one line and the date column
-         stops lining up. A container query cannot match the element that
-         establishes it, so the rules below target the rows, which are
-         descendants. */
+         every row has to break at the same width, or one wraps while the row
+         above it stays on one line and the date tiles stop lining up. A
+         container query cannot match the element that establishes it, so the
+         rules below target the rows, which are descendants. */
       .vq-feed-list.is-summary {
+        background: #ffffff;
+        border: 1px solid #ded5ca;
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(29, 41, 39, 0.06);
         container-type: inline-size;
         display: block;
         gap: 0;
+        overflow: hidden;
+        padding: 4px 6px;
       }
       .vq-feed-card[data-template="summary"] {
-        align-items: baseline;
+        align-items: center;
         background: none;
         border: 0;
-        border-bottom: 1px solid #ded5ca;
-        border-radius: 0;
+        border-bottom: 1px solid #efe8de;
+        border-radius: 8px;
         box-shadow: none;
+        color: inherit;
         /* Not a query container, unlike the content cards - see the list. */
         container-type: normal;
         display: grid;
-        /* Date and type take only what they need; the title absorbs the rest.
-           minmax(0, …) on the title is what lets a long one ellipsize instead
-           of forcing the row wider than the mount. */
-        grid-template-columns: max-content max-content minmax(0, 1fr);
-        column-gap: 16px;
-        row-gap: 2px;
-        padding: 10px 2px;
+        column-gap: 14px;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        padding: 12px 10px;
+        text-decoration: none;
+        transition: background-color 120ms ease;
       }
       .vq-feed-card[data-template="summary"]:last-child {
         border-bottom: 0;
       }
-      .vq-feed-summary-date {
-        color: #9a4d2f;
-        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-        font-size: 0.86rem;
-        font-variant-numeric: tabular-nums;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        white-space: nowrap;
+      .vq-feed-card[data-template="summary"]:hover,
+      .vq-feed-card[data-template="summary"]:focus-visible {
+        background: #faf7f2;
       }
-      .vq-feed-summary-type {
-        color: #5a6b67;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        white-space: nowrap;
+      /* The tile is the card's, just smaller - the summary is a denser list
+         and the full-size tile dominates a single-line row. */
+      .vq-feed-list.is-summary .vq-feed-datestack {
+        padding: 5px 8px;
+        width: 54px;
+      }
+      .vq-feed-list.is-summary .vq-feed-datestack-day {
+        font-size: 1.3rem;
+      }
+      .vq-feed-list.is-summary .vq-feed-datestack-month,
+      .vq-feed-list.is-summary .vq-feed-datestack-year {
+        font-size: 0.64rem;
+      }
+      .vq-feed-summary-body {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
       }
       .vq-feed-summary-title {
-        color: #1d2927;
-        font-weight: 600;
-        min-width: 0;
+        color: #225c56;
+        font-size: 1.02rem;
+        font-weight: 700;
+        line-height: 1.3;
         overflow-wrap: anywhere;
       }
-      .vq-feed-summary-title a {
-        color: #225c56;
-        text-decoration: none;
-      }
-      .vq-feed-summary-title a:hover,
-      .vq-feed-summary-title a:focus-visible {
+      .vq-feed-card[data-template="summary"]:hover .vq-feed-summary-title,
+      .vq-feed-card[data-template="summary"]:focus-visible .vq-feed-summary-title {
         text-decoration: underline;
       }
-      /* Narrow column: date and type ride together on the first line and the
-         title takes the second, rather than three columns crushing the title
-         to a few characters. */
-      @container (max-width: 420px) {
+      .vq-feed-summary-meta {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      /* Shares .vq-feed-type with the cards, dialled down for a list row. */
+      .vq-feed-list.is-summary .vq-feed-type {
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+        padding: 3px 9px;
+        text-transform: uppercase;
+      }
+      .vq-feed-summary-span {
+        color: #5a6b67;
+        font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+      }
+      /* CSS-drawn rather than a character, so no font substitution can turn it
+         into a box - the same reason the carousel arrows are drawn. */
+      .vq-feed-summary-chevron {
+        border-right: 2px solid #b9ac9c;
+        border-top: 2px solid #b9ac9c;
+        display: block;
+        height: 8px;
+        transform: rotate(45deg);
+        transition: transform 120ms ease, border-color 120ms ease;
+        width: 8px;
+      }
+      .vq-feed-card[data-template="summary"]:hover .vq-feed-summary-chevron,
+      .vq-feed-card[data-template="summary"]:focus-visible .vq-feed-summary-chevron {
+        border-color: #225c56;
+        transform: rotate(45deg) translate(2px, -2px);
+      }
+      /* Narrow column: the chevron goes before the title has to fight it for
+         room, and the row keeps its tile-beside-text shape. */
+      @container (max-width: 380px) {
         .vq-feed-card[data-template="summary"] {
-          grid-template-columns: max-content minmax(0, 1fr);
+          column-gap: 10px;
+          grid-template-columns: auto minmax(0, 1fr);
         }
-        .vq-feed-summary-title {
-          grid-column: 1 / -1;
+        .vq-feed-summary-chevron {
+          display: none;
         }
       }
       .vq-feed-card {

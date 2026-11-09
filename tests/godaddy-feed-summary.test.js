@@ -36,6 +36,8 @@ const buildSummaryRowMarkup = new Function(`
   ${extractBlock('function formatEventDate(', '\n  }')}
   ${extractBlock('function hasDateRange(', '\n  }')}
   ${extractBlock('function formatEventDateRange(', '\n  }')}
+  ${extractBlock('function parseDateParts(', '\n  }')}
+  ${extractBlock('function buildDateStackMarkup(', '\n  }')}
   ${extractBlock('function buildSummaryRowMarkup(', '\n  }')}
   return buildSummaryRowMarkup;
 `)();
@@ -64,13 +66,26 @@ test('anything else falls back to the normal per-type cards', () => {
 test('a row carries exactly the date, the type and the title', () => {
   const markup = buildSummaryRowMarkup(EVENT);
 
-  assert.match(markup, /vq-feed-summary-date">11\/13\/2026</);
-  assert.match(markup, /vq-feed-summary-type">Lecture</);
-  assert.match(markup, /Protecting Precious Quilts/);
+  // The date arrives as the shared tile, so it reads as month/day/year parts.
+  assert.match(markup, /vq-feed-datestack-month">NOV</);
+  assert.match(markup, /vq-feed-datestack-day">13</);
+  assert.match(markup, /vq-feed-datestack-year">2026</);
+  assert.match(markup, /vq-feed-type">Lecture</);
+  assert.match(markup, /vq-feed-summary-title">Protecting Precious Quilts</);
   // Nothing from the full card should have come along for the ride.
   assert.equal(markup.includes('vq-feed-media'), false);
   assert.equal(markup.includes('vq-feed-seat'), false);
   assert.equal(markup.includes('vq-feed-register'), false);
+});
+
+test('the date tile and type pill are the cards\' own, not a second vocabulary', () => {
+  // Shared classes are the point - a reader moving from the home page to a
+  // listing page should recognise both. If these are ever renamed here, the
+  // summary silently loses its styling.
+  const markup = buildSummaryRowMarkup(EVENT);
+
+  assert.match(markup, /class="vq-feed-datestack"/);
+  assert.match(markup, /class="vq-feed-type"/);
 });
 
 test('the row keeps the hooks the filter and the empty notice rely on', () => {
@@ -85,11 +100,16 @@ test('the row keeps the hooks the filter and the empty notice rely on', () => {
 });
 
 test('the date renders as plain text, never a day early', () => {
-  // The whole reason formatEventDate exists - see godaddy-feed-date-format.
-  assert.match(buildSummaryRowMarkup({ ...EVENT, date: '2026-01-01' }), />01\/01\/2026</);
+  // The whole reason parseDateParts exists - see godaddy-feed-date-format.
+  const markup = buildSummaryRowMarkup({ ...EVENT, date: '2026-01-01' });
+
+  assert.match(markup, /vq-feed-datestack-month">JAN</);
+  assert.match(markup, /vq-feed-datestack-day">1</);
 });
 
 test('a multi-day event shows its span', () => {
+  // The tile carries the start, as it does on a card; the end goes beside the
+  // type so the row still reads as one line.
   const markup = buildSummaryRowMarkup({
     ...EVENT,
     date: '2027-02-11',
@@ -97,17 +117,22 @@ test('a multi-day event shows its span', () => {
     eventType: 'Retreat'
   });
 
-  assert.match(markup, /02\/11\/2027 - 02\/13\/2027/);
+  assert.match(markup, /vq-feed-datestack-day">11</);
+  assert.match(markup, /vq-feed-summary-span">through 02\/13\/2027</);
 });
 
 test('an endDate equal to the start is not rendered as a span', () => {
   const markup = buildSummaryRowMarkup({ ...EVENT, endDate: '2026-11-13' });
 
-  assert.equal(markup.includes(' - '), false);
+  assert.equal(markup.includes('vq-feed-summary-span'), false);
 });
 
-test('a missing date says so rather than rendering empty', () => {
-  assert.match(buildSummaryRowMarkup({ ...EVENT, date: '' }), /Date TBD/);
+test('a missing date falls back to the tile\'s TBD state', () => {
+  // This is the Challenge case - a Challenge does not require a date.
+  const markup = buildSummaryRowMarkup({ ...EVENT, date: '' });
+
+  assert.match(markup, /vq-feed-datestack is-tbd/);
+  assert.match(markup, /TBD</);
 });
 
 test('the title links out in a new tab, because the embed sits in an iframe', () => {
@@ -120,11 +145,21 @@ test('the title links out in a new tab, because the embed sits in an iframe', ()
   assert.match(markup, /rel="noopener noreferrer"/);
 });
 
-test('an event with no detail URL renders the title as plain text', () => {
+test('an event with no detail URL renders as a div, not a dead anchor', () => {
   const markup = buildSummaryRowMarkup({ ...EVENT, detailUrl: '' });
 
   assert.equal(markup.includes('<a '), false);
+  assert.match(markup, /<div class="vq-feed-card"/);
   assert.match(markup, /Protecting Precious Quilts/);
+});
+
+test('the whole row is the link, not just the title', () => {
+  // A one-line row is an awkward click target otherwise, and the chevron
+  // promises the row is clickable.
+  const markup = buildSummaryRowMarkup(EVENT);
+
+  assert.match(markup, /<a class="vq-feed-card"/);
+  assert.match(markup, /vq-feed-summary-chevron/);
 });
 
 test('a title with markup in it is escaped, not rendered', () => {
