@@ -276,7 +276,18 @@ export async function saveMembershipSettings(settings, actorProfile) {
     updatedDate: serverTimestamp()
   };
 
-  batch.set(membershipSettingsRef(), payload, { merge: true });
+  // Deliberately a full set, NOT { merge: true }. firestore.rules validates
+  // this document with keys().hasOnly(...), and under a merge
+  // request.resource.data is the *merged* result - so any field this payload
+  // once wrote and no longer writes stays on the stored document and fails
+  // that check on every future save, with no way to clear it from the app.
+  // That is what broke the Membership Check card: allowAdminSkipMembershipCheck
+  // was dropped from this payload in 89aba62 (2026-07-26) while production's
+  // appSettings/membership kept the key, so every save after 2026-07-22 was
+  // denied as a permission error. A full set makes the payload authoritative
+  // and clears the orphan on the first successful save. Any field added here
+  // must also be added to validMembershipSettings() in firestore.rules.
+  batch.set(membershipSettingsRef(), payload);
   addConfigurationAuditLog(batch, {
     actorProfile,
     after: payload,
