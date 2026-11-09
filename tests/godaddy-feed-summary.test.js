@@ -157,13 +157,13 @@ test('the summary view is kept out of the pill list', () => {
   const feedViews = extractBlock('const FEED_VIEWS = [', '];');
 
   assert.equal(feedViews.includes('summary'), false);
-  assert.equal(feedViews.includes('upcoming'), false);
+  assert.equal(feedViews.includes('allevents'), false);
 });
 
-test('the summary view asks the API for the upcoming category', () => {
+test('the summary view asks the API for the allevents category', () => {
   const summaryView = extractBlock('const SUMMARY_VIEW = {', '\n  };');
 
-  assert.match(summaryView, /category: 'upcoming'/);
+  assert.match(summaryView, /category: 'allevents'/);
 });
 
 test('summary is not offered as a layout', () => {

@@ -75,9 +75,10 @@
         <div data-vq-feed data-category="forsale" data-categories="forsale" data-layout="grid"
              data-empty-message="Nothing for sale at the moment - check back soon."></div>
 
-      Home page - one chronological list of every upcoming event, date, type
-      and title only. No category or layout attributes: the summary brings its
-      own, and the pill row and layout switcher are suppressed for it.
+      Home page - one list of every published event in date order, date, type
+      and title only, Challenges last. No category or layout attributes: the
+      summary brings its own, and the pill row and layout switcher are
+      suppressed for it.
 
         <div data-vq-feed data-template="summary"
              data-empty-message="No events are scheduled right now - check back soon."></div>
@@ -105,17 +106,20 @@
         the title linking to the event page in a new tab. Built for the home
         page.
 
-        It loads its own set - every dated event, Challenges included,
-        ordered by date and with anything already past left out server-side.
-        That is a different set from any pill: "programs" excludes Challenges,
-        and the per-type pages keep showing an event after its date passes.
-        So a summary mount needs no data-category, and ignores data-categories
-        and data-layout-switcher if they are left on a pasted snippet - there
-        is no second category to switch to and no second geometry.
+        It loads its own set - every published event, Challenges included,
+        in date order with Challenges last. That is a different set from any
+        pill: "programs" excludes Challenges. So a summary mount needs no
+        data-category, and ignores data-categories and data-layout-switcher if
+        they are left on a pasted snippet - there is no second category to
+        switch to and no second geometry.
 
-        A multi-day event shows its span; an event missing a date shows
-        "Date TBD" rather than being hidden. data-limit and
-        data-empty-message both still apply.
+        There is no date cutoff: the summary lists what is published, and an
+        event leaves it by being archived. Challenges sit at the end because
+        they do not require a date, and an undated event would otherwise sort
+        above every real one.
+
+        A multi-day event shows its span; an event with no date shows
+        "Date TBD". data-limit and data-empty-message both still apply.
 
         Summary is deliberately NOT a data-layout value. Layouts are a CSS
         class swap with no re-render, and these rows are different markup, so
@@ -185,9 +189,9 @@
       <div class="demo-section-header">
         <h2>Home page summary</h2>
         <p>
-          Every upcoming event in date order &mdash; date, type and title only, each one linking
+          Every published event in date order &mdash; date, type and title only, each one linking
           through to its own page. Programs, workshops, classes, lectures, retreats and challenges
-          together in one list, with anything already past left off.
+          together in one list, with challenges at the end.
         </p>
       </div>
 

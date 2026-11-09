@@ -26,13 +26,13 @@
   // parseViewList falls back to - so any embed without data-categories would
   // quietly grow a sixth pill on the next deploy.
   //
-  // Its category is the feed API's `upcoming`, which is every dated event
-  // including Challenges, already date-filtered and ordered by date server-side
+  // Its category is the feed API's `allevents`: every published event
+  // including Challenges, ordered by date with Challenges last, server-side
   // (EVENT_CATEGORY_CONFIG in api/_lib/public-event-feed.js).
   const SUMMARY_TEMPLATE = 'summary';
   const SUMMARY_VIEW = {
-    category: 'upcoming',
-    label: 'Upcoming Events',
+    category: 'allevents',
+    label: 'Events',
     typeFilter: '',
     value: 'summary'
   };
