@@ -157,7 +157,8 @@ Paste a mount div and the script tag:
 | `data-vq-feed` | Marks the mount. Required. |
 | `data-category` | Which listings load: `programs`, `workshops`, `challenges`, `business`, `forsale`. `events` is a legacy alias resolving to `programs`. On its own it only sets which pill starts selected. |
 | `data-categories` | Comma-separated list controlling which pills appear and in what order. A single value hides the pill row, which is how a page is pinned to one kind of listing. |
-| `data-layout` | Card geometry: `roster` (default), `grid`, `agenda`. |
+| `data-template` | `summary` switches the mount from cards to summary rows — one line per event with the date, the event type and the title, nothing else. Built for the home page; see below. Anything else falls back to the normal per-type cards. |
+| `data-layout` | Card geometry: `roster` (default), `grid`, `agenda`. Does not apply to `data-template="summary"`, which brings its own. |
 | `data-layout-switcher` | Adds a layout row readers can switch with. Presence alone offers all three; a comma-separated list (`"grid,roster"`) narrows it to those, in that order. `false`/`0`/`off`/`no` turns it back off, and fewer than two renders nothing. A `data-layout` the list does not offer falls back to its first entry, so no page starts with every pill unpressed. |
 | `data-empty-message` | Replaces the default empty-state text. Also covers a pill filtering everything out, not just a page with nothing on it. |
 | `data-limit` | Caps how many cards render, for a teaser strip. The limit slices the fetched list **before** the Programs/Workshops filter runs in the browser, so a limit on that page can show fewer cards than asked for, or none. |
@@ -165,9 +166,32 @@ Paste a mount div and the script tag:
 
 Card content is chosen by listing type, independently of layout: events show seats and cost, For Sale leads with the asking price, and Business Listings render as a contact block.
 
+### The home page summary
+
+`data-template="summary"` is the one mount that is not a per-type card page. It needs no other attributes:
+
+```html
+<div data-vq-feed data-template="summary"
+     data-empty-message="No events are scheduled right now - check back soon."></div>
+```
+
+It loads its own feed category, `allevents` — **every published event, Challenges included, in date order with Challenges last**. That is a different set from any pill: `programs` excludes Challenges, because each type has its own page, while the summary is the one place a reader sees all of them together. Business Listings and For Sale stay out; they are directory entries, not events.
+
+Three behaviours are deliberate and worth not "fixing":
+
+- **No date cutoff.** The summary lists what is published, and an event leaves it by being archived — which the feed query's `status == 'Published'` filter already handles. Past events therefore remain until someone archives them.
+- **Challenges last.** `requiresDate` in `EventForm.jsx` is `requiresSchedule && !isChallenge`, so a Challenge legitimately has no date, and Firestore sorts an empty date before every real one. Without this they would lead the page as a row of "Date TBD" above the next actual event.
+- **The rows are not links.** Readers reach an event through the site's own navigation, so there is no anchor, no chevron and no hover state. `detailUrl` is still in the feed payload; the summary just does not use it.
+
+`summary` is not a `data-layout` value and is not in the pill list, both on purpose: layouts are a CSS class swap with no re-render, so a Summary layout button would swap the class and leave the cards in place; and the pill list doubles as the fallback for a mount with no `data-categories`, so adding it there would grow a pill on every existing embed. `tests/godaddy-feed-summary.test.js` pins both.
+
+The rows run in two columns once the mount is at least 700px wide, one column below that, and `data-limit` and `data-empty-message` both still apply.
+
 `events.villagequilters.com` is production. `test.villagequilters.com` serves test listings and sends registrants to the Square sandbox. Never use the raw `*.vercel.app` deployment URL in an embed — it serves production with no warning and changes between deploys.
 
-`public/godaddy-event-feed-demo.html` renders the feed with the layout switcher enabled and carries a full setup reference in an HTML comment.
+Six live mounts as of 2026-11-09: Programs & Classes, Workshops, Guild Challenges, Business Listings and For Sale each carry a per-type card page, and the home page carries the summary. All six load the script from `events.villagequilters.com`.
+
+`public/godaddy-event-feed-demo.html` renders the feed with the layout switcher enabled, shows the summary alongside it, and carries a full setup reference in an HTML comment.
 
 ## Scripts
 
