@@ -250,10 +250,15 @@
     const rows = isSummary
       ? events.map((event) => buildSummaryRowMarkup(event)).join('')
       : events.map((event) => buildCardMarkup(event, config)).join('');
+    // The summary rows sit in an inner grid rather than directly in the list.
+    // The list is the query container, and a container query cannot match the
+    // element that establishes it - so the column count has to live on a
+    // descendant or the two-column rule could never fire.
+    const body = isSummary ? `<div class="vq-feed-summary-grid">${rows}</div>` : rows;
 
     root.innerHTML = `
       <div class="vq-feed-list ${listClass}">
-        ${rows}
+        ${body}
       </div>
       <div class="vq-feed-empty is-hidden" data-role="filtered-empty">${escapeHtml(config.emptyMessage)}</div>
     `;
@@ -1390,7 +1395,31 @@
         display: block;
         gap: 0;
         overflow: hidden;
-        padding: 4px 6px;
+        padding: 4px 8px;
+      }
+      /* One column until the list is wide enough for two to breathe. Capped at
+         two deliberately - a third column on a very wide page leaves titles
+         wrapping every other word. Below the threshold it stays a single
+         column, which is also what a mount of one or two events gets. */
+      .vq-feed-summary-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .vq-feed-summary-grid > .vq-feed-card:last-child {
+        border-bottom: 0;
+      }
+      @container (min-width: 640px) {
+        .vq-feed-summary-grid {
+          column-gap: 22px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        /* The bottom row holds the last two rows in two columns, so both lose
+           their rule. With an odd count the last-but-one sits at the foot of
+           the right column with nothing beneath it, which wants no rule
+           either - so this is correct for both parities. */
+        .vq-feed-summary-grid > .vq-feed-card:nth-last-child(-n+2) {
+          border-bottom: 0;
+        }
       }
       .vq-feed-card[data-template="summary"] {
         align-items: center;
@@ -1405,12 +1434,9 @@
         display: grid;
         column-gap: 14px;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        padding: 12px 10px;
+        padding: 14px 12px;
         text-decoration: none;
         transition: background-color 120ms ease;
-      }
-      .vq-feed-card[data-template="summary"]:last-child {
-        border-bottom: 0;
       }
       .vq-feed-card[data-template="summary"]:hover,
       .vq-feed-card[data-template="summary"]:focus-visible {
@@ -1419,15 +1445,15 @@
       /* The tile is the card's, just smaller - the summary is a denser list
          and the full-size tile dominates a single-line row. */
       .vq-feed-list.is-summary .vq-feed-datestack {
-        padding: 5px 8px;
-        width: 54px;
+        padding: 6px 8px;
+        width: 60px;
       }
       .vq-feed-list.is-summary .vq-feed-datestack-day {
-        font-size: 1.3rem;
+        font-size: 1.45rem;
       }
       .vq-feed-list.is-summary .vq-feed-datestack-month,
       .vq-feed-list.is-summary .vq-feed-datestack-year {
-        font-size: 0.64rem;
+        font-size: 0.68rem;
       }
       .vq-feed-summary-body {
         display: grid;
@@ -1436,9 +1462,9 @@
       }
       .vq-feed-summary-title {
         color: #225c56;
-        font-size: 1.02rem;
+        font-size: 1.12rem;
         font-weight: 700;
-        line-height: 1.3;
+        line-height: 1.35;
         overflow-wrap: anywhere;
       }
       .vq-feed-card[data-template="summary"]:hover .vq-feed-summary-title,
@@ -1453,14 +1479,14 @@
       }
       /* Shares .vq-feed-type with the cards, dialled down for a list row. */
       .vq-feed-list.is-summary .vq-feed-type {
-        font-size: 0.7rem;
+        font-size: 0.76rem;
         letter-spacing: 0.04em;
         padding: 3px 9px;
         text-transform: uppercase;
       }
       .vq-feed-summary-span {
         color: #5a6b67;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         font-variant-numeric: tabular-nums;
       }
       /* CSS-drawn rather than a character, so no font substitution can turn it
