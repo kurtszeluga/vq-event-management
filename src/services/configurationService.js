@@ -309,7 +309,11 @@ export async function savePaymentSettings(settings, actorProfile) {
     updatedDate: serverTimestamp()
   };
 
-  batch.set(paymentSettingsRef(), payload, { merge: true });
+  // Full set, not a merge - see the note on saveMembershipSettings. The
+  // payload covers every field validPaymentSettings() allows, and the only
+  // readers (getPaymentSettings in create-registration.js and
+  // admin-update-registration-payment.js) take fields it writes.
+  batch.set(paymentSettingsRef(), payload);
   addConfigurationAuditLog(batch, {
     actorProfile,
     after: payload,
@@ -342,7 +346,13 @@ export async function saveDirectorySettings(settings, actorProfile) {
     updatedDate: serverTimestamp()
   };
 
-  batch.set(directorySettingsRef(), payload, { merge: true });
+  // Full set, not a merge - see the note on saveMembershipSettings. Safe
+  // because the payload is built from DEFAULT_DIRECTORY_SETTINGS, so it always
+  // carries every declared setting. It also writes showEventRegistrantNames
+  // onto documents saved before that setting existed, which firestore.rules
+  // reads directly at registrantNamesEnabled() - a missing field there is a
+  // rules evaluation error rather than a clean false.
+  batch.set(directorySettingsRef(), payload);
   addConfigurationAuditLog(batch, {
     actorProfile,
     after: payload,
@@ -365,7 +375,14 @@ export async function saveEmailInstructions(instructions, actorProfile) {
     updatedDate: serverTimestamp()
   };
 
-  batch.set(emailInstructionsRef(), payload, { merge: true });
+  // Full set, not a merge - see the note on saveMembershipSettings. The
+  // payload covers every field validEmailInstructions() allows, and every
+  // server-side reader takes one of sendRegistrationConfirmations,
+  // sendCoordinatorRegistrationNotifications or membership, all written here.
+  // This document is not world-readable, so unlike the other three its stored
+  // shape could not be checked from outside; a full set is the safe direction
+  // either way, since it clears an orphan rather than tripping over one.
+  batch.set(emailInstructionsRef(), payload);
   addConfigurationAuditLog(batch, {
     actorProfile,
     after: payload,
