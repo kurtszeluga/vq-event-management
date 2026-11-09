@@ -135,31 +135,25 @@ test('a missing date falls back to the tile\'s TBD state', () => {
   assert.match(markup, /TBD</);
 });
 
-test('the title links out in a new tab, because the embed sits in an iframe', () => {
-  // A same-tab navigation from inside GoDaddy's sandboxed iframe would try to
-  // replace the frame rather than the page.
+test('a row is not a link at all', () => {
+  // Removed on request: readers reach an event through the site's own
+  // navigation. The anchor, the chevron and the hover state went together -
+  // an affordance left behind promises a click that no longer happens.
   const markup = buildSummaryRowMarkup(EVENT);
-
-  assert.match(markup, /href="https:\/\/events\.villagequilters\.com\/events\/abc123"/);
-  assert.match(markup, /target="_blank"/);
-  assert.match(markup, /rel="noopener noreferrer"/);
-});
-
-test('an event with no detail URL renders as a div, not a dead anchor', () => {
-  const markup = buildSummaryRowMarkup({ ...EVENT, detailUrl: '' });
 
   assert.equal(markup.includes('<a '), false);
+  assert.equal(markup.includes('href'), false);
+  assert.equal(markup.includes('target="_blank"'), false);
+  assert.equal(markup.includes('vq-feed-summary-chevron'), false);
   assert.match(markup, /<div class="vq-feed-card"/);
-  assert.match(markup, /Protecting Precious Quilts/);
 });
 
-test('the whole row is the link, not just the title', () => {
-  // A one-line row is an awkward click target otherwise, and the chevron
-  // promises the row is clickable.
+test('a detailUrl in the payload is ignored rather than rendered', () => {
+  // The feed still publishes detailUrl for anything else that wants it; the
+  // summary simply does not use it.
   const markup = buildSummaryRowMarkup(EVENT);
 
-  assert.match(markup, /<a class="vq-feed-card"/);
-  assert.match(markup, /vq-feed-summary-chevron/);
+  assert.equal(markup.includes(EVENT.detailUrl), false);
 });
 
 test('a title with markup in it is escaped, not rendered', () => {
@@ -172,13 +166,16 @@ test('a title with markup in it is escaped, not rendered', () => {
   assert.match(markup, /&lt;img/);
 });
 
-test('a hostile detail URL cannot break out of the href attribute', () => {
+test('a hostile detail URL reaches no attribute at all', () => {
+  // Previously this guarded the href. With no link, the URL is never written
+  // into the markup - which is a stronger guarantee, so the test follows it.
   const markup = buildSummaryRowMarkup({
     ...EVENT,
     detailUrl: 'https://example.com/" onmouseover="alert(1)'
   });
 
-  assert.equal(markup.includes('" onmouseover='), false);
+  assert.equal(markup.includes('onmouseover'), false);
+  assert.equal(markup.includes('example.com'), false);
 });
 
 test('an untitled event still renders a row', () => {

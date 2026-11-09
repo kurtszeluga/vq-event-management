@@ -343,7 +343,16 @@
     const span = hasDateRange(event)
       ? `<span class="vq-feed-summary-span">through ${escapeHtml(formatEventDate(event.endDate))}</span>`
       : '';
-    const body = `
+
+    // Deliberately not a link, and not clickable at all: the summary is a
+    // noticeboard, and readers go to the page they want from the site's own
+    // navigation. The row carried an anchor, a chevron and a hover state
+    // earlier; all three went together, because an affordance left behind
+    // promises a click that no longer happens. `detailUrl` is still in the
+    // feed payload for anything else that wants it.
+    return `
+      <div class="vq-feed-card" data-template="${SUMMARY_TEMPLATE}" data-event-type="${escapeAttribute(event.eventType)}">
+        ${dateBlock}
         <span class="vq-feed-summary-body">
           <span class="vq-feed-summary-title">${escapeHtml(title)}</span>
           <span class="vq-feed-summary-meta">
@@ -351,23 +360,6 @@
             ${span}
           </span>
         </span>
-        <span class="vq-feed-summary-chevron" aria-hidden="true"></span>
-    `;
-    const attributes = `data-template="${SUMMARY_TEMPLATE}" data-event-type="${escapeAttribute(event.eventType)}"`;
-
-    // The whole row is the link, not just the title - a one-line row is an
-    // awkward target otherwise, and the chevron promises the row is clickable.
-    // An event with no detail URL still has to render, so it falls back to a
-    // div rather than an anchor with nowhere to go.
-    return event.detailUrl
-      ? `
-      <a class="vq-feed-card" ${attributes} href="${escapeAttribute(event.detailUrl)}" target="_blank" rel="noopener noreferrer">
-        ${dateBlock}${body}
-      </a>
-    `
-      : `
-      <div class="vq-feed-card" ${attributes}>
-        ${dateBlock}${body}
       </div>
     `;
   }
@@ -1433,14 +1425,9 @@
         container-type: normal;
         display: grid;
         column-gap: 14px;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr);
         padding: 16px 13px;
         text-decoration: none;
-        transition: background-color 120ms ease;
-      }
-      .vq-feed-card[data-template="summary"]:hover,
-      .vq-feed-card[data-template="summary"]:focus-visible {
-        background: #faf7f2;
       }
       /* The tile is the card's, just smaller - the summary is a denser list
          and the full-size tile dominates a single-line row. */
@@ -1461,15 +1448,11 @@
         min-width: 0;
       }
       .vq-feed-summary-title {
-        color: #225c56;
+        color: #1d2927;
         font-size: 1.22rem;
         font-weight: 700;
         line-height: 1.35;
         overflow-wrap: anywhere;
-      }
-      .vq-feed-card[data-template="summary"]:hover .vq-feed-summary-title,
-      .vq-feed-card[data-template="summary"]:focus-visible .vq-feed-summary-title {
-        text-decoration: underline;
       }
       .vq-feed-summary-meta {
         align-items: center;
@@ -1489,31 +1472,10 @@
         font-size: 0.9rem;
         font-variant-numeric: tabular-nums;
       }
-      /* CSS-drawn rather than a character, so no font substitution can turn it
-         into a box - the same reason the carousel arrows are drawn. */
-      .vq-feed-summary-chevron {
-        border-right: 2px solid #b9ac9c;
-        border-top: 2px solid #b9ac9c;
-        display: block;
-        height: 8px;
-        transform: rotate(45deg);
-        transition: transform 120ms ease, border-color 120ms ease;
-        width: 8px;
-      }
-      .vq-feed-card[data-template="summary"]:hover .vq-feed-summary-chevron,
-      .vq-feed-card[data-template="summary"]:focus-visible .vq-feed-summary-chevron {
-        border-color: #225c56;
-        transform: rotate(45deg) translate(2px, -2px);
-      }
-      /* Narrow column: the chevron goes before the title has to fight it for
-         room, and the row keeps its tile-beside-text shape. */
+      /* Narrow column: the tile and text stay side by side, just tighter. */
       @container (max-width: 380px) {
         .vq-feed-card[data-template="summary"] {
           column-gap: 10px;
-          grid-template-columns: auto minmax(0, 1fr);
-        }
-        .vq-feed-summary-chevron {
-          display: none;
         }
       }
       .vq-feed-card {
