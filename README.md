@@ -99,6 +99,65 @@ Optional:
 - `APP_ORIGIN` — public site origin for email links
 - `DISABLE_API_RATE_LIMITS` — set `true` only for local/testing bypass
 - `FIREBASE_API_KEY` — fallback for some admin API routes
+- `GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON` — separate key for the Google Sheet sync (see below)
+
+### Registration Google Sheets
+
+Every event with registration enabled can get its own Google Sheet in a Shared
+Drive folder, created when the event is saved and rewritten whenever someone
+registers, cancels, or has a payment recorded. Off until it is set up.
+
+Setup, once:
+
+1. **Pick the service account.** The Firebase one (`FIREBASE_SERVICE_ACCOUNT_JSON`)
+   works and needs nothing new. To keep the key that can reach the guild's Drive
+   separate from the one that mints Firebase tokens, create a second service
+   account and set `GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON` instead.
+2. **Enable both APIs** on that service account's Google Cloud project: Google
+   Drive API and Google Sheets API.
+3. **Share the folder.** Create a folder in a Shared Drive, then share it with
+   the service account's `client_email` (it is in the JSON key) as **Content
+   manager**. A Shared Drive is required — a folder in someone's personal My
+   Drive cannot hold files a service account creates, because a service account
+   has no storage quota of its own.
+4. **Switch it on** in the app: Admin → Configuration → Google Sheets. Tick the
+   box and paste the folder's address from Drive; the folder ID is picked out of
+   it on save.
+
+Notes:
+
+- The sheet is a mirror, rewritten in full from the registrations on every
+  change, so it is self-healing — a sync that failed catches up on the next
+  change to the event.
+- **Coordinators can add rows by hand** for people who registered at the door.
+  Leave the **Registration ID** cell empty: that blank is how the sync tells
+  your row from one it wrote, and rows with a blank ID are read back and kept
+  on every rewrite (re-appended below the synced ones). A row with something
+  typed into Registration ID is treated as the app's and will be overwritten.
+  If the sync cannot read the sheet, it abandons the update rather than
+  clearing anything, so a hand-typed row is never lost to a failed read.
+- Rows run **newest first**, so an event that is filling up shows today's
+  sign-ups at the top. Hand-entered rows sit together below the synced ones.
+- Editing a *synced* row is pointless — the next rewrite restores it from the
+  registration, which is the source of truth. That includes the Notes column,
+  which carries the payment note.
+- **Your own columns to the right of Registration ID are kept, and follow their
+  registrant.** Add a "Called?" or "Brought food?" column and the sync carries
+  each cell with the registration it sits beside, matched on Registration ID
+  rather than on row position — so a new sign-up pushing rows down no longer
+  leaves your notes describing the wrong person. Your column headings in row 1
+  are kept too, and a formula stays a formula. Notes on a hand-entered row
+  travel with that row. A note whose registration has been deleted goes with
+  it, rather than attaching itself to whoever lands on that row.
+- A walk-in who later registers online will appear twice, once as your row and
+  once as theirs. Delete your row when that happens.
+- Cancelled and waitlisted registrants stay in the sheet with their status, so a
+  row never silently disappears.
+- A sync failure never blocks a registration. The reason is recorded and shown
+  on the registration list page, which also has an **Update Sheet** button for
+  retrying and for giving a sheet to an event that predates this feature.
+- Turning the setting off stops the syncing and leaves the existing sheets
+  exactly as they are.
 
 ### Scheduled Jobs
 
@@ -121,6 +180,42 @@ Vercel should use:
 `vercel.json` includes the SPA rewrite needed for React Router.
 
 Set both the `VITE_FIREBASE_*` client variables and the server variables above in the Vercel project environment. The Hobby plan has a 12-function limit, so prefer extending existing API routes before adding new functions.
+
+
+#### When something happens to the sheet
+
+| What happened | What the sync does |
+| --- | --- |
+| Sheet deleted, or in the bin | Creates a replacement in the folder and relinks. Registrations are rebuilt in full; **hand-entered rows and your own columns are lost with the file.** Only logged, not surfaced in the app — the link quietly points at a new, shorter sheet. If the original is later restored from the bin you will have two files, and the app writes to the newer one. |
+| The **tab** renamed (`Registrations` → `Sign-ups`) | Fine. The live tab title is read on every sync, so writes follow the rename. |
+| The **Drive file** renamed | Renamed back on the next sync, to match the event's title and date. Harmless, but a name you chose will not stick. |
+| Moved to another folder | Fine. The sheet is found by ID, never by location. The folder setting only decides where *new* sheets are created. |
+| Service account loses access | The sync aborts, records why, and shows it on the registration list page. Deliberately does **not** create a replacement — a 403 means someone un-shared it, which is worth seeing rather than papering over with a duplicate. Only a 404 triggers a recreate. |
+| A second tab added and dragged to first position, or the Registrations tab deleted | **Known gap.** The tab is located positionally (`sheets[0]`), so the sync would write the grid over whatever tab is first and clear below it. The tab's `sheetId` is stored on the link document but not yet used to find it. Don't reorder tabs until this is fixed. |
+
+#### Archived and deleted events
+
+Archiving **leaves the sheet and its link completely alone** — the archive
+branch returns before the sync runs, so the final attendee list is preserved as
+it stood. To get back to it: switch the Registrations (or Events) status filter
+to **Archived**, drill into the event, and *Print Registration List* still
+carries the Open Google Sheet and Update Sheet buttons. Update Sheet works on an
+archived event too, and because archiving only requires that no payments are
+awaiting collection, later corrections to its registrations still reach the
+sheet.
+
+One permission wrinkle: `firestore.rules` allows any reader to load an event
+while it is `Published`, but an `Archived` one needs `manageEvents`. The
+registration list page only requires `viewRegistrations`. So a coordinator
+holding `viewRegistrations` alone can open the sheet for a live event but not
+for an archived one — the page fails loading the event first. Super Users and
+admins with `manageEvents` are unaffected. (Pre-existing rule, not introduced by
+this feature, but it decides who keeps in-app access after archiving.)
+
+Deleting an event removes the event document and leaves the link document
+orphaned. The spreadsheet itself survives in Drive, which is right — it is the
+record — but every route to it in the app goes through the event, so you would
+find it in the folder by name.
 
 ## API Surface
 

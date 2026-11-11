@@ -4,17 +4,22 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const TOKEN_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit';
 const TOKEN_CACHE_SAFETY_WINDOW_MS = 60 * 1000;
 
-let cachedAccessToken = '';
-let cachedAccessTokenExpiresAt = 0;
+// Keyed by service account AND scope, not a single slot. A token is only valid
+// for the scopes it was minted with, so a lone cached token meant the second
+// caller to ask for a different scope was handed the first caller's token and
+// got a 403 it could not explain - or poisoned the cache for the caller that
+// came after it. There is more than one scope in play since the registration
+// sheet sync (api/_lib/event-registration-sheet.js) needs Drive and Sheets
+// while everything else here needs identitytoolkit.
+const tokenCache = new Map();
 
 export async function getGoogleAccessToken(serviceAccountJson, scope = TOKEN_SCOPE) {
   const serviceAccount = parseServiceAccountJson(serviceAccountJson);
+  const cacheKey = `${serviceAccount.client_email}|${scope}`;
+  const cached = tokenCache.get(cacheKey);
 
-  if (
-    cachedAccessToken
-    && Date.now() < cachedAccessTokenExpiresAt - TOKEN_CACHE_SAFETY_WINDOW_MS
-  ) {
-    return cachedAccessToken;
+  if (cached && Date.now() < cached.expiresAt - TOKEN_CACHE_SAFETY_WINDOW_MS) {
+    return cached.accessToken;
   }
 
   const assertion = createServiceAccountAssertion(serviceAccount, scope);
@@ -36,14 +41,18 @@ export async function getGoogleAccessToken(serviceAccountJson, scope = TOKEN_SCO
     throw new Error(data.error_description || data.error || 'Unable to obtain Google access token.');
   }
 
-  cachedAccessToken = data.access_token || '';
-  cachedAccessTokenExpiresAt = Date.now() + ((data.expires_in || 3600) * 1000);
+  const accessToken = data.access_token || '';
 
-  if (!cachedAccessToken) {
+  if (!accessToken) {
     throw new Error('Google access token was not returned.');
   }
 
-  return cachedAccessToken;
+  tokenCache.set(cacheKey, {
+    accessToken,
+    expiresAt: Date.now() + ((data.expires_in || 3600) * 1000)
+  });
+
+  return accessToken;
 }
 
 function createServiceAccountAssertion(serviceAccount, scope) {

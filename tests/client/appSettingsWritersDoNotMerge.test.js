@@ -36,7 +36,8 @@ const {
   saveDirectorySettings,
   saveEmailInstructions,
   saveMembershipSettings,
-  savePaymentSettings
+  savePaymentSettings,
+  saveRegistrationSheetSettings
 } = await import('../../src/services/configurationService.js');
 
 const ACTOR = { email: 'owner@example.com', name: 'Guild Owner', role: 'Super User', userId: 'u1' };
@@ -69,6 +70,12 @@ const CASES = [
     keys: ['directoryNote', 'enableMemberDirectory', 'showCityState', 'showEmail', 'showEventRegistrantNames', 'showFullAddress', 'showPhone', 'updatedDate'],
     name: 'directorySettings',
     save: () => saveDirectorySettings({ enableMemberDirectory: true }, ACTOR)
+  },
+  {
+    // validRegistrationSheetSettings()
+    keys: ['driveFolderId', 'enableRegistrationSheets', 'updatedDate'],
+    name: 'registrationSheets',
+    save: () => saveRegistrationSheetSettings({ enableRegistrationSheets: true }, ACTOR)
   },
   {
     // validEmailInstructions()

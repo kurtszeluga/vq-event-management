@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 import { getArchiveBlockError, getEventCapacityError, getEventImagesError } from './_lib/registration-capacity.js';
+import { syncEventRegistrationSheet } from './_lib/event-registration-sheet.js';
 
 let firebaseProjectId = '';
 
@@ -70,12 +71,37 @@ export default async function handler(request, response) {
       windowMs: 10 * 60 * 1000
     });
 
+    const requestedAction = cleanText(request.body?.action) || 'update';
+
+    // Ahead of the manage-events gate, on a looser permission. Resyncing a
+    // sheet rewrites it from the registrations and changes nothing else, so a
+    // coordinator who can see an event's registrations can ask for it - they
+    // are the ones looking at a stale sheet, and they often cannot edit events.
+    if (requestedAction === 'syncRegistrationSheet') {
+      if (!canViewRegistrations(actorProfile)) {
+        response.status(403).json({ error: 'This account cannot view registrations.' });
+        return;
+      }
+
+      const eventId = cleanText(request.body?.eventId);
+
+      if (!eventId) {
+        response.status(400).json({ error: 'Event ID is required.' });
+        return;
+      }
+
+      // Never throws, so its own result is what tells the admin whether the
+      // sheet was written and why not if it was not.
+      response.status(200).json(await syncEventRegistrationSheet(db, eventId));
+      return;
+    }
+
     if (!canManageEvents(actorProfile)) {
       response.status(403).json({ error: 'This account cannot manage events.' });
       return;
     }
 
-    const action = cleanText(request.body?.action) || 'update';
+    const action = requestedAction;
     const eventId = cleanText(request.body?.eventId);
     const eventData = request.body?.eventData && typeof request.body.eventData === 'object'
       ? request.body.eventData
@@ -117,6 +143,12 @@ export default async function handler(request, response) {
         summary: `Created event "${getEventAuditTitle(payload)}"`
       }));
       await batch.commit();
+
+      // This is what makes "set up an event with registration enabled" and
+      // "the event has a sheet" the same act. After the commit, since the sync
+      // reads the event it is about to mirror. Never throws and skips itself
+      // when the event takes no registrations, so no branch is needed here.
+      await syncEventRegistrationSheet(db, eventRef.id);
 
       response.status(200).json({ eventId: eventRef.id, ok: true });
       return;
@@ -221,6 +253,10 @@ export default async function handler(request, response) {
     }));
     await batch.commit();
 
+    // Catches the event that had registration switched on after it was first
+    // created, and renames the sheet when the title or date changed.
+    await syncEventRegistrationSheet(db, eventId);
+
     response.status(200).json({ eventId, ok: true });
   } catch (error) {
     response.status(error.statusCode || 500).json({ error: error.message });
@@ -234,6 +270,25 @@ function canManageEvents(actorProfile) {
 
   return actorProfile.role === 'Super User'
     || actorProfile.role === 'Admin' && actorProfile.permissions?.manageEvents === true;
+}
+
+// Matches canUpdateRegistrationPayments in admin-update-registration-payment.js
+// and the viewRegistrations checks in firestore.rules - the people who can see
+// an event's registration list.
+function canViewRegistrations(actorProfile) {
+  if (actorProfile.status !== 'Active') {
+    return false;
+  }
+
+  if (actorProfile.role === 'Super User') {
+    return true;
+  }
+
+  return actorProfile.role === 'Admin'
+    && (
+      actorProfile.permissions?.viewRegistrations === true
+      || actorProfile.permissions?.manageEvents === true
+    );
 }
 
 function sanitizeEventPayload(eventData, eventId) {

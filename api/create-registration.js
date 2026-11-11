@@ -5,6 +5,7 @@ import {
 } from '../shared/registrationWindow.js';
 import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { syncEventRegistrantNames } from './_lib/event-registrant-names.js';
+import { syncEventRegistrationSheet } from './_lib/event-registration-sheet.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
@@ -180,6 +181,7 @@ export default async function handler(request, response) {
     // recovery) and the rebuild is a full one, so doing it here once covers
     // every branch rather than needing a call in each.
     await syncEventRegistrantNames(db, payload.eventId);
+    await syncEventRegistrationSheet(db, payload.eventId);
     const confirmationContext = result.confirmationContext;
 
     delete result.confirmationContext;
@@ -347,6 +349,7 @@ async function finalizeWaitlistClaimWithoutPayment(db, registration) {
 
   await batch.commit();
   await syncEventRegistrantNames(db, registration.eventId);
+  await syncEventRegistrationSheet(db, registration.eventId);
 }
 
 // Payment failures never reach here - createSquarePayment throws before any
@@ -411,6 +414,7 @@ async function finalizeWaitlistClaimPayment(db, registration, squarePayment) {
 
   await batch.commit();
   await syncEventRegistrantNames(db, registration.eventId);
+  await syncEventRegistrationSheet(db, registration.eventId);
 }
 
 async function handleManuallyPromoteWaitlisted(request, response, db, projectId) {
@@ -485,6 +489,7 @@ async function handleManuallyPromoteWaitlisted(request, response, db, projectId)
 
   await batch.commit();
   await syncEventRegistrantNames(db, registration.eventId);
+  await syncEventRegistrationSheet(db, registration.eventId);
 
   response.status(200).json({ registrationId, status: 'Registered' });
 }

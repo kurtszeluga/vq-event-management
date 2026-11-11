@@ -6,6 +6,7 @@ import {
   DEFAULT_EMAIL_INSTRUCTIONS,
   DEFAULT_MEMBERSHIP_SETTINGS,
   DEFAULT_PAYMENT_SETTINGS,
+  DEFAULT_REGISTRATION_SHEET_SETTINGS,
   EMAIL_INSTRUCTION_AREAS,
   archiveMembershipProfile,
   deleteBusinessTypeDefault,
@@ -15,6 +16,7 @@ import {
   reactivateMembershipProfile,
   saveDirectorySettings,
   saveEmailInstructions,
+  saveRegistrationSheetSettings,
   saveBusinessTypeDefault,
   saveEventLocationDefault,
   saveEventTimeDefault,
@@ -31,7 +33,8 @@ import {
   subscribeToEventTimeDefaults,
   subscribeToMembershipProfiles,
   subscribeToMembershipSettings,
-  subscribeToPaymentSettings
+  subscribeToPaymentSettings,
+  subscribeToRegistrationSheetSettings
 } from '../../services/configurationService.js';
 import { BUSINESS_TYPES, EVENT_LOCATIONS, EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
@@ -92,6 +95,9 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [coordinatorMessages, setCoordinatorMessages] = useState({});
   const [csvPreview, setCsvPreview] = useState(null);
   const [directorySettings, setDirectorySettings] = useState(DEFAULT_DIRECTORY_SETTINGS);
+  const [registrationSheetSettings, setRegistrationSheetSettings] = useState(
+    DEFAULT_REGISTRATION_SHEET_SETTINGS
+  );
   const [emailInstructions, setEmailInstructions] = useState(DEFAULT_EMAIL_INSTRUCTIONS);
   const [emailTestArea, setEmailTestArea] = useState(EMAIL_INSTRUCTION_AREAS[0].areaId);
   const [emailTestRecipient, setEmailTestRecipient] = useState(currentUserProfile?.email || '');
@@ -275,6 +281,10 @@ function ConfigurationPanel({ currentUserProfile }) {
       subscribeToDirectorySettings((settingsSnapshot) => {
         setDirectorySettings(settingsSnapshot);
         markLoaded();
+      }, handleError),
+      subscribeToRegistrationSheetSettings((settingsSnapshot) => {
+        setRegistrationSheetSettings(settingsSnapshot);
+        markLoaded();
       }, handleError)
     ];
 
@@ -310,6 +320,14 @@ function ConfigurationPanel({ currentUserProfile }) {
     await runSave('directorySettings', async () => {
       await saveDirectorySettings(directorySettings, currentUserProfile);
       setSuccessMessage('Directory settings saved.');
+    });
+  }
+
+  async function handleSaveRegistrationSheetSettings(event) {
+    event.preventDefault();
+    await runSave('registrationSheets', async () => {
+      await saveRegistrationSheetSettings(registrationSheetSettings, currentUserProfile);
+      setSuccessMessage('Google Sheet settings saved.');
     });
   }
 
@@ -796,6 +814,73 @@ function ConfigurationPanel({ currentUserProfile }) {
             type="submit"
           >
             {savingSection === 'directorySettings' ? 'Saving...' : 'Save Directory Settings'}
+          </button>
+        </form>
+      </article>
+    );
+  }
+
+  function renderRegistrationSheetCard() {
+    return (
+      <article className="configuration-mini-card">
+        <div className="configuration-card-header">
+          <h3>Google Sheets</h3>
+          <p>
+            Give every registration-enabled event its own Google Sheet in the
+            guild&apos;s Shared Drive, kept up to date as people register.
+          </p>
+        </div>
+        <form className="configuration-card-body" onSubmit={handleSaveRegistrationSheetSettings}>
+          <label className="checkbox-label registration-exception-checkbox">
+            <input
+              checked={Boolean(registrationSheetSettings.enableRegistrationSheets)}
+              type="checkbox"
+              onChange={(event) =>
+                setRegistrationSheetSettings((current) => ({
+                  ...current,
+                  enableRegistrationSheets: event.target.checked
+                }))
+              }
+            />
+            <span className="checkbox-label-copy">
+              <strong>Sync Registrations To Google Sheets</strong>
+              <small>
+                A sheet is created the first time an event with registration
+                enabled is saved, and rewritten whenever someone registers,
+                cancels, or has a payment recorded. Coordinators can add rows
+                by hand for people who registered at the door - leave
+                Registration ID empty and those rows are kept - and their own
+                columns to the right are kept too, following the registrant
+                they sit beside. Turning this off stops the syncing and leaves
+                the existing sheets alone.
+              </small>
+            </span>
+          </label>
+          <label>
+            <span>Shared Drive Folder</span>
+            <input
+              placeholder="Paste the Drive folder link or its ID"
+              type="text"
+              value={registrationSheetSettings.driveFolderId || ''}
+              onChange={(event) =>
+                setRegistrationSheetSettings((current) => ({
+                  ...current,
+                  driveFolderId: event.target.value
+                }))
+              }
+            />
+            <small>
+              Open the folder in Drive and paste the address - the ID is picked
+              out of it on save. The folder must be shared with the service
+              account as a Content manager, or nothing can be created in it.
+            </small>
+          </label>
+          <button
+            className="button-link button-reset configuration-submit-button"
+            disabled={savingSection === 'registrationSheets'}
+            type="submit"
+          >
+            {savingSection === 'registrationSheets' ? 'Saving...' : 'Save Google Sheet Settings'}
           </button>
         </form>
       </article>
@@ -1750,6 +1835,7 @@ function ConfigurationPanel({ currentUserProfile }) {
               ['membership', 'Membership Check'],
               ['paymentSettings', 'Payment Settings'],
               ['directorySettings', 'Directory Settings'],
+              ['registrationSheets', 'Google Sheets'],
               ['emailInstructions', 'Email Instructions'],
               ['members', 'Membership Profiles'],
               ['coordinators', 'Coordinator Assignments'],
@@ -1772,6 +1858,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         {configurationView === 'membership' ? renderMembershipCard() : null}
         {configurationView === 'paymentSettings' ? renderPaymentSettingsCard() : null}
         {configurationView === 'directorySettings' ? renderDirectorySettingsCard() : null}
+        {configurationView === 'registrationSheets' ? renderRegistrationSheetCard() : null}
         {configurationView === 'emailInstructions' ? renderEmailInstructionsCard() : null}
         {configurationView === 'members' ? renderMemberListCard() : null}
         {configurationView === 'coordinators' ? renderCoordinatorCard() : null}

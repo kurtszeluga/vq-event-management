@@ -18,6 +18,7 @@ const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const paymentSettingsRef = () => doc(db, 'appSettings', 'paymentSettings');
 const emailInstructionsRef = () => doc(db, 'appSettings', 'emailInstructions');
 const directorySettingsRef = () => doc(db, 'appSettings', 'directorySettings');
+const registrationSheetSettingsRef = () => doc(db, 'appSettings', 'registrationSheets');
 const membersCollection = () => collection(db, 'members');
 const usersCollection = () => collection(db, 'users');
 const eventLocationsCollection = () => collection(db, 'eventLocationDefaults');
@@ -101,6 +102,16 @@ export const DEFAULT_DIRECTORY_SETTINGS = {
   showPhone: true
 };
 
+// Mirrors DEFAULT_REGISTRATION_SHEET_SETTINGS in
+// api/_lib/event-registration-sheet.js, which is the half that matters: the
+// server reads this document before it will write anything to Drive. Off with
+// no folder is the state a project that has never set this up is already in,
+// so the feature stays dormant until somebody fills both in.
+export const DEFAULT_REGISTRATION_SHEET_SETTINGS = {
+  driveFolderId: '',
+  enableRegistrationSheets: false
+};
+
 export const EMAIL_INSTRUCTION_AREAS = [
   {
     areaId: 'programs',
@@ -167,6 +178,19 @@ export function subscribeToDirectorySettings(onNext, onError) {
         ...DEFAULT_DIRECTORY_SETTINGS,
         ...snapshot.data()
       } : DEFAULT_DIRECTORY_SETTINGS);
+    },
+    onError
+  );
+}
+
+export function subscribeToRegistrationSheetSettings(onNext, onError) {
+  return onSnapshot(
+    registrationSheetSettingsRef(),
+    (snapshot) => {
+      onNext(snapshot.exists() ? {
+        ...DEFAULT_REGISTRATION_SHEET_SETTINGS,
+        ...snapshot.data()
+      } : DEFAULT_REGISTRATION_SHEET_SETTINGS);
     },
     onError
   );
@@ -358,6 +382,63 @@ export async function saveDirectorySettings(settings, actorProfile) {
     after: payload,
     entityId: 'directorySettings',
     summary: 'Updated member directory settings'
+  });
+
+  return batch.commit();
+}
+
+// Accepts what a board member will actually paste. Opening the Shared Drive
+// folder in a browser and copying the address gives
+// https://drive.google.com/drive/folders/<id>?usp=sharing, and asking someone
+// to extract the id by hand is how you get a trailing '?usp=sharing' saved as
+// part of the id and a sync that fails on a folder that is plainly there.
+// A bare id is passed through untouched.
+export function normalizeDriveFolderId(value) {
+  const text = cleanText(value);
+
+  if (!text) {
+    return '';
+  }
+
+  const fromUrl = /\/folders\/([a-zA-Z0-9_-]+)/.exec(text);
+
+  if (fromUrl) {
+    return fromUrl[1];
+  }
+
+  // Also covers the ?id= form that some Drive links and the API console use.
+  const fromQuery = /[?&]id=([a-zA-Z0-9_-]+)/.exec(text);
+
+  if (fromQuery) {
+    return fromQuery[1];
+  }
+
+  return text;
+}
+
+export function buildRegistrationSheetSettingsPayload(settings = {}) {
+  return {
+    driveFolderId: normalizeDriveFolderId(settings.driveFolderId),
+    enableRegistrationSheets: Boolean(settings.enableRegistrationSheets)
+  };
+}
+
+export async function saveRegistrationSheetSettings(settings, actorProfile) {
+  const batch = writeBatch(db);
+  const payload = {
+    ...buildRegistrationSheetSettingsPayload(settings),
+    updatedDate: serverTimestamp()
+  };
+
+  // Full set, not a merge - see the note on saveMembershipSettings. The payload
+  // always carries every declared field, so the hasOnly() list in
+  // firestore.rules has nothing to trip over.
+  batch.set(registrationSheetSettingsRef(), payload);
+  addConfigurationAuditLog(batch, {
+    actorProfile,
+    after: payload,
+    entityId: 'registrationSheets',
+    summary: 'Updated Google Sheet registration settings'
   });
 
   return batch.commit();

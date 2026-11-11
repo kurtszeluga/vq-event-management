@@ -755,6 +755,23 @@ service cloud.firestore {
         && request.resource.data.updatedDate is timestamp;
     }
 
+    // The Google Sheet sync's switch and the Shared Drive folder it writes
+    // into. The folder ID is not a secret (it is in the folder's own URL) so it
+    // lives here rather than in an environment variable, which means the board
+    // can repoint it without a redeploy. The service account key stays in the
+    // environment.
+    function validRegistrationSheetSettings() {
+      return request.resource.data.keys().hasOnly([
+          'driveFolderId',
+          'enableRegistrationSheets',
+          'updatedDate'
+        ])
+        && request.resource.data.driveFolderId is string
+        && request.resource.data.driveFolderId.size() <= 200
+        && request.resource.data.enableRegistrationSheets is bool
+        && request.resource.data.updatedDate is timestamp;
+    }
+
     function validMember() {
       return request.resource.data.keys().hasOnly([
           'email',
@@ -921,6 +938,18 @@ service cloud.firestore {
       allow delete: if hasPermission('manageEvents');
     }
 
+    // The link between an event and its Google Sheet, plus the outcome of the
+    // last sync. Written only by the server (api/_lib/event-registration-sheet.js
+    // via the Admin SDK, which bypasses these rules) because the sheet itself is
+    // server-only - a client that could edit this document could point an
+    // event's sync at a spreadsheet of its choosing. Readable by whoever may see
+    // the registrations it mirrors, so the admin UI can offer the link and
+    // report a failed sync.
+    match /eventRegistrationSheets/{eventId} {
+      allow read: if hasPermission('viewRegistrations');
+      allow create, update, delete: if false;
+    }
+
     match /events/{eventId} {
       allow read: if resource.data.status == 'Published' || hasPermission('manageEvents');
       // Event writes are server-only through /api/admin-manage-event.
@@ -1049,6 +1078,8 @@ service cloud.firestore {
             && validPaymentSettings()
           || settingId == 'directorySettings'
             && validDirectorySettings()
+          || settingId == 'registrationSheets'
+            && validRegistrationSheetSettings()
         );
       allow delete: if isSuperUser();
     }

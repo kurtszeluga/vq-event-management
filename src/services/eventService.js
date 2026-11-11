@@ -64,6 +64,23 @@ export async function reactivateEvent(eventId) {
   });
 }
 
+// Rewrites the event's Google Sheet from its registrations, and creates the
+// sheet if it has never had one. Normally nobody needs to ask - every path that
+// changes a registration syncs on its own - so this is the recovery control
+// for the day Google was unreachable, plus the way a coordinator gets a sheet
+// for an event that predates the feature.
+//
+// Lives here rather than in eventRegistrationSheet.js because it is an action
+// on the /api/admin-manage-event endpoint, which this module owns. The server
+// never throws for a sync failure, so an `ok: false` result with a reason is a
+// normal answer, not an error.
+export async function syncEventRegistrationSheet(eventId) {
+  return postEventAction({
+    action: 'syncRegistrationSheet',
+    eventId
+  });
+}
+
 export async function getEvent(eventId) {
   const eventSnap = await getDoc(doc(db, 'events', eventId));
 

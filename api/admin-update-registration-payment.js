@@ -2,6 +2,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { syncEventRegistrantNames } from './_lib/event-registrant-names.js';
+import { syncEventRegistrationSheet } from './_lib/event-registration-sheet.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 import { isSeatHoldingRegistration } from './_lib/registration-capacity.js';
 import { createNextWaitlistOffer } from './_lib/waitlist.js';
@@ -183,6 +184,7 @@ export default async function handler(request, response) {
     // After the waitlist promotion above, not before it: that promotion also
     // changes who is registered, and the rebuild has to see the settled state.
     await syncEventRegistrantNames(db, before.eventId);
+    await syncEventRegistrationSheet(db, before.eventId);
 
     if (shouldSendRefundNotification({
       paymentUpdate: effectivePaymentUpdate,
@@ -600,6 +602,7 @@ async function cancelRegistrationWithoutRefund({
 
   await promoteFromWaitlistIfSeatFreed(db, before);
   await syncEventRegistrantNames(db, before.eventId);
+  await syncEventRegistrationSheet(db, before.eventId);
 
   const updatedRegistration = {
     ...before,

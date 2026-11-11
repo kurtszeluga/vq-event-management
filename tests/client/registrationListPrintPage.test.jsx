@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const navigateMock = vi.fn();
@@ -50,12 +51,18 @@ const REGISTRATIONS = [
 
 let getEventResult = EVENT;
 let getRegistrationsResult = REGISTRATIONS;
+let sheetLinkResult = { lastError: '', rowCount: 0, spreadsheetId: '', spreadsheetUrl: '' };
+const syncSheetMock = vi.fn(async () => ({ ok: true, rowCount: 2 }));
 
 vi.mock('../../src/services/eventService.js', () => ({
-  getEvent: () => Promise.resolve(getEventResult)
+  getEvent: () => Promise.resolve(getEventResult),
+  syncEventRegistrationSheet: (...args) => syncSheetMock(...args)
 }));
 vi.mock('../../src/services/registrationService.js', () => ({
   getRegistrationsForEvent: () => Promise.resolve(getRegistrationsResult)
+}));
+vi.mock('../../src/services/eventRegistrationSheet.js', () => ({
+  getEventRegistrationSheet: () => Promise.resolve(sheetLinkResult)
 }));
 
 const { default: RegistrationListPrintPage } = await import('../../src/pages/RegistrationListPrintPage.jsx');
@@ -65,6 +72,9 @@ afterEach(() => {
   hasPermissionResult = true;
   getEventResult = EVENT;
   getRegistrationsResult = REGISTRATIONS;
+  sheetLinkResult = { lastError: '', rowCount: 0, spreadsheetId: '', spreadsheetUrl: '' };
+  syncSheetMock.mockClear();
+  syncSheetMock.mockImplementation(async () => ({ ok: true, rowCount: 2 }));
 });
 
 describe('RegistrationListPrintPage', () => {
@@ -96,6 +106,91 @@ describe('RegistrationListPrintPage', () => {
     await screen.findByText('Quilt Basics');
 
     expect(screen.queryByText(/Total Paid/)).toBeNull();
+  });
+
+  it('offers the Google Sheet only once one exists', async () => {
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+
+    // No sheet yet - nothing to open, but the sync can still be asked for,
+    // which is how an event that predates the feature gets one.
+    expect(screen.queryByText('Open Google Sheet')).toBeNull();
+    expect(screen.getByText('Update Sheet')).toBeTruthy();
+
+    cleanup();
+    sheetLinkResult = {
+      lastError: '',
+      rowCount: 2,
+      spreadsheetId: 'sheet-1',
+      spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/sheet-1/edit'
+    };
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+
+    expect(screen.getByText('Open Google Sheet').getAttribute('href'))
+      .toBe('https://docs.google.com/spreadsheets/d/sheet-1/edit');
+  });
+
+  it('reports what the sync did', async () => {
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+    await userEvent.click(screen.getByText('Update Sheet'));
+
+    expect(syncSheetMock).toHaveBeenCalledWith('evt-1');
+    expect(await screen.findByText('Sheet updated with 2 registrations.')).toBeTruthy();
+  });
+
+  it('says that hand-entered rows were kept', async () => {
+    // A coordinator who has typed walk-ins into the sheet needs to see that
+    // the rewrite put them back, not just that it ran.
+    syncSheetMock.mockImplementation(async () => ({ manualRowCount: 1, ok: true, rowCount: 2 }));
+
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+    await userEvent.click(screen.getByText('Update Sheet'));
+
+    expect(
+      await screen.findByText('Sheet updated with 2 registrations, keeping 1 hand-entered row.')
+    ).toBeTruthy();
+  });
+
+  it('says why nothing happened when the sync declines', async () => {
+    // The server answers ok:false with a reason rather than erroring when the
+    // feature is switched off, so the reason is what an admin must see -
+    // otherwise the button looks broken.
+    syncSheetMock.mockImplementation(async () => ({
+      ok: false,
+      reason: 'Registration sheets are switched off in Configuration.',
+      skipped: true
+    }));
+
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+    await userEvent.click(screen.getByText('Update Sheet'));
+
+    expect(
+      await screen.findByText('Registration sheets are switched off in Configuration.')
+    ).toBeTruthy();
+  });
+
+  it('surfaces a sync that failed earlier, before anyone presses anything', async () => {
+    sheetLinkResult = {
+      lastError: 'The caller does not have permission',
+      rowCount: 0,
+      spreadsheetId: '',
+      spreadsheetUrl: ''
+    };
+
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+
+    expect(screen.getByText(/The caller does not have permission/)).toBeTruthy();
   });
 
   it('refuses to load registrant data without the viewRegistrations permission', async () => {

@@ -3,6 +3,8 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth.js';
 import { getEvent } from '../services/eventService.js';
 import { getRegistrationsForEvent } from '../services/registrationService.js';
+import { syncEventRegistrationSheet } from '../services/eventService.js';
+import { getEventRegistrationSheet } from '../services/eventRegistrationSheet.js';
 import { formatCurrency, formatEventDate } from '../utils/eventFormat.js';
 import { getTotalPaidAmount } from '../utils/registrationFinancials.js';
 import {
@@ -16,6 +18,20 @@ import { isPaymentPending } from '../utils/registrationEligibility.js';
 // email (see api/create-registration.js's sendCoordinatorRegistrationEmail),
 // so it fetches its own data by eventId rather than relying on the admin
 // SPA's in-memory state, the way ArchivePanel.jsx's print report does.
+// Says what happened to the coordinator's own rows as well as to the synced
+// ones. Worth naming explicitly: a coordinator who has typed walk-ins into the
+// sheet wants to know the rewrite put them back, not just that it ran.
+function buildSyncSummary({ manualRowCount = 0, rowCount = 0 }) {
+  const registrations = `${rowCount} registration${rowCount === 1 ? '' : 's'}`;
+
+  if (!manualRowCount) {
+    return `Sheet updated with ${registrations}.`;
+  }
+
+  return `Sheet updated with ${registrations}, keeping ${manualRowCount} `
+    + `hand-entered row${manualRowCount === 1 ? '' : 's'}.`;
+}
+
 function RegistrationListPrintPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -28,6 +44,9 @@ function RegistrationListPrintPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [printDocumentHtml, setPrintDocumentHtml] = useState('');
+  const [sheetLink, setSheetLink] = useState(null);
+  const [sheetMessage, setSheetMessage] = useState('');
+  const [syncingSheet, setSyncingSheet] = useState(false);
   const printFrameRef = useRef(null);
 
   useEffect(() => {
@@ -40,9 +59,13 @@ function RegistrationListPrintPage() {
 
     async function loadData() {
       try {
-        const [eventRecord, registrationRecords] = await Promise.all([
+        const [eventRecord, registrationRecords, sheetRecord] = await Promise.all([
           getEvent(eventId),
-          getRegistrationsForEvent(eventId)
+          getRegistrationsForEvent(eventId),
+          // Never the reason this page fails to load: the attendee list is
+          // what the coordinator came for, and the sheet link is a
+          // convenience on top of it.
+          getEventRegistrationSheet(eventId).catch(() => null)
         ]);
 
         if (!active) {
@@ -51,6 +74,7 @@ function RegistrationListPrintPage() {
 
         setEvent(eventRecord);
         setRegistrations(registrationRecords);
+        setSheetLink(sheetRecord);
         setError('');
       } catch (loadError) {
         if (active) {
@@ -203,6 +227,30 @@ function RegistrationListPrintPage() {
     );
   }
 
+  // The sheet is normally already current - every path that changes a
+  // registration rewrites it - so this is here for the two cases where it is
+  // not: Google was unreachable when someone registered, and an event that
+  // predates the feature has never had a sheet at all. The server answers with
+  // ok:false and a reason rather than an error when the feature is switched
+  // off, so that reason is what gets shown.
+  async function handleSyncSheet() {
+    setSyncingSheet(true);
+    setSheetMessage('');
+
+    try {
+      const result = await syncEventRegistrationSheet(eventId);
+
+      setSheetLink(await getEventRegistrationSheet(eventId));
+      setSheetMessage(result.ok ? buildSyncSummary(result) : (
+        result.reason || 'The sheet could not be updated.'
+      ));
+    } catch (syncError) {
+      setSheetMessage(syncError.message);
+    } finally {
+      setSyncingSheet(false);
+    }
+  }
+
   function handleExportCsv() {
     downloadCsv(
       buildCsvFilename(event.title || event.eventType, event.date),
@@ -221,6 +269,24 @@ function RegistrationListPrintPage() {
           <h1>{event.title || event.eventType || 'Event'}</h1>
         </div>
         <div className="viewer-actions">
+          {sheetLink?.spreadsheetUrl ? (
+            <a
+              className="button-link secondary-action"
+              href={sheetLink.spreadsheetUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Open Google Sheet
+            </a>
+          ) : null}
+          <button
+            className="button-link secondary-action"
+            disabled={syncingSheet}
+            type="button"
+            onClick={handleSyncSheet}
+          >
+            {syncingSheet ? 'Updating...' : 'Update Sheet'}
+          </button>
           <button
             className="button-link secondary-action"
             disabled={!sortedRegistrations.length}
@@ -237,6 +303,10 @@ function RegistrationListPrintPage() {
           </button>
         </div>
       </header>
+      {sheetMessage ? <p className="form-success">{sheetMessage}</p> : null}
+      {!sheetMessage && sheetLink?.lastError
+        ? <p className="form-error">Google Sheet: {sheetLink.lastError}</p>
+        : null}
       <article className="registration-admin-card">
         <div className="registration-admin-card-header">
           <div>

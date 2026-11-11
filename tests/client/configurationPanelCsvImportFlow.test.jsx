@@ -30,6 +30,7 @@ vi.mock('../../src/services/configurationService.js', async () => {
     saveMembershipProfile: vi.fn(),
     saveMembershipSettings: vi.fn(),
     savePaymentSettings: vi.fn(),
+    saveRegistrationSheetSettings: vi.fn(),
     sendEmailInstructionsTest: vi.fn(),
     // Every subscription the panel makes has to be stubbed here. An unstubbed
     // one falls through to the real implementation, which calls collection()
@@ -49,6 +50,10 @@ vi.mock('../../src/services/configurationService.js', async () => {
     },
     subscribeToEmailInstructions: (onNext) => {
       onNext(actual.DEFAULT_EMAIL_INSTRUCTIONS);
+      return () => {};
+    },
+    subscribeToRegistrationSheetSettings: (onNext) => {
+      onNext(actual.DEFAULT_REGISTRATION_SHEET_SETTINGS);
       return () => {};
     },
     subscribeToEventLocationDefaults: (onNext) => {
