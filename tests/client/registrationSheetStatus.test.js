@@ -214,3 +214,31 @@ describe('formatSyncAge', () => {
     expect(formatSyncAge(new Date(NOW + 30 * 1000), NOW)).toBe('just now');
   });
 });
+
+describe('when the settings read fails', () => {
+  it('says so rather than looking like the feature is off', () => {
+    // Rendering nothing for both would make a page that could not reach
+    // Firestore indistinguishable from a project that has never switched this
+    // on - which is exactly the confusion that cost an afternoon.
+    const status = getRegistrationSheetStatus({
+      enabled: null,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: sheet()
+    });
+
+    expect(status.state).toBe('unknown');
+    expect(status.actionable).toBe(true);
+    expect(status.tone).toBe('error');
+    expect(status.message).toMatch(/could not be read/);
+  });
+
+  it('only an explicit null is unknown; omitting it fails closed', () => {
+    // An omitted `enabled` takes the parameter default of false, which is the
+    // right behaviour for a caller that has not looked - so it reads as off
+    // and stays silent, rather than crying error at every page.
+    expect(getRegistrationSheetStatus({}).state).toBe('disabled');
+    expect(getRegistrationSheetStatus({ enabled: false }).state).toBe('disabled');
+    expect(getRegistrationSheetStatus({ enabled: null }).state).toBe('unknown');
+  });
+});

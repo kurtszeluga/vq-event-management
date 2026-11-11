@@ -47,6 +47,10 @@ function RegistrationListPrintPage() {
   const [error, setError] = useState('');
   const [printDocumentHtml, setPrintDocumentHtml] = useState('');
   const [sheetLink, setSheetLink] = useState(null);
+  // null means "not known": the settings read failed. Deliberately distinct
+  // from false, because showing nothing (which is correct when the feature is
+  // off) would otherwise be indistinguishable from the page quietly failing to
+  // find out.
   const [sheetsEnabled, setSheetsEnabled] = useState(false);
   const [sheetMessage, setSheetMessage] = useState('');
   const [syncingSheet, setSyncingSheet] = useState(false);
@@ -69,7 +73,7 @@ function RegistrationListPrintPage() {
           // what the coordinator came for, and anything about the sheet is a
           // convenience on top of it.
           getEventRegistrationSheet(eventId).catch(() => null),
-          getRegistrationSheetSettings().catch(() => null)
+          getRegistrationSheetSettings().catch(() => 'unreadable')
         ]);
 
         if (!active) {
@@ -79,7 +83,11 @@ function RegistrationListPrintPage() {
         setEvent(eventRecord);
         setRegistrations(registrationRecords);
         setSheetLink(sheetRecord);
-        setSheetsEnabled(sheetSettings?.enableRegistrationSheets === true);
+        setSheetsEnabled(
+          sheetSettings === 'unreadable'
+            ? null
+            : sheetSettings?.enableRegistrationSheets === true
+        );
         setError('');
       } catch (loadError) {
         if (active) {

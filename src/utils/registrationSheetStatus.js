@@ -28,6 +28,8 @@ const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
+// 'unknown'  - the settings read failed, so whether the feature is even on is
+//              not known. Says so, rather than looking identical to 'disabled'.
 // 'disabled' - the board has not switched the feature on. Nothing is shown at
 //              all: a project with this off would otherwise put a control on
 //              every event that can only ever report that it is off.
@@ -45,6 +47,24 @@ export function getRegistrationSheetStatus({
   registrations = [],
   sheet = null
 } = {}) {
+  // `enabled` null means the settings read failed, which is NOT the same as
+  // the feature being off. Rendering nothing for both would make a page that
+  // could not reach Firestore look exactly like a project that has never
+  // switched this on, and there would be nothing to tell them apart by.
+  // Only an explicit null. An omitted `enabled` takes the default of false
+  // above, which is the right fail-closed behaviour for a caller that has not
+  // looked - so `undefined` never arrives here.
+  if (enabled === null) {
+    return {
+      actionLabel: 'Retry',
+      actionable: true,
+      canRefresh: true,
+      message: 'The sheet settings could not be read, so this may be out of date.',
+      state: 'unknown',
+      tone: 'error'
+    };
+  }
+
   if (!enabled) {
     return { actionable: false, canRefresh: false, state: 'disabled' };
   }
