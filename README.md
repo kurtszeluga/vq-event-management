@@ -120,9 +120,26 @@ Setup, once:
    manager**. A Shared Drive is required — a folder in someone's personal My
    Drive cannot hold files a service account creates, because a service account
    has no storage quota of its own.
-4. **Switch it on** in the app: Admin → Configuration → Google Sheets. Tick the
-   box and paste the folder's address from Drive; the folder ID is picked out of
-   it on save.
+4. **Deploy the Firestore rules.** Easy to miss, and the symptom is a flat
+   "Missing or insufficient permissions" when you try to save in step 5 — a
+   Vercel deploy ships the app but never touches `firestore.rules`. This feature
+   adds the `appSettings/registrationSheets` write branch and the
+   `eventRegistrationSheets` read rule; without them the setting cannot be
+   saved and the sheet link never appears on the registration list.
+
+   ```
+   npx firebase deploy --only firestore:rules --project <the project THIS deployment uses>
+   ```
+
+   **Name the project explicitly.** `.firebaserc` defaults to
+   `vq-event-management`, so a bare `firebase deploy` goes to that project
+   whichever environment you meant. Each Firebase project needs its own rules
+   deploy, its own APIs enabled, and its own service account added to the Drive
+   folder — the client project is baked into the bundle at build time, so check
+   which one the deployment actually uses rather than assuming.
+5. **Switch it on** in the app: Admin → **Setup / System Config** → **Google
+   Sheets** (Super User only). Tick the box and paste the folder's address from
+   Drive; the folder ID is picked out of it on save.
 
 Notes:
 

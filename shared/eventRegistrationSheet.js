@@ -198,11 +198,16 @@ export function eventTakesRegistrations(event) {
   return REGISTRATION_WINDOW_MODES.includes(event.registrationMode);
 }
 
-// Drive allows almost anything in a filename, but a newline or a slash in an
-// event title makes the file awkward to find and awkward to link to, so the
-// title is flattened. The date is appended because a guild runs "Monthly
-// Meeting" twelve times a year and a Drive folder full of identically named
-// sheets is useless.
+// Newlines and runs of spaces are collapsed, because a title typed across two
+// lines in the admin form makes the file awkward to find and awkward to link
+// to. A slash is deliberately left alone: Drive is not a filesystem and treats
+// it as an ordinary character, and real event titles contain them ("Pumpkin
+// Time/Turned Edge Machine Applique"), so stripping it would make the sheet
+// harder to match to its event rather than easier. It only matters if the file
+// is downloaded, where the OS substitutes a character of its own.
+//
+// The date is appended because a guild runs "Monthly Meeting" twelve times a
+// year and a Drive folder full of identically named sheets is useless.
 export function buildRegistrationSheetName(event) {
   const title = collapseWhitespace(event?.title || event?.eventType || 'Event').slice(0, 90);
   const date = /^\d{4}-\d{2}-\d{2}/.test(String(event?.date || ''))
