@@ -5,6 +5,8 @@ import { getEvent } from '../services/eventService.js';
 import { getRegistrationsForEvent } from '../services/registrationService.js';
 import { syncEventRegistrationSheet } from '../services/eventService.js';
 import { getEventRegistrationSheet } from '../services/eventRegistrationSheet.js';
+import { getRegistrationSheetSettings } from '../services/configurationService.js';
+import { getRegistrationSheetStatus } from '../utils/registrationSheetStatus.js';
 import { formatCurrency, formatEventDate } from '../utils/eventFormat.js';
 import { getTotalPaidAmount } from '../utils/registrationFinancials.js';
 import {
@@ -45,6 +47,7 @@ function RegistrationListPrintPage() {
   const [error, setError] = useState('');
   const [printDocumentHtml, setPrintDocumentHtml] = useState('');
   const [sheetLink, setSheetLink] = useState(null);
+  const [sheetsEnabled, setSheetsEnabled] = useState(false);
   const [sheetMessage, setSheetMessage] = useState('');
   const [syncingSheet, setSyncingSheet] = useState(false);
   const printFrameRef = useRef(null);
@@ -59,13 +62,14 @@ function RegistrationListPrintPage() {
 
     async function loadData() {
       try {
-        const [eventRecord, registrationRecords, sheetRecord] = await Promise.all([
+        const [eventRecord, registrationRecords, sheetRecord, sheetSettings] = await Promise.all([
           getEvent(eventId),
           getRegistrationsForEvent(eventId),
           // Never the reason this page fails to load: the attendee list is
-          // what the coordinator came for, and the sheet link is a
+          // what the coordinator came for, and anything about the sheet is a
           // convenience on top of it.
-          getEventRegistrationSheet(eventId).catch(() => null)
+          getEventRegistrationSheet(eventId).catch(() => null),
+          getRegistrationSheetSettings().catch(() => null)
         ]);
 
         if (!active) {
@@ -75,6 +79,7 @@ function RegistrationListPrintPage() {
         setEvent(eventRecord);
         setRegistrations(registrationRecords);
         setSheetLink(sheetRecord);
+        setSheetsEnabled(sheetSettings?.enableRegistrationSheets === true);
         setError('');
       } catch (loadError) {
         if (active) {
@@ -104,6 +109,17 @@ function RegistrationListPrintPage() {
     registered: 0,
     waitlisted: 0
   }), [sortedRegistrations]);
+  // What, if anything, to offer about the Google Sheet. The sync is automatic,
+  // so the control is only rendered in the states where pressing it does
+  // something - see src/utils/registrationSheetStatus.js.
+  const sheetStatus = useMemo(
+    () => getRegistrationSheetStatus({
+      enabled: sheetsEnabled,
+      registrations,
+      sheet: sheetLink
+    }),
+    [registrations, sheetLink, sheetsEnabled]
+  );
   const totalPaid = useMemo(() => getTotalPaidAmount(sortedRegistrations), [sortedRegistrations]);
 
   // Printing the live SPA page directly (window.print() on this document)
@@ -269,7 +285,7 @@ function RegistrationListPrintPage() {
           <h1>{event.title || event.eventType || 'Event'}</h1>
         </div>
         <div className="viewer-actions">
-          {sheetLink?.spreadsheetUrl ? (
+          {sheetStatus.state !== 'disabled' && sheetLink?.spreadsheetUrl ? (
             <a
               className="button-link secondary-action"
               href={sheetLink.spreadsheetUrl}
@@ -279,14 +295,16 @@ function RegistrationListPrintPage() {
               Open Google Sheet
             </a>
           ) : null}
-          <button
-            className="button-link secondary-action"
-            disabled={syncingSheet}
-            type="button"
-            onClick={handleSyncSheet}
-          >
-            {syncingSheet ? 'Updating...' : 'Update Sheet'}
-          </button>
+          {sheetStatus.actionable ? (
+            <button
+              className="button-link secondary-action"
+              disabled={syncingSheet}
+              type="button"
+              onClick={handleSyncSheet}
+            >
+              {syncingSheet ? 'Working...' : sheetStatus.actionLabel}
+            </button>
+          ) : null}
           <button
             className="button-link secondary-action"
             disabled={!sortedRegistrations.length}
@@ -304,9 +322,11 @@ function RegistrationListPrintPage() {
         </div>
       </header>
       {sheetMessage ? <p className="form-success">{sheetMessage}</p> : null}
-      {!sheetMessage && sheetLink?.lastError
-        ? <p className="form-error">Google Sheet: {sheetLink.lastError}</p>
-        : null}
+      {!sheetMessage && sheetStatus.message ? (
+        <p className={sheetStatus.tone === 'error' ? 'form-error' : 'muted-copy'}>
+          Google Sheet: {sheetStatus.message}
+        </p>
+      ) : null}
       <article className="registration-admin-card">
         <div className="registration-admin-card-header">
           <div>

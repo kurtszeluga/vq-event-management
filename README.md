@@ -171,10 +171,21 @@ Notes:
 - Cancelled and waitlisted registrants stay in the sheet with their status, so a
   row never silently disappears.
 - A sync failure never blocks a registration. The reason is recorded and shown
-  on the registration list page, which also has an **Update Sheet** button for
-  retrying and for giving a sheet to an event that predates this feature.
+  on the registration list page.
+- **Nobody needs to press anything.** The registration list only offers a
+  button when one would actually do something, because a permanent "Update
+  Sheet" button read as an instruction to press it after every registration.
+  The states are:
+
+  | What the page shows | What it means |
+  | --- | --- |
+  | *Open Google Sheet* and "Updated 2 minutes ago", no button | Up to date. Nothing to do. |
+  | **Create Sheet** | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. |
+  | **Update Sheet**, with "shows 1 of 2 registrations" | The stored row count disagrees with the registrations on screen, so a sync did not run when it should have. |
+  | **Retry**, with the Google error | The last sync failed. |
+  | Nothing at all | The feature is switched off in Configuration. |
 - Turning the setting off stops the syncing and leaves the existing sheets
-  exactly as they are.
+  exactly as they are. The registration list then says nothing about sheets.
 
 ### Scheduled Jobs
 
@@ -217,10 +228,10 @@ Archiving **leaves the sheet and its link completely alone** — the archive
 branch returns before the sync runs, so the final attendee list is preserved as
 it stood. To get back to it: switch the Registrations (or Events) status filter
 to **Archived**, drill into the event, and *Print Registration List* still
-carries the Open Google Sheet and Update Sheet buttons. Update Sheet works on an
-archived event too, and because archiving only requires that no payments are
-awaiting collection, later corrections to its registrations still reach the
-sheet.
+carries the Open Google Sheet link. A sync still works on an archived event, so
+if its sheet is behind the page offers the button as it would for any other
+event — and because archiving only requires that no payments are awaiting
+collection, later corrections to its registrations still reach the sheet.
 
 One permission wrinkle: `firestore.rules` allows any reader to load an event
 while it is `Published`, but an `Archived` one needs `manageEvents`. The

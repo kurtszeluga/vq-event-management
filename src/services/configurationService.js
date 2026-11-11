@@ -183,6 +183,16 @@ export function subscribeToDirectorySettings(onNext, onError) {
   );
 }
 
+// One-time read for the registration list page, which has no other live state
+// to keep in step and only needs to know whether the feature is switched on.
+export async function getRegistrationSheetSettings() {
+  const snapshot = await getDoc(registrationSheetSettingsRef());
+
+  return snapshot.exists()
+    ? { ...DEFAULT_REGISTRATION_SHEET_SETTINGS, ...snapshot.data() }
+    : DEFAULT_REGISTRATION_SHEET_SETTINGS;
+}
+
 export function subscribeToRegistrationSheetSettings(onNext, onError) {
   return onSnapshot(
     registrationSheetSettingsRef(),
