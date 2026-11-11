@@ -146,6 +146,19 @@ describe('RegistrationListPrintPage', () => {
     expect(screen.queryByRole('button', { name: 'Update Sheet' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Create Sheet' })).toBeNull();
+    // A quiet refresh remains, because a row deleted from the sheet by hand
+    // cannot be detected from here and this is the only way back from it.
+    expect(screen.getByRole('button', { name: 'Update now' })).toBeTruthy();
+  });
+
+  it('resyncs from the quiet refresh when nothing looks wrong', async () => {
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }));
+
+    expect(syncSheetMock).toHaveBeenCalledWith('evt-1');
+    expect(await screen.findByText('Sheet updated with 2 registrations.')).toBeTruthy();
   });
 
   it('says nothing at all about sheets when the feature is switched off', async () => {
@@ -160,6 +173,7 @@ describe('RegistrationListPrintPage', () => {
     expect(screen.queryByText('Open Google Sheet')).toBeNull();
     expect(screen.queryByText(/Google Sheet:/)).toBeNull();
     expect(screen.queryByRole('button', { name: /Sheet/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Update now' })).toBeNull();
   });
 
   it('offers Create Sheet for an event that has never had one', async () => {
@@ -181,7 +195,9 @@ describe('RegistrationListPrintPage', () => {
     await screen.findByText('Quilt Basics');
 
     expect(screen.getByRole('button', { name: 'Update Sheet' })).toBeTruthy();
-    expect(screen.getByText(/shows 1 of 2 registrations/)).toBeTruthy();
+    expect(screen.getByText(/Last synced with 1 registration; there are now 2/)).toBeTruthy();
+    // The prominent button is already offered, so no duplicate quiet one.
+    expect(screen.queryByRole('button', { name: 'Update now' })).toBeNull();
   });
 
   it('offers Retry, and shows the reason, after a failed sync', async () => {

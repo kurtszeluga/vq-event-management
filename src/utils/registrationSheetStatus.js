@@ -12,6 +12,16 @@ import {
 // only in the states where pressing it actually does something, and the settled
 // state says so in words instead.
 //
+// IMPORTANT LIMIT, and the reason 'current' still offers a quiet refresh:
+// every comparison here is Firestore against Firestore. `rowCount` is what the
+// LAST SYNC WROTE, not what the spreadsheet contains now. So this detects a
+// sync that did not run - a registration arriving while Google was
+// unreachable - and it cannot detect somebody editing or deleting rows in the
+// sheet by hand. Reading the live sheet would mean a Google round trip on every
+// view of this page, and would make the attendee list depend on Google being
+// up, which is not worth it. The honest answer is to say what is known, never
+// claim to describe the sheet's contents, and always leave a way to resync.
+//
 // Kept as a pure function so every state can be tested without rendering.
 
 const MINUTE_MS = 60 * 1000;
@@ -36,7 +46,7 @@ export function getRegistrationSheetStatus({
   sheet = null
 } = {}) {
   if (!enabled) {
-    return { actionable: false, state: 'disabled' };
+    return { actionable: false, canRefresh: false, state: 'disabled' };
   }
 
   const expectedRowCount = registrations.filter(isSheetVisibleRegistration).length;
@@ -46,6 +56,7 @@ export function getRegistrationSheetStatus({
     return {
       actionLabel: 'Retry',
       actionable: true,
+      canRefresh: true,
       message: sheet.lastError,
       state: 'failed',
       tone: 'error'
@@ -56,6 +67,7 @@ export function getRegistrationSheetStatus({
     return {
       actionLabel: 'Create Sheet',
       actionable: true,
+      canRefresh: true,
       message: 'This event has no Google Sheet yet.',
       state: 'missing',
       tone: 'notice'
@@ -66,7 +78,10 @@ export function getRegistrationSheetStatus({
     return {
       actionLabel: 'Update Sheet',
       actionable: true,
-      message: `The sheet shows ${syncedRowCount} of ${expectedRowCount} registrations and may be out of date.`,
+      canRefresh: true,
+      // Describes the last WRITE, not the sheet's current contents, which is
+      // all this can honestly claim to know.
+      message: `Last synced with ${syncedRowCount} registration${syncedRowCount === 1 ? '' : 's'}; there ${expectedRowCount === 1 ? 'is' : 'are'} now ${expectedRowCount}.`,
       state: 'stale',
       tone: 'notice'
     };
@@ -74,6 +89,10 @@ export function getRegistrationSheetStatus({
 
   return {
     actionable: false,
+    // No prominent button - there is nothing known to be wrong - but a quiet
+    // refresh stays available, because a hand edit to the sheet is invisible
+    // from here and this is the only way back from one.
+    canRefresh: true,
     message: `Updated ${formatSyncAge(sheet.lastSyncedDate, now)}`,
     state: 'current',
     tone: 'quiet'

@@ -325,6 +325,23 @@ function RegistrationListPrintPage() {
       {!sheetMessage && sheetStatus.message ? (
         <p className={sheetStatus.tone === 'error' ? 'form-error' : 'muted-copy'}>
           Google Sheet: {sheetStatus.message}
+          {/* Only where the toolbar is not already offering a button. A hand
+              edit to the sheet cannot be detected from here, so this stays
+              available as the way back from one - quiet enough not to read as
+              an instruction, which is what the old permanent button did. */}
+          {sheetStatus.canRefresh && !sheetStatus.actionable ? (
+            <>
+              {' '}
+              <button
+                className="text-button"
+                disabled={syncingSheet}
+                type="button"
+                onClick={handleSyncSheet}
+              >
+                {syncingSheet ? 'Updating...' : 'Update now'}
+              </button>
+            </>
+          ) : null}
         </p>
       ) : null}
       <article className="registration-admin-card">

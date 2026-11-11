@@ -47,6 +47,43 @@ describe('getRegistrationSheetStatus', () => {
     expect(status.state).toBe('current');
     expect(status.actionable).toBe(false);
     expect(status.message).toBe('Updated 2 minutes ago');
+    // No prominent button, but a quiet refresh stays available - see below.
+    expect(status.canRefresh).toBe(true);
+  });
+
+  it('keeps a refresh available in every enabled state', () => {
+    // A hand edit to the sheet - someone deleting a row - is invisible from
+    // here, because every comparison is Firestore against Firestore and
+    // rowCount is what the last sync WROTE. The quiet refresh is the only way
+    // back from that, so it must not be gated on a detected problem.
+    const states = [
+      { registrations: TWO_REGISTRATIONS, sheet: sheet() },
+      { registrations: TWO_REGISTRATIONS, sheet: sheet({ rowCount: 1 }) },
+      { registrations: TWO_REGISTRATIONS, sheet: null },
+      { registrations: TWO_REGISTRATIONS, sheet: sheet({ lastError: 'nope' }) }
+    ];
+
+    states.forEach((input) => {
+      expect(getRegistrationSheetStatus({ enabled: true, now: NOW, ...input }).canRefresh).toBe(true);
+    });
+
+    // Except when the feature is off, where nothing is rendered at all.
+    expect(getRegistrationSheetStatus({ enabled: false }).canRefresh).toBe(false);
+  });
+
+  it('cannot tell that a row was deleted from the sheet by hand', () => {
+    // Documents the limit rather than pretending otherwise: the registrations
+    // and the recorded rowCount still agree, so this reads as current even
+    // though the sheet is now a row short. That is why canRefresh exists.
+    const status = getRegistrationSheetStatus({
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: sheet({ rowCount: 2 })
+    });
+
+    expect(status.state).toBe('current');
+    expect(status.canRefresh).toBe(true);
   });
 
   it('asks to create a sheet when the event has never had one', () => {
@@ -83,7 +120,9 @@ describe('getRegistrationSheetStatus', () => {
 
     expect(status.state).toBe('stale');
     expect(status.actionLabel).toBe('Update Sheet');
-    expect(status.message).toMatch(/shows 1 of 2 registrations/);
+    // Describes the last WRITE. It must not claim to know what the sheet
+    // contains now, because nothing here has read the sheet.
+    expect(status.message).toBe('Last synced with 1 registration; there are now 2.');
   });
 
   it('spots a sheet with MORE rows than there are registrations', () => {

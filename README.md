@@ -181,9 +181,17 @@ Notes:
   | --- | --- |
   | *Open Google Sheet* and "Updated 2 minutes ago", no button | Up to date. Nothing to do. |
   | **Create Sheet** | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. |
-  | **Update Sheet**, with "shows 1 of 2 registrations" | The stored row count disagrees with the registrations on screen, so a sync did not run when it should have. |
+  | **Update Sheet**, with "Last synced with 1 registration; there are now 2" | The recorded row count disagrees with the registrations on screen, so a sync did not run when it should have. |
   | **Retry**, with the Google error | The last sync failed. |
   | Nothing at all | The feature is switched off in Configuration. |
+  **It cannot tell that you edited the sheet yourself.** Every check is the
+  app's own records against each other — the recorded row count is what the
+  last sync *wrote*, not what the spreadsheet holds now — so deleting a row by
+  hand leaves the page reporting the sheet as up to date. Reading the live
+  sheet on every view would mean a Google round trip each time and would make
+  the attendee list depend on Google being up. Instead the settled state keeps
+  a quiet **Update now** link beside "Updated 2 minutes ago", which rebuilds
+  the grid and is the way back from any hand edit.
 - Turning the setting off stops the syncing and leaves the existing sheets
   exactly as they are. The registration list then says nothing about sheets.
 
