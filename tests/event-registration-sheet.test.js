@@ -19,7 +19,9 @@ import {
   toColumnLetter
 } from '../api/_lib/google-sheets.js';
 import {
+  nextAvailableTabTitle,
   resolveRegistrationSheetSettings,
+  resolveRegistrationTab,
   writeRegistrationGrid
 } from '../api/_lib/event-registration-sheet.js';
 
@@ -818,4 +820,85 @@ test('a failed read never reaches either write', async () => {
 
   assert.equal(writeCalls(sheetsClient).length, 0);
   assert.equal(sheetsClient.calls.filter(([name]) => name === 'clearValues').length, 0);
+});
+
+// Which TAB the grid is written into. Matched on the recorded sheetId, never on
+// position: a coordinator who adds a tab and drags it to the front would
+// otherwise have the registration grid written over it and everything below it
+// cleared, with no undo.
+const REGISTRATIONS_TAB = { columnCount: 26, sheetId: 0, sheetTitle: 'Registrations' };
+const COORDINATOR_TAB = { columnCount: 12, sheetId: 1844, sheetTitle: 'Door list' };
+
+test('the tab is found by its id even when it is no longer first', () => {
+  // The whole point of the fix. 'Door list' is at position 0 here.
+  const tab = resolveRegistrationTab(
+    [COORDINATOR_TAB, REGISTRATIONS_TAB],
+    { sheetId: 0 }
+  );
+
+  assert.equal(tab.sheetTitle, 'Registrations');
+  assert.equal(tab.sheetId, 0);
+});
+
+test('sheetId 0 is a real id and must not be treated as missing', () => {
+  // Google gives the first tab of a new spreadsheet the id 0, so nearly every
+  // sheet here has one. A truthiness check instead of Number.isInteger would
+  // send every sync down the "no remembered tab" path and back to picking by
+  // position, reintroducing the bug invisibly.
+  //
+  // Constructed so it can actually tell the two apart: the tab with id 0 is
+  // RENAMED, so the title fallback cannot rescue a truthiness check - it would
+  // return the coordinator's tab at position 0 instead.
+  const renamedWithIdZero = { columnCount: 26, sheetId: 0, sheetTitle: 'Sign-ups' };
+  const tab = resolveRegistrationTab([COORDINATOR_TAB, renamedWithIdZero], { sheetId: 0 });
+
+  assert.equal(tab.sheetId, 0, 'sheetId 0 should match by id, not fall through');
+  assert.equal(tab.sheetTitle, 'Sign-ups');
+});
+
+test('a renamed tab is still found by its id', () => {
+  // Renaming is allowed and handled; the id does not change.
+  const renamed = { ...REGISTRATIONS_TAB, sheetTitle: 'Sign-ups' };
+  const tab = resolveRegistrationTab([COORDINATOR_TAB, renamed], { sheetId: 0 });
+
+  assert.equal(tab.sheetTitle, 'Sign-ups');
+});
+
+test('a deleted tab resolves to nothing rather than to someone else\'s', () => {
+  // null tells the caller to add a replacement tab. Falling back to tabs[0]
+  // here would adopt the coordinator's tab and overwrite it.
+  assert.equal(resolveRegistrationTab([COORDINATOR_TAB], { sheetId: 0 }), null);
+  assert.equal(resolveRegistrationTab([], { sheetId: 0 }), null);
+});
+
+test('with no remembered id, a tab named like ours wins over position', () => {
+  // Only reachable for a link document written before the id was recorded.
+  const tab = resolveRegistrationTab([COORDINATOR_TAB, REGISTRATIONS_TAB], {});
+
+  assert.equal(tab.sheetTitle, 'Registrations');
+});
+
+test('with no remembered id and no match, the only tab is used', () => {
+  // Such a spreadsheet was still created by this code, so its single tab is
+  // ours whatever it is called.
+  const tab = resolveRegistrationTab([{ columnCount: 26, sheetId: 7, sheetTitle: 'Sheet1' }], {});
+
+  assert.equal(tab.sheetId, 7);
+  assert.equal(resolveRegistrationTab([], {}), null);
+});
+
+test('a replacement tab takes the first free name', () => {
+  // Google refuses a duplicate tab title, so this cannot just always ask for
+  // 'Registrations'.
+  assert.equal(nextAvailableTabTitle([COORDINATOR_TAB]), 'Registrations');
+  assert.equal(nextAvailableTabTitle([REGISTRATIONS_TAB]), 'Registrations 2');
+  assert.equal(
+    nextAvailableTabTitle([
+      REGISTRATIONS_TAB,
+      { sheetId: 2, sheetTitle: 'Registrations 2' },
+      { sheetId: 3, sheetTitle: 'Registrations 3' }
+    ]),
+    'Registrations 4'
+  );
+  assert.equal(nextAvailableTabTitle([]), 'Registrations');
 });

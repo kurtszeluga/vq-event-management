@@ -208,7 +208,8 @@ Set both the `VITE_FIREBASE_*` client variables and the server variables above i
 | The **Drive file** renamed | Renamed back on the next sync, to match the event's title and date. Harmless, but a name you chose will not stick. |
 | Moved to another folder | Fine. The sheet is found by ID, never by location. The folder setting only decides where *new* sheets are created. |
 | Service account loses access | The sync aborts, records why, and shows it on the registration list page. Deliberately does **not** create a replacement — a 403 means someone un-shared it, which is worth seeing rather than papering over with a duplicate. Only a 404 triggers a recreate. |
-| A second tab added and dragged to first position, or the Registrations tab deleted | **Known gap.** The tab is located positionally (`sheets[0]`), so the sync would write the grid over whatever tab is first and clear below it. The tab's `sheetId` is stored on the link document but not yet used to find it. Don't reorder tabs until this is fixed. |
+| A second tab added, and dragged to first position | Fine. The tab is found by the `sheetId` recorded when the sheet was created, never by position, so your own tabs can sit anywhere in any order. |
+| The Registrations **tab** deleted | A replacement tab is added and the rows rebuilt from Firestore. It does **not** adopt whichever tab is now first — that tab is yours. Anything you had typed into the deleted tab went with it. |
 
 #### Archived and deleted events
 

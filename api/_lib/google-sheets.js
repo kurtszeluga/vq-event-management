@@ -137,15 +137,14 @@ export async function getSpreadsheetFile({ accessToken, spreadsheetId }) {
   });
 }
 
-// The first tab's title, numeric id and width. A new spreadsheet's tab is
-// called 'Sheet1' in English and something else in other locales, and an admin
-// is free to rename it later, so neither is ever assumed.
+// Every tab in the spreadsheet, in the order Google reports them, each with its
+// title, numeric id and width.
 //
 // columnCount is how far right the sync has to read to find a coordinator's own
 // columns. A new sheet is 26 columns wide; someone who needed more will have
 // added them, and reading only as far as Z would silently drop whatever they
 // put past it.
-export async function getFirstSheetProperties({ accessToken, spreadsheetId }) {
+export async function listSheetProperties({ accessToken, spreadsheetId }) {
   const query = new URLSearchParams({
     fields: 'sheets(properties(sheetId,title,gridProperties(columnCount)))'
   });
@@ -153,10 +152,49 @@ export async function getFirstSheetProperties({ accessToken, spreadsheetId }) {
     `${SHEETS_URL}/${encodeURIComponent(spreadsheetId)}?${query}`,
     { accessToken }
   );
-  const properties = data.sheets?.[0]?.properties;
+  const tabs = (data.sheets || [])
+    .map((sheet) => sheet.properties)
+    .filter(Boolean)
+    .map((properties) => ({
+      columnCount: Number(properties.gridProperties?.columnCount) || DEFAULT_SHEET_COLUMN_COUNT,
+      sheetId: properties.sheetId,
+      sheetTitle: properties.title
+    }));
+
+  if (!tabs.length) {
+    throw new Error('The spreadsheet has no sheets to write to.');
+  }
+
+  return tabs;
+}
+
+// Only safe where "first" is unambiguous: a spreadsheet this code just created,
+// which has exactly one tab. Anywhere else the tab must be found by its id -
+// see resolveRegistrationTab in api/_lib/event-registration-sheet.js for why.
+export async function getFirstSheetProperties({ accessToken, spreadsheetId }) {
+  const [first] = await listSheetProperties({ accessToken, spreadsheetId });
+
+  return first;
+}
+
+// Adds a tab and returns its properties. Used when the tab the sync has been
+// writing to has been deleted: a replacement is created rather than adopting
+// whichever tab now happens to be first, because that tab is somebody's work.
+//
+// Google refuses a duplicate tab title, so the caller picks one that is free.
+export async function addSheet({ accessToken, spreadsheetId, title }) {
+  const data = await googleRequest(`${SHEETS_URL}/${encodeURIComponent(spreadsheetId)}:batchUpdate`, {
+    accessToken,
+    body: {
+      requests: [{ addSheet: { properties: { title } } }],
+      includeSpreadsheetInResponse: false
+    },
+    method: 'POST'
+  });
+  const properties = data.replies?.[0]?.addSheet?.properties;
 
   if (!properties) {
-    throw new Error('The spreadsheet has no sheets to write to.');
+    throw new Error('The spreadsheet tab could not be created.');
   }
 
   return {

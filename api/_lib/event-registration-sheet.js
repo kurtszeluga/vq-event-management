@@ -8,12 +8,14 @@ import {
 } from '../../shared/eventRegistrationSheet.js';
 import {
   GOOGLE_SHEETS_SCOPE,
+  addSheet,
   buildA1Range,
   clearValues,
   createSpreadsheetInFolder,
   formatNewSheet,
   getFirstSheetProperties,
   getSpreadsheetFile,
+  listSheetProperties,
   readValues,
   renameSpreadsheet,
   toColumnLetter,
@@ -282,6 +284,53 @@ export async function writeRegistrationGrid({
   return update;
 }
 
+// Which tab of the spreadsheet the grid belongs in.
+//
+// Matched on the sheetId recorded when the sheet was created, NEVER on
+// position. Position was the original approach and it was wrong: a coordinator
+// who adds a tab of their own and drags it to the front would have the
+// registration grid written straight over it and everything below it cleared -
+// the one way this sync could destroy work with no undo. A sheetId is stable
+// across both renaming and reordering, which is exactly the property needed.
+//
+// Returns null when the remembered tab is gone, so the caller creates a
+// replacement instead of adopting whichever tab is now first.
+//
+// sheetId 0 is a REAL id - it is what Google gives the first tab of a new
+// spreadsheet, so almost every sheet here has one - which is why this tests for
+// an integer and not for truthiness.
+export function resolveRegistrationTab(tabs = [], link = {}) {
+  if (Number.isInteger(link.sheetId)) {
+    return tabs.find((tab) => tab.sheetId === link.sheetId) || null;
+  }
+
+  // No remembered id at all. Only reachable for a link document written before
+  // the id was recorded; such a spreadsheet was still created by this code, so
+  // its own tab is the one named like ours, and failing that the only one it
+  // has.
+  return tabs.find((tab) => tab.sheetTitle === SHEET_TAB_TITLE) || tabs[0] || null;
+}
+
+// Google refuses a duplicate tab title, so a replacement tab gets the first
+// free name rather than failing because someone already has a 'Registrations'.
+export function nextAvailableTabTitle(tabs = []) {
+  const taken = new Set(tabs.map((tab) => tab.sheetTitle));
+
+  if (!taken.has(SHEET_TAB_TITLE)) {
+    return SHEET_TAB_TITLE;
+  }
+
+  for (let suffix = 2; suffix <= 50; suffix += 1) {
+    const candidate = `${SHEET_TAB_TITLE} ${suffix}`;
+
+    if (!taken.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `${SHEET_TAB_TITLE} ${Date.now()}`;
+}
+
 // Returns the spreadsheet to write into, creating it if this event has never
 // had one - which is what makes "set up an event with registration enabled" and
 // "a sheet exists for it" the same act, whichever caller gets there first.
@@ -301,17 +350,18 @@ async function ensureSpreadsheet(db, { accessToken, event, eventId, folderId }) 
         await renameSpreadsheet({ accessToken, spreadsheetId: link.spreadsheetId, title: wantedName });
       }
 
-      // Asked for every time rather than read back from the link document.
-      // The tab's title is part of the A1 range every write uses, and an admin
-      // is free to rename the tab inside the sheet - at which point a
-      // remembered title makes every subsequent write fail with "Unable to
-      // parse range" and the sheet silently stops updating. One extra call on
-      // a sync that already makes several is worth not having that failure
-      // mode exist.
-      const properties = await getFirstSheetProperties({
+      // Listed every time rather than read back from the link document. The
+      // tab's title is part of the A1 range every write uses, and an admin is
+      // free to rename the tab - at which point a remembered title makes every
+      // write fail with "Unable to parse range" and the sheet silently stops
+      // updating. The id is what identifies the tab; the title is whatever it
+      // is called right now.
+      const tabs = await listSheetProperties({
         accessToken,
         spreadsheetId: link.spreadsheetId
       });
+      const properties = resolveRegistrationTab(tabs, link)
+        || await createReplacementTab({ accessToken, eventId, link, tabs });
 
       return {
         columnCount: properties.columnCount,
@@ -384,6 +434,47 @@ async function findExistingSpreadsheet(accessToken, link) {
 
     throw error;
   }
+}
+
+// The tab the sync was writing to has been deleted. A new one is added rather
+// than falling back to whichever tab is now first, because that tab belongs to
+// whoever made it - overwriting it is the exact failure this is here to avoid.
+//
+// The rows are rebuilt from Firestore, so the registrations come back intact;
+// what is lost is whatever the coordinator had typed into the deleted tab,
+// which went with the tab.
+async function createReplacementTab({ accessToken, eventId, link, tabs }) {
+  const title = nextAvailableTabTitle(tabs);
+
+  console.warn(
+    'The registration sheet tab is missing; adding a replacement',
+    eventId,
+    title
+  );
+
+  const created = await addSheet({
+    accessToken,
+    spreadsheetId: link.spreadsheetId,
+    title
+  });
+
+  // Cosmetics only, so a failure must not cost us the tab. Unlike the
+  // new-spreadsheet path there is no rename riding along here - the tab was
+  // created with the title we want - so a failure cannot leave the title and
+  // the write range disagreeing.
+  try {
+    await formatNewSheet({
+      accessToken,
+      columnCount: REGISTRATION_SHEET_COLUMN_COUNT,
+      sheetId: created.sheetId,
+      sheetTitle: created.sheetTitle,
+      spreadsheetId: link.spreadsheetId
+    });
+  } catch (error) {
+    console.error('Could not format the replacement registration tab', eventId, error);
+  }
+
+  return created;
 }
 
 // Best effort by design: this runs on the failure path, so it must not be able
