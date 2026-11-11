@@ -139,6 +139,16 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
   }
 
   async function performSubmit() {
+    // Last line of defence. This panel is only opened for an event group that
+    // has an event, but the alternative to checking is `event.id` throwing
+    // "undefined is not an object" out of the submit handler, which tells an
+    // admin nothing and loses the form they just filled in.
+    if (!event?.id) {
+      setFormError('This event could not be loaded. Go back to Events/Activities and open it again.');
+      setWaitlistConfirmationOpen(false);
+      return;
+    }
+
     setSubmitting(true);
 
     try {

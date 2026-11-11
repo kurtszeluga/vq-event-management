@@ -168,6 +168,20 @@ function RegistrationPanel({
     setSelectedEventId(initialEventId);
     setExpandedRegistrationId('');
 
+    // A deep link names ONE event, so none of this list's filters may be left
+    // in a state that hides it. The quarter and year default to today's, and
+    // groupedRegistrations only builds a group for an event that survives the
+    // filters - so arriving here for an event from an earlier quarter left
+    // selectedEventGroup null. The drilled-in view then showed nothing, and
+    // (when the shortcut also asked for it) the Register A Member panel opened
+    // with no event behind it, which crashed on submit at `event.id`.
+    //
+    // Only cleared when an event is actually named; a plain visit to this
+    // panel keeps the current-quarter default it has always had.
+    setActivityFilter('');
+    setQuarterFilter('');
+    setYearFilter('');
+
     if (initialRegisterMemberOpen) {
       setSuccessMessage('');
       setRegisterMemberOpen(true);
@@ -1161,7 +1175,12 @@ function RegistrationPanel({
                 : 'Member registered successfully.'
             );
           }}
-          open={registerMemberOpen}
+          // Belt and braces alongside the filter clearing above: the two
+          // buttons that open this are already gated on group.event, and a
+          // registration whose event document was deleted outright still has
+          // no event to offer. Never hand this panel a group it cannot
+          // register against.
+          open={registerMemberOpen && Boolean(selectedEventGroup?.event?.id)}
           users={users}
         />
       ) : null}
