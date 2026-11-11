@@ -180,10 +180,14 @@ Notes:
   | What the page shows | What it means |
   | --- | --- |
   | A grey box: "Up to date, synced 2 minutes ago. **Update now** if you have changed the sheet yourself" | Nothing to do. Boxed so it is noticed, neutral so it is not mistaken for a demand. |
-  | **Create Sheet**, in an amber notice box | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. |
-  | **Update Sheet**, in an amber notice box, with "Last synced with 1 registration; there are now 2" | The recorded row count disagrees with the registrations on screen, so a sync did not run when it should have. |
-  | **Retry**, in a red error box, with the Google error | The last sync failed, or the sheet settings could not be read. |
+  | **Create Sheet**, in an amber notice box, no popup | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. Every such event is in this state, so a popup would fire on all of them. |
+  | A **popup**, then **Update Sheet** in an amber notice box, with "Last synced with 1 registration; there are now 2" | The recorded row count disagrees with the registrations on screen, so a sync did not run when it should have. |
+  | A **popup**, then **Retry** in a red error box, with the Google error | The last sync failed. (Unreadable settings give the red box but no popup — as likely a passing hiccup as a real problem.) |
   | Nothing at all | The feature is switched off in Configuration. |
+  The popup appears once per visit, only where the sheet is **known** to
+  disagree with the app, and never when everything is current — a popup that
+  fires when nothing is wrong teaches people to dismiss popups unread.
+
   **It cannot tell that you edited the sheet yourself.** Every check is the
   app's own records against each other — the recorded row count is what the
   last sync *wrote*, not what the spreadsheet holds now — so deleting a row by

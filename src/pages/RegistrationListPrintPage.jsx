@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth.js';
 import { getEvent } from '../services/eventService.js';
@@ -64,6 +65,10 @@ function RegistrationListPrintPage() {
   const [sheetsEnabled, setSheetsEnabled] = useState(false);
   const [sheetMessage, setSheetMessage] = useState('');
   const [syncingSheet, setSyncingSheet] = useState(false);
+  const [sheetPromptOpen, setSheetPromptOpen] = useState(false);
+  // Once per visit. A reload raises it again, but a re-render does not, and
+  // neither does answering it or putting the sheet right.
+  const [sheetPromptSeen, setSheetPromptSeen] = useState(false);
   const printFrameRef = useRef(null);
 
   useEffect(() => {
@@ -139,6 +144,19 @@ function RegistrationListPrintPage() {
     [registrations, sheetLink, sheetsEnabled]
   );
   const totalPaid = useMemo(() => getTotalPaidAmount(sortedRegistrations), [sortedRegistrations]);
+
+  // Interrupts only where the sheet is KNOWN to disagree with the app - behind,
+  // or the last sync failed. Never for an event that has simply never had a
+  // sheet, and never when everything is current: a popup that fires when
+  // nothing is wrong is how people learn to dismiss popups without reading.
+  useEffect(() => {
+    if (sheetPromptSeen || !sheetStatus.prompt) {
+      return;
+    }
+
+    setSheetPromptOpen(true);
+    setSheetPromptSeen(true);
+  }, [sheetPromptSeen, sheetStatus.prompt]);
 
   // Printing the live SPA page directly (window.print() on this document)
   // is what made Safari's print dialog take forever - every other report in
@@ -445,6 +463,20 @@ function RegistrationListPrintPage() {
           )}
         </div>
       </article>
+      <ConfirmDialog
+        busy={syncingSheet}
+        cancelLabel="Not now"
+        confirmLabel={sheetStatus.actionLabel || 'Update Sheet'}
+        description={`${sheetStatus.message || ''} Updating rebuilds it from the registrations shown here.`}
+        onCancel={() => setSheetPromptOpen(false)}
+        onConfirm={async () => {
+          await handleSyncSheet();
+          setSheetPromptOpen(false);
+        }}
+        open={sheetPromptOpen}
+        title={sheetStatus.promptTitle || 'The Google Sheet needs updating'}
+        tone={sheetStatus.tone === 'error' ? 'danger' : 'default'}
+      />
       <iframe
         aria-hidden="true"
         className="print-helper-frame"

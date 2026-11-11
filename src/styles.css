@@ -3700,6 +3700,10 @@ div.csv-preview-warning {
   border: 1px solid #ded5ca;
   border-radius: 8px;
   color: #5c6966;
+  /* Heavier than body copy so the box is read, lighter than the 700 of
+     .form-notice and .form-error so "nothing to do" still looks calmer than
+     the two states that want something. */
+  font-weight: 600;
   margin: 0;
   padding: 12px;
 }

@@ -60,13 +60,16 @@ export function getRegistrationSheetStatus({
       actionable: true,
       canRefresh: true,
       message: 'The sheet settings could not be read, so this may be out of date.',
+      // No popup: this is as likely to be a passing Firestore hiccup as a real
+      // problem, and the red box already says it.
+      prompt: false,
       state: 'unknown',
       tone: 'error'
     };
   }
 
   if (!enabled) {
-    return { actionable: false, canRefresh: false, state: 'disabled' };
+    return { actionable: false, canRefresh: false, prompt: false, state: 'disabled' };
   }
 
   const expectedRowCount = registrations.filter(isSheetVisibleRegistration).length;
@@ -78,6 +81,10 @@ export function getRegistrationSheetStatus({
       actionable: true,
       canRefresh: true,
       message: sheet.lastError,
+      // Worth interrupting for: the sheet is known to be wrong, and a
+      // coordinator may be about to print or work from it.
+      prompt: true,
+      promptTitle: 'The Google Sheet could not be updated',
       state: 'failed',
       tone: 'error'
     };
@@ -89,6 +96,10 @@ export function getRegistrationSheetStatus({
       actionable: true,
       canRefresh: true,
       message: 'This event has no Google Sheet yet.',
+      // Deliberately NOT a prompt. Every event set up before the feature was
+      // switched on is in this state, so a popup here would fire on all of
+      // them and teach people to dismiss it without reading.
+      prompt: false,
       state: 'missing',
       tone: 'notice'
     };
@@ -102,6 +113,10 @@ export function getRegistrationSheetStatus({
       // Describes the last WRITE, not the sheet's current contents, which is
       // all this can honestly claim to know.
       message: `Last synced with ${syncedRowCount} registration${syncedRowCount === 1 ? '' : 's'}; there ${expectedRowCount === 1 ? 'is' : 'are'} now ${expectedRowCount}.`,
+      // The sheet is known to disagree with the app, so say so up front
+      // rather than hoping the box is read.
+      prompt: true,
+      promptTitle: 'The Google Sheet is out of date',
       state: 'stale',
       tone: 'notice'
     };
@@ -120,6 +135,10 @@ export function getRegistrationSheetStatus({
     // being a bare "Update now" nobody knows the purpose of. This is the state
     // where nothing is needed, so it stays calm - telling someone WHEN to
     // press it is the useful thing, not making it louder.
+    // Never interrupts. Nothing is wrong in this state, and a popup saying so
+    // on every visit to the page is the behaviour this whole control has been
+    // trying to avoid.
+    prompt: false,
     refreshHint: 'if you have changed the sheet yourself',
     state: 'current',
     // Boxed, not muted: people did not notice the status line at all. Neutral

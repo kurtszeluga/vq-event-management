@@ -290,3 +290,37 @@ describe('when the settings read fails', () => {
     expect(getRegistrationSheetStatus({ enabled: null }).state).toBe('unknown');
   });
 });
+
+describe('which states interrupt with a popup', () => {
+  it('interrupts only where the sheet is known to be wrong', () => {
+    const promptFor = (input) => getRegistrationSheetStatus({
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      ...input
+    }).prompt;
+
+    // Known wrong: say so up front rather than hoping the box is read.
+    expect(promptFor({ sheet: sheet({ rowCount: 1 }) })).toBe(true);
+    expect(promptFor({ sheet: sheet({ lastError: 'File not found' }) })).toBe(true);
+
+    // Nothing wrong - a popup here is how people learn to dismiss popups.
+    expect(promptFor({ sheet: sheet() })).toBe(false);
+    // Every event predating the feature is in this state; a popup on all of
+    // them would be worse than useless.
+    expect(promptFor({ sheet: null })).toBe(false);
+    // As likely a passing Firestore hiccup as a real problem.
+    expect(getRegistrationSheetStatus({ enabled: null }).prompt).toBe(false);
+    expect(getRegistrationSheetStatus({ enabled: false }).prompt).toBe(false);
+  });
+
+  it('names what is wrong in the popup title', () => {
+    expect(getRegistrationSheetStatus({
+      enabled: true, now: NOW, registrations: TWO_REGISTRATIONS, sheet: sheet({ rowCount: 1 })
+    }).promptTitle).toBe('The Google Sheet is out of date');
+
+    expect(getRegistrationSheetStatus({
+      enabled: true, now: NOW, registrations: TWO_REGISTRATIONS, sheet: sheet({ lastError: 'x' })
+    }).promptTitle).toBe('The Google Sheet could not be updated');
+  });
+});

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -199,6 +199,9 @@ describe('RegistrationListPrintPage', () => {
 
     await screen.findByText('Quilt Basics');
 
+    // The prompt opens first in this state; dismiss it to inspect the page.
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now' }));
+
     expect(screen.getByRole('button', { name: 'Update Sheet' })).toBeTruthy();
     const note = screen.getByText(/Last synced with 1 registration; there are now 2/);
     expect(note).toBeTruthy();
@@ -215,6 +218,8 @@ describe('RegistrationListPrintPage', () => {
 
     await screen.findByText('Quilt Basics');
 
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now' }));
+
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
     // A genuine failure keeps the strongest treatment.
     expect(screen.getByText(/The caller does not have permission/).className).toBe('form-error');
@@ -226,6 +231,7 @@ describe('RegistrationListPrintPage', () => {
     render(<RegistrationListPrintPage />);
 
     await screen.findByText('Quilt Basics');
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now' }));
     await userEvent.click(screen.getByRole('button', { name: 'Update Sheet' }));
 
     expect(syncSheetMock).toHaveBeenCalledWith('evt-1');
@@ -239,6 +245,7 @@ describe('RegistrationListPrintPage', () => {
     render(<RegistrationListPrintPage />);
 
     await screen.findByText('Quilt Basics');
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now' }));
     await userEvent.click(screen.getByRole('button', { name: 'Update Sheet' }));
 
     expect(
@@ -257,11 +264,81 @@ describe('RegistrationListPrintPage', () => {
     render(<RegistrationListPrintPage />);
 
     await screen.findByText('Quilt Basics');
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now' }));
     await userEvent.click(screen.getByRole('button', { name: 'Update Sheet' }));
 
     expect(
       await screen.findByText('Registration sheets are switched off in Configuration.')
     ).toBeTruthy();
+  });
+
+  it('prompts when the sheet is known to be behind', async () => {
+    sheetLinkResult = { ...sheetLinkResult, rowCount: 1 };
+
+    render(<RegistrationListPrintPage />);
+
+    expect(await screen.findByRole('heading', { name: 'The Google Sheet is out of date' })).toBeTruthy();
+  });
+
+  it('prompts when the last sync failed', async () => {
+    sheetLinkResult = { ...sheetLinkResult, lastError: 'File not found' };
+
+    render(<RegistrationListPrintPage />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'The Google Sheet could not be updated' })
+    ).toBeTruthy();
+  });
+
+  it('never prompts when the sheet is up to date', async () => {
+    // A popup that fires when nothing is wrong is how people learn to dismiss
+    // popups without reading them.
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+
+    expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
+  });
+
+  it('never prompts for an event that has simply never had a sheet', async () => {
+    // Every event set up before the feature was switched on is in this state.
+    sheetLinkResult = { lastError: '', rowCount: 0, spreadsheetId: '', spreadsheetUrl: '' };
+
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByRole('button', { name: 'Create Sheet' });
+
+    expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
+  });
+
+  it('syncs from the prompt, and does not raise it again afterwards', async () => {
+    sheetLinkResult = { ...sheetLinkResult, rowCount: 1 };
+
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByRole('heading', { name: 'The Google Sheet is out of date' });
+
+    // Scoped: the toolbar carries a button of the same name behind the dialog.
+    const dialog = screen.getByRole('dialog');
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update Sheet' }));
+
+    expect(syncSheetMock).toHaveBeenCalledWith('evt-1');
+    expect(await screen.findByText('Sheet updated with 2 registrations.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
+  });
+
+  it('does not raise the prompt again after it is dismissed', async () => {
+    sheetLinkResult = { ...sheetLinkResult, rowCount: 1 };
+
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByRole('heading', { name: 'The Google Sheet is out of date' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Not now' }));
+
+    expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
+    // Still offered in the page itself, just no longer interrupting.
+    expect(screen.getByRole('button', { name: 'Update Sheet' })).toBeTruthy();
   });
 
   it('refuses to load registrant data without the viewRegistrations permission', async () => {
