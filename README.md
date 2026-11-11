@@ -179,10 +179,10 @@ Notes:
 
   | What the page shows | What it means |
   | --- | --- |
-  | *Open Google Sheet* and "Updated 2 minutes ago", no button | Up to date. Nothing to do. |
-  | **Create Sheet** | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. |
-  | **Update Sheet**, with "Last synced with 1 registration; there are now 2" | The recorded row count disagrees with the registrations on screen, so a sync did not run when it should have. |
-  | **Retry**, with the Google error | The last sync failed. |
+  | *Open Google Sheet* and "Updated 2 minutes ago · **Update now** if you have changed the sheet yourself", quiet grey | Up to date. Nothing to do — and the link says when it would be. |
+  | **Create Sheet**, in an amber notice box | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. |
+  | **Update Sheet**, in an amber notice box, with "Last synced with 1 registration; there are now 2" | The recorded row count disagrees with the registrations on screen, so a sync did not run when it should have. |
+  | **Retry**, in a red error box, with the Google error | The last sync failed, or the sheet settings could not be read. |
   | Nothing at all | The feature is switched off in Configuration. |
   **It cannot tell that you edited the sheet yourself.** Every check is the
   app's own records against each other — the recorded row count is what the

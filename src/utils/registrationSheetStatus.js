@@ -114,6 +114,11 @@ export function getRegistrationSheetStatus({
     // from here and this is the only way back from one.
     canRefresh: true,
     message: `Updated ${formatSyncAge(sheet.lastSyncedDate, now)}`,
+    // Said after the link, so the quiet control explains itself instead of
+    // being a bare "Update now" nobody knows the purpose of. This is the state
+    // where nothing is needed, so it stays calm - telling someone WHEN to
+    // press it is the useful thing, not making it louder.
+    refreshHint: 'if you have changed the sheet yourself',
     state: 'current',
     tone: 'quiet'
   };

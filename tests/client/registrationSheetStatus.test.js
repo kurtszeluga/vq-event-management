@@ -49,6 +49,33 @@ describe('getRegistrationSheetStatus', () => {
     expect(status.message).toBe('Updated 2 minutes ago');
     // No prominent button, but a quiet refresh stays available - see below.
     expect(status.canRefresh).toBe(true);
+    // And it explains WHEN it is needed, which is the useful thing in a state
+    // where nothing is wrong. Making it louder would be the original mistake.
+    expect(status.refreshHint).toBe('if you have changed the sheet yourself');
+    expect(status.tone).toBe('quiet');
+  });
+
+  it('puts "needs doing" states in the notice tier, not the quiet one', () => {
+    // Muted text made these too easy to miss, which is the whole complaint.
+    // They are still not errors: a pre-existing event legitimately has no
+    // sheet, and painting every one of those red would cry wolf.
+    const missing = getRegistrationSheetStatus({
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: null
+    });
+    const stale = getRegistrationSheetStatus({
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: sheet({ rowCount: 1 })
+    });
+
+    expect(missing.tone).toBe('notice');
+    expect(stale.tone).toBe('notice');
+    // No hint on these - the button says what it does and the message says why.
+    expect(stale.refreshHint).toBeUndefined();
   });
 
   it('keeps a refresh available in every enabled state', () => {

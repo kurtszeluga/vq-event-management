@@ -3691,6 +3691,22 @@ div.csv-preview-warning {
   padding: 12px;
 }
 
+/* The tier between .form-error and plain muted copy: something needs doing,
+   but nothing has gone wrong. Used for a registration sheet that is behind or
+   has never been created - both of which are ordinary states for an event set
+   up before the feature was switched on, so painting them like an error would
+   cry wolf, and leaving them as muted text made them too easy to miss. Same
+   box shape as .form-error so the three read as one family. */
+.form-notice {
+  background: #fdf6ec;
+  border: 1px solid #e3c9a0;
+  border-radius: 8px;
+  color: #7a4a06;
+  font-weight: 700;
+  margin: 0;
+  padding: 12px;
+}
+
 .not-found {
   display: grid;
   gap: 14px;

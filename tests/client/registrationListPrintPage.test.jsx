@@ -147,8 +147,11 @@ describe('RegistrationListPrintPage', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Create Sheet' })).toBeNull();
     // A quiet refresh remains, because a row deleted from the sheet by hand
-    // cannot be detected from here and this is the only way back from it.
+    // cannot be detected from here and this is the only way back from it -
+    // and it explains when that is, rather than being a bare link.
     expect(screen.getByRole('button', { name: 'Update now' })).toBeTruthy();
+    expect(screen.getByText(/if you have changed the sheet yourself/)).toBeTruthy();
+    expect(screen.getByText(/Updated just now/).className).toBe('muted-copy');
   });
 
   it('resyncs from the quiet refresh when nothing looks wrong', async () => {
@@ -185,6 +188,7 @@ describe('RegistrationListPrintPage', () => {
 
     expect(screen.getByRole('button', { name: 'Create Sheet' })).toBeTruthy();
     expect(screen.queryByText('Open Google Sheet')).toBeNull();
+    expect(screen.getByText(/no Google Sheet yet/).className).toBe('form-notice');
   });
 
   it('offers Update Sheet, with the counts, when the sheet is behind', async () => {
@@ -195,7 +199,10 @@ describe('RegistrationListPrintPage', () => {
     await screen.findByText('Quilt Basics');
 
     expect(screen.getByRole('button', { name: 'Update Sheet' })).toBeTruthy();
-    expect(screen.getByText(/Last synced with 1 registration; there are now 2/)).toBeTruthy();
+    const note = screen.getByText(/Last synced with 1 registration; there are now 2/);
+    expect(note).toBeTruthy();
+    // The notice tier, so it is actually noticed - muted text was the problem.
+    expect(note.className).toBe('form-notice');
     // The prominent button is already offered, so no duplicate quiet one.
     expect(screen.queryByRole('button', { name: 'Update now' })).toBeNull();
   });
@@ -208,7 +215,8 @@ describe('RegistrationListPrintPage', () => {
     await screen.findByText('Quilt Basics');
 
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-    expect(screen.getByText(/The caller does not have permission/)).toBeTruthy();
+    // A genuine failure keeps the strongest treatment.
+    expect(screen.getByText(/The caller does not have permission/).className).toBe('form-error');
   });
 
   it('reports what the sync did', async () => {

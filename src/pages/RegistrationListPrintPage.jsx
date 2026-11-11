@@ -20,6 +20,16 @@ import { isPaymentPending } from '../utils/registrationEligibility.js';
 // email (see api/create-registration.js's sendCoordinatorRegistrationEmail),
 // so it fetches its own data by eventId rather than relying on the admin
 // SPA's in-memory state, the way ArchivePanel.jsx's print report does.
+// 'notice' is the middle tier: something needs doing but nothing has gone
+// wrong, which is the ordinary state for an event set up before the feature
+// was switched on. Muted text made those too easy to miss; .form-error would
+// cry wolf.
+const SHEET_TONE_CLASS = {
+  error: 'form-error',
+  notice: 'form-notice',
+  quiet: 'muted-copy'
+};
+
 // Says what happened to the coordinator's own rows as well as to the synced
 // ones. Worth naming explicitly: a coordinator who has typed walk-ins into the
 // sheet wants to know the rewrite put them back, not just that it ran.
@@ -331,7 +341,7 @@ function RegistrationListPrintPage() {
       </header>
       {sheetMessage ? <p className="form-success">{sheetMessage}</p> : null}
       {!sheetMessage && sheetStatus.message ? (
-        <p className={sheetStatus.tone === 'error' ? 'form-error' : 'muted-copy'}>
+        <p className={SHEET_TONE_CLASS[sheetStatus.tone] || 'muted-copy'}>
           Google Sheet: {sheetStatus.message}
           {/* Only where the toolbar is not already offering a button. A hand
               edit to the sheet cannot be detected from here, so this stays
@@ -348,6 +358,7 @@ function RegistrationListPrintPage() {
               >
                 {syncingSheet ? 'Updating...' : 'Update now'}
               </button>
+              {sheetStatus.refreshHint ? ` ${sheetStatus.refreshHint}` : null}
             </>
           ) : null}
         </p>
