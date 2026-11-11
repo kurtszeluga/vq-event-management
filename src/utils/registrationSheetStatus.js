@@ -113,14 +113,18 @@ export function getRegistrationSheetStatus({
     // refresh stays available, because a hand edit to the sheet is invisible
     // from here and this is the only way back from one.
     canRefresh: true,
-    message: `Updated ${formatSyncAge(sheet.lastSyncedDate, now)}`,
+    // Leads with the verdict, so a box in this state cannot be mistaken for
+    // something demanding action. The age follows as supporting detail.
+    message: `Up to date, synced ${formatSyncAge(sheet.lastSyncedDate, now)}.`,
     // Said after the link, so the quiet control explains itself instead of
     // being a bare "Update now" nobody knows the purpose of. This is the state
     // where nothing is needed, so it stays calm - telling someone WHEN to
     // press it is the useful thing, not making it louder.
     refreshHint: 'if you have changed the sheet yourself',
     state: 'current',
-    tone: 'quiet'
+    // Boxed, not muted: people did not notice the status line at all. Neutral
+    // grey rather than a colour, because nothing here needs doing.
+    tone: 'info'
   };
 }
 

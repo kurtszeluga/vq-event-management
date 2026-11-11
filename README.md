@@ -179,7 +179,7 @@ Notes:
 
   | What the page shows | What it means |
   | --- | --- |
-  | *Open Google Sheet* and "Updated 2 minutes ago · **Update now** if you have changed the sheet yourself", quiet grey | Up to date. Nothing to do — and the link says when it would be. |
+  | A grey box: "Up to date, synced 2 minutes ago. **Update now** if you have changed the sheet yourself" | Nothing to do. Boxed so it is noticed, neutral so it is not mistaken for a demand. |
   | **Create Sheet**, in an amber notice box | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. |
   | **Update Sheet**, in an amber notice box, with "Last synced with 1 registration; there are now 2" | The recorded row count disagrees with the registrations on screen, so a sync did not run when it should have. |
   | **Retry**, in a red error box, with the Google error | The last sync failed, or the sheet settings could not be read. |

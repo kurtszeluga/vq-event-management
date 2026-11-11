@@ -26,8 +26,8 @@ import { isPaymentPending } from '../utils/registrationEligibility.js';
 // cry wolf.
 const SHEET_TONE_CLASS = {
   error: 'form-error',
-  notice: 'form-notice',
-  quiet: 'muted-copy'
+  info: 'form-info',
+  notice: 'form-notice'
 };
 
 // Says what happened to the coordinator's own rows as well as to the synced
@@ -341,7 +341,7 @@ function RegistrationListPrintPage() {
       </header>
       {sheetMessage ? <p className="form-success">{sheetMessage}</p> : null}
       {!sheetMessage && sheetStatus.message ? (
-        <p className={SHEET_TONE_CLASS[sheetStatus.tone] || 'muted-copy'}>
+        <p className={SHEET_TONE_CLASS[sheetStatus.tone] || 'form-info'}>
           Google Sheet: {sheetStatus.message}
           {/* Only where the toolbar is not already offering a button. A hand
               edit to the sheet cannot be detected from here, so this stays

@@ -3691,6 +3691,19 @@ div.csv-preview-warning {
   padding: 12px;
 }
 
+/* The calm end of the same family: a status worth seeing but needing nothing.
+   Muted text was too easy to miss entirely - people did not notice the sheet
+   status at all - so this is boxed like the other two, and carries the app's
+   neutral greys rather than a colour, so "fine" cannot be mistaken for "act". */
+.form-info {
+  background: #f7f5f2;
+  border: 1px solid #ded5ca;
+  border-radius: 8px;
+  color: #5c6966;
+  margin: 0;
+  padding: 12px;
+}
+
 /* The tier between .form-error and plain muted copy: something needs doing,
    but nothing has gone wrong. Used for a registration sheet that is behind or
    has never been created - both of which are ordinary states for an event set

@@ -142,7 +142,7 @@ describe('RegistrationListPrintPage', () => {
     await screen.findByText('Quilt Basics');
 
     expect(screen.getByText('Open Google Sheet')).toBeTruthy();
-    expect(screen.getByText(/Updated just now/)).toBeTruthy();
+    expect(screen.getByText(/Up to date, synced just now/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Update Sheet' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Create Sheet' })).toBeNull();
@@ -151,7 +151,8 @@ describe('RegistrationListPrintPage', () => {
     // and it explains when that is, rather than being a bare link.
     expect(screen.getByRole('button', { name: 'Update now' })).toBeTruthy();
     expect(screen.getByText(/if you have changed the sheet yourself/)).toBeTruthy();
-    expect(screen.getByText(/Updated just now/).className).toBe('muted-copy');
+    // Boxed, because a muted line went unnoticed - but neutral, not a colour.
+    expect(screen.getByText(/Up to date, synced just now/).className).toBe('form-info');
   });
 
   it('resyncs from the quiet refresh when nothing looks wrong', async () => {

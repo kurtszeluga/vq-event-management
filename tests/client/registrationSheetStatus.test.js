@@ -46,16 +46,37 @@ describe('getRegistrationSheetStatus', () => {
 
     expect(status.state).toBe('current');
     expect(status.actionable).toBe(false);
-    expect(status.message).toBe('Updated 2 minutes ago');
+    // Leads with the verdict so a boxed status cannot read as a demand.
+    expect(status.message).toBe('Up to date, synced 2 minutes ago.');
     // No prominent button, but a quiet refresh stays available - see below.
     expect(status.canRefresh).toBe(true);
     // And it explains WHEN it is needed, which is the useful thing in a state
     // where nothing is wrong. Making it louder would be the original mistake.
     expect(status.refreshHint).toBe('if you have changed the sheet yourself');
-    expect(status.tone).toBe('quiet');
+    // Boxed in neutral grey rather than muted text: the status line went
+    // unnoticed entirely. Not a colour, because nothing here needs doing.
+    expect(status.tone).toBe('info');
   });
 
-  it('puts "needs doing" states in the notice tier, not the quiet one', () => {
+  it('gives every enabled state a box, so none of them goes unnoticed', () => {
+    const tones = [
+      { sheet: sheet(), tone: 'info' },
+      { sheet: sheet({ rowCount: 1 }), tone: 'notice' },
+      { sheet: null, tone: 'notice' },
+      { sheet: sheet({ lastError: 'nope' }), tone: 'error' }
+    ];
+
+    tones.forEach(({ sheet: input, tone }) => {
+      expect(getRegistrationSheetStatus({
+        enabled: true,
+        now: NOW,
+        registrations: TWO_REGISTRATIONS,
+        sheet: input
+      }).tone).toBe(tone);
+    });
+  });
+
+  it('puts "needs doing" states in the notice tier, not the calm one', () => {
     // Muted text made these too easy to miss, which is the whole complaint.
     // They are still not errors: a pre-existing event legitimately has no
     // sheet, and painting every one of those red would cry wolf.
