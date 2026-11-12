@@ -84,17 +84,58 @@ function App() {
             : 'Pull To Refresh'}
       </div>
       <header className="site-header">
-        <a className="brand" href="/">
-          <img
-            alt="The Village Quilters"
-            className="brand-logo"
-            src="/assets/village-quilters-logo.png"
-          />
-          <span>
-            <strong>The Village Quilters</strong>
-            <small>Managing events, activities and members</small>
-          </span>
-        </a>
+        {/* Top row: brand on the left, identity on the right. The identity
+            pill's width swings with the signed-in name, so it is kept out of
+            the nav's row - see .site-header-top in styles.css. */}
+        <div className="site-header-top">
+          <a className="brand" href="/">
+            <img
+              alt="The Village Quilters"
+              className="brand-logo"
+              src="/assets/village-quilters-logo.png"
+            />
+            <span>
+              <strong>The Village Quilters</strong>
+              <small>Managing events, activities and members</small>
+            </span>
+          </a>
+          {currentUser ? (
+            <div className="site-identity">
+              <span aria-hidden="true" className="site-identity-avatar">
+                {getInitials(currentUser, userProfile)}
+              </span>
+              <span className="site-identity-text">
+                {getAccountDisplayName(currentUser, userProfile) ? (
+                  <strong>{getAccountDisplayName(currentUser, userProfile)}</strong>
+                ) : null}
+                <span>{currentUser.email}</span>
+              </span>
+              <span className="site-identity-role">{isAdmin ? 'Admin' : 'Signed in'}</span>
+              <span className="site-identity-actions">
+                <Link className="site-identity-action" to="/profile">
+                  My Profile
+                </Link>
+                <span aria-hidden="true" className="site-identity-divider">
+                  |
+                </span>
+                <button className="site-identity-action" type="button" onClick={logOut}>
+                  Sign out
+                </button>
+              </span>
+            </div>
+          ) : null}
+          <button
+            aria-expanded={navSheetOpen}
+            aria-haspopup="dialog"
+            aria-label="Open menu"
+            className="site-menu-button"
+            ref={menuButtonRef}
+            type="button"
+            onClick={() => setNavSheetOpen(true)}
+          >
+            <span aria-hidden="true" className="site-menu-bars" />
+          </button>
+        </div>
         <nav className="site-nav" aria-label="Primary navigation">
           {navDestinations.map((destination) => (
             <NavLink
@@ -107,42 +148,6 @@ function App() {
             </NavLink>
           ))}
         </nav>
-        {currentUser ? (
-          <div className="site-identity">
-            <span aria-hidden="true" className="site-identity-avatar">
-              {getInitials(currentUser, userProfile)}
-            </span>
-            <span className="site-identity-text">
-              {getAccountDisplayName(currentUser, userProfile) ? (
-                <strong>{getAccountDisplayName(currentUser, userProfile)}</strong>
-              ) : null}
-              <span>{currentUser.email}</span>
-            </span>
-            <span className="site-identity-role">{isAdmin ? 'Admin' : 'Signed in'}</span>
-            <span className="site-identity-actions">
-              <Link className="site-identity-action" to="/profile">
-                My Profile
-              </Link>
-              <span aria-hidden="true" className="site-identity-divider">
-                |
-              </span>
-              <button className="site-identity-action" type="button" onClick={logOut}>
-                Sign out
-              </button>
-            </span>
-          </div>
-        ) : null}
-        <button
-          aria-expanded={navSheetOpen}
-          aria-haspopup="dialog"
-          aria-label="Open menu"
-          className="site-menu-button"
-          ref={menuButtonRef}
-          type="button"
-          onClick={() => setNavSheetOpen(true)}
-        >
-          <span aria-hidden="true" className="site-menu-bars" />
-        </button>
       </header>
       <MobileNavSheet
         currentUser={currentUser}
