@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
-import AdminDashboardPage from './AdminDashboardPage.jsx';
 import { subscribeToUsers } from '../services/userService.js';
 
 function HomePage() {
@@ -46,10 +45,10 @@ function HomePage() {
     });
   }
 
-  if (currentUser && hasAdminDashboardAccess) {
-    return <AdminDashboardPage />;
-  }
-
+  // Admins used to get the dashboard rendered here in place of the home page.
+  // They now land on the same home page as everyone else and reach the
+  // dashboard from the nav link (see navDestinations in App.jsx) or the card
+  // below.
   return (
     <section>
       <PageHeader

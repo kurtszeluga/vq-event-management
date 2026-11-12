@@ -38,7 +38,11 @@ function App() {
     { to: '/business-listings', label: 'Business Listings', visible: true },
     { to: '/for-sale', label: 'For Sale', visible: true },
     { to: '/my-registrations', label: 'My Registrations', visible: Boolean(currentUser) },
-    { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink }
+    { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink },
+    // Last in the list on purpose, so it sits at the right-hand end of the nav
+    // row. Gated on isAdmin because that is exactly what RequireAdmin checks
+    // before it will render /admin, so the link never leads to a refusal.
+    { to: '/admin', label: 'Admin Dashboard', visible: Boolean(isAdmin) }
     // My Profile lives in the identity chip/account card instead - see
     // .site-identity and MobileNavSheet.jsx's account card.
   ].filter((destination) => destination.visible);
