@@ -106,8 +106,10 @@ function HomePage() {
                 : 'No membership profiles are waiting for review right now.'}
             </p>
             <div className="card-actions home-card-actions">
+              {/* Green like every other button on this page; amber only while
+                  reviews are actually waiting, matching the card's border. */}
               <button
-                className={`button-link button-reset${pendingMembershipCount ? ' pending-review-button' : ' secondary-action'}`}
+                className={`button-link button-reset${pendingMembershipCount ? ' pending-review-button' : ''}`}
                 type="button"
                 onClick={openPendingMembershipReview}
               >
@@ -123,7 +125,7 @@ function HomePage() {
             <p>Open the admin workspace to manage events, listings, users, challenges, and configuration tools.</p>
             <div className="card-actions home-card-actions">
               <button
-                className="button-link button-reset secondary-action"
+                className="button-link button-reset"
                 type="button"
                 onClick={() => navigate('/admin')}
               >
