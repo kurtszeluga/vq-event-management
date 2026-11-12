@@ -19,9 +19,25 @@ vi.mock('../../src/services/userService.js', () => ({
   subscribeToUsers: () => () => {}
 }));
 
-const ADMIN = {
+// An active Admin whose ticked permissions are whatever is passed in.
+// hasPermission() in the real app already requires role Admin and status
+// Active, so the set alone decides.
+function admin(...permissions) {
+  return {
+    currentUser: { email: 'admin@example.com', displayName: 'Ada Admin' },
+    hasPermission: (key) => permissions.includes(key),
+    isAdmin: true,
+    isSuperUser: false,
+    logOut: vi.fn(),
+    userProfile: { role: 'Admin', status: 'Active', membershipStatus: 'Active' }
+  };
+}
+
+const SUPER_USER = {
   currentUser: { email: 'boss@example.com', displayName: 'Boss Person' },
-  hasPermission: () => true,
+  // A Super User's stored permission map is irrelevant - the role
+  // short-circuits every check - so this models one with nothing ticked.
+  hasPermission: () => false,
   isAdmin: true,
   isSuperUser: true,
   logOut: vi.fn(),
@@ -69,8 +85,8 @@ function navLabels() {
 afterEach(cleanup);
 
 describe('Admin Dashboard nav link', () => {
-  it('is the last nav link for an admin', () => {
-    renderApp(ADMIN);
+  it('is the last nav link for a super user', () => {
+    renderApp(SUPER_USER);
     const labels = navLabels();
     expect(labels).toContain('Admin Dashboard');
     expect(labels[labels.length - 1]).toBe('Admin Dashboard');
@@ -85,11 +101,36 @@ describe('Admin Dashboard nav link', () => {
     renderApp(SIGNED_OUT);
     expect(navLabels()).not.toContain('Admin Dashboard');
   });
+
+  // The link is gated on the dashboard having at least one module to show,
+  // which is narrower than the isAdmin check RequireAdmin applies to /admin.
+  it.each([['manageEvents'], ['addUsers'], ['viewRegistrations']])(
+    'is shown for an admin with only %s',
+    (permission) => {
+      renderApp(admin(permission));
+      expect(navLabels()).toContain('Admin Dashboard');
+    }
+  );
+
+  // These three permissions are real, but none of them puts a module on the
+  // dashboard - the page would only say "No Admin Modules Enabled".
+  it.each([['managePayments'], ['registerOthers'], ['manageWaitlist']])(
+    'is hidden for an admin with only %s',
+    (permission) => {
+      renderApp(admin(permission));
+      expect(navLabels()).not.toContain('Admin Dashboard');
+    }
+  );
+
+  it('is hidden for an admin with no permissions at all', () => {
+    renderApp(admin());
+    expect(navLabels()).not.toContain('Admin Dashboard');
+  });
 });
 
 describe('home page for an admin', () => {
   it('shows the normal home page, not the admin dashboard', () => {
-    authState.value = ADMIN;
+    authState.value = SUPER_USER;
     render(
       <MemoryRouter initialEntries={['/']}>
         <HomePage />

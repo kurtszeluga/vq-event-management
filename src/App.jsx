@@ -28,6 +28,18 @@ function App() {
   const showMemberDirectoryLink =
     currentUser
     && userHasActiveMembership(userProfile);
+  // AdminDashboardPage builds its module list from exactly these four checks
+  // and falls back to "No Admin Modules Enabled" when none of them holds, so
+  // this is what decides whether there is anything behind the link. Note it is
+  // narrower than RequireAdmin, which only checks isAdmin: an Admin ticked for
+  // just managePayments, registerOthers or manageWaitlist can still open
+  // /admin directly, they simply have nothing waiting there.
+  const showAdminDashboardLink =
+    isAdmin
+    && (isSuperUser
+      || hasPermission('manageEvents')
+      || hasPermission('addUsers')
+      || hasPermission('viewRegistrations'));
   const currentYear = new Date().getFullYear();
   // One list feeding both the desktop nav row and the mobile sheet, so the two
   // cannot drift apart as permissions change.
@@ -40,9 +52,8 @@ function App() {
     { to: '/my-registrations', label: 'My Registrations', visible: Boolean(currentUser) },
     { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink },
     // Last in the list on purpose, so it sits at the right-hand end of the nav
-    // row. Gated on isAdmin because that is exactly what RequireAdmin checks
-    // before it will render /admin, so the link never leads to a refusal.
-    { to: '/admin', label: 'Admin Dashboard', visible: Boolean(isAdmin) }
+    // row.
+    { to: '/admin', label: 'Admin Dashboard', visible: Boolean(showAdminDashboardLink) }
     // My Profile lives in the identity chip/account card instead - see
     // .site-identity and MobileNavSheet.jsx's account card.
   ].filter((destination) => destination.visible);
