@@ -179,7 +179,8 @@ Notes:
 
   | What the page shows | What it means |
   | --- | --- |
-  | A grey box: "Up to date, synced 2 minutes ago. **Update now** if you have changed the sheet yourself" | Nothing to do. Boxed so it is noticed, neutral so it is not mistaken for a demand. |
+  | A grey box: "Last synced 2 minutes ago with 4 registrations. **Update now** if you have changed the sheet yourself" | Nothing known to be wrong. It reports when the sync ran and how many rows it wrote — never that the sheet is "up to date", which is a claim about a file this page has not read. |
+  | A **popup**, then an amber box: "The sheet has been changed by hand since it was last synced" | Somebody has been in the spreadsheet since the sync wrote it. Detected by comparing Drive's `modifiedTime` against the recorded sync — one API call, and the only check that can see a row deleted by hand. |
   | **Create Sheet**, in an amber notice box, no popup | The event has no sheet — it was set up before the feature was switched on, so nothing has happened to trigger one. Every such event is in this state, so a popup would fire on all of them. |
   | A **popup**, then **Update Sheet** in an amber notice box, with "Last synced with 1 registration; there are now 2" | The recorded row count disagrees with the registrations on screen, so a sync did not run when it should have. |
   | A **popup**, then **Retry** in a red error box, with the Google error | The last sync failed. (Unreadable settings give the red box but no popup — as likely a passing hiccup as a real problem.) |
@@ -188,14 +189,13 @@ Notes:
   disagree with the app, and never when everything is current — a popup that
   fires when nothing is wrong teaches people to dismiss popups unread.
 
-  **It cannot tell that you edited the sheet yourself.** Every check is the
-  app's own records against each other — the recorded row count is what the
-  last sync *wrote*, not what the spreadsheet holds now — so deleting a row by
-  hand leaves the page reporting the sheet as up to date. Reading the live
-  sheet on every view would mean a Google round trip each time and would make
-  the attendee list depend on Google being up. Instead the settled state keeps
-  a quiet **Update now** link beside "Updated 2 minutes ago", which rebuilds
-  the grid and is the way back from any hand edit.
+  Hand edits **are** detected, but through Drive rather than the row counts: the
+  recorded row count is what the last sync *wrote*, so deleting a row by hand
+  leaves the app's own records agreeing with each other. The page therefore
+  asks the server once per view whether the file has been modified since the
+  recorded sync. If that check is unavailable the page says only when it last
+  synced and how many rows it wrote, and the **Update now** link is always
+  there to rebuild the grid regardless.
 - Turning the setting off stops the syncing and leaves the existing sheets
   exactly as they are. The registration list then says nothing about sheets.
 

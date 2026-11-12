@@ -46,8 +46,11 @@ describe('getRegistrationSheetStatus', () => {
 
     expect(status.state).toBe('current');
     expect(status.actionable).toBe(false);
-    // Leads with the verdict so a boxed status cannot read as a demand.
-    expect(status.message).toBe('Up to date, synced 2 minutes ago.');
+    // States what is known and nothing more. "Up to date" is a claim about
+    // the SHEET, which nothing here has read, and it was false whenever
+    // somebody had deleted a row.
+    expect(status.message).toBe('Last synced 2 minutes ago with 2 registrations.');
+    expect(status.message).not.toMatch(/up to date/i);
     // No prominent button, but a quiet refresh stays available - see below.
     expect(status.canRefresh).toBe(true);
     // And it explains WHEN it is needed, which is the useful thing in a state
@@ -322,5 +325,72 @@ describe('which states interrupt with a popup', () => {
     expect(getRegistrationSheetStatus({
       enabled: true, now: NOW, registrations: TWO_REGISTRATIONS, sheet: sheet({ lastError: 'x' })
     }).promptTitle).toBe('The Google Sheet could not be updated');
+  });
+});
+
+describe('a sheet somebody has edited by hand', () => {
+  it('is reported, even though the app\'s own records agree', () => {
+    // This is the case that defeated every Firestore-only check: the recorded
+    // rowCount and the registrations match perfectly, and the sheet is still
+    // missing rows. Only Drive's modifiedTime can see it.
+    const status = getRegistrationSheetStatus({
+      editedSinceSync: true,
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: sheet({ rowCount: 2 })
+    });
+
+    expect(status.state).toBe('edited');
+    expect(status.actionLabel).toBe('Update Sheet');
+    expect(status.prompt).toBe(true);
+    expect(status.promptTitle).toBe('The Google Sheet has been edited by hand');
+    expect(status.tone).toBe('notice');
+  });
+
+  it('takes priority over the row counts', () => {
+    // Both are true here. "Somebody has been in the sheet" is the more useful
+    // thing to say, and it explains the counts too.
+    const status = getRegistrationSheetStatus({
+      editedSinceSync: true,
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: sheet({ rowCount: 1 })
+    });
+
+    expect(status.state).toBe('edited');
+  });
+
+  it('still defers to a failure and to the feature being off', () => {
+    // A failed sync is the more actionable problem, and a switched-off feature
+    // renders nothing at all.
+    expect(getRegistrationSheetStatus({
+      editedSinceSync: true,
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: sheet({ lastError: 'File not found' })
+    }).state).toBe('failed');
+
+    expect(getRegistrationSheetStatus({
+      editedSinceSync: true,
+      enabled: false
+    }).state).toBe('disabled');
+  });
+
+  it('is simply not reported when the check was unavailable', () => {
+    // The Drive read can fail. Saying nothing is right; what must not happen
+    // is going back to asserting the sheet is fine.
+    const status = getRegistrationSheetStatus({
+      editedSinceSync: false,
+      enabled: true,
+      now: NOW,
+      registrations: TWO_REGISTRATIONS,
+      sheet: sheet({ rowCount: 2 })
+    });
+
+    expect(status.state).toBe('current');
+    expect(status.message).toMatch(/^Last synced/);
   });
 });

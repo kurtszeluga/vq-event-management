@@ -4,7 +4,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth.js';
 import { getEvent } from '../services/eventService.js';
 import { getRegistrationsForEvent } from '../services/registrationService.js';
-import { syncEventRegistrationSheet } from '../services/eventService.js';
+import {
+  getEventRegistrationSheetState,
+  syncEventRegistrationSheet
+} from '../services/eventService.js';
 import { getEventRegistrationSheet } from '../services/eventRegistrationSheet.js';
 import { getRegistrationSheetSettings } from '../services/configurationService.js';
 import { getRegistrationSheetStatus } from '../utils/registrationSheetStatus.js';
@@ -63,6 +66,7 @@ function RegistrationListPrintPage() {
   // off) would otherwise be indistinguishable from the page quietly failing to
   // find out.
   const [sheetsEnabled, setSheetsEnabled] = useState(false);
+  const [sheetEdited, setSheetEdited] = useState(false);
   const [sheetMessage, setSheetMessage] = useState('');
   const [syncingSheet, setSyncingSheet] = useState(false);
   const [sheetPromptOpen, setSheetPromptOpen] = useState(false);
@@ -81,14 +85,24 @@ function RegistrationListPrintPage() {
 
     async function loadData() {
       try {
-        const [eventRecord, registrationRecords, sheetRecord, sheetSettings] = await Promise.all([
+        const [
+          eventRecord,
+          registrationRecords,
+          sheetRecord,
+          sheetSettings,
+          sheetState
+        ] = await Promise.all([
           getEvent(eventId),
           getRegistrationsForEvent(eventId),
           // Never the reason this page fails to load: the attendee list is
           // what the coordinator came for, and anything about the sheet is a
           // convenience on top of it.
           getEventRegistrationSheet(eventId).catch(() => null),
-          getRegistrationSheetSettings().catch(() => 'unreadable')
+          getRegistrationSheetSettings().catch(() => 'unreadable'),
+          // Only the server can reach Drive, and this is the one question the
+          // app's own records cannot answer. Never the reason the page fails
+          // to load - the attendee list matters more than the sheet status.
+          getEventRegistrationSheetState(eventId).catch(() => null)
         ]);
 
         if (!active) {
@@ -103,6 +117,7 @@ function RegistrationListPrintPage() {
             ? null
             : sheetSettings?.enableRegistrationSheets === true
         );
+        setSheetEdited(sheetState?.editedSinceSync === true);
         setError('');
       } catch (loadError) {
         if (active) {
@@ -137,11 +152,12 @@ function RegistrationListPrintPage() {
   // something - see src/utils/registrationSheetStatus.js.
   const sheetStatus = useMemo(
     () => getRegistrationSheetStatus({
+      editedSinceSync: sheetEdited,
       enabled: sheetsEnabled,
       registrations,
       sheet: sheetLink
     }),
-    [registrations, sheetLink, sheetsEnabled]
+    [registrations, sheetEdited, sheetLink, sheetsEnabled]
   );
   const totalPaid = useMemo(() => getTotalPaidAmount(sortedRegistrations), [sortedRegistrations]);
 
@@ -293,6 +309,10 @@ function RegistrationListPrintPage() {
       const result = await syncEventRegistrationSheet(eventId);
 
       setSheetLink(await getEventRegistrationSheet(eventId));
+      // The rewrite has just put the sheet back, so whatever was edited by
+      // hand no longer differs - without this the warning would persist until
+      // the page was reloaded.
+      setSheetEdited(false);
       setSheetMessage(result.ok ? buildSyncSummary(result) : (
         result.reason || 'The sheet could not be updated.'
       ));

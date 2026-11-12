@@ -128,7 +128,10 @@ export async function renameSpreadsheet({ accessToken, spreadsheetId, title }) {
 // it the sync would keep writing rows into a file in the bin.
 export async function getSpreadsheetFile({ accessToken, spreadsheetId }) {
   const query = new URLSearchParams({
-    fields: 'id,name,trashed,webViewLink',
+    // modifiedTime and lastModifyingUser are how a hand edit is detected: our
+    // own writes move modifiedTime too, but a later one means somebody has
+    // been in the sheet since. See getRegistrationSheetState.
+    fields: 'id,name,trashed,webViewLink,modifiedTime,lastModifyingUser(displayName)',
     supportsAllDrives: 'true'
   });
 

@@ -52,6 +52,9 @@ const REGISTRATIONS = [
 let getEventResult = EVENT;
 let getRegistrationsResult = REGISTRATIONS;
 let sheetsEnabledResult = true;
+// Whether anyone has been in the sheet since the sync last wrote it - the one
+// thing only the server can answer, because only it can reach Drive.
+let sheetEditedResult = false;
 // REGISTRATIONS below has two records, so a rowCount of 2 is "current".
 let sheetLinkResult = {
   lastError: '',
@@ -64,6 +67,10 @@ const syncSheetMock = vi.fn(async () => ({ ok: true, rowCount: 2 }));
 
 vi.mock('../../src/services/eventService.js', () => ({
   getEvent: () => Promise.resolve(getEventResult),
+  getEventRegistrationSheetState: () => Promise.resolve({
+    editedSinceSync: sheetEditedResult,
+    ok: true
+  }),
   syncEventRegistrationSheet: (...args) => syncSheetMock(...args)
 }));
 vi.mock('../../src/services/registrationService.js', () => ({
@@ -90,6 +97,7 @@ afterEach(() => {
   getEventResult = EVENT;
   getRegistrationsResult = REGISTRATIONS;
   sheetsEnabledResult = true;
+  sheetEditedResult = false;
   sheetLinkResult = {
     lastError: '',
     lastSyncedDate: new Date(),
@@ -142,7 +150,7 @@ describe('RegistrationListPrintPage', () => {
     await screen.findByText('Quilt Basics');
 
     expect(screen.getByText('Open Google Sheet')).toBeTruthy();
-    expect(screen.getByText(/Up to date, synced just now/)).toBeTruthy();
+    expect(screen.getByText(/Last synced just now with 2 registrations/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Update Sheet' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Create Sheet' })).toBeNull();
@@ -152,7 +160,7 @@ describe('RegistrationListPrintPage', () => {
     expect(screen.getByRole('button', { name: 'Update now' })).toBeTruthy();
     expect(screen.getByText(/if you have changed the sheet yourself/)).toBeTruthy();
     // Boxed, because a muted line went unnoticed - but neutral, not a colour.
-    expect(screen.getByText(/Up to date, synced just now/).className).toBe('form-info');
+    expect(screen.getByText(/Last synced just now with 2 registrations/).className).toBe('form-info');
   });
 
   it('resyncs from the quiet refresh when nothing looks wrong', async () => {
@@ -339,6 +347,51 @@ describe('RegistrationListPrintPage', () => {
     expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
     // Still offered in the page itself, just no longer interrupting.
     expect(screen.getByRole('button', { name: 'Update Sheet' })).toBeTruthy();
+  });
+
+  it('warns, and prompts, when somebody has edited the sheet by hand', async () => {
+    // The case that made the old wording lie: the registrations and the
+    // recorded row count agree perfectly, so nothing in the app's own records
+    // is wrong - the sheet is simply missing rows somebody deleted.
+    sheetEditedResult = true;
+
+    render(<RegistrationListPrintPage />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'The Google Sheet has been edited by hand' })
+    ).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+
+    const note = screen.getByText(/changed by hand since it was last synced/);
+    expect(note.className).toBe('form-notice');
+    expect(screen.getByRole('button', { name: 'Update Sheet' })).toBeTruthy();
+  });
+
+  it('never claims the sheet is up to date, only when it last synced', async () => {
+    // "Up to date" is a claim about the SHEET, which this page has not read.
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByText('Quilt Basics');
+
+    expect(screen.queryByText(/Up to date/)).toBeNull();
+    expect(screen.getByText(/Last synced just now with 2 registrations/)).toBeTruthy();
+  });
+
+  it('clears the hand-edit warning once the sheet has been rebuilt', async () => {
+    sheetEditedResult = true;
+
+    render(<RegistrationListPrintPage />);
+
+    await screen.findByRole('heading', { name: 'The Google Sheet has been edited by hand' });
+
+    const dialog = screen.getByRole('dialog');
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Update Sheet' }));
+
+    expect(await screen.findByText('Sheet updated with 2 registrations.')).toBeTruthy();
+    // Without clearing it, the warning would sit there until a reload.
+    expect(screen.queryByText(/changed by hand/)).toBeNull();
   });
 
   it('refuses to load registrant data without the viewRegistrations permission', async () => {

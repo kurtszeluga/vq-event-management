@@ -125,6 +125,63 @@ export function registrationSheetRef(db, eventId) {
   return db.collection('eventRegistrationSheets').doc(eventId);
 }
 
+// Has anybody been in the sheet since the sync last wrote it?
+//
+// This is the one thing the registration list cannot work out from Firestore:
+// the recorded rowCount is what the last sync WROTE, so a row deleted by hand
+// leaves the app's own records agreeing with each other and the page claiming
+// the sheet is fine. Drive's modifiedTime is the cheap answer - one call, not
+// one per row - and the page was previously asserting "up to date" about a
+// sheet nothing had read.
+//
+// Our own write moves modifiedTime too, and it lands a moment BEFORE
+// lastSyncedDate (the sheet is written, then the link document). So only a
+// modifiedTime comfortably AFTER the recorded sync is somebody else's doing;
+// the tolerance absorbs the gap between Google's clock and Firestore's.
+//
+// Never throws: a failure here must not stop the registration list loading.
+const HAND_EDIT_TOLERANCE_MS = 60 * 1000;
+
+export async function getRegistrationSheetState(db, eventId) {
+  if (!eventId) {
+    return { ok: false };
+  }
+
+  try {
+    const readiness = await getRegistrationSheetReadiness(db);
+
+    if (!readiness.ready) {
+      return { ok: false, reason: readiness.reason };
+    }
+
+    const linkSnap = await registrationSheetRef(db, eventId).get();
+    const link = linkSnap.exists ? linkSnap.data() : null;
+    const syncedAtMillis = link?.lastSyncedDate?.toMillis?.() ?? null;
+
+    if (!link?.spreadsheetId || syncedAtMillis === null) {
+      return { ok: true, editedSinceSync: false };
+    }
+
+    const accessToken = await getGoogleAccessToken(getServiceAccountJson(), GOOGLE_SHEETS_SCOPE);
+    const file = await getSpreadsheetFile({ accessToken, spreadsheetId: link.spreadsheetId });
+    const modifiedMillis = Date.parse(file.modifiedTime || '');
+
+    if (Number.isNaN(modifiedMillis)) {
+      return { ok: true, editedSinceSync: false };
+    }
+
+    return {
+      editedBy: file.lastModifyingUser?.displayName || '',
+      editedSinceSync: modifiedMillis > syncedAtMillis + HAND_EDIT_TOLERANCE_MS,
+      ok: true
+    };
+  } catch (error) {
+    console.error('Could not read the registration sheet state', eventId, error);
+
+    return { ok: false, reason: error.message };
+  }
+}
+
 // Never throws. Returns a small result so a caller that wants to report back to
 // an admin (the manual resync in admin-manage-event.js) can, while the
 // registration paths that call it for its side effect can ignore it entirely.

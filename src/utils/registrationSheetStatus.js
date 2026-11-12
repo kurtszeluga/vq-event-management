@@ -12,15 +12,17 @@ import {
 // only in the states where pressing it actually does something, and the settled
 // state says so in words instead.
 //
-// IMPORTANT LIMIT, and the reason 'current' still offers a quiet refresh:
-// every comparison here is Firestore against Firestore. `rowCount` is what the
-// LAST SYNC WROTE, not what the spreadsheet contains now. So this detects a
-// sync that did not run - a registration arriving while Google was
-// unreachable - and it cannot detect somebody editing or deleting rows in the
-// sheet by hand. Reading the live sheet would mean a Google round trip on every
-// view of this page, and would make the attendee list depend on Google being
-// up, which is not worth it. The honest answer is to say what is known, never
-// claim to describe the sheet's contents, and always leave a way to resync.
+// `rowCount` is what the LAST SYNC WROTE, not what the spreadsheet contains
+// now, so comparing it against the registrations only detects a sync that did
+// not run. It can never see a row deleted by hand. That gap used to be left
+// open, with the page claiming "Up to date" about a sheet nothing had read -
+// which was simply false, and was reported as such.
+//
+// `editedSinceSync` closes it: the server compares Drive's modifiedTime
+// against the recorded sync (see getRegistrationSheetState). One call, not one
+// per row. When it is not known - the read failed, or the page has not asked -
+// this says what it knows and no more: when the sync last ran and how many
+// rows it wrote, never that the sheet is "up to date".
 //
 // Kept as a pure function so every state can be tested without rendering.
 
@@ -38,10 +40,14 @@ const DAY_MS = 24 * HOUR_MS;
 //              the more useful of the two things to say.
 // 'missing'  - on, but this event has no sheet. An event set up before the
 //              feature was switched on has had nothing happen to trigger one.
+// 'edited'   - somebody has been in the sheet since the sync last wrote it, so
+//              it may no longer match. The only state that needs Drive to
+//              detect, and the one the old wording got wrong.
 // 'stale'    - the stored row count disagrees with the registrations on screen,
 //              so a sync did not run when it should have.
 // 'current'  - nothing to do, and the UI should say so rather than stay silent.
 export function getRegistrationSheetStatus({
+  editedSinceSync = false,
   enabled = false,
   now = Date.now(),
   registrations = [],
@@ -105,6 +111,22 @@ export function getRegistrationSheetStatus({
     };
   }
 
+  // Checked before the row counts: when somebody has been in the sheet, that
+  // is the thing to say, and the counts can agree perfectly while the sheet is
+  // missing rows - which is exactly the case that made the old wording lie.
+  if (editedSinceSync) {
+    return {
+      actionLabel: 'Update Sheet',
+      actionable: true,
+      canRefresh: true,
+      message: 'The sheet has been changed by hand since it was last synced, so it may no longer match the registrations below.',
+      prompt: true,
+      promptTitle: 'The Google Sheet has been edited by hand',
+      state: 'edited',
+      tone: 'notice'
+    };
+  }
+
   if (syncedRowCount !== expectedRowCount) {
     return {
       actionLabel: 'Update Sheet',
@@ -128,9 +150,12 @@ export function getRegistrationSheetStatus({
     // refresh stays available, because a hand edit to the sheet is invisible
     // from here and this is the only way back from one.
     canRefresh: true,
-    // Leads with the verdict, so a box in this state cannot be mistaken for
-    // something demanding action. The age follows as supporting detail.
-    message: `Up to date, synced ${formatSyncAge(sheet.lastSyncedDate, now)}.`,
+    // States what is known and nothing more. It used to read "Up to date",
+    // which is a claim about the SHEET that nothing here has read - and it was
+    // false whenever somebody had deleted a row. The row count is given so a
+    // coordinator looking at a shorter sheet can see the discrepancy even if
+    // the Drive check above was unavailable.
+    message: `Last synced ${formatSyncAge(sheet.lastSyncedDate, now)} with ${syncedRowCount} registration${syncedRowCount === 1 ? '' : 's'}.`,
     // Said after the link, so the quiet control explains itself instead of
     // being a bare "Update now" nobody knows the purpose of. This is the state
     // where nothing is needed, so it stays calm - telling someone WHEN to

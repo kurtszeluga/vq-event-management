@@ -3,7 +3,10 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 import { getArchiveBlockError, getEventCapacityError, getEventImagesError } from './_lib/registration-capacity.js';
-import { syncEventRegistrationSheet } from './_lib/event-registration-sheet.js';
+import {
+  getRegistrationSheetState,
+  syncEventRegistrationSheet
+} from './_lib/event-registration-sheet.js';
 
 let firebaseProjectId = '';
 
@@ -93,6 +96,26 @@ export default async function handler(request, response) {
       // Never throws, so its own result is what tells the admin whether the
       // sheet was written and why not if it was not.
       response.status(200).json(await syncEventRegistrationSheet(db, eventId));
+      return;
+    }
+
+    // Read-only, same looser permission: answers "has anyone been in the sheet
+    // since we last wrote it", which is the one thing the registration list
+    // cannot work out from Firestore alone.
+    if (requestedAction === 'registrationSheetState') {
+      if (!canViewRegistrations(actorProfile)) {
+        response.status(403).json({ error: 'This account cannot view registrations.' });
+        return;
+      }
+
+      const stateEventId = cleanText(request.body?.eventId);
+
+      if (!stateEventId) {
+        response.status(400).json({ error: 'Event ID is required.' });
+        return;
+      }
+
+      response.status(200).json(await getRegistrationSheetState(db, stateEventId));
       return;
     }
 

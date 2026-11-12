@@ -81,6 +81,17 @@ export async function syncEventRegistrationSheet(eventId) {
   });
 }
 
+// Asks the server whether anyone has been in the sheet since the sync last
+// wrote it. Needs the server because only it can reach Drive, and it is the
+// only way the registration list can know - the app's own records cannot see a
+// row deleted by hand.
+export async function getEventRegistrationSheetState(eventId) {
+  return postEventAction({
+    action: 'registrationSheetState',
+    eventId
+  });
+}
+
 export async function getEvent(eventId) {
   const eventSnap = await getDoc(doc(db, 'events', eventId));
 
