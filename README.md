@@ -166,6 +166,11 @@ Notes:
   are kept too, and a formula stays a formula. Notes on a hand-entered row
   travel with that row. A note whose registration has been deleted goes with
   it, rather than attaching itself to whoever lands on that row.
+- **Your notes live only in the sheet.** They are read out of it and written
+  back on every sync; nothing in the app stores them. So deleting a row by hand
+  deletes the note in it permanently — rebuilding restores the registration
+  from Firestore, but there is no copy of the note to restore. Column headings
+  in row 1 survive as long as row 1 does.
 - A walk-in who later registers online will appear twice, once as your row and
   once as theirs. Delete your row when that happens.
 - Cancelled and waitlisted registrants stay in the sheet with their status, so a
