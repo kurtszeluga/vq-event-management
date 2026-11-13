@@ -65,7 +65,33 @@ export function getRegistrationUnavailableReason(event) {
     return '';
   }
 
+  // Naming which of the three visibility conditions failed, rather than one
+  // catch-all sentence: an admin testing an unlisted event and a member on a
+  // stale link were both told only that it was "not available", which reads as
+  // a fault in the page.
   if (!isEventVisible(event)) {
+    if (event.status === 'Archived') {
+      return 'This event has been archived, so it is no longer open for registration.';
+    }
+
+    if (event.status !== 'Published') {
+      return 'This event is still a draft, so it is not open for registration yet.';
+    }
+
+    const now = Date.now();
+    const visibleFrom = event.visibleFrom ? Date.parse(event.visibleFrom) : null;
+    const visibleUntil = event.visibleUntil ? Date.parse(event.visibleUntil) : null;
+
+    if (visibleFrom && visibleFrom > now) {
+      return `This event is not listed on the website until ${formatDateOnly(event.visibleFrom)}, `
+        + 'so registration is not open yet.';
+    }
+
+    if (visibleUntil && visibleUntil < now) {
+      return `This event was removed from the website ${formatDateOnly(event.visibleUntil)}, `
+        + 'so it is no longer open for registration.';
+    }
+
     return 'This event is not currently available.';
   }
 

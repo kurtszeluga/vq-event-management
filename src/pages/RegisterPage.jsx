@@ -583,6 +583,33 @@ function RegisterPage() {
     );
   }
 
+  // The form does not render at all once registration is closed. It used to
+  // show the reason above a live card field and a submit button that was
+  // merely disabled, which reads as a broken page rather than a closed one -
+  // and the card field still mounted a Square iframe for a registration that
+  // could never be submitted. Placed after the `confirmation` branch on
+  // purpose: a member who has just registered keeps their confirmation even if
+  // the window closes under them.
+  if (registrationUnavailable) {
+    return (
+      <section>
+        <PageHeader
+          breadcrumb={[
+            { label: 'Programs & Activities', to: '/events' },
+            { label: event.title || event.eventType || 'Event', to: `/events/${event.id}` },
+            { label: 'Register' }
+          ]}
+          eyebrow="Registration"
+          title="Registration Unavailable"
+          description={registrationUnavailable}
+        />
+        <Link className="button-link" to={`/events/${event.id}`}>
+          Back To Event
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section>
       <PageHeader
@@ -610,9 +637,6 @@ function RegisterPage() {
       <div className="registration-layout">
         <EventSummary event={event} />
         <form className="form-panel registration-form" onSubmit={handleSubmit}>
-          {registrationUnavailable ? (
-            <p className="form-error">{registrationUnavailable}</p>
-          ) : null}
           {formError ? <p className="form-error">{formError}</p> : null}
           <label>
             <span>{usingSignedInProfile ? 'Signed In Email' : 'Email *'}</span>

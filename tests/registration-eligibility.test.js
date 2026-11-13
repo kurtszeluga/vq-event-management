@@ -136,7 +136,11 @@ test('registration is refused for hidden, closed, and non-registrable listings',
 
   assert.match(
     getRegistrationUnavailableReason({ ...open, status: 'Archived' }),
-    /not currently available/
+    /archived/
+  );
+  assert.match(
+    getRegistrationUnavailableReason({ ...open, status: 'Draft' }),
+    /draft/
   );
   assert.match(
     getRegistrationUnavailableReason({ ...open, registrationMode: 'none' }),
@@ -194,19 +198,28 @@ test('a listing hidden by its visibility window refuses registration', () => {
   const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-  assert.match(getRegistrationUnavailableReason({
+  // Each message names the date it turns on, the way the registration-window
+  // messages already do - "not available" alone sent an admin hunting for a
+  // fault when the listing was simply dated into the future.
+  const notListedYet = getRegistrationUnavailableReason({
     eventType: 'Workshop',
     registrationOpen: true,
     status: 'Published',
     visibleFrom: future
-  }), /not currently available/);
+  });
 
-  assert.match(getRegistrationUnavailableReason({
+  assert.match(notListedYet, /not listed on the website until/);
+  assert.match(notListedYet, /\d{2}\/\d{2}\/\d{4}/);
+
+  const removedAlready = getRegistrationUnavailableReason({
     eventType: 'Workshop',
     registrationOpen: true,
     status: 'Published',
     visibleUntil: past
-  }), /not currently available/);
+  });
+
+  assert.match(removedAlready, /removed from the website/);
+  assert.match(removedAlready, /\d{2}\/\d{2}\/\d{4}/);
 });
 
 test('membership blocking only applies once lookup has completed', () => {
