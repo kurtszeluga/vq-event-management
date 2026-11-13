@@ -8,6 +8,8 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
+  where,
   writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase.js';
@@ -552,7 +554,53 @@ export async function saveMembershipProfile(profile, actorProfile) {
   // the profile write above means a brand-new or newly-eligible profile
   // would look like it doesn't exist yet, and the whole batch gets refused.
   // Syncing after the profile write has landed avoids that entirely.
-  return syncMemberDirectoryProfile(profileRef.id, payload);
+  await syncMemberDirectoryProfile(profileRef.id, payload);
+
+  // A coordinator assignment holds a copy of the assignee's name, email and
+  // phone, and the public event feed publishes that copy - so a rename here
+  // has to reach it or the old name keeps showing on live event cards. Also
+  // after the commit, and for the same reason the directory sync is: a
+  // refusal must not roll back the profile the admin just saved.
+  //
+  // Only a Super User attempts it, because that is exactly what
+  // firestore.rules requires for coordinatorAssignments. An ordinary admin
+  // with member-management rights would simply be refused, so asking would
+  // turn a working save into a failed one.
+  if (actorProfile?.role === 'Super User') {
+    await refreshCoordinatorAssignmentsForProfile(profileRef.id, payload);
+  }
+
+  return payload;
+}
+
+// The stored id can be either the document id or the Auth uid, because
+// saveCoordinatorAssignment writes `profile.userId || profile.id` and an
+// imported member has a profile before it has an Auth record.
+async function refreshCoordinatorAssignmentsForProfile(profileId, payload) {
+  const ids = [...new Set([profileId, cleanText(payload.userId)].filter(Boolean))];
+  const seen = new Set();
+
+  for (const id of ids) {
+    const matches = await getDocs(
+      query(coordinatorAssignmentsCollection(), where('assignedUserId', '==', id))
+    );
+
+    for (const assignmentDoc of matches.docs) {
+      if (seen.has(assignmentDoc.id)) {
+        continue;
+      }
+
+      seen.add(assignmentDoc.id);
+      // A plain update, not a merging set: the rules pin the document's keys
+      // with hasOnly(), and an update leaves the keys it does not name intact.
+      await updateDoc(assignmentDoc.ref, {
+        assignedUserEmail: cleanText(payload.email),
+        assignedUserName: cleanText(payload.name),
+        assignedUserPhone: cleanText(payload.phone),
+        updatedDate: serverTimestamp()
+      });
+    }
+  }
 }
 
 export async function importMembersFromCsvRows(rows, actorProfile, options = {}) {
@@ -1296,7 +1344,16 @@ function clearableText(submitted, existing) {
 export function buildManualMembershipProfile(profile, existingProfile, profileId) {
   const firstName = cleanText(profile.firstName || existingProfile.firstName || getFirstNameFallback(existingProfile.name));
   const lastName = cleanText(profile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name));
-  const name = cleanText(profile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' '));
+  // Derived from first and last whenever either is given, rather than
+  // preferring a stored `name`. The member form shows only First and Last but
+  // spreads the whole member record into its state, so it submits the OLD
+  // `name` alongside the new parts - which used to win, making a rename
+  // through that form impossible and, worse, able to double a name ("VQ" +
+  // "VQ Hosting"). A profile with neither part still falls back to the stored
+  // name, which is how legacy single-name rows survive.
+  const name = firstName || lastName
+    ? [firstName, lastName].filter(Boolean).join(' ')
+    : cleanText(profile.name || existingProfile.name);
   const membershipStatus = getValidProfileMembershipStatus(profile.status || profile.membershipStatus);
   const role = getMembershipAllowedRole(existingProfile, membershipStatus);
 

@@ -87,6 +87,31 @@ describe('buildManualMembershipProfile clearing optional fields', () => {
     expect(result.phone).toBe('(555) 987-6543');
   });
 
+  it('rebuilds the display name from the parts the admin typed', () => {
+    // The form shows only First and Last but spreads the whole member record
+    // into its state, so it submits the stored `name` too. The typed parts
+    // have to win, or a rename through that form does nothing.
+    const result = buildManualMembershipProfile(
+      submitted({ firstName: 'VQ', lastName: 'Hosting', name: 'VQ VQ Hosting' }),
+      existing({ firstName: 'VQ', lastName: 'VQ Hosting', name: 'VQ VQ Hosting' }),
+      'profile-1'
+    );
+
+    expect(result.name).toBe('VQ Hosting');
+  });
+
+  it('keeps a stored single name when there are no first or last parts', () => {
+    const partial = submitted({ firstName: '', lastName: '', name: '' });
+
+    const result = buildManualMembershipProfile(
+      partial,
+      existing({ firstName: '', lastName: '', name: 'Quilt Guild Office' }),
+      'profile-1'
+    );
+
+    expect(result.name).toBe('Quilt Guild Office');
+  });
+
   it('leaves the identity fields falling back, so a blank cannot orphan a profile', () => {
     // Deliberately unchanged behaviour: email is how a profile is matched at
     // registration and sign-in, and a nameless profile renders as nothing in
@@ -98,6 +123,9 @@ describe('buildManualMembershipProfile clearing optional fields', () => {
     );
 
     expect(result.email).toBe('member@example.com');
+    // firstName and lastName fall back to the stored parts, and the display
+    // name is then rebuilt from those - so it is still Ada Lovelace, by a
+    // different route than before.
     expect(result.name).toBe('Ada Lovelace');
   });
 });
