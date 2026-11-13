@@ -11,6 +11,20 @@ export {
   normalizeWebsiteUrl
 } from '../../shared/eventListing.js';
 
+// Turns an event type into the modifier class that colours its pill - the
+// tones themselves live in src/styles.css (.event-type-pill) and are mirrored
+// in public/godaddy-event-feed.js (.vq-feed-type) for the website feed. A type
+// with no tone of its own keeps the base pill, so a new type added in
+// Configuration reads as neutral rather than borrowing another type's colour.
+export function getEventTypeToneClass(eventType) {
+  const slug = String(eventType || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+  return slug ? `is-${slug}` : '';
+}
+
 export function formatEventDate(dateValue) {
   if (!dateValue) {
     return 'Date TBD';

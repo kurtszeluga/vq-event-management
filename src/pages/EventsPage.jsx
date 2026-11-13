@@ -12,6 +12,7 @@ import {
   formatTimeRange,
   getRegistrationEndDate,
   getEventDateParts,
+  getEventTypeToneClass,
   getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
@@ -566,7 +567,9 @@ function EventsPage() {
                     <span className="event-date-stack-year">{dateParts.year}</span>
                   </span>
                 ) : null}
-                <span className="event-type-pill">{getEventTypeLabel(event)}</span>
+                <span className={`event-type-pill ${getEventTypeToneClass(getEventTypeLabel(event))}`}>
+                  {getEventTypeLabel(event)}
+                </span>
                 {takesRegistrations ? (
                   <>
                     <strong className={`event-availability-pill ${availabilityTone}`}>

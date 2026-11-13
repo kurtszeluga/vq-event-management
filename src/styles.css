@@ -1646,13 +1646,64 @@ body.nav-sheet-open {
   line-height: 1.2;
 }
 
+/* Each event type carries its own colour, so a reader scanning a mixed list
+   can tell a Retreat from a Lecture without reading the pill. The two class
+   types deliberately share one green: to a reader they are the same kind of
+   thing, differing only in length, which the time row already says.
+
+   This base rule is the neutral fallback - a type added in Configuration with
+   no tone of its own lands here rather than borrowing another type's colour.
+   The tones are mirrored by .vq-feed-type in public/godaddy-event-feed.js,
+   which pills the same types on the website, so a new tone needs adding in
+   both places. */
 .event-type-pill {
-  background: #f2e7de;
+  background: #f0ece5;
   border-radius: 999px;
-  color: #8f351d;
+  color: #5b544a;
   font-size: 0.92rem;
   letter-spacing: 0;
   padding: 5px 10px;
+}
+
+.event-type-pill.is-class-half-day,
+.event-type-pill.is-class-full-day {
+  background: #e9f2ef;
+  color: #225c56;
+}
+
+.event-type-pill.is-workshop {
+  background: #e6eef8;
+  color: #1f4e79;
+}
+
+.event-type-pill.is-retreat {
+  background: #efe7f6;
+  color: #5b3a7e;
+}
+
+.event-type-pill.is-lecture {
+  background: #fbf0d2;
+  color: #7a5a07;
+}
+
+.event-type-pill.is-challenges {
+  background: #fae8ec;
+  color: #8d2541;
+}
+
+.event-type-pill.is-business-listing {
+  background: #eceef2;
+  color: #3c4756;
+}
+
+.event-type-pill.is-for-sale {
+  background: #f2e7de;
+  color: #8f351d;
+}
+
+.event-type-pill.is-other {
+  background: #f0ece5;
+  color: #5b544a;
 }
 
 /* Sits beside the type pill at the top of a business listing card. Weighted

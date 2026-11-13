@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import EventImageCarousel from './EventImageCarousel.jsx';
 import PageHeader from './PageHeader.jsx';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
-import { buildListingDetails, getListingTitle, isEventVisible } from '../utils/eventFormat.js';
+import {
+  buildListingDetails,
+  getEventTypeToneClass,
+  getListingTitle,
+  isEventVisible
+} from '../utils/eventFormat.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 
@@ -74,7 +79,7 @@ function PublicListingPage({
           return (
             <article className="public-event-card public-listing-card" key={event.id}>
               <div className="card-kicker">
-                <span className="event-type-pill">{eventType}</span>
+                <span className={`event-type-pill ${getEventTypeToneClass(eventType)}`}>{eventType}</span>
                 {event.businessTypeLabel ? (
                   <span className="business-type-pill">{event.businessTypeLabel}</span>
                 ) : null}

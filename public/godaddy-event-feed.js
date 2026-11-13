@@ -356,7 +356,7 @@
         <span class="vq-feed-summary-body">
           <span class="vq-feed-summary-title">${escapeHtml(title)}</span>
           <span class="vq-feed-summary-meta">
-            <span class="vq-feed-type">${escapeHtml(event.eventType || '')}</span>
+            ${buildTypePillMarkup(event.eventType)}
             ${span}
           </span>
         </span>
@@ -381,6 +381,26 @@
   // inline date line an absent date had to be propped open with a min-height
   // so neighbouring titles stayed aligned, which a stacked block beside the
   // heading does not need.
+  // Every type pill on every template comes from here, so a type only ever
+  // gets one colour however it is rendered. The tones themselves are in the
+  // .vq-feed-type rules below, mirrored by .event-type-pill in src/styles.css
+  // for the app's own listings - a new tone needs adding in both places. A
+  // type with no tone of its own keeps the base pill and reads as neutral,
+  // rather than borrowing the colour of whichever type sits next to it in the
+  // stylesheet.
+  function eventTypeToneClass(eventType) {
+    const slug = String(eventType || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+    return slug ? ` is-${slug}` : '';
+  }
+
+  function buildTypePillMarkup(eventType) {
+    return `<span class="vq-feed-type${eventTypeToneClass(eventType)}">${escapeHtml(eventType || '')}</span>`;
+  }
+
   function buildCardHeadMarkup({ dateBlock, pills, title }) {
     return `
       <div class="vq-feed-card-head">
@@ -433,7 +453,7 @@
     // back to the previous behaviour rather than blanking every card.
     const takesRegistrations = event.takesRegistrations !== false;
     const pills = `
-      <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+      ${buildTypePillMarkup(event.eventType)}
       ${takesRegistrations ? `
         <span class="vq-feed-status-pill ${availabilityTone}">${escapeHtml(availabilityLabel)}</span>
         <span class="vq-feed-status-pill ${event.registrationOpen ? 'is-open' : 'is-closed'}">${event.registrationOpen ? 'Registration Open' : 'Registration Closed'}</span>
@@ -489,7 +509,7 @@
         // card, so the group is the only part of that row worth scanning.
         pills: `
           ${event.businessTypeLabel ? `<span class="vq-feed-business-type">${escapeHtml(event.businessTypeLabel)}</span>` : ''}
-          <span class="vq-feed-type">${escapeHtml(event.eventType)}</span>
+          ${buildTypePillMarkup(event.eventType)}
           ${specialty ? `<span class="vq-feed-specialty">${escapeHtml(specialty.value)}</span>` : ''}
         `,
         title: event.title || 'Business Listing'
@@ -511,7 +531,7 @@
     return `
       ${buildCardHeadMarkup({
         dateBlock: '',
-        pills: `<span class="vq-feed-type">${escapeHtml(event.eventType)}</span>`,
+        pills: `${buildTypePillMarkup(event.eventType)}`,
         title: event.title || 'For Sale Listing'
       })}
       ${price ? `<p class="vq-feed-price">${escapeHtml(price.value)}</p>` : ''}
@@ -1560,14 +1580,67 @@
         flex-wrap: wrap;
         gap: 8px;
       }
+      /* Each event type carries its own colour, so a reader scanning a mixed
+         list can tell a Retreat from a Lecture without reading the pill. The
+         two class types deliberately share one green: to a reader they are the
+         same kind of thing, differing only in length, which the time row
+         already says.
+
+         This base rule is the neutral fallback - a type added in Configuration
+         with no tone of its own lands here rather than borrowing another
+         type's colour. The tones are mirrored by .event-type-pill in
+         src/styles.css, which pills the same types inside the app, so a new
+         tone needs adding in both places. */
       .vq-feed-type {
-        background: #e9f2ef;
-        border: 1px solid #c6dad5;
+        background: #f0ece5;
+        border: 1px solid #ddd5ca;
         border-radius: 999px;
+        color: #5b544a;
         display: inline-flex;
         font-size: 0.82rem;
         font-weight: 800;
         padding: 6px 10px;
+      }
+      .vq-feed-type.is-class-half-day,
+      .vq-feed-type.is-class-full-day {
+        background: #e9f2ef;
+        border-color: #c6dad5;
+        color: #225c56;
+      }
+      .vq-feed-type.is-workshop {
+        background: #e6eef8;
+        border-color: #bed2ea;
+        color: #1f4e79;
+      }
+      .vq-feed-type.is-retreat {
+        background: #efe7f6;
+        border-color: #d5c4e4;
+        color: #5b3a7e;
+      }
+      .vq-feed-type.is-lecture {
+        background: #fbf0d2;
+        border-color: #e6d08c;
+        color: #7a5a07;
+      }
+      .vq-feed-type.is-challenges {
+        background: #fae8ec;
+        border-color: #eec6d0;
+        color: #8d2541;
+      }
+      .vq-feed-type.is-business-listing {
+        background: #eceef2;
+        border-color: #cdd3dc;
+        color: #3c4756;
+      }
+      .vq-feed-type.is-for-sale {
+        background: #f2e7de;
+        border-color: #e0c9b6;
+        color: #8f351d;
+      }
+      .vq-feed-type.is-other {
+        background: #f0ece5;
+        border-color: #ddd5ca;
+        color: #5b544a;
       }
       .vq-feed-status-pill {
         border-radius: 999px;

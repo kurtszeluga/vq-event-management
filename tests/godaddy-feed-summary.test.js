@@ -38,6 +38,8 @@ const buildSummaryRowMarkup = new Function(`
   ${extractBlock('function formatEventDateRange(', '\n  }')}
   ${extractBlock('function parseDateParts(', '\n  }')}
   ${extractBlock('function buildDateStackMarkup(', '\n  }')}
+  ${extractBlock('function eventTypeToneClass(', '\n  }')}
+  ${extractBlock('function buildTypePillMarkup(', '\n  }')}
   ${extractBlock('function buildSummaryRowMarkup(', '\n  }')}
   return buildSummaryRowMarkup;
 `)();
@@ -70,7 +72,7 @@ test('a row carries exactly the date, the type and the title', () => {
   assert.match(markup, /vq-feed-datestack-month">NOV</);
   assert.match(markup, /vq-feed-datestack-day">13</);
   assert.match(markup, /vq-feed-datestack-year">2026</);
-  assert.match(markup, /vq-feed-type">Lecture</);
+  assert.match(markup, /vq-feed-type is-lecture">Lecture</);
   assert.match(markup, /vq-feed-summary-title">Protecting Precious Quilts</);
   // Nothing from the full card should have come along for the ride.
   assert.equal(markup.includes('vq-feed-media'), false);
@@ -85,7 +87,9 @@ test('the date tile and type pill are the cards\' own, not a second vocabulary',
   const markup = buildSummaryRowMarkup(EVENT);
 
   assert.match(markup, /class="vq-feed-datestack"/);
-  assert.match(markup, /class="vq-feed-type"/);
+  // The pill carries its per-type tone class after the shared one, so this
+  // matches the prefix rather than the whole attribute.
+  assert.match(markup, /class="vq-feed-type\b/);
 });
 
 test('the row keeps the hooks the filter and the empty notice rely on', () => {

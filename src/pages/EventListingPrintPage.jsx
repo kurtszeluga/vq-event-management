@@ -8,6 +8,7 @@ import {
   formatEventDate,
   formatRegistrationDateRange,
   formatTimeRange,
+  getEventTypeToneClass,
   getRegistrationEndDate,
   getRegistrationStartDate,
   isEventVisible
@@ -140,7 +141,9 @@ function EventListingPrintPage() {
       </div>
       <article className="public-event-card public-event-card--print">
         <div className="card-kicker">
-          <span className="event-type-pill">{event.eventType || 'Other'}</span>
+          <span className={`event-type-pill ${getEventTypeToneClass(event.eventType || 'Other')}`}>
+            {event.eventType || 'Other'}
+          </span>
           <strong>
             {isRegistrationWindowOpen(event) ? 'Registration open' : 'Registration closed'}
           </strong>
