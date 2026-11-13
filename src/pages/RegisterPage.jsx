@@ -449,6 +449,26 @@ function RegisterPage() {
     navigate('/events');
   }, [navigate, returnTarget]);
 
+  // Three destinations, in the order that matches how the page was reached: an
+  // external return URL for a GoDaddy visitor, otherwise a history step, which
+  // is what carries an admin back to the event list they clicked Register
+  // Myself from. getExternalReferrerUrl deliberately ignores a same-origin
+  // referrer, so returnTarget is empty for every in-app arrival and a
+  // hardcoded link would always be wrong for one of the two.
+  const handleUnavailableReturn = useCallback(() => {
+    if (returnTarget) {
+      window.location.assign(returnTarget);
+      return;
+    }
+
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/events');
+  }, [navigate, returnTarget]);
+
   const handlePaymentReservationExpired = useCallback(() => {
     markReservationExpired();
     window.setTimeout(() => {
@@ -603,9 +623,13 @@ function RegisterPage() {
           title="Registration Unavailable"
           description={registrationUnavailable}
         />
-        <Link className="button-link" to={`/events/${event.id}`}>
-          Back To Event
-        </Link>
+        <button
+          className="button-link button-reset"
+          onClick={handleUnavailableReturn}
+          type="button"
+        >
+          Back
+        </button>
       </section>
     );
   }

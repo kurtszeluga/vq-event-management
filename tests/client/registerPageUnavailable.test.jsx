@@ -62,6 +62,7 @@ function renderRegisterPage(event) {
       <Routes>
         <Route path="/events/:eventId/register" element={<RegisterPage />} />
         <Route path="/events/:eventId" element={<div>Event details</div>} />
+        <Route path="/events" element={<div>Events list</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -78,6 +79,12 @@ describe('RegisterPage when registration is unavailable', () => {
     expect(screen.queryByTestId('payment-panel')).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: /submit registration/i })).toBeNull();
+
+    // The way back is a button, not a link to a fixed route: an admin arriving
+    // from the event list and a reader arriving from GoDaddy need different
+    // destinations, so the destination is decided at click time.
+    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /back to event/i })).toBeNull();
   });
 
   it('names the date the listing goes live instead of saying only "not available"', () => {
