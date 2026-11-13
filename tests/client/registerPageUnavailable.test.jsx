@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import RegisterPage from '../../src/pages/RegisterPage.jsx';
@@ -48,7 +49,7 @@ const PAID_EVENT = {
   title: 'Test Workshop'
 };
 
-function renderRegisterPage(event) {
+function renderRegisterPage(event, locationState = null) {
   useEventRegistration.mockReturnValue({
     displayedTermsVersion: '1',
     event,
@@ -58,11 +59,14 @@ function renderRegisterPage(event) {
   });
 
   return render(
-    <MemoryRouter initialEntries={['/events/event-1/register']}>
+    <MemoryRouter
+      initialEntries={[{ pathname: '/events/event-1/register', state: locationState }]}
+    >
       <Routes>
         <Route path="/events/:eventId/register" element={<RegisterPage />} />
         <Route path="/events/:eventId" element={<div>Event details</div>} />
         <Route path="/events" element={<div>Events list</div>} />
+        <Route path="/admin" element={<div>Admin dashboard</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -92,6 +96,20 @@ describe('RegisterPage when registration is unavailable', () => {
 
     expect(screen.getByText(/not listed on the website until/i)).toBeTruthy();
     expect(screen.getByText(/\d{2}\/\d{2}\/\d{4}/)).toBeTruthy();
+  });
+
+  it('sends an admin back to the module they came from, not the chooser', async () => {
+    // The admin dashboard keeps its open module in location state rather than
+    // the URL, so the way back has to carry it. A history step would land on
+    // the module chooser instead of the event list.
+    renderRegisterPage(
+      { ...PAID_EVENT, visibleFrom: asLocalInput(7 * DAY_MS) },
+      { module: 'events-activities' }
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(screen.getByText('Admin dashboard')).toBeTruthy();
   });
 
   it('still renders the form when the event is visible and open', () => {

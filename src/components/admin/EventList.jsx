@@ -418,6 +418,7 @@ function EventList({
             {canRegisterEvent(event) ? (
               <Link
                 className="button-link secondary-action"
+                state={{ module: sourceModule }}
                 to={`/register?eventId=${event.id}`}
               >
                 {availability.isFull ? 'Join Waitlist' : 'Register Myself'}

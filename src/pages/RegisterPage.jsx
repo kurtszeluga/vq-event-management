@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import RegistrationPaymentPanel from '../components/RegistrationPaymentPanel.jsx';
@@ -53,6 +53,12 @@ function RegisterPage() {
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const referrerUrl = getExternalReferrerUrl();
   const returnTarget = returnUrl || referrerUrl;
+  // The admin dashboard tracks its open module in memory, not in the URL, so a
+  // plain history step lands on the module chooser rather than the list the
+  // admin clicked Register Myself from. The link stashes the module it was on,
+  // the same way the Print Registration List link already did.
+  const location = useLocation();
+  const returnModule = location.state?.module || '';
   const {
     displayedTermsVersion,
     event,
@@ -421,24 +427,38 @@ function RegisterPage() {
     }
   }
 
+  // Every way out of this page runs this ladder, so Back and Cancel cannot
+  // drift apart: an external return URL first, then the admin module that sent
+  // us here, then a history step, and only then the caller's own fallback.
+  const returnToOrigin = useCallback((fallback) => {
+    if (returnTarget) {
+      window.location.assign(returnTarget);
+      return;
+    }
+
+    if (returnModule) {
+      navigate('/admin', { state: { module: returnModule } });
+      return;
+    }
+
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    fallback();
+  }, [navigate, returnModule, returnTarget]);
+
   const handleClose = useCallback(() => {
     releaseCurrentReservation();
     window.close();
 
     window.setTimeout(() => {
-      if (returnTarget) {
-        window.location.assign(returnTarget);
-        return;
-      }
-
-      if (window.history.length > 1) {
-        navigate(-1);
-        return;
-      }
-
-      setCloseMessage('You can close this registration window or tab.');
+      returnToOrigin(() => {
+        setCloseMessage('You can close this registration window or tab.');
+      });
     }, 250);
-  }, [navigate, releaseCurrentReservation, returnTarget]);
+  }, [releaseCurrentReservation, returnToOrigin]);
 
   const handleCompletionClose = useCallback(() => {
     if (returnTarget) {
@@ -449,25 +469,11 @@ function RegisterPage() {
     navigate('/events');
   }, [navigate, returnTarget]);
 
-  // Three destinations, in the order that matches how the page was reached: an
-  // external return URL for a GoDaddy visitor, otherwise a history step, which
-  // is what carries an admin back to the event list they clicked Register
-  // Myself from. getExternalReferrerUrl deliberately ignores a same-origin
-  // referrer, so returnTarget is empty for every in-app arrival and a
-  // hardcoded link would always be wrong for one of the two.
+  // Same ladder as Cancel, by the user's own observation that the two should
+  // not behave differently.
   const handleUnavailableReturn = useCallback(() => {
-    if (returnTarget) {
-      window.location.assign(returnTarget);
-      return;
-    }
-
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
-    navigate('/events');
-  }, [navigate, returnTarget]);
+    returnToOrigin(() => navigate('/events'));
+  }, [navigate, returnToOrigin]);
 
   const handlePaymentReservationExpired = useCallback(() => {
     markReservationExpired();
