@@ -1283,7 +1283,17 @@ async function getCurrentMembershipTermsVersion() {
   return cleanText(settings.termsVersion) || 'Offline Membership Agreement';
 }
 
-function buildManualMembershipProfile(profile, existingProfile, profileId) {
+// A field the member form submitted empty has to clear, not quietly revert to
+// what was stored. The `||` chains below made an emptied optional field
+// impossible to save: the old value came straight back on the next read, which
+// looks like the save failing. An omitted key still falls back, so a partial
+// update keeps working - the distinction is "not sent" versus "sent empty",
+// which `||` cannot tell apart.
+function clearableText(submitted, existing) {
+  return submitted === undefined ? cleanText(existing) : cleanText(submitted);
+}
+
+export function buildManualMembershipProfile(profile, existingProfile, profileId) {
   const firstName = cleanText(profile.firstName || existingProfile.firstName || getFirstNameFallback(existingProfile.name));
   const lastName = cleanText(profile.lastName || existingProfile.lastName || getLastNameFallback(existingProfile.name));
   const name = cleanText(profile.name || existingProfile.name || [firstName, lastName].filter(Boolean).join(' '));
@@ -1293,7 +1303,7 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
   return {
     billingAddress: {
       ...(existingProfile.billingAddress || getEmptyBillingAddress()),
-      city: cleanText(profile.town) || existingProfile.billingAddress?.city || ''
+      city: clearableText(profile.town, existingProfile.billingAddress?.city)
     },
     createdDate: existingProfile.createdDate || serverTimestamp(),
     email: cleanText(profile.email || existingProfile.email).toLowerCase(),
@@ -1310,7 +1320,7 @@ function buildManualMembershipProfile(profile, existingProfile, profileId) {
     membershipUpdatedDate: serverTimestamp(),
     name,
     permissions: getMembershipAllowedPermissions(existingProfile, membershipStatus),
-    phone: cleanText(profile.phone || existingProfile.phone),
+    phone: clearableText(profile.phone, existingProfile.phone),
     profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
     role,
     status: existingProfile.status || 'Active',

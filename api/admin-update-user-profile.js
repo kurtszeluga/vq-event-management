@@ -197,10 +197,30 @@ export default async function handler(request, response) {
       }
     }
 
+    // Coordinator assignments hold a copy of the assignee's name, email and
+    // phone, taken when the assignment was made - the copy is what the
+    // coordinator emails read, so the areas keep working without a second
+    // lookup. Nothing refreshed those copies when the profile itself changed,
+    // so renaming a member left the old name showing in Coordinator
+    // Assignments indefinitely. Read before the batch opens, since a batch
+    // cannot query.
+    const coordinatorDocs = await findCoordinatorAssignmentsForUser(
+      db,
+      targetProfileId,
+      profile.userId
+    );
     const batch = db.batch();
 
     batch.set(userRef, profile);
     applyMemberDirectorySync(db, batch, targetProfileId, profile, now);
+    coordinatorDocs.forEach((assignmentDoc) => {
+      batch.update(assignmentDoc.ref, {
+        assignedUserEmail: profile.email || '',
+        assignedUserName: profile.name || '',
+        assignedUserPhone: profile.phone || '',
+        updatedDate: now
+      });
+    });
     if (membershipPayment) {
       const paymentRef = db.collection('payments').doc();
 
@@ -845,6 +865,30 @@ function toTitleCase(value) {
     .trim()
     .replace(/\s+/g, ' ')
     .replace(/\b([a-z])/g, (letter) => letter.toUpperCase());
+}
+
+// Matched on either id, because an assignment records assignedUserId from
+// `profile.userId || profile.id` and the two are not always the same value -
+// an imported member has a profile document before it has an Auth uid. A
+// `where in` of both ids would need them to be non-empty and distinct, so two
+// plain queries are the simpler correct thing.
+export async function findCoordinatorAssignmentsForUser(db, profileId, userId) {
+  const ids = [profileId, userId].filter(Boolean);
+  const uniqueIds = [...new Set(ids)];
+  const collectionRef = db.collection('coordinatorAssignments');
+  const found = new Map();
+
+  for (const id of uniqueIds) {
+    // Sequential rather than parallel: there are at most two, and a failure
+    // here must not leave half the assignments refreshed.
+    const snapshot = await collectionRef.where('assignedUserId', '==', id).get();
+
+    snapshot.docs.forEach((assignmentDoc) => {
+      found.set(assignmentDoc.id, assignmentDoc);
+    });
+  }
+
+  return [...found.values()];
 }
 
 function removeUndefinedFields(value) {
