@@ -25,6 +25,7 @@ const parseLayoutSwitcher = new Function(`
   ${extractBlock('const LAYOUTS = [', '];')}
   const DEFAULTS = { layoutSwitcher: false };
   ${extractBlock('function parseLayoutSwitcher(', '\n  }')}
+  ${extractBlock('function splitAttributeList(', '\n  }')}
   ${extractBlock('function parseLayoutList(', '\n  }')}
   return parseLayoutSwitcher;
 `)();
@@ -53,9 +54,44 @@ test('unknown entries and duplicates are dropped rather than rendered', () => {
   assert.deepEqual(parseLayoutSwitcher('grid,GRID,tiles'), ['grid']);
 });
 
+// The Programs page shipped with data-layout-switcher="roster.grid" - a period
+// where the comma should be. Splitting on commas alone resolved nothing from
+// it, so the row fell back to offering every layout and an Agenda button
+// appeared on a page that had asked for two. A narrowing request must not be
+// able to widen the row by one keystroke, so the separators are generous.
+test('a hand-typed separator still narrows the row', () => {
+  assert.deepEqual(parseLayoutSwitcher('roster.grid'), ['roster', 'grid']);
+  assert.deepEqual(parseLayoutSwitcher('grid roster'), ['grid', 'roster']);
+  assert.deepEqual(parseLayoutSwitcher('grid;roster'), ['grid', 'roster']);
+  assert.deepEqual(parseLayoutSwitcher('grid|roster'), ['grid', 'roster']);
+  // Mixed and repeated separators collapse rather than yielding blank entries.
+  assert.deepEqual(parseLayoutSwitcher('grid, . roster'), ['grid', 'roster']);
+});
+
 test('a list of nothing recognised falls back to every layout', () => {
   // A typo must not silently strip the row down to one button.
   assert.deepEqual(parseLayoutSwitcher('tiles,cards'), ['roster', 'grid', 'agenda']);
+});
+
+// `data-categories` is the same kind of hand-typed list and had the same
+// comma-only split, so a stray period there would have restored every pill on
+// a page pinned to one kind of listing - a worse version of the same bug,
+// since the extra pills fetch categories the page was never meant to show.
+const parseViewList = new Function(`
+  ${extractBlock('const FEED_VIEWS = [', '\n  ];')}
+  ${extractBlock('function normalizeViewValue(', '\n  }')}
+  ${extractBlock('function splitAttributeList(', '\n  }')}
+  ${extractBlock('function parseViewList(', '\n  }')}
+  return parseViewList;
+`)();
+
+test('the pill list tolerates the same hand-typed separators', () => {
+  assert.deepEqual(parseViewList('programs.workshops'), ['programs', 'workshops']);
+  assert.deepEqual(parseViewList('programs, workshops'), ['programs', 'workshops']);
+  // One value still pins the page to one listing rather than restoring the row.
+  assert.deepEqual(parseViewList('programs'), ['programs']);
+  // The legacy alias survives the new split.
+  assert.deepEqual(parseViewList('events'), ['programs']);
 });
 
 test('a one-layout switcher renders no controls', () => {

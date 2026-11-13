@@ -298,10 +298,10 @@ Paste a mount div and the script tag:
 | --- | --- |
 | `data-vq-feed` | Marks the mount. Required. |
 | `data-category` | Which listings load: `programs`, `workshops`, `challenges`, `business`, `forsale`. `events` is a legacy alias resolving to `programs`. On its own it only sets which pill starts selected. |
-| `data-categories` | Comma-separated list controlling which pills appear and in what order. A single value hides the pill row, which is how a page is pinned to one kind of listing. |
+| `data-categories` | Comma-separated list controlling which pills appear and in what order. A single value hides the pill row, which is how a page is pinned to one kind of listing. Separators are forgiving — a period, semicolon, pipe or space reads the same as a comma. |
 | `data-template` | `summary` switches the mount from cards to summary rows — one line per event with the date, the event type and the title, nothing else. Built for the home page; see below. Anything else falls back to the normal per-type cards. |
 | `data-layout` | Card geometry: `roster` (default), `grid`, `agenda`. Does not apply to `data-template="summary"`, which brings its own. |
-| `data-layout-switcher` | Adds a layout row readers can switch with. Presence alone offers all three; a comma-separated list (`"grid,roster"`) narrows it to those, in that order. `false`/`0`/`off`/`no` turns it back off, and fewer than two renders nothing. A `data-layout` the list does not offer falls back to its first entry, so no page starts with every pill unpressed. |
+| `data-layout-switcher` | Adds a layout row readers can switch with. Presence alone offers all three; a list (`"grid,roster"`) narrows it to those, in that order. Separators are forgiving — a period, semicolon, pipe or space reads the same as a comma, because `"roster.grid"` on the Programs page once resolved to nothing and fell back to offering every layout. `false`/`0`/`off`/`no` turns it back off, and fewer than two renders nothing. A `data-layout` the list does not offer falls back to its first entry, so no page starts with every pill unpressed. |
 | `data-empty-message` | Replaces the default empty-state text. Also covers a pill filtering everything out, not just a page with nothing on it. |
 | `data-limit` | Caps how many cards render, for a teaser strip. The limit slices the fetched list **before** the Programs/Workshops filter runs in the browser, so a limit on that page can show fewer cards than asked for, or none. |
 | `data-source-url` | Overrides the API host. Normally omitted: the feed calls `/api/public-events` on whichever host served the script, so the script tag is the only URL on a page. |
@@ -331,7 +331,18 @@ The rows run in two columns once the mount is at least 700px wide, one column be
 
 `events.villagequilters.com` is production. `test.villagequilters.com` serves test listings and sends registrants to the Square sandbox. Never use the raw `*.vercel.app` deployment URL in an embed — it serves production with no warning and changes between deploys.
 
-Six live mounts as of 2026-11-09: Programs & Classes, Workshops, Guild Challenges, Business Listings and For Sale each carry a per-type card page, and the home page carries the summary. All six load the script from `events.villagequilters.com`.
+Six live mounts as of 2026-11-13: Programs & Classes, Workshops, Guild Challenges, Business Listings and For Sale each carry a per-type card page, and the home page carries the summary. All six load the script from `events.villagequilters.com`. What each one asks for:
+
+| Page | Mount |
+| --- | --- |
+| Programs & Classes | `data-category="programs" data-categories="programs" data-layout="grid" data-layout-switcher="grid,roster"` |
+| Workshops | `data-category="workshops" data-categories="workshops" data-layout="roster"` |
+| Guild Challenges | `data-category="challenges" data-categories="challenges" data-layout="roster"` |
+| Business Listings | `data-category="business" data-categories="business" data-layout="grid"` plus `data-empty-message` |
+| For Sale | `data-category="forsale" data-categories="forsale" data-layout="grid"` plus `data-empty-message` |
+| Home page | `data-template="summary"` plus `data-empty-message` |
+
+Programs is the only page offering a layout switcher. Agenda is still a valid `data-layout` and still has its CSS; no page offers it to a reader.
 
 `public/godaddy-event-feed-demo.html` renders the feed with the layout switcher enabled, shows the summary alongside it, and carries a full setup reference in an HTML comment.
 

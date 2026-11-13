@@ -139,28 +139,38 @@
     return requested.length ? requested : LAYOUTS.slice();
   }
 
+  // Separators are deliberately generous. These attributes are typed by hand
+  // into a GoDaddy HTML block, and `data-layout-switcher="roster.grid"` - a
+  // period where the comma should be - is what put an Agenda button on the
+  // Programs page: nothing in it resolved, so the list fell back to offering
+  // every layout, which is the exact opposite of what the attribute asked for.
+  // A request to narrow the row must not be able to widen it by one keystroke.
+  function splitAttributeList(rawValue) {
+    return String(rawValue || '')
+      .split(/[\s,.;|]+/)
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
   function parseLayoutList(rawValue) {
     const seen = new Set();
     const resolved = [];
 
-    String(rawValue)
-      .split(',')
-      .map((entry) => entry.trim().toLowerCase())
-      .forEach((entry) => {
-        if (LAYOUTS.includes(entry) && !seen.has(entry)) {
-          seen.add(entry);
-          resolved.push(entry);
-        }
-      });
+    splitAttributeList(rawValue).forEach((entry) => {
+      if (LAYOUTS.includes(entry) && !seen.has(entry)) {
+        seen.add(entry);
+        resolved.push(entry);
+      }
+    });
 
     return resolved;
   }
 
   function parseViewList(rawValue) {
-    const requested = String(rawValue || '')
-      .split(',')
-      .map((entry) => normalizeViewValue(entry))
-      .filter(Boolean);
+    // Same generous separators as the layout list, and for the same reason -
+    // a stray period here would quietly restore every pill on a page pinned to
+    // one kind of listing.
+    const requested = splitAttributeList(rawValue).map((entry) => normalizeViewValue(entry)).filter(Boolean);
     const known = new Set(FEED_VIEWS.map((option) => option.value));
     const seen = new Set();
     const resolved = [];
