@@ -225,6 +225,20 @@ function EventForm({
     });
   }
 
+  // Switching to Now stamps both dates; switching to In The Future hands the
+  // admin back a field they can see and edit, seeded with whatever Now left.
+  function handleListingMode(value) {
+    setSuccessMessage('');
+    setForm((current) => stampNowDates({ ...current, listingMode: value }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.listingMode;
+      delete next.visibleFrom;
+      delete next.registrationOpenAt;
+      return next;
+    });
+  }
+
   // The listing date carries the registration-open date with it, for the same
   // reason updateScheduleField carries the close date with the event start.
   function updateListingStart(value) {
@@ -297,14 +311,10 @@ function EventForm({
       const isRegistrationEnabled = ['future', 'now'].includes(value);
       const defaultCloseAt = getRegistrationDefaultCloseAt(current);
 
-      return alignRegistrationOpenAt({
+      return stampNowDates({
         ...current,
         registrationMode: value,
-        registrationOpenAt: value === 'now'
-          ? toDateTimeLocalValue(new Date())
-          : isRegistrationEnabled
-            ? current.registrationOpenAt
-            : '',
+        registrationOpenAt: isRegistrationEnabled ? current.registrationOpenAt : '',
         registrationCloseAt: isRegistrationEnabled
           ? defaultCloseAt || (value === 'now' ? '' : current.registrationCloseAt)
           : ''
@@ -1244,7 +1254,6 @@ function EventForm({
                       <input
                         className={fieldErrors.documentTitle ? 'field-invalid' : ''}
                         disabled={!eventTypeSelected}
-                        placeholder="Challenge Details"
                         value={form.documentTitle}
                         onChange={(event) =>
                           updateField('documentTitle', event.target.value)
@@ -1348,7 +1357,6 @@ function EventForm({
                       <input
                         className={fieldErrors.supplyListTitle ? 'field-invalid' : ''}
                         disabled={!eventTypeSelected}
-                        placeholder="Supply List"
                         value={form.supplyListTitle}
                         onChange={(event) =>
                           updateField('supplyListTitle', event.target.value)
@@ -1535,7 +1543,7 @@ function EventForm({
                 className={fieldErrors.listingMode ? 'field-invalid' : ''}
                 disabled={!eventTypeSelected}
                 value={form.listingMode}
-                onChange={(event) => updateField('listingMode', event.target.value)}
+                onChange={(event) => handleListingMode(event.target.value)}
               >
                 <option value="">Select One</option>
                 <option value="now">Now</option>
@@ -1985,6 +1993,28 @@ export function validateEventForm(form) {
 // Only applied where one of the two fields changes. A date the admin types in
 // by hand afterwards is left alone and met by the validation, so a deliberate
 // choice is refused rather than silently rewritten.
+// "Now" on either axis means this moment, so it writes the moment down rather
+// than leaving the field to whatever it held. Without this, switching List On
+// Website from In The Future back to Now kept the old future date - the Post
+// Listing input is not rendered for Now, so nothing cleared it, and the event
+// saved as "listed now" stayed invisible until that date arrived. The same
+// stale value then held the registration-open date hostage through the
+// alignment below.
+export function stampNowDates(form) {
+  const now = toDateTimeLocalValue(new Date());
+  const next = { ...form };
+
+  if (next.listingMode === 'now') {
+    next.visibleFrom = now;
+  }
+
+  if (next.registrationMode === 'now') {
+    next.registrationOpenAt = now;
+  }
+
+  return alignRegistrationOpenAt(next);
+}
+
 function alignRegistrationOpenAt(form) {
   if (!['future', 'now'].includes(form.registrationMode) || !form.visibleFrom) {
     return form;
