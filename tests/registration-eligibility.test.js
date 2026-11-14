@@ -194,6 +194,24 @@ test('a member is told when registration opens or closed, not just that it is sh
   assert.match(closed, /\d{2}\/\d{2}\/\d{4}/);
 });
 
+test('an event registered through an external link refuses registration here', () => {
+  // The Dec 11 luncheon: still run by the previous system, so neither a member
+  // nor an admin can register for it in this app. The server refuses it in the
+  // same position - after visibility, before the window - and both now agree.
+  const external = getRegistrationUnavailableReason(openEvent({
+    externalRegistrationUrl: 'https://form.jotform.com/example'
+  }));
+
+  assert.match(external, /handled through the link shown on the event listing/);
+
+  // A non-http value is not a link, so it must not block registration - it is
+  // dropped by getExternalRegistrationUrl the same way everywhere else.
+  assert.equal(
+    getRegistrationUnavailableReason(openEvent({ externalRegistrationUrl: 'not-a-url' })),
+    ''
+  );
+});
+
 test('a listing hidden by its visibility window refuses registration', () => {
   const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

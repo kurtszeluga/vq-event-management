@@ -637,6 +637,17 @@ describe('an event that cannot take registrations', () => {
     expect(screen.queryByLabelText('Search Members')).toBeNull();
   });
 
+  it('refuses an event that registers through an external link', () => {
+    // The Dec 11 luncheon case: listed, published, window open - and still not
+    // registrable here, because the previous system owns it.
+    renderPanel({
+      event: { ...FREE_EVENT, externalRegistrationUrl: 'https://form.jotform.com/example' }
+    });
+
+    expect(screen.getByText(/handled through the link shown on the event listing/i)).toBeTruthy();
+    expect(screen.queryByLabelText('Search Members')).toBeNull();
+  });
+
   it('still offers the form for a live event', () => {
     renderPanel();
 

@@ -123,3 +123,53 @@ describe('EventList Print Registration List link', () => {
     expect(screen.getByRole('link', { name: 'Print Registration List' })).toBeTruthy();
   });
 });
+
+describe('EventList registration controls', () => {
+  // Both controls are always offered and both refuse with a reason. Hiding
+  // Register Myself for a closed window made an unavailable event look like a
+  // missing permission or a bug, and threw away the explanation the register
+  // page now gives.
+  const CLOSED_WINDOW_EVENT = {
+    ...FREE_EVENT,
+    id: 'evt-not-open',
+    registrationCloseAt: '2026-12-10T17:00',
+    registrationMode: 'future',
+    registrationOpenAt: '2099-01-01T09:00',
+    title: 'Opens Much Later'
+  };
+
+  it('offers Register Myself even when registration has not opened yet', () => {
+    render(
+      <EventList
+        events={[CLOSED_WINDOW_EVENT]}
+        onDelete={() => {}}
+        onEdit={() => {}}
+      />
+    );
+
+    expect(screen.getByText('Register Myself')).toBeTruthy();
+  });
+
+  it('reads Join Waitlist only while the window is open and the event is full', () => {
+    const full = {
+      ...FREE_EVENT,
+      capacity: 1,
+      id: 'evt-full',
+      registrationCloseAt: '2099-12-10T17:00',
+      registrationMode: 'now',
+      registrationOpenAt: '2020-01-01T09:00',
+      title: 'Full And Open'
+    };
+
+    render(
+      <EventList
+        events={[full]}
+        onDelete={() => {}}
+        onEdit={() => {}}
+        registrationCounts={{ 'evt-full': { registered: 1 } }}
+      />
+    );
+
+    expect(screen.getByText('Join Waitlist')).toBeTruthy();
+  });
+});

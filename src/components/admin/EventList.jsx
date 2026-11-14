@@ -416,15 +416,13 @@ function EventList({
                 Print Registration List
               </Link>
             ) : null}
-            {canRegisterEvent(event) ? (
-              <Link
-                className="button-link secondary-action"
-                state={{ module: sourceModule }}
-                to={`/register?eventId=${event.id}`}
-              >
-                {availability.isFull ? 'Join Waitlist' : 'Register Myself'}
-              </Link>
-            ) : null}
+            <Link
+              className="button-link secondary-action"
+              state={{ module: sourceModule }}
+              to={`/register?eventId=${event.id}`}
+            >
+              {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
+            </Link>
             <button
               className={event.status === 'Archived'
                 ? 'button-link button-reset secondary-action archive-action'
@@ -463,10 +461,19 @@ function getEventPaymentTotal(event) {
   return Number(event.cost || 0) + Number(event.serviceFee || 0);
 }
 
-function canRegisterEvent(event) {
-  // Derived rather than reading the stored flag, so the admin list shows the
-  // same open/closed state a member would actually get.
-  return event.status !== 'Archived' && isRegistrationWindowOpen(event);
+// Whether the label should read Join Waitlist rather than Register Myself.
+// Still derived rather than read from the stored flag, so it matches the state
+// a member would actually get - and only while the window is open, since a
+// closed event is not offering a waitlist either.
+//
+// There is deliberately no gate on offering the button itself. Register A
+// Member is gated on the admin's permission and nothing else, and the register
+// page now names why registration is unavailable and when it opens - so
+// hiding its twin threw away that explanation and left an admin unable to tell
+// an unavailable event from a missing permission or a bug. Both controls are
+// always offered; both refuse with a reason.
+function isWaitlistOnly(event, availability) {
+  return Boolean(availability?.isFull) && isRegistrationWindowOpen(event);
 }
 
 function getEventRegistrationStats(event, counts = {}, totalPaid) {

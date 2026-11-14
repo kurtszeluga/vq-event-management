@@ -1,4 +1,7 @@
-import { getRegistrationWindowState } from '../../shared/registrationWindow.js';
+import {
+  getExternalRegistrationUrl,
+  getRegistrationWindowState
+} from '../../shared/registrationWindow.js';
 import { isCashCheckAwaitingCollection, isPaymentPending } from '../../shared/registrationPayment.js';
 import { formatDateOnly, isEventVisible } from './eventFormat.js';
 
@@ -93,6 +96,18 @@ export function getRegistrationUnavailableReason(event) {
     }
 
     return 'This event is not currently available.';
+  }
+
+  // Go-live transition: an event carrying externalRegistrationUrl is still run
+  // by the guild's previous system, so nothing in this app can take a
+  // registration for it. The server refuses these in
+  // validateRegistrationEligibility, in this same position - after visibility,
+  // before the window - but until now no caller asked first, so both the
+  // member page and the admin's Register A Member panel rendered a full form
+  // and failed on submit. The two listing pages already point their Register
+  // control at the link instead; this covers everything that does not.
+  if (getExternalRegistrationUrl(event)) {
+    return 'Registration for this event is handled through the link shown on the event listing, not in this app.';
   }
 
   const { state } = getRegistrationWindowState(event);
