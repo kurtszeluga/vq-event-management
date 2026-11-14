@@ -184,6 +184,17 @@ a {
   font: inherit;
 }
 
+/* `font` is a shorthand, so .button-reset's `font: inherit` above resets the
+   font-weight .button-link sets - and it wins on source order. Every action
+   rendered as a <button> carries both classes and so lost the bold, while the
+   same action rendered as an <a> kept it: Edit and Register A Member read
+   lighter than Print Registration List and Register Myself sitting beside
+   them. Restated here rather than unpicking the shorthand, which every other
+   .button-reset element in the app depends on. */
+.button-link.button-reset {
+  font-weight: 700;
+}
+
 /* Replaces the old .auth-banner second full-width strip - identity now sits
    at the right of the header's top row, opposite the brand. */
 .site-identity {

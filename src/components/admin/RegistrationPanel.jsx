@@ -53,6 +53,13 @@ function RegistrationPanel({
   const [activityFilter, setActivityFilter] = useState('');
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [registerMemberOpen, setRegisterMemberOpen] = useState(false);
+  // Whether this modal was opened by the Events/Activities shortcut rather
+  // than from inside this module. It decides where Close goes: an admin who
+  // arrived by the shortcut never intended to browse Registrations, so
+  // closing should put them back on the card list they clicked from - the way
+  // the member-facing page's own Back control does. An admin already working
+  // in this module stays where they were.
+  const [registerMemberFromShortcut, setRegisterMemberFromShortcut] = useState(false);
   const [error, setError] = useState('');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -185,6 +192,7 @@ function RegistrationPanel({
     if (initialRegisterMemberOpen) {
       setSuccessMessage('');
       setRegisterMemberOpen(true);
+      setRegisterMemberFromShortcut(true);
     }
   }, [initialEventId, initialRegisterMemberOpen]);
 
@@ -925,6 +933,7 @@ function RegistrationPanel({
                         handleSelectEvent(group.eventId);
                         setSuccessMessage('');
                         setRegisterMemberOpen(true);
+                        setRegisterMemberFromShortcut(false);
                       }}
                     >
                       Register A Member
@@ -1137,6 +1146,7 @@ function RegistrationPanel({
                     onClick={() => {
                       setSuccessMessage('');
                       setRegisterMemberOpen(true);
+                      setRegisterMemberFromShortcut(false);
                     }}
                   >
                     Register A Member
@@ -1166,7 +1176,17 @@ function RegistrationPanel({
           event={selectedEventGroup?.event}
           existingRegistrations={selectedEventGroup?.registrations || []}
           isFull={Boolean(selectedEventAvailability?.isFull)}
-          onClose={() => setRegisterMemberOpen(false)}
+          onClose={() => {
+            setRegisterMemberOpen(false);
+
+            if (registerMemberFromShortcut) {
+              setRegisterMemberFromShortcut(false);
+              // The same ladder the module's own Return uses, so a shortcut
+              // arrival lands back on the Events/Activities list and anything
+              // else falls back to this module's event picker.
+              handleBackToEvents();
+            }
+          }}
           onRegistered={(result) => {
             setRegisterMemberOpen(false);
             setSuccessMessage(
