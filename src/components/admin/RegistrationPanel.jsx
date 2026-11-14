@@ -61,6 +61,9 @@ function RegistrationPanel({
   // the member-facing page's own Back control does. An admin already working
   // in this module stays where they were.
   const [registerMemberFromShortcut, setRegisterMemberFromShortcut] = useState(false);
+  // Whether the open modal is registering the admin themselves rather than
+  // someone they searched for.
+  const [registerSelfMode, setRegisterSelfMode] = useState(false);
   const [error, setError] = useState('');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -194,16 +197,16 @@ function RegistrationPanel({
       setSuccessMessage('');
       setRegisterMemberOpen(true);
       setRegisterMemberFromShortcut(true);
+      setRegisterSelfMode(Boolean(initialRegisterSelf));
     }
-  }, [initialEventId, initialRegisterMemberOpen]);
+  }, [initialEventId, initialRegisterMemberOpen, initialRegisterSelf]);
 
   // Register Myself hands the panel the admin's own profile rather than
   // relying on the member search, which only lists admin profiles for a Super
-  // User - a plain admin could not find themselves there at all.
-  const registerSelfProfile = useMemo(
-    () => (initialRegisterSelf && registerMemberFromShortcut ? currentUserProfile : null),
-    [currentUserProfile, initialRegisterSelf, registerMemberFromShortcut]
-  );
+  // User - a plain admin could not find themselves there at all. Set both by
+  // the Events/Activities shortcut and by this module's own Register Myself
+  // buttons, so the two behave identically.
+  const registerSelfProfile = registerSelfMode ? currentUserProfile : null;
 
   const eventMap = useMemo(
     () => new Map(events.map((event) => [event.id, event])),
@@ -943,9 +946,25 @@ function RegistrationPanel({
                         setSuccessMessage('');
                         setRegisterMemberOpen(true);
                         setRegisterMemberFromShortcut(false);
+                        setRegisterSelfMode(false);
                       }}
                     >
                       Register A Member
+                    </button>
+                  ) : null}
+                  {canRegisterOthers && group.event ? (
+                    <button
+                      className="button-link button-reset secondary-action compact-action"
+                      type="button"
+                      onClick={() => {
+                        handleSelectEvent(group.eventId);
+                        setSuccessMessage('');
+                        setRegisterMemberOpen(true);
+                        setRegisterMemberFromShortcut(false);
+                        setRegisterSelfMode(true);
+                      }}
+                    >
+                      Register Myself
                     </button>
                   ) : null}
                 </div>
@@ -1156,9 +1175,24 @@ function RegistrationPanel({
                       setSuccessMessage('');
                       setRegisterMemberOpen(true);
                       setRegisterMemberFromShortcut(false);
+                      setRegisterSelfMode(false);
                     }}
                   >
                     Register A Member
+                  </button>
+                ) : null}
+                {canRegisterOthers && group.event ? (
+                  <button
+                    className="button-link button-reset secondary-action"
+                    type="button"
+                    onClick={() => {
+                      setSuccessMessage('');
+                      setRegisterMemberOpen(true);
+                      setRegisterMemberFromShortcut(false);
+                      setRegisterSelfMode(true);
+                    }}
+                  >
+                    Register Myself
                   </button>
                 ) : null}
                 <Link

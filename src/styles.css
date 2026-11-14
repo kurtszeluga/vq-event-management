@@ -3407,9 +3407,37 @@ div.csv-preview-warning {
   min-width: 900px;
 }
 
+/* Seven columns - Registrant through Actions - do not fit a laptop, so
+   .user-table-wrap scrolls horizontally. Actions is the one column an admin
+   always needs and it sat at the far right, so reaching Details or Edit meant
+   scrolling the table across and back for every row. Pinning it keeps those
+   buttons in view at any width.
+
+   The cell has to paint an opaque background or the columns scrolling beneath
+   show through it, which is why each row state restates its own below. */
+.registration-table th:last-child,
+.registration-table td:last-child {
+  background: #fffdfa;
+  box-shadow: -8px 0 8px -8px rgba(34, 92, 86, 0.25);
+  position: sticky;
+  right: 0;
+}
+
+.registration-table tbody tr.recently-edited-row td:last-child {
+  background: #fff3d7;
+}
+
 .registration-detail-row td {
   background: #fffaf4;
   padding: 8px 12px 14px;
+}
+
+/* The expanded detail is a single cell spanning all seven columns, so it is
+   also a :last-child - pinning it would strand the panel against the right
+   edge while its own row scrolled underneath. */
+.registration-table tbody tr.registration-detail-row td:last-child {
+  box-shadow: none;
+  position: static;
 }
 
 .registration-inline-details {
