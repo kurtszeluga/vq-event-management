@@ -8,6 +8,7 @@ import {
   formatEventDateRange,
   formatRegistrationDateRange,
   formatTimeRange,
+  getAdminListingStatusLabel,
   getListingTitle,
   getRegistrationEndDate,
   getRegistrationStartDate,
@@ -225,7 +226,7 @@ function EventList({
               {event.businessTypeLabel ? (
                 <span className="business-type-pill">{event.businessTypeLabel}</span>
               ) : null}
-              <strong>{event.status}</strong>
+              <strong>{getAdminListingStatusLabel(event)}</strong>
             </div>
             <h3>{isListing ? getListingTitle(event) : event.title || 'Untitled Draft'}</h3>
             {event.description ? (

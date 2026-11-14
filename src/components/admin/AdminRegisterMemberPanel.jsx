@@ -12,6 +12,7 @@ import {
 import {
   canPayLaterByCashCheck,
   getEventPaymentTotal,
+  getRegistrationUnavailableReason,
   isPaidEvent as getIsPaidEvent
 } from '../../utils/registrationEligibility.js';
 
@@ -45,6 +46,9 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
   const [waitlistConfirmationOpen, setWaitlistConfirmationOpen] = useState(false);
   const idempotencyKeyRef = useRef(createAttemptKey());
 
+  // The same reason the member-facing page shows, from the same function, so
+  // the two cannot drift into giving different answers about one event.
+  const unavailableReason = getRegistrationUnavailableReason(event);
   const eventIsPaid = getIsPaidEvent(event || {});
   const eventAllowsCashCheck = canPayLaterByCashCheck(event || {});
   const canOverrideCashCheck = eventIsPaid && !eventAllowsCashCheck;
@@ -143,6 +147,14 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
     // has an event, but the alternative to checking is `event.id` throwing
     // "undefined is not an object" out of the submit handler, which tells an
     // admin nothing and loses the form they just filled in.
+    if (unavailableReason) {
+      // The server refuses this too, in validateRegistrationEligibility - this
+      // only stops a panel left open across a change to the event from
+      // submitting and failing on the far side.
+      setFormError(unavailableReason);
+      return;
+    }
+
     if (!event?.id) {
       setFormError('This event could not be loaded. Go back to Events/Activities and open it again.');
       setWaitlistConfirmationOpen(false);
@@ -178,6 +190,39 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
   const selectedMemberDisplayName = selectedMember
     ? buildDisplayName(getProfileFirstName(selectedMember), getProfileLastName(selectedMember)) || selectedMember.email
     : '';
+
+  // Mirrors the member-facing page: no form at all when the event cannot take
+  // registrations, and the reason is named. The server has always refused
+  // these, but only after the admin had searched for a member and filled the
+  // whole form in.
+  if (open && unavailableReason) {
+    return (
+      <ModalDialog
+        ariaLabelledBy="admin-register-member-title"
+        backdropClassName="registration-modal-backdrop"
+        dialogClassName="registration-modal-card"
+        onClose={handleClose}
+        open={open}
+      >
+        <div className="form-section-header form-section-header-stacked">
+          <div className="form-section-header-top">
+            <div>
+              <h2 id="admin-register-member-title">Register A Member</h2>
+              <p className="section-helper">{event?.title || 'This event'}</p>
+            </div>
+            <button
+              className="button-link button-reset secondary-action compact-action"
+              type="button"
+              onClick={handleClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+        <p className="form-error">{unavailableReason}</p>
+      </ModalDialog>
+    );
+  }
 
   return (
     <>

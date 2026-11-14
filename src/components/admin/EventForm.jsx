@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAX_EVENT_IMAGES } from '../../../shared/eventImages.js';
 import { isListingEventType } from '../../../shared/eventListing.js';
-import { isRegistrationWindowInverted } from '../../../shared/registrationWindow.js';
+import {
+  getRegistrationListingConflicts,
+  isRegistrationWindowInverted
+} from '../../../shared/registrationWindow.js';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
   BUSINESS_TYPES,
@@ -23,7 +26,7 @@ import {
   subscribeToActiveEventTimeDefaults,
   subscribeToPaymentSettings
 } from '../../services/configurationService.js';
-import { formatTimeRange } from '../../utils/eventFormat.js';
+import { formatDateOnly, formatTimeRange } from '../../utils/eventFormat.js';
 import { formatPhoneNumber } from '../../utils/profileFormat.js';
 
 // Which Default Start/End Time entry a type opens with. Keyed on the entry's
@@ -222,6 +225,19 @@ function EventForm({
     });
   }
 
+  // The listing date carries the registration-open date with it, for the same
+  // reason updateScheduleField carries the close date with the event start.
+  function updateListingStart(value) {
+    setSuccessMessage('');
+    setForm((current) => alignRegistrationOpenAt({ ...current, visibleFrom: value }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.visibleFrom;
+      delete next.registrationOpenAt;
+      return next;
+    });
+  }
+
   function updateScheduleField(name, value) {
     setSuccessMessage('');
     setForm((current) => {
@@ -281,7 +297,7 @@ function EventForm({
       const isRegistrationEnabled = ['future', 'now'].includes(value);
       const defaultCloseAt = getRegistrationDefaultCloseAt(current);
 
-      return {
+      return alignRegistrationOpenAt({
         ...current,
         registrationMode: value,
         registrationOpenAt: value === 'now'
@@ -292,7 +308,7 @@ function EventForm({
         registrationCloseAt: isRegistrationEnabled
           ? defaultCloseAt || (value === 'now' ? '' : current.registrationCloseAt)
           : ''
-      };
+      });
     });
     setFieldErrors((current) => {
       const next = { ...current };
@@ -1539,9 +1555,7 @@ function EventForm({
                       disabled={!eventTypeSelected}
                       type="datetime-local"
                       value={form.visibleFrom}
-                      onChange={(event) =>
-                        updateField('visibleFrom', event.target.value)
-                      }
+                      onChange={(event) => updateListingStart(event.target.value)}
                     />
                   </label>
                 ) : null}
@@ -1940,9 +1954,48 @@ export function validateEventForm(form) {
     ) {
       errors.registrationCloseAt = 'Registration must end after it starts.';
     }
+
+    // Registration has to sit inside the window the listing exists in, because
+    // visibility gates registration: dates outside it produce a stretch where
+    // the window reads open and every attempt is refused. Ending earlier than
+    // the listing is removed is fine and common, so only the two ways out of
+    // the window are rejected.
+    getRegistrationListingConflicts(form).forEach((conflict) => {
+      if (conflict.kind === 'opens-before-listing') {
+        errors.registrationOpenAt =
+          `Registration cannot open before the listing appears on ${formatDateOnly(form.visibleFrom)}.`;
+      }
+
+      if (conflict.kind === 'closes-after-listing') {
+        errors.registrationCloseAt =
+          `Registration cannot still be open after the listing is removed on ${formatDateOnly(form.visibleUntil)}.`;
+      }
+    });
   }
 
   return errors;
+}
+
+// Registration cannot open before the listing appears, so the open date
+// follows the listing date whenever it would otherwise be earlier. This is
+// what makes "List in the future + Register now" mean "registration opens when
+// it is listed", which is what an admin picking those two actually wants -
+// instead of today's timestamp, which the save would then reject.
+//
+// Only applied where one of the two fields changes. A date the admin types in
+// by hand afterwards is left alone and met by the validation, so a deliberate
+// choice is refused rather than silently rewritten.
+function alignRegistrationOpenAt(form) {
+  if (!['future', 'now'].includes(form.registrationMode) || !form.visibleFrom) {
+    return form;
+  }
+
+  // Both are 'YYYY-MM-DDTHH:mm', so a string compare is a date compare.
+  if (!form.registrationOpenAt || form.registrationOpenAt < form.visibleFrom) {
+    return { ...form, registrationOpenAt: form.visibleFrom };
+  }
+
+  return form;
 }
 
 function validateDraftEventForm(form) {

@@ -10,6 +10,10 @@ export {
   isListingEventType,
   normalizeWebsiteUrl
 } from '../../shared/eventListing.js';
+import {
+  getRegistrationWindowState,
+  parseGuildDateTime
+} from '../../shared/registrationWindow.js';
 
 // Turns an event type into the modifier class that colours its pill - the
 // tones themselves live in src/styles.css (.event-type-pill) and are mirrored
@@ -183,6 +187,59 @@ export function formatClockTime(value) {
   const suffix = hour >= 12 ? 'p.m.' : 'a.m.';
   const displayHour = hour % 12 || 12;
   return `${displayHour}:${minuteText} ${suffix}`;
+}
+
+// One line answering "can anyone register right now, and if not, why". The
+// card used to show `status` alone, so a Published event that was not listed
+// yet read exactly like one live on the public site - two different facts
+// wearing the same word, which is what sent an admin hunting for a fault when
+// a listing was simply dated into the future.
+//
+// The order matters and mirrors the gate itself: status, then whether it is
+// listed, then the registration window. Registration is refused unless all
+// three allow it, so the first one that refuses is the useful answer.
+export function getAdminListingStatusLabel(event) {
+  if (!event) {
+    return '';
+  }
+
+  const status = event.status || '';
+
+  if (status !== 'Published') {
+    return status;
+  }
+
+  const now = Date.now();
+  const visibleFrom = parseGuildDateTime(event.visibleFrom);
+  const visibleUntil = parseGuildDateTime(event.visibleUntil);
+
+  if (visibleFrom !== null && visibleFrom > now) {
+    return `Published - not listed until ${formatDateOnly(event.visibleFrom)}`;
+  }
+
+  if (visibleUntil !== null && visibleUntil < now) {
+    return `Removed from site ${formatDateOnly(event.visibleUntil)}`;
+  }
+
+  const { state } = getRegistrationWindowState(event);
+
+  if (state === 'not-registrable' || state === 'disabled') {
+    return 'Listed - no registrations';
+  }
+
+  // The stored strings, not the parsed instants the state carries:
+  // formatDateOnly reads a naive 'YYYY-MM-DD' through the same path every
+  // other date on this card uses, where an epoch number would take a
+  // different branch and could read a day out at the edges.
+  if (state === 'not-yet-open') {
+    return `Listed - registration opens ${formatDateOnly(event.registrationOpenAt)}`;
+  }
+
+  if (state === 'closed') {
+    return `Listed - registration closed ${formatDateOnly(event.registrationCloseAt)}`;
+  }
+
+  return 'Listed - registration open';
 }
 
 export function isEventVisible(event) {

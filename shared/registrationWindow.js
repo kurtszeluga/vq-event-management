@@ -208,3 +208,41 @@ export function isRegistrationWindowInverted(event, options = {}) {
 
   return opensAt !== null && closesAt !== null && closesAt <= opensAt;
 }
+
+// Registration cannot run outside the window in which the listing exists.
+// Visibility gates registration (isEventVisible in src/utils/eventFormat.js,
+// and validateRegistrationEligibility on the server), so a registration date
+// outside the listing window creates a stretch where the dates say "open" and
+// the app refuses - which reads to an admin as a fault rather than a
+// configuration mistake.
+//
+// Containment, not equality: registration ending EARLIER than the listing is
+// removed is normal and deliberate - "register by the 1st, but leave the
+// details up until after the event" - so only the two ways out of the window
+// are conflicts.
+//
+// Nothing to check when the listing goes up immediately (`visibleFrom` empty):
+// there is no lower bound then, and a registration date in the past is fine.
+export function getRegistrationListingConflicts(event, options = {}) {
+  const { timeZone = GUILD_TIME_ZONE } = options;
+
+  if (!event || !REGISTRATION_WINDOW_MODES.includes(event.registrationMode)) {
+    return [];
+  }
+
+  const visibleFrom = parseGuildDateTime(event.visibleFrom, timeZone);
+  const visibleUntil = parseGuildDateTime(event.visibleUntil, timeZone);
+  const opensAt = parseGuildDateTime(event.registrationOpenAt, timeZone);
+  const closesAt = parseGuildDateTime(event.registrationCloseAt, timeZone);
+  const conflicts = [];
+
+  if (opensAt !== null && visibleFrom !== null && opensAt < visibleFrom) {
+    conflicts.push({ field: 'registrationOpenAt', kind: 'opens-before-listing' });
+  }
+
+  if (closesAt !== null && visibleUntil !== null && closesAt > visibleUntil) {
+    conflicts.push({ field: 'registrationCloseAt', kind: 'closes-after-listing' });
+  }
+
+  return conflicts;
+}

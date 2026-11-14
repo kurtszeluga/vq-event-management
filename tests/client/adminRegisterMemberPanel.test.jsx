@@ -51,10 +51,26 @@ const MEMBERS = [
   }
 ];
 
-const FREE_EVENT = { allowCashCheckPayment: false, cost: 0, id: 'event-1', isPaid: false, title: 'Guild Meeting' };
-const PAID_CASH_CHECK_EVENT = { allowCashCheckPayment: true, cost: 20, id: 'event-2', isPaid: true, title: 'Retreat' };
-const PAID_UNSUPPORTED_EVENT = { allowCashCheckPayment: false, cost: 20, id: 'event-3', isPaid: true, title: 'Workshop' };
+// Every fixture is a live, registrable event, because that is the only state
+// this panel opens in: it refuses an unpublished or unlisted event outright,
+// the same way the member-facing page does. The dates are needed because
+// registrability is derived from them rather than from a stored flag.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const local = (offsetMs) => new Date(Date.now() + offsetMs).toISOString().slice(0, 16);
+const LIVE = {
+  registrationCloseAt: local(7 * DAY_MS),
+  registrationMode: 'now',
+  registrationOpenAt: local(-7 * DAY_MS),
+  status: 'Published',
+  visibleFrom: local(-14 * DAY_MS),
+  visibleUntil: local(14 * DAY_MS)
+};
+
+const FREE_EVENT = { ...LIVE, allowCashCheckPayment: false, cost: 0, id: 'event-1', isPaid: false, title: 'Guild Meeting' };
+const PAID_CASH_CHECK_EVENT = { ...LIVE, allowCashCheckPayment: true, cost: 20, id: 'event-2', isPaid: true, title: 'Retreat' };
+const PAID_UNSUPPORTED_EVENT = { ...LIVE, allowCashCheckPayment: false, cost: 20, id: 'event-3', isPaid: true, title: 'Workshop' };
 const CASH_CHECK_ONLY_EVENT = {
+  ...LIVE,
   allowCashCheckPayment: true,
   cashCheckOnly: true,
   cost: 20,
@@ -592,5 +608,38 @@ describe('submitting', () => {
     });
     expect(props.onRegistered).not.toHaveBeenCalled();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+  });
+});
+
+describe('an event that cannot take registrations', () => {
+  it('refuses a listing dated into the future, with the reason and no form', () => {
+    // The member-facing page does the same thing. The server refuses these
+    // too, but it did so only after an admin had searched for a member and
+    // filled the whole form in.
+    renderPanel({ event: { ...FREE_EVENT, visibleFrom: local(14 * DAY_MS) } });
+
+    expect(screen.getByText(/not listed on the website until/i)).toBeTruthy();
+    expect(screen.queryByLabelText('Search Members')).toBeNull();
+    expect(screen.queryByRole('button', { name: /register member/i })).toBeNull();
+  });
+
+  it('refuses a draft', () => {
+    renderPanel({ event: { ...FREE_EVENT, status: 'Draft' } });
+
+    expect(screen.getByText(/still a draft/i)).toBeTruthy();
+    expect(screen.queryByLabelText('Search Members')).toBeNull();
+  });
+
+  it('refuses a listing already removed from the site', () => {
+    renderPanel({ event: { ...FREE_EVENT, visibleUntil: local(-DAY_MS) } });
+
+    expect(screen.getByText(/removed from the website/i)).toBeTruthy();
+    expect(screen.queryByLabelText('Search Members')).toBeNull();
+  });
+
+  it('still offers the form for a live event', () => {
+    renderPanel();
+
+    expect(screen.getByLabelText('Search Members')).toBeTruthy();
   });
 });
