@@ -315,6 +315,25 @@ function AdminDashboardPage() {
     setActiveModule('registrations');
   }
 
+  // Register Myself from an admin card is an admin registering themselves, so
+  // it runs the admin flow with their own profile already chosen rather than
+  // the member-facing page. That is what makes the cash/check "payment
+  // already received" prompt available to them: the server honours it only
+  // for an admin-authorized request, and a self-registrant's own claim is
+  // discarded by design (resolveAdminCollectedPayment).
+  //
+  // It also reaches an admin whose own profile the member search cannot see -
+  // that list only includes admin profiles for a Super User.
+  function handleRegisterSelfForEvent(eventId) {
+    setRegistrationsJump({
+      eventId,
+      openRegisterMember: true,
+      registerSelf: true,
+      sourceModule: activeModule
+    });
+    setActiveModule('registrations');
+  }
+
   // "Return" inside the Registrations module should go back to wherever the
   // admin actually came from (Events/Activities, Challenges, Business
   // Listings, or For Sale all launch this same shortcut) rather than always
@@ -490,6 +509,7 @@ function AdminDashboardPage() {
               onDelete={handleDelete}
               onEdit={handleEditEvent}
               onRegisterMember={handleRegisterMemberForEvent}
+              onRegisterSelf={handleRegisterSelfForEvent}
               onViewRegistrations={handleViewEventRegistrations}
               isSuperUser={isSuperUser}
               lastSavedEventId={lastSavedEventId}
@@ -525,6 +545,7 @@ function AdminDashboardPage() {
             currentUserProfile={userProfile}
             initialEventId={registrationsJump?.eventId || ''}
             initialRegisterMemberOpen={Boolean(registrationsJump?.openRegisterMember)}
+            initialRegisterSelf={Boolean(registrationsJump?.registerSelf)}
             isSuperUser={isSuperUser}
             onReturnToSource={registrationsJump ? handleReturnFromRegistrationsJump : undefined}
           />

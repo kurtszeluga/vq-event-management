@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import ModalDialog from '../ModalDialog.jsx';
 import { createAdminRegistration } from '../../services/registrationService.js';
@@ -34,9 +34,18 @@ const ACTIVE_REGISTRATION_STATUSES = ['Pending Payment', 'Registered', 'Waitlist
 // member for an event, it does not edit their profile. A stale phone or
 // missing name blocks submission with a pointer to User Controls instead of
 // letting the admin silently rewrite someone else's profile here.
-function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = false, onClose, onRegistered, open, users }) {
+function AdminRegisterMemberPanel({
+  event,
+  existingRegistrations = [],
+  initialMember = null,
+  isFull = false,
+  onClose,
+  onRegistered,
+  open,
+  users
+}) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMember, setSelectedMember] = useState(null);
+  const [selectedMember, setSelectedMember] = useState(initialMember);
   const [duplicateRegistration, setDuplicateRegistration] = useState(null);
   const [cashCheckOverride, setCashCheckOverride] = useState(false);
   const [paymentReceived, setPaymentReceived] = useState(false);
@@ -45,6 +54,15 @@ function AdminRegisterMemberPanel({ event, existingRegistrations = [], isFull = 
   const [submitting, setSubmitting] = useState(false);
   const [waitlistConfirmationOpen, setWaitlistConfirmationOpen] = useState(false);
   const idempotencyKeyRef = useRef(createAttemptKey());
+
+  // Register Myself arrives with the admin's own profile already chosen, so
+  // the search step is skipped entirely. Reset on reopen, since the same
+  // mounted panel serves both that and the ordinary member search.
+  useEffect(() => {
+    if (open) {
+      setSelectedMember(initialMember);
+    }
+  }, [initialMember, open]);
 
   // The same reason the member-facing page shows, from the same function, so
   // the two cannot drift into giving different answers about one event.

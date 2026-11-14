@@ -654,3 +654,31 @@ describe('an event that cannot take registrations', () => {
     expect(screen.getByLabelText('Search Members')).toBeTruthy();
   });
 });
+
+describe('Register Myself: the admin preselected', () => {
+  // An admin registering themselves runs this same panel with their own
+  // profile already chosen. It matters for a plain (non-Super) admin: the
+  // member search only lists admin profiles for a Super User, so they could
+  // never find themselves by typing.
+  it('skips the search and opens with the admin already selected', () => {
+    renderPanel({ initialMember: MEMBERS[0] });
+
+    expect(screen.queryByLabelText('Search Members')).toBeNull();
+    expect(screen.getAllByText(/Ada Lovelace/).length).toBeGreaterThan(0);
+  });
+
+  it('offers the cash/check payment-received prompt to them', () => {
+    // The whole point of routing Register Myself through here: the server
+    // honours a collected cash/check payment only for an admin-authorized
+    // request, so the member-facing page can never offer this.
+    renderPanel({ event: PAID_CASH_CHECK_EVENT, initialMember: MEMBERS[0] });
+
+    expect(screen.getByText(/Payment was already received/i)).toBeTruthy();
+  });
+
+  it('still starts at the search when no one is preselected', () => {
+    renderPanel();
+
+    expect(screen.getByLabelText('Search Members')).toBeTruthy();
+  });
+});

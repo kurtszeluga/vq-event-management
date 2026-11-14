@@ -47,6 +47,7 @@ function RegistrationPanel({
   currentUserProfile,
   initialEventId = '',
   initialRegisterMemberOpen = false,
+  initialRegisterSelf = false,
   isSuperUser = false,
   onReturnToSource
 }) {
@@ -195,6 +196,14 @@ function RegistrationPanel({
       setRegisterMemberFromShortcut(true);
     }
   }, [initialEventId, initialRegisterMemberOpen]);
+
+  // Register Myself hands the panel the admin's own profile rather than
+  // relying on the member search, which only lists admin profiles for a Super
+  // User - a plain admin could not find themselves there at all.
+  const registerSelfProfile = useMemo(
+    () => (initialRegisterSelf && registerMemberFromShortcut ? currentUserProfile : null),
+    [currentUserProfile, initialRegisterSelf, registerMemberFromShortcut]
+  );
 
   const eventMap = useMemo(
     () => new Map(events.map((event) => [event.id, event])),
@@ -1174,6 +1183,7 @@ function RegistrationPanel({
       {canRegisterOthers ? (
         <AdminRegisterMemberPanel
           event={selectedEventGroup?.event}
+          initialMember={registerSelfProfile}
           existingRegistrations={selectedEventGroup?.registrations || []}
           isFull={Boolean(selectedEventAvailability?.isFull)}
           onClose={() => {

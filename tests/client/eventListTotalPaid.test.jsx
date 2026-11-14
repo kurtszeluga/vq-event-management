@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-router-dom', () => ({
@@ -147,6 +148,44 @@ describe('EventList registration controls', () => {
       />
     );
 
+    expect(screen.getByText('Register Myself')).toBeTruthy();
+  });
+
+  it('runs the admin flow for Register Myself when the admin can register others', async () => {
+    // An admin registering themselves is still an admin registration - that is
+    // what makes the cash/check "payment already received" prompt available,
+    // since the server honours it only for an admin-authorized request.
+    const onRegisterSelf = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <EventList
+        canRegisterOthers
+        events={[CLOSED_WINDOW_EVENT]}
+        onDelete={() => {}}
+        onEdit={() => {}}
+        onRegisterSelf={onRegisterSelf}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Register Myself' }));
+
+    expect(onRegisterSelf).toHaveBeenCalledWith('evt-not-open');
+  });
+
+  it('falls back to the member page when the admin cannot register others', () => {
+    render(
+      <EventList
+        events={[CLOSED_WINDOW_EVENT]}
+        onDelete={() => {}}
+        onEdit={() => {}}
+        onRegisterSelf={() => {}}
+      />
+    );
+
+    // A link, not a dead control: without the permission behind the admin
+    // panel the member-facing page is the right destination.
+    expect(screen.queryByRole('button', { name: 'Register Myself' })).toBeNull();
     expect(screen.getByText('Register Myself')).toBeTruthy();
   });
 

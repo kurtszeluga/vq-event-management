@@ -38,6 +38,7 @@ function EventList({
   onDelete,
   onEdit,
   onRegisterMember,
+  onRegisterSelf,
   onViewRegistrations,
   registrationCounts = {},
   totalPaidByEventId = {},
@@ -416,13 +417,30 @@ function EventList({
                 Print Registration List
               </Link>
             ) : null}
-            <Link
-              className="button-link secondary-action"
-              state={{ module: sourceModule }}
-              to={`/register?eventId=${event.id}`}
-            >
-              {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
-            </Link>
+            {/* An admin registering themselves is still an admin registration,
+                so this opens the same panel as Register A Member with their own
+                profile chosen - which is what makes the cash/check "payment
+                already received" prompt available to them. The server honours
+                that only for an admin-authorized request. Without the handler
+                (or the permission behind it) it stays the member-facing page,
+                which is the right fallback rather than a dead control. */}
+            {canRegisterOthers && onRegisterSelf ? (
+              <button
+                className="button-link button-reset secondary-action"
+                type="button"
+                onClick={() => onRegisterSelf(event.id)}
+              >
+                {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
+              </button>
+            ) : (
+              <Link
+                className="button-link secondary-action"
+                state={{ module: sourceModule }}
+                to={`/register?eventId=${event.id}`}
+              >
+                {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
+              </Link>
+            )}
             <button
               className={event.status === 'Archived'
                 ? 'button-link button-reset secondary-action archive-action'
