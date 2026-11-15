@@ -32,6 +32,7 @@ import {
   resolveAdminCollectedPayment
 } from './_lib/registration-capacity.js';
 import {
+  createNextWaitlistOffer,
   expireStaleWaitlistOffers,
   waitlistOfferTokenMatches
 } from './_lib/waitlist.js';
@@ -66,6 +67,30 @@ export default async function handler(request, response) {
         windowMs: 10 * 60 * 1000
       });
       await handleClaimWaitlistOffer(request, response, db);
+      return;
+    }
+
+    if (request.body?.action === 'declineWaitlistOffer') {
+      await enforceRateLimit(db, {
+        limit: 20,
+        message: 'Too many waitlist requests.',
+        request,
+        scope: 'waitlist-decline-ip',
+        windowMs: 10 * 60 * 1000
+      });
+      await handleDeclineWaitlistOffer(request, response, db);
+      return;
+    }
+
+    if (request.body?.action === 'passWaitlistOffer') {
+      await enforceRateLimit(db, {
+        limit: 40,
+        message: 'Too many waitlist requests.',
+        request,
+        scope: 'waitlist-pass-ip',
+        windowMs: 10 * 60 * 1000
+      });
+      await handlePassWaitlistOffer(request, response, db, app.options.projectId);
       return;
     }
 
@@ -308,15 +333,30 @@ async function handleClaimWaitlistOffer(request, response, db) {
   const eventSnap = await db.collection('events').doc(registration.eventId).get();
 
   if (eventSnap.exists) {
+    const confirmationContext = {
+      event: { id: eventSnap.id, ...eventSnap.data() },
+      registration: { ...registration, status: 'Registered' }
+    };
+
     await withTimeout(
-      sendRegistrationConfirmationEmail(db, {
-        event: { id: eventSnap.id, ...eventSnap.data() },
-        registration: { ...registration, status: 'Registered' }
-      }),
+      sendRegistrationConfirmationEmail(db, confirmationContext),
       4000,
       'Waitlist claim confirmation email timed out'
     ).catch((emailError) => {
       console.error('Waitlist claim confirmation email failed', emailError);
+    });
+
+    // Claiming a waitlist seat IS a registration, so the coordinator hears
+    // about it the same way they hear about any other one. Until now this was
+    // the one route onto an event roster that notified nobody but the member:
+    // someone could join a class through the waitlist and the coordinator
+    // planning supplies for it would never be told.
+    await withTimeout(
+      sendCoordinatorRegistrationEmail(db, confirmationContext),
+      4000,
+      'Waitlist claim coordinator notification email timed out'
+    ).catch((emailError) => {
+      console.error('Waitlist claim coordinator notification email failed', emailError);
     });
   }
 
@@ -417,7 +457,146 @@ async function finalizeWaitlistClaimPayment(db, registration, squarePayment) {
   await syncEventRegistrationSheet(db, registration.eventId);
 }
 
-async function handleManuallyPromoteWaitlisted(request, response, db, projectId) {
+// A member turning the seat down, from the link in their own offer email -
+// authorized by that link's token exactly as claiming is, with no sign-in.
+//
+// Worth having its own route rather than leaving them to ignore the email:
+// an ignored offer ties the seat up for the whole claim window plus however
+// long it takes the daily sweep to come round, while a declined one frees it
+// in seconds. That gap is the entire reason this exists.
+async function handleDeclineWaitlistOffer(request, response, db) {
+  const registrationId = cleanText(request.body?.registrationId);
+  const token = cleanText(request.body?.token);
+
+  if (!registrationId || !token) {
+    throw httpError(400, 'This link is invalid.');
+  }
+
+  const registrationSnap = await db.collection('registrations').doc(registrationId).get();
+
+  if (!registrationSnap.exists) {
+    throw httpError(404, 'This offer is no longer available.');
+  }
+
+  const registration = { id: registrationSnap.id, ...registrationSnap.data() };
+  const offerValid = registration.status === 'Waitlisted'
+    && hasActiveWaitlistOffer(registration)
+    && waitlistOfferTokenMatches(registrationId, token, registration.waitlistOfferTokenHash);
+
+  if (!offerValid) {
+    throw httpError(400, 'This offer is no longer available. It may have expired or already been claimed by someone else.');
+  }
+
+  await releaseWaitlistOffer(db, registration, {
+    actorEmail: registration.email,
+    actorName: registration.name,
+    actorRole: 'Registrant',
+    actorUserId: registration.userId || '',
+    auditAction: 'DeclineWaitlistOffer',
+    summary: `${registration.name} declined their waitlist offer for "${registration.eventTitle}"`
+  });
+
+  response.status(200).json({ declined: true });
+}
+
+// The same act, recorded by an admin on the member's behalf - the coordinator
+// rings the person whose offer is outstanding, hears "not this one", and says
+// so here rather than having to cancel the registration and hope the side
+// effect does the right thing.
+//
+// Deliberately NOT a reordering of the queue. Someone who turns down a seat on
+// this event has turned down the only thing this event's waitlist is for, so
+// "pass" and "decline" are the same operation and share one implementation.
+async function handlePassWaitlistOffer(request, response, db, projectId) {
+  const actorProfile = await authorizeWaitlistManager(request, db, projectId);
+  const registrationId = cleanText(request.body?.registrationId);
+
+  if (!registrationId) {
+    throw httpError(400, 'Registration ID is required.');
+  }
+
+  const registrationSnap = await db.collection('registrations').doc(registrationId).get();
+
+  if (!registrationSnap.exists) {
+    throw httpError(404, 'Registration record could not be found.');
+  }
+
+  const registration = { id: registrationSnap.id, ...registrationSnap.data() };
+
+  // Gated on there being a live offer, not merely on being waitlisted: with no
+  // outstanding offer there is no seat to pass on, and running this would
+  // silently drop someone off the waitlist for nothing.
+  if (registration.status !== 'Waitlisted' || !hasActiveWaitlistOffer(registration)) {
+    throw httpError(400, 'This registration has no offer outstanding to pass on.');
+  }
+
+  await releaseWaitlistOffer(db, registration, {
+    actorEmail: actorProfile.email || '',
+    actorName: actorProfile.name || actorProfile.email || 'Unknown Admin',
+    actorRole: actorProfile.role || '',
+    actorUserId: actorProfile.userId || '',
+    auditAction: 'PassWaitlistOffer',
+    summary: `${actorProfile.name || 'An admin'} passed ${registration.name}'s waitlist offer for "${registration.eventTitle}" to the next person`
+  });
+
+  response.status(200).json({ passed: true });
+}
+
+// Takes the seat back off a declined offer and hands it straight to the next
+// person, rather than leaving it for the daily sweep.
+//
+// The registration is Cancelled rather than returned to the waitlist. A
+// waitlist belongs to one event, so turning down its seat is turning down the
+// only thing being queued for - leaving them Waitlisted would make them the
+// front of the queue again on the very next opening, which is not what either
+// a member clicking "No thanks" or an admin recording one means.
+async function releaseWaitlistOffer(db, registration, audit) {
+  const batch = db.batch();
+
+  batch.update(db.collection('registrations').doc(registration.id), {
+    status: 'Cancelled',
+    waitlistDeclinedDate: FieldValue.serverTimestamp(),
+    waitlistOfferedAt: FieldValue.delete(),
+    waitlistOfferExpiresAt: FieldValue.delete(),
+    waitlistOfferTokenHash: FieldValue.delete()
+  });
+  batch.set(db.collection('auditLogs').doc(), {
+    action: audit.auditAction,
+    actorEmail: audit.actorEmail,
+    actorName: audit.actorName,
+    actorRole: audit.actorRole,
+    actorUserId: audit.actorUserId,
+    after: { status: 'Cancelled' },
+    before: { status: 'Waitlisted' },
+    createdDate: FieldValue.serverTimestamp(),
+    entityId: registration.id,
+    entityType: 'Registration',
+    summary: audit.summary
+  });
+
+  await batch.commit();
+  await syncEventRegistrantNames(db, registration.eventId);
+  await syncEventRegistrationSheet(db, registration.eventId);
+
+  // Non-fatal: the decline itself has committed and the seat is already free,
+  // so a failure here costs only the immediacy - the daily sweep still finds
+  // this event and offers the seat on.
+  const eventSnap = await db.collection('events').doc(registration.eventId).get();
+
+  if (eventSnap.exists) {
+    await withTimeout(
+      createNextWaitlistOffer(db, { id: eventSnap.id, ...eventSnap.data() }),
+      6000,
+      'Next waitlist offer timed out'
+    ).catch((offerError) => {
+      console.error('Next waitlist offer failed', offerError);
+    });
+  }
+}
+
+// Shared by the two admin waitlist routes so they cannot drift on who is
+// allowed to touch a waitlist.
+async function authorizeWaitlistManager(request, db, projectId) {
   const idToken = getBearerToken(request);
 
   if (!idToken) {
@@ -445,6 +624,12 @@ async function handleManuallyPromoteWaitlisted(request, response, db, projectId)
     throw httpError(403, 'This account cannot manage the waitlist.');
   }
 
+  return { ...actorProfile, userId: actorUserId };
+}
+
+async function handleManuallyPromoteWaitlisted(request, response, db, projectId) {
+  const actorProfile = await authorizeWaitlistManager(request, db, projectId);
+  const actorUserId = actorProfile.userId;
   const registrationId = cleanText(request.body?.registrationId);
 
   if (!registrationId) {

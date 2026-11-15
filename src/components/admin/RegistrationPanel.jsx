@@ -14,6 +14,7 @@ import {
 import {
   cancelRegistration,
   manuallyPromoteWaitlisted,
+  passWaitlistOffer,
   subscribeToPayments,
   subscribeToRegistrations,
   updateRegistrationPayment
@@ -21,7 +22,7 @@ import {
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
-import { isPaymentPending } from '../../utils/registrationEligibility.js';
+import { hasOutstandingWaitlistOffer, isPaymentPending } from '../../utils/registrationEligibility.js';
 import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
 import { getRegistrationWindowState } from '../../../shared/registrationWindow.js';
 
@@ -77,6 +78,9 @@ function RegistrationPanel({
   });
   const [savingRegistrationId, setSavingRegistrationId] = useState('');
   const [promotingRegistrationId, setPromotingRegistrationId] = useState('');
+  const [passingRegistration, setPassingRegistration] = useState(null);
+  const [passingBusy, setPassingBusy] = useState(false);
+  const [passError, setPassError] = useState('');
   const [expandedRegistrationId, setExpandedRegistrationId] = useState('');
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
@@ -778,6 +782,27 @@ function RegistrationPanel({
   // someone registers them outright. Any payment still owed is collected
   // afterward through the same payment-status edit every other registration
   // already uses, not a separate flow here.
+  async function handleConfirmPassWaitlistOffer() {
+    if (!passingRegistration) {
+      return;
+    }
+
+    setPassError('');
+    setPassingBusy(true);
+
+    try {
+      await passWaitlistOffer(passingRegistration.id);
+      setSuccessMessage(
+        `${passingRegistration.name || 'Registrant'}'s offer was passed to the next person on the waitlist.`
+      );
+      setPassingRegistration(null);
+    } catch (error) {
+      setPassError(error.message || 'This offer could not be passed on.');
+    } finally {
+      setPassingBusy(false);
+    }
+  }
+
   async function handlePromoteWaitlisted(registration) {
     setError('');
     setSuccessMessage('');
@@ -1095,6 +1120,22 @@ function RegistrationPanel({
                                     onClick={() => handlePromoteWaitlisted(registration)}
                                   >
                                     {promotingRegistrationId === registration.id ? 'Promoting...' : 'Promote'}
+                                  </button>
+                                ) : null}
+                                {/* Only while an offer is actually outstanding:
+                                    with none there is no seat to pass on, and
+                                    the control would just drop someone off the
+                                    waitlist for nothing. */}
+                                {canManageWaitlist && hasOutstandingWaitlistOffer(registration) ? (
+                                  <button
+                                    className="button-link button-reset secondary-action compact-action"
+                                    type="button"
+                                    onClick={() => {
+                                      setPassError('');
+                                      setPassingRegistration(registration);
+                                    }}
+                                  >
+                                    Pass To Next
                                   </button>
                                 ) : null}
                               </div>
@@ -1453,6 +1494,24 @@ function RegistrationPanel({
           }
         }}
         onConfirm={handleConfirmCancelFreeRegistration}
+      />
+      <ConfirmDialog
+        busy={passingBusy}
+        cancelLabel="Keep Their Offer"
+        confirmLabel="Pass To Next Person"
+        description={passingRegistration
+          ? `${passingRegistration.name || 'This registrant'} turned down their spot for "${passingRegistration.eventTitle || 'this event'}"? The seat goes to the next person on the waitlist right away, and ${passingRegistration.name || 'they'} comes off the list for this event.`
+          : ''}
+        error={passError}
+        open={Boolean(passingRegistration)}
+        title="Pass This Offer On?"
+        tone="danger"
+        onCancel={() => {
+          if (!passingBusy) {
+            setPassingRegistration(null);
+          }
+        }}
+        onConfirm={handleConfirmPassWaitlistOffer}
       />
     </section>
   );

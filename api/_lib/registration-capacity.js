@@ -32,6 +32,27 @@ export function hasAvailableSeat({
     || activeSeatCount + activeReservationCount < Number(event.capacity || 0);
 }
 
+// True when an event edit added seats - a larger capacity, or a switch to
+// unlimited. Decides whether saving an event should offer the new seats to
+// anyone waiting on it.
+//
+// A capacity DROP is deliberately false rather than an error: hasAvailableSeat
+// already refuses to seat anyone past the new number, and nothing needs
+// un-offering, since an offer is only ever made against a seat that was free
+// when it was made. An event already unlimited cannot gain seats, because it
+// never ran out of them.
+export function didCapacityGrow(before = {}, after = {}) {
+  if (after.capacityUnlimited) {
+    return !before.capacityUnlimited;
+  }
+
+  if (before.capacityUnlimited) {
+    return false;
+  }
+
+  return Number(after.capacity || 0) > Number(before.capacity || 0);
+}
+
 export function isActiveReservation(reservation = {}, now = Date.now()) {
   return reservation.status === 'Active'
     && getTimestampMillis(reservation.expiresAt) > now;

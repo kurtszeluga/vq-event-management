@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import RegistrationPaymentPanel from '../components/RegistrationPaymentPanel.jsx';
 import { getSquareTokenizeError } from '../hooks/usePaymentReservation.js';
-import { claimWaitlistOffer, loadSquarePaymentConfig } from '../services/registrationService.js';
+import {
+  claimWaitlistOffer,
+  declineWaitlistOffer,
+  loadSquarePaymentConfig
+} from '../services/registrationService.js';
 import { formatCurrency } from '../utils/eventFormat.js';
 
 // Reachable with no sign-in - the emailed claim link's own token is what
@@ -26,6 +31,10 @@ function WaitlistClaimPage() {
   const [squareWalletToken, setSquareWalletToken] = useState('');
   const [squareError, setSquareError] = useState('');
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const [declineError, setDeclineError] = useState('');
 
   useEffect(() => {
     if (!registrationId || !token) {
@@ -102,6 +111,24 @@ function WaitlistClaimPage() {
     }
   }, [offer, registrationId, squareCard, squareWalletToken, token]);
 
+  async function handleDecline() {
+    setDeclineError('');
+    setDeclining(true);
+
+    try {
+      await declineWaitlistOffer({ registrationId, token });
+      setDeclineOpen(false);
+      setDeclined(true);
+    } catch (error) {
+      // Left open with the reason inside it rather than closing on someone
+      // who would then have no idea what happened, matching how the
+      // registration password dialog handles a failure.
+      setDeclineError(error.message);
+    } finally {
+      setDeclining(false);
+    }
+  }
+
   if (loading) {
     return (
       <section>
@@ -122,6 +149,24 @@ function WaitlistClaimPage() {
             Browse Events
           </Link>
         </div>
+      </section>
+    );
+  }
+
+  if (declined) {
+    return (
+      <section>
+        <PageHeader eyebrow="Waitlist" title="Thanks For Letting Us Know" />
+        <div className="status-panel">
+          <span className="status-dot" />
+          <span>
+            Your spot for {offer?.eventTitle || 'this event'} has been passed to the next person on the
+            waitlist, and you have been taken off the list for it.
+          </span>
+        </div>
+        <Link className="button-link" to="/events">
+          Browse Events
+        </Link>
       </section>
     );
   }
@@ -178,6 +223,35 @@ function WaitlistClaimPage() {
           </button>
         </form>
       )}
+      {/* Outside the payment form on purpose - inside it, declining would be a
+          second submit button competing with Pay & Claim, and Enter in the
+          card fields could reach the wrong one. */}
+      <div className="waitlist-decline-row">
+        <p className="form-help">Can&apos;t make it? Letting us know frees the seat for the next person straight away.</p>
+        <button
+          className="text-button"
+          disabled={confirming || submittingPayment}
+          type="button"
+          onClick={() => {
+            setDeclineError('');
+            setDeclineOpen(true);
+          }}
+        >
+          No Thanks, Give It To Someone Else
+        </button>
+      </div>
+      <ConfirmDialog
+        busy={declining}
+        cancelLabel="Keep My Offer"
+        confirmLabel="Yes, Give It Up"
+        description={`This gives your spot for ${offer?.eventTitle || 'this event'} to the next person on the waitlist and takes you off the list for it. You can register again later if seats are still open, but you will not keep your place in the queue.`}
+        error={declineError}
+        onCancel={declining ? undefined : () => setDeclineOpen(false)}
+        onConfirm={handleDecline}
+        open={declineOpen}
+        title="Give Up This Spot?"
+        tone="danger"
+      />
     </section>
   );
 }

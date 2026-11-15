@@ -47,6 +47,32 @@ export function requiresSquarePayment(event, paymentPreference) {
   return isPaidEvent(event) && !event?.cashCheckOnly && paymentPreference !== CASH_CHECK_LATER;
 }
 
+// Whether this registration is holding a seat it has been offered and not yet
+// answered - the condition for offering an admin the Pass To Next control,
+// since with no outstanding offer there is no seat to pass on and the control
+// would only drop someone off the waitlist for nothing.
+//
+// Mirrors hasActiveWaitlistOffer in api/_lib/registration-capacity.js, which
+// is server-only. The two disagreeing is mild in this direction: a stale
+// clock shows a control whose request the server then refuses with a reason.
+export function hasOutstandingWaitlistOffer(registration) {
+  if (registration?.status !== 'Waitlisted') {
+    return false;
+  }
+
+  const expiresAt = registration.waitlistOfferExpiresAt;
+
+  if (!expiresAt) {
+    return false;
+  }
+
+  const expiresAtMillis = typeof expiresAt.toDate === 'function'
+    ? expiresAt.toDate().getTime()
+    : new Date(expiresAt).getTime();
+
+  return !Number.isNaN(expiresAtMillis) && expiresAtMillis > Date.now();
+}
+
 export function isJoiningWaitlist(paymentReservation) {
   return paymentReservation?.status === 'Waitlisted';
 }

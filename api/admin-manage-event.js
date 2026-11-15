@@ -2,11 +2,17 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
-import { getArchiveBlockError, getEventCapacityError, getEventImagesError } from './_lib/registration-capacity.js';
+import {
+  didCapacityGrow,
+  getArchiveBlockError,
+  getEventCapacityError,
+  getEventImagesError
+} from './_lib/registration-capacity.js';
 import {
   getRegistrationSheetState,
   syncEventRegistrationSheet
 } from './_lib/event-registration-sheet.js';
+import { offerFreedSeatsToWaitlist } from './_lib/waitlist.js';
 
 let firebaseProjectId = '';
 
@@ -279,11 +285,49 @@ export default async function handler(request, response) {
     // Catches the event that had registration switched on after it was first
     // created, and renames the sheet when the title or date changed.
     await syncEventRegistrationSheet(db, eventId);
+    await offerNewSeatsToWaitlist(db, { after: payload, before, eventId });
 
     response.status(200).json({ eventId, ok: true });
   } catch (error) {
     response.status(error.statusCode || 500).json({ error: error.message });
   }
+}
+
+// Adding seats to a full event used to be silent: the seats simply became
+// available to whoever registered next, while the people already waiting for
+// exactly those seats heard nothing. This closes that, mirroring how a
+// cancellation offers the seat it frees (promoteFromWaitlistIfSeatFreed in
+// admin-update-registration-payment.js).
+//
+// Deliberately not fatal. An admin's save has already committed by the time
+// this runs, so a Firestore hiccup or an unreachable Resend must not turn a
+// saved event into an error on screen - the worst case is the silent
+// behaviour we had before, recoverable with the Promote button.
+async function offerNewSeatsToWaitlist(db, { after, before, eventId }) {
+  // An archived event is not taking anyone, so a capacity edit on one is
+  // bookkeeping rather than an opening.
+  if (after.status === 'Archived' || !didCapacityGrow(before, after)) {
+    return;
+  }
+
+  await withTimeout(
+    offerFreedSeatsToWaitlist(db, { id: eventId, ...after }),
+    8000,
+    'Waitlist offers for added seats timed out'
+  ).catch((error) => {
+    console.error('Waitlist offers for added seats failed', error);
+  });
+}
+
+// The budget above covers the whole run rather than one offer, because adding
+// several seats sends several emails in sequence.
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    })
+  ]);
 }
 
 function canManageEvents(actorProfile) {

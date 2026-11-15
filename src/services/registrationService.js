@@ -459,6 +459,57 @@ export async function claimWaitlistOffer({ confirmed = false, registrationId, sq
   return result;
 }
 
+// Turning the seat down from the offer email. Authorized by the same link
+// token as claiming, so it needs no sign-in.
+export async function declineWaitlistOffer({ registrationId, token }) {
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({
+      action: 'declineWaitlistOffer',
+      registrationId,
+      token
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'This offer could not be declined.');
+  }
+
+  return result;
+}
+
+// The admin recording that same decline after speaking to the member.
+export async function passWaitlistOffer(registrationId) {
+  const idToken = await auth?.currentUser?.getIdToken();
+
+  if (!idToken) {
+    throw new Error('You must be signed in to manage the waitlist.');
+  }
+
+  const response = await fetch('/api/create-registration', {
+    body: JSON.stringify({
+      action: 'passWaitlistOffer',
+      registrationId
+    }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'This offer could not be passed on.');
+  }
+
+  return result;
+}
+
 export async function manuallyPromoteWaitlisted(registrationId) {
   const idToken = await auth?.currentUser?.getIdToken();
 
