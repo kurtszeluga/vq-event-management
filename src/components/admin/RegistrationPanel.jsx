@@ -1065,8 +1065,11 @@ function RegistrationPanel({
                                 : (registration.status || 'Registered')}
                             </td>
                             <td data-label="Payment">{formatPaymentSummary(registration)}</td>
+                            {/* Short forms so the column is as wide as its
+                                header and no wider - the full wording is a
+                                row away in the expanded detail below. */}
                             <td data-label="Profile">
-                              {registration.userId ? 'Matched Profile' : 'Guest / Email Only'}
+                              {registration.userId ? 'Matched' : 'Guest'}
                             </td>
                             <td data-label="Actions">
                               <div className="card-actions">

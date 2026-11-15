@@ -3178,6 +3178,35 @@ div.csv-preview-warning {
   margin-left: auto;
 }
 
+/* The event admin card asks for its controls on two rows: record-level
+   controls first (Archive set apart on the left, then Edit, Review/Edit
+   Registrations, Print Registration List), the two register controls on a
+   row of their own underneath.
+
+   A flex column rather than a grid on purpose - the narrow-viewport rule
+   further down sets grid-template-columns on .card-actions, which would
+   turn these two rows back into two side-by-side columns. */
+.event-admin-card-actions {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-admin-card-actions .card-actions-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Archive no longer floats to the far right of a single row, so the gap that
+   keeps it away from Edit has to be stated rather than inherited from the
+   leftover space. */
+.event-admin-card-actions .archive-action {
+  margin-left: 0;
+  margin-right: 18px;
+}
+
 .recently-saved-flag {
   color: #b53a29;
   font-size: 0.78rem;
@@ -3438,6 +3467,50 @@ div.csv-preview-warning {
 .registration-table tbody tr.registration-detail-row td:last-child {
   box-shadow: none;
   position: static;
+}
+
+/* All seven columns now fit a laptop window, so the wrapper above only has to
+   scroll on genuinely narrow ones. Getting there meant taking the width back
+   from the things that were claiming more than their content needed: the
+   uppercase headers (which were setting the width of the four short-valued
+   columns on their own), the cell padding, the oversized email line under each
+   registrant name, and the Details/Edit pills.
+
+   Scoped to the admin panel's copy of the table - the registration list print
+   page renders .registration-table too, and sizes its columns from the fixed
+   layout in the @media print block instead. */
+.registration-admin-card .registration-table th,
+.registration-admin-card .registration-table tr:not(.registration-detail-row) > td {
+  padding: 12px 8px;
+}
+
+.registration-admin-card .registration-table th {
+  font-size: 0.78rem;
+}
+
+.registration-admin-card .registration-table tr:not(.registration-detail-row) > td {
+  font-size: 0.94rem;
+}
+
+/* The email under the name was a whole step larger than the name's own label
+   size and wrapped nowhere, so one long address used to set the width of the
+   widest column in the table. */
+.registration-admin-card .registration-table td[data-label="Registrant"] span {
+  font-size: 0.86rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* ...which is also why Registrant needs a floor: without it the browser hands
+   the width it just gave up to the columns that were asked to be narrow. */
+.registration-admin-card .registration-table th:first-child,
+.registration-admin-card .registration-table td[data-label="Registrant"] {
+  min-width: 270px;
+}
+
+.registration-admin-card .registration-table .compact-action {
+  font-size: 0.78rem;
+  padding: 5px 7px;
 }
 
 .registration-inline-details {

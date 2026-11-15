@@ -385,72 +385,81 @@ function EventList({
               <div className="image-placeholder" aria-label="No image uploaded" />
             )}
           </div>
-          <div className="card-actions">
-            <button className="button-link button-reset" type="button" onClick={() => onEdit(event)}>
-              Edit
-            </button>
-            {wasLastSaved ? <span className="recently-saved-flag">Saved</span> : null}
-            {canViewRegistrations ? (
+          {/* Two rows by request. The first carries the record-level
+              controls, with the destructive Archive set apart on the left;
+              the second carries the two "put someone on this event" controls,
+              which are a different kind of act and were getting lost among
+              the others when all seven sat on one wrapped row. */}
+          <div className="card-actions event-admin-card-actions">
+            <div className="card-actions-row">
               <button
-                className="button-link button-reset secondary-action"
+                className={event.status === 'Archived'
+                  ? 'button-link button-reset secondary-action archive-action'
+                  : 'danger-button archive-action'}
+                title={event.status === 'Archived' ? 'Reactivate this listing' : 'Archive this listing'}
                 type="button"
-                onClick={() => onViewRegistrations(event.id)}
+                onClick={() => onDelete(event)}
               >
-                Review/Edit Registrations
+                {event.status === 'Archived' ? 'Reactivate' : 'Archive'}
               </button>
-            ) : null}
-            {canRegisterOthers ? (
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => onRegisterMember(event.id)}
-              >
-                Register A Member
+              <button className="button-link button-reset" type="button" onClick={() => onEdit(event)}>
+                Edit
               </button>
-            ) : null}
-            {canViewRegistrations ? (
-              <Link
-                className="button-link secondary-action"
-                to={`/admin/events/${event.id}/registrations/print`}
-                state={{ module: sourceModule }}
-              >
-                Print Registration List
-              </Link>
-            ) : null}
-            {/* An admin registering themselves is still an admin registration,
-                so this opens the same panel as Register A Member with their own
-                profile chosen - which is what makes the cash/check "payment
-                already received" prompt available to them. The server honours
-                that only for an admin-authorized request. Without the handler
-                (or the permission behind it) it stays the member-facing page,
-                which is the right fallback rather than a dead control. */}
-            {canRegisterOthers && onRegisterSelf ? (
-              <button
-                className="button-link button-reset secondary-action"
-                type="button"
-                onClick={() => onRegisterSelf(event.id)}
-              >
-                {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
-              </button>
-            ) : (
-              <Link
-                className="button-link secondary-action"
-                state={{ module: sourceModule }}
-                to={`/register?eventId=${event.id}`}
-              >
-                {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
-              </Link>
-            )}
-            <button
-              className={event.status === 'Archived'
-                ? 'button-link button-reset secondary-action archive-action'
-                : 'danger-button archive-action'}
-              title={event.status === 'Archived' ? 'Reactivate this listing' : 'Archive this listing'}
-              type="button"
-              onClick={() => onDelete(event)}
-            >
-              {event.status === 'Archived' ? 'Reactivate' : 'Archive'}
-            </button>
+              {wasLastSaved ? <span className="recently-saved-flag">Saved</span> : null}
+              {canViewRegistrations ? (
+                <button
+                  className="button-link button-reset secondary-action"
+                  type="button"
+                  onClick={() => onViewRegistrations(event.id)}
+                >
+                  Review/Edit Registrations
+                </button>
+              ) : null}
+              {canViewRegistrations ? (
+                <Link
+                  className="button-link secondary-action"
+                  to={`/admin/events/${event.id}/registrations/print`}
+                  state={{ module: sourceModule }}
+                >
+                  Print Registration List
+                </Link>
+              ) : null}
+            </div>
+            <div className="card-actions-row">
+              {/* An admin registering themselves is still an admin registration,
+                  so this opens the same panel as Register A Member with their own
+                  profile chosen - which is what makes the cash/check "payment
+                  already received" prompt available to them. The server honours
+                  that only for an admin-authorized request. Without the handler
+                  (or the permission behind it) it stays the member-facing page,
+                  which is the right fallback rather than a dead control. */}
+              {canRegisterOthers && onRegisterSelf ? (
+                <button
+                  className="button-link button-reset secondary-action"
+                  type="button"
+                  onClick={() => onRegisterSelf(event.id)}
+                >
+                  {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
+                </button>
+              ) : (
+                <Link
+                  className="button-link secondary-action"
+                  state={{ module: sourceModule }}
+                  to={`/register?eventId=${event.id}`}
+                >
+                  {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
+                </Link>
+              )}
+              {canRegisterOthers ? (
+                <button
+                  className="button-link button-reset secondary-action"
+                  type="button"
+                  onClick={() => onRegisterMember(event.id)}
+                >
+                  Register A Member
+                </button>
+              ) : null}
+            </div>
           </div>
           </article>
         );

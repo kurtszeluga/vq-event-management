@@ -30,11 +30,22 @@ import { listEventDocuments } from '../../shared/eventDocuments.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
 const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
+// 'All' carries no types on purpose: getEventFilter() asks each filter
+// whether it owns an event's type, and an empty list answers no for every
+// event - so the All button never becomes the answer to "which type is this",
+// it is only ever a choice the reader makes. Both places that care (the count
+// and the filtered list) special-case it by value.
+const ALL_EVENT_TYPES = 'All';
 const EVENT_TYPE_FILTERS = [
   {
-    label: 'Programs',
-    value: 'Programs',
-    types: ['Class (Half Day)', 'Class (Full Day)', 'Lecture', 'Retreat', 'Other']
+    label: 'All',
+    value: ALL_EVENT_TYPES,
+    types: []
+  },
+  {
+    label: 'Classes',
+    value: 'Classes',
+    types: ['Class (Half Day)', 'Class (Full Day)']
   },
   {
     label: 'Workshops',
@@ -42,12 +53,27 @@ const EVENT_TYPE_FILTERS = [
     types: ['Workshop']
   },
   {
+    label: 'Retreats',
+    value: 'Retreats',
+    types: ['Retreat']
+  },
+  {
+    label: 'Lectures',
+    value: 'Lectures',
+    types: ['Lecture']
+  },
+  {
+    label: 'Other',
+    value: 'Other',
+    types: ['Other']
+  },
+  {
     label: 'Challenges',
     value: 'Challenges',
     types: ['Challenges']
   }
 ];
-const DEFAULT_EVENT_TYPE_FILTER = EVENT_TYPE_FILTERS[0].value;
+const DEFAULT_EVENT_TYPE_FILTER = ALL_EVENT_TYPES;
 
 function getEventTypeLabel(event) {
   return event.eventType || 'Other';
@@ -375,13 +401,16 @@ function EventsPage() {
     [visibleEvents]
   );
   const eventTypeCounts = useMemo(
-    () =>
-      registerableEvents.reduce((counts, event) => {
+    () => {
+      const counts = registerableEvents.reduce((totals, event) => {
         const filter = getEventFilter(getEventTypeLabel(event));
         return filter
-          ? { ...counts, [filter.value]: counts[filter.value] + 1 }
-          : counts;
-      }, Object.fromEntries(EVENT_TYPE_FILTERS.map((filter) => [filter.value, 0]))),
+          ? { ...totals, [filter.value]: totals[filter.value] + 1 }
+          : totals;
+      }, Object.fromEntries(EVENT_TYPE_FILTERS.map((filter) => [filter.value, 0])));
+
+      return { ...counts, [ALL_EVENT_TYPES]: registerableEvents.length };
+    },
     [registerableEvents]
   );
   const eventTypeFilters = useMemo(
@@ -390,9 +419,11 @@ function EventsPage() {
   );
   const filteredEvents = useMemo(
     () =>
-      registerableEvents.filter((event) =>
-        getEventFilter(getEventTypeLabel(event))?.value === eventTypeFilter
-      ),
+      eventTypeFilter === ALL_EVENT_TYPES
+        ? registerableEvents
+        : registerableEvents.filter((event) =>
+            getEventFilter(getEventTypeLabel(event))?.value === eventTypeFilter
+          ),
     [eventTypeFilter, registerableEvents]
   );
 
@@ -515,6 +546,15 @@ function EventsPage() {
               {filter.label} ({eventTypeCounts[filter.value] || 0})
             </button>
           ))}
+        </div>
+      ) : null}
+      {/* Retreats, Lectures, Other and Challenges can each legitimately be
+          empty for a season, and a filter button reading (0) used to leave
+          nothing but blank page under it. Same wording as the admin list. */}
+      {!loading && registerableEvents.length && !filteredEvents.length ? (
+        <div className="empty-state compact-empty-state">
+          <h2>No matching events</h2>
+          <p>Nothing is listed under this type right now. Choose All or another type above.</p>
         </div>
       ) : null}
       <div className="public-event-list">
