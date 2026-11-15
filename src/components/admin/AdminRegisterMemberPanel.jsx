@@ -73,6 +73,7 @@ function AdminRegisterMemberPanel({
   const cashCheckAccepted = eventAllowsCashCheck || (canOverrideCashCheck && cashCheckOverride);
   const unsupported = eventIsPaid && !cashCheckAccepted;
   const profileIssue = getProfileIssue(selectedMember);
+  const profileWarning = getProfileWarning(selectedMember);
   // Only offered when the registration will actually hold a seat - a full
   // event goes to the waitlist instead, and collecting payment for a spot
   // that isn't secured yet doesn't make sense until the member is promoted.
@@ -356,6 +357,11 @@ function AdminRegisterMemberPanel({
               {profileIssue && !duplicateRegistration ? (
                 <p className="form-error">{profileIssue}</p>
               ) : null}
+              {/* .form-notice, not .form-error: something is worth doing, but
+                  nothing has gone wrong and the Register button stays live. */}
+              {profileWarning && !duplicateRegistration ? (
+                <p className="form-notice">{profileWarning}</p>
+              ) : null}
               {canOverrideCashCheck ? (
                 <label className="checkbox-label">
                   <input
@@ -513,6 +519,10 @@ function findActiveRegistration(registrations, member) {
 // profile, which reads as a non sequitur to an admin who never sees a
 // reactivation option in this form at all. Checking here, with wording aimed
 // at the admin, means that server message should never actually be seen.
+//
+// Only the two things that make a registration record unusable block it. A
+// missing phone number is a gap in the profile, not a reason the registration
+// cannot exist - see getProfileWarning.
 function getProfileIssue(member) {
   if (!member) {
     return '';
@@ -529,8 +539,33 @@ function getProfileIssue(member) {
     return "This member's profile is missing a name. Update it via User Controls before registering them.";
   }
 
-  if (String(member.phone || '').replace(/\D/g, '').length < 10) {
-    return "This member's profile is missing a valid phone number. Update it via User Controls before registering them.";
+  return '';
+}
+
+// A missing or partial phone number used to block the registration outright,
+// which put an admin in a bind this form cannot get them out of: the phone is
+// read-only here, so the only way forward was to abandon the registration,
+// go and edit the profile, and come back - for a member who may genuinely not
+// have given the guild a phone number at all.
+//
+// It is worth saying, because the guild does ring people (the waitlist offer
+// notification exists precisely so a coordinator can chase someone), so an
+// event roster with no number on it is a real gap. But it is a gap in the
+// profile, which is where it has to be fixed, and holding the registration
+// hostage to it fixes nothing.
+function getProfileWarning(member) {
+  if (!member || getProfileIssue(member)) {
+    return '';
+  }
+
+  const digits = String(member.phone || '').replace(/\D/g, '');
+
+  if (!digits.length) {
+    return "This member's profile has no phone number. You can register them anyway - add one via User Controls if the guild needs to reach them about this event.";
+  }
+
+  if (digits.length < 10) {
+    return "This member's profile has an incomplete phone number. You can register them anyway - correct it via User Controls if the guild needs to reach them about this event.";
   }
 
   return '';

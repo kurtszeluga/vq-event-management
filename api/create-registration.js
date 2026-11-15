@@ -166,8 +166,10 @@ export default async function handler(request, response) {
       return;
     }
 
-    if (!payload.name || !payload.email || !payload.phone) {
-      response.status(400).json({ error: 'Name, email, and phone are required.' });
+    const contactError = getContactDetailsError(payload, isAdminRegister);
+
+    if (contactError) {
+      response.status(400).json({ error: contactError });
       return;
     }
 
@@ -677,6 +679,29 @@ async function handleManuallyPromoteWaitlisted(request, response, db, projectId)
   await syncEventRegistrationSheet(db, registration.eventId);
 
   response.status(200).json({ registrationId, status: 'Registered' });
+}
+
+// Phone is required of someone filling the form in themselves - they are
+// typing their own details and can supply it. It is NOT required of an admin
+// registering a matched member: that form shows the phone read-only from the
+// stored profile and offers no way to enter one, so a member who never gave
+// the guild a number made the registration impossible rather than merely
+// incomplete. The gap is real - the guild does ring people - but it belongs
+// in User Controls, which is where it can actually be fixed.
+//
+// Name and email stay required of both, because a registration record without
+// them cannot be acted on at all: nothing to put on a roster, nowhere to send
+// a confirmation.
+export function getContactDetailsError(payload = {}, isAdminRegister = false) {
+  if (!payload.name || !payload.email) {
+    return 'Name and email are required.';
+  }
+
+  if (!isAdminRegister && !payload.phone) {
+    return 'Name, email, and phone are required.';
+  }
+
+  return '';
 }
 
 export function canManageWaitlist(actorProfile) {
@@ -2122,7 +2147,7 @@ function buildCoordinatorNotificationHtml({ event, printUrl, registration, summa
                   <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">New Registrant</h2>
                   ${buildDetailRowHtml('Name', registration.name)}
                   ${buildDetailRowHtml('Email', registration.email)}
-                  ${buildDetailRowHtml('Phone', registration.phone)}
+                  ${buildDetailRowHtml('Phone', registration.phone || 'Not set')}
                   ${buildDetailRowHtml('Status', registration.status)}
                   ${buildDetailRowHtml('Payment Status', registration.paymentStatus || 'Pending')}
                   ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount', formatCurrency(registration.amountDue)) : ''}
@@ -2164,7 +2189,7 @@ function buildCoordinatorNotificationText({ event, printUrl, registration, summa
     '',
     `Name: ${registration.name}`,
     `Email: ${registration.email}`,
-    `Phone: ${registration.phone}`,
+    `Phone: ${registration.phone || 'Not set'}`,
     `Status: ${registration.status}`,
     `Payment Status: ${registration.paymentStatus || 'Pending'}`,
     registration.eventPaymentRequired ? `Amount: ${formatCurrency(registration.amountDue)}` : '',

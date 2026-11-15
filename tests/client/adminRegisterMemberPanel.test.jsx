@@ -223,13 +223,71 @@ describe('selecting a member', () => {
 });
 
 describe('incomplete member profiles', () => {
-  it('blocks submission and explains why for a member with no phone on file', async () => {
+  // This used to block. It put the admin somewhere this form cannot get them
+  // out of: the phone is read-only here, so the only way forward was to
+  // abandon the registration, edit the profile and come back - for a member
+  // who may simply never have given the guild a number.
+  it('says a member has no phone on file, and registers them anyway', async () => {
     const user = userEvent.setup();
     renderPanel();
 
     await searchAndSelect(user, 'nophone', 'Nora Phone');
 
-    expect(screen.getByText(/missing a valid phone number/)).toBeInTheDocument();
+    expect(screen.getByText(/has no phone number/)).toBeInTheDocument();
+    expect(screen.getByText(/You can register them anyway/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Register Member' }));
+
+    await waitFor(() => expect(createAdminRegistration).toHaveBeenCalled());
+    expect(createAdminRegistration.mock.calls[0][0].phone).toBe('');
+  });
+
+  // Told apart from an absent one, because a half-typed number is a mistake
+  // worth naming rather than a gap.
+  it('says when a phone number is there but incomplete, and still registers', async () => {
+    const user = userEvent.setup();
+
+    renderPanel({
+      users: [{
+        email: 'short@example.com',
+        firstName: 'Shona',
+        id: 'user-9',
+        lastName: 'Short',
+        membershipStatus: 'Active',
+        phone: '91955',
+        status: 'Active',
+        userId: 'user-9'
+      }]
+    });
+
+    await searchAndSelect(user, 'short', 'Shona Short');
+
+    expect(screen.getByText(/incomplete phone number/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Register Member' })).not.toBeDisabled();
+  });
+
+  // The two that genuinely stop a registration record being usable still do.
+  it('still blocks a member with no name on file', async () => {
+    const user = userEvent.setup();
+
+    renderPanel({
+      users: [{
+        email: 'noname@example.com',
+        firstName: '',
+        id: 'user-8',
+        lastName: '',
+        membershipStatus: 'Active',
+        name: 'noname@example.com',
+        phone: '9195551236',
+        status: 'Active',
+        userId: 'user-8'
+      }]
+    });
+
+    await searchAndSelect(user, 'noname', 'noname@example.com');
+
+    expect(screen.getByText(/missing a name/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Register Member' })).toBeDisabled();
     expect(createAdminRegistration).not.toHaveBeenCalled();
   });

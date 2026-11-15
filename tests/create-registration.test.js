@@ -4,6 +4,7 @@ import {
   canManageWaitlist,
   canReleaseReservation,
   canRegisterOthers,
+  getContactDetailsError,
   getProfileStatus,
   validateRegistrationEligibility
 } from '../api/create-registration.js';
@@ -265,5 +266,38 @@ describe('canReleaseReservation', () => {
   test('a missing reservation is refused rather than throwing', () => {
     assert.equal(canReleaseReservation(null, RESERVATION_ID, TOKEN), false);
     assert.equal(canReleaseReservation(undefined, RESERVATION_ID, TOKEN), false);
+  });
+});
+
+describe('getContactDetailsError', () => {
+  const COMPLETE = { email: 'ada@example.com', name: 'Ada Lovelace', phone: '9195551234' };
+
+  test('a self-registrant must give a phone number', () => {
+    assert.equal(getContactDetailsError(COMPLETE, false), '');
+    assert.equal(
+      getContactDetailsError({ ...COMPLETE, phone: '' }, false),
+      'Name, email, and phone are required.'
+    );
+  });
+
+  // The admin form shows the phone read-only from the stored profile and
+  // offers no way to type one, so requiring it made a member with no number on
+  // file impossible to register rather than merely incomplete.
+  test('an admin registering a matched member does not', () => {
+    assert.equal(getContactDetailsError({ ...COMPLETE, phone: '' }, true), '');
+    assert.equal(getContactDetailsError({ ...COMPLETE, phone: undefined }, true), '');
+  });
+
+  test('name and email are required of both', () => {
+    for (const isAdminRegister of [false, true]) {
+      assert.equal(
+        getContactDetailsError({ ...COMPLETE, name: '' }, isAdminRegister),
+        'Name and email are required.'
+      );
+      assert.equal(
+        getContactDetailsError({ ...COMPLETE, email: '' }, isAdminRegister),
+        'Name and email are required.'
+      );
+    }
   });
 });
