@@ -68,7 +68,7 @@ This reuses the registration flow's email-verification-code pattern and its endp
   - `addUsers`
   - `manageMembershipStatus`
   - `registerOthers` — register a member on their behalf (cash/check only)
-  - `manageWaitlist` — manually promote a Waitlisted registration off the waitlist
+  - `manageWaitlist` — manually promote a Waitlisted registration off the waitlist, or pass an outstanding offer on to the next person
 - Admin profile permissions are cleared when membership becomes inactive because inactive members cannot hold Guild positions.
 
 ### General User
@@ -226,11 +226,15 @@ Capacity behavior:
 
 Waitlist promotion:
 
-- When a seat frees up (cancellation or refund), the earliest eligible Waitlisted registrant is automatically emailed an offer to claim it themselves through a magic-link claim page - no sign-in required, no auto-registration, no auto-charging.
+- A seat frees up in two ways: a cancellation or refund, and an event's capacity being raised. Either way the earliest eligible Waitlisted registrant is automatically emailed an offer to claim it themselves through a magic-link claim page - no sign-in required, no auto-registration, no auto-charging.
+- Raising capacity offers as many seats as were added, one per person down the waitlist; switching an event to unlimited capacity offers a seat to everyone waiting.
 - A Waitlisted registration with an unexpired offer counts as seat-holding, which is how the offered seat stays reserved during the claim window without a separate reservation record.
-- The claim window is 3 days. If it lapses unclaimed, a scheduled daily job advances the offer to the next person on that event's waitlist.
-- If the waitlist is empty when a seat opens, the event coordinator gets a one-time notification instead of an offer email.
-- Admins with the `manageWaitlist` permission can also manually promote a Waitlisted registration directly from the Registrations panel, bypassing the offer/claim flow entirely.
+- The claim window is 1 day. If it lapses unclaimed, a scheduled daily job advances the offer to the next person on that event's waitlist. The seat itself is released the moment the offer expires, not when the job runs - an expired offer stops counting as seat-holding - so the job only governs how soon the next person is told.
+- The member can decline the offer from the claim page, which frees the seat immediately rather than leaving it idle for the rest of the window. Declining takes them off that event's waitlist; a waitlist belongs to one event, so turning down its seat is turning down the only thing being queued for.
+- The event coordinator is emailed when a seat is offered (naming who was offered it, their contact details, and when the offer lapses, so they can chase the member directly), and again when a seat is claimed. Both share the `sendCoordinatorRegistrationNotifications` opt-in with the ordinary signup notification.
+- If the waitlist is empty when a seat opens, the coordinator gets a one-time notification instead of an offer email. This is suppressed on the capacity-increase path, where it would otherwise fire every time the loop runs out of people to offer.
+- Admins with the `manageWaitlist` permission can manually promote a Waitlisted registration directly from the Registrations panel, bypassing the offer/claim flow entirely, and can record a decline on the member's behalf with Pass To Next - the same operation as the member declining, offered only while an offer is actually outstanding.
+- Both admin screens word their register controls as a waitlist once an event is full and registration is still open: Join Waitlist and Waitlist A Member.
 
 Registration records include:
 

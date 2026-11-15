@@ -31,7 +31,7 @@ The registration process is designed to prevent common problems:
 - Duplicate active registrations are caught before submit.
 - Membership eligibility is checked early.
 - Online paid registrations hold a seat temporarily during payment.
-- Full events can route users to a waitlist; when a seat later opens up, the app automatically emails that person an offer to claim it themselves rather than registering them automatically.
+- Full events can route users to a waitlist; when a seat later opens up, the app automatically emails that person an offer to claim it themselves rather than registering them automatically. The offer lasts a day, and they can decline it from the claim page to pass the seat on immediately.
 - Expired payment holds return the user to the listing so they can start again.
 
 ## Profile-Only Members
@@ -51,7 +51,7 @@ Depending on permissions, admins may be able to:
 - Register a guild member for an event on their behalf, for members who don't use online tools
 - Record payment status changes
 - Cancel free or unpaid registrations without a refund
-- Manually promote someone off a waitlist, in addition to the app's automatic waitlist offers
+- Manually promote someone off a waitlist, or pass an outstanding offer on to the next person after speaking to them, in addition to the app's automatic waitlist offers
 - Manage payments and refunds
 - Add or update General User profiles
 - Change membership status when allowed

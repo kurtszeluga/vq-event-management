@@ -52,7 +52,7 @@ Depending on permissions, admins can:
 - View registration counts, capacity, waitlist counts, and payment status
 - Edit registration payment status where allowed
 - Cancel free or unpaid registrations directly from the registration edit card
-- Manually promote someone off a waitlist, in addition to the app's automatic waitlist offers
+- Manually promote someone off a waitlist, or pass an outstanding offer on to the next person, in addition to the app's automatic waitlist offers
 - Record cash, check, waived, no-charge, and refund information
 - Review Square webhook/payment reconciliation items
 - Create and update General User profiles
@@ -81,7 +81,9 @@ Registration creation is handled by server-side API logic rather than direct bro
 
 For online paid registrations, the app creates a temporary seat hold before the user enters payment information. Active holds count against capacity, preventing a second person from taking the last seat while the first person is paying. If the hold expires, the registration process returns the user to the listing and the seat becomes available again.
 
-When a seat opens up after a cancellation or refund, the app automatically emails the next person on that event's waitlist an offer to claim it themselves - they are never automatically registered or charged. They have a few days to claim it before the offer moves on to the next person. If nobody is left on the waitlist, the event's coordinator is notified instead.
+When a seat opens up - after a cancellation or refund, or because an event's capacity was raised - the app automatically emails the next person on that event's waitlist an offer to claim it themselves. They are never automatically registered or charged. They have a day to claim it before the offer moves on to the next person, and they can turn it down from the same page, which passes the seat on straight away instead of leaving it idle. If nobody is left on the waitlist, the event's coordinator is notified instead.
+
+The coordinator is emailed when a seat is offered and when one is claimed. The offer email names who was offered the seat and how to reach them, so they can ring the member and ask them to check their email rather than waiting out the claim window.
 
 ## Payments And Refunds
 

@@ -208,6 +208,8 @@ Notes:
 
 `vercel.json` declares one Vercel Cron job (`0 13 * * *`, once daily — the Hobby plan's maximum frequency) that hits `/api/create-registration` via `GET` to advance any unclaimed waitlist offers to the next person. Vercel picks this up automatically on deploy; the only setup needed is setting `CRON_SECRET` above, which the cron request must present as a bearer token. Without it, the cron call is refused and unclaimed offers simply never advance until it's set.
 
+What the job does *not* control is the seat. An offer stops holding its seat the moment it expires, because `isSeatHoldingRegistration` only counts an offer expiring in the future — so nothing is ever stranded waiting for the sweep, and the job only decides how soon the next person is told. That is why the claim window (`WAITLIST_OFFER_WINDOW_MS`, 1 day) can be shorter than the gap between cron runs: the worst case per unclaimed offer is the window plus up to a day of sweep lag, and shortening the window shortens that total. The sweep's query is `waitlistOfferExpiresAt < now`, so it catches an expired offer however long ago it expired and cannot "miss" one by running at the wrong moment.
+
 Use Square sandbox credentials while testing and production credentials only when ready to take live payments.
 
 ### GitHub
