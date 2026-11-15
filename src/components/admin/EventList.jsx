@@ -217,6 +217,7 @@ function EventList({
         const availability = getRegistrationAvailability(event, counts);
         const registrationStats = getEventRegistrationStats(event, counts, totalPaidByEventId[event.id]);
         const holdTimeLeft = formatHoldTimeLeft(counts.heldExpiresAt, now);
+        const waitlistOnly = isWaitlistOnly(event, availability);
         const isListing = isListingEventType(event.eventType);
 
         return (
@@ -439,7 +440,7 @@ function EventList({
                   type="button"
                   onClick={() => onRegisterSelf(event.id)}
                 >
-                  {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
+                  {waitlistOnly ? 'Join Waitlist' : 'Register Myself'}
                 </button>
               ) : (
                 <Link
@@ -447,16 +448,23 @@ function EventList({
                   state={{ module: sourceModule }}
                   to={`/register?eventId=${event.id}`}
                 >
-                  {isWaitlistOnly(event, availability) ? 'Join Waitlist' : 'Register Myself'}
+                  {waitlistOnly ? 'Join Waitlist' : 'Register Myself'}
                 </Link>
               )}
+              {/* Its twin above has always said "Join Waitlist" on a full
+                  event; this one kept saying "Register A Member", so a full
+                  card read as though one of the two could still take an
+                  ordinary registration. Both controls behave the same either
+                  way - the panel they open seats the member or waitlists them
+                  on the server's reading of capacity, not on this label - so
+                  this is the wording catching up with what already happens. */}
               {canRegisterOthers ? (
                 <button
                   className="button-link button-reset secondary-action"
                   type="button"
                   onClick={() => onRegisterMember(event.id)}
                 >
-                  Register A Member
+                  {waitlistOnly ? 'Waitlist A Member' : 'Register A Member'}
                 </button>
               ) : null}
             </div>
