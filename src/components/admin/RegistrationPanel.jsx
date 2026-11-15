@@ -21,10 +21,10 @@ import {
 } from '../../services/registrationService.js';
 import { subscribeToUsers } from '../../services/userService.js';
 import { formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/eventFormat.js';
-import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
-import { hasOutstandingWaitlistOffer, isPaymentPending } from '../../utils/registrationEligibility.js';
+import { isEventFullForSeats } from '../../utils/registrationAvailability.js';
+import { hasOutstandingWaitlistOffer, holdsSeat, isPaymentPending } from '../../utils/registrationEligibility.js';
 import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
-import { getRegistrationWindowState } from '../../../shared/registrationWindow.js';
+import { getRegistrationWindowState, isRegistrationWindowOpen } from '../../../shared/registrationWindow.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -334,6 +334,13 @@ function RegistrationPanel({
           displayRegistrationCount: displayRegistrations.length,
           event,
           eventId,
+          // Counted off the raw records rather than derived from `counts`
+          // above, which deliberately double-counts a Registered cash/check
+          // row (see reduceRegistrationCounts) and would report events full
+          // that are not. Raw rather than combined, matching the server: it
+          // counts registration documents, so two records for one person hold
+          // two seats there and must here too.
+          seatsTaken: eventRegistrations.filter(holdsSeat).length,
           rawRegistrationCount: eventRegistrations.length,
           snapshot: eventRegistrations[0] || {},
           registrations: eventRegistrations.sort(compareRegistrationDates),
@@ -524,13 +531,13 @@ function RegistrationPanel({
 
     return ranks;
   }, [selectedEventGroup]);
-  // Uses raw (non-combined) counts, matching the server's seat-holding
-  // definition (Pending Payment + Registered), so a full event is detected
-  // before the admin ever picks a member, not after a submit-time refusal.
-  const selectedEventAvailability = useMemo(
-    () => (selectedEventGroup
-      ? getRegistrationAvailability(selectedEventGroup.event, selectedEventGroup.counts)
-      : null),
+  // A full event is detected before the admin ever picks a member, rather than
+  // by a submit-time refusal. This used to add up the group's registered and
+  // pendingPayment tallies, which overlap by design, so an event with cash or
+  // cheques outstanding could read as full while seats remained.
+  const selectedEventFull = useMemo(
+    () => Boolean(selectedEventGroup?.event)
+      && isEventFullForSeats(selectedEventGroup.event, selectedEventGroup.seatsTaken),
     [selectedEventGroup]
   );
   const selectedRegistrationEvent = selectedRegistration
@@ -974,7 +981,7 @@ function RegistrationPanel({
                         setRegisterSelfMode(false);
                       }}
                     >
-                      Register A Member
+                      {isWaitlistOnlyEvent(group) ? 'Waitlist A Member' : 'Register A Member'}
                     </button>
                   ) : null}
                   {canRegisterOthers && group.event ? (
@@ -989,7 +996,7 @@ function RegistrationPanel({
                         setRegisterSelfMode(true);
                       }}
                     >
-                      Register Myself
+                      {isWaitlistOnlyEvent(group) ? 'Join Waitlist' : 'Register Myself'}
                     </button>
                   ) : null}
                 </div>
@@ -1222,7 +1229,7 @@ function RegistrationPanel({
                       setRegisterSelfMode(false);
                     }}
                   >
-                    Register A Member
+                    {isWaitlistOnlyEvent(group) ? 'Waitlist A Member' : 'Register A Member'}
                   </button>
                 ) : null}
                 {canRegisterOthers && group.event ? (
@@ -1236,7 +1243,7 @@ function RegistrationPanel({
                       setRegisterSelfMode(true);
                     }}
                   >
-                    Register Myself
+                    {isWaitlistOnlyEvent(group) ? 'Join Waitlist' : 'Register Myself'}
                   </button>
                 ) : null}
                 <Link
@@ -1263,7 +1270,7 @@ function RegistrationPanel({
           event={selectedEventGroup?.event}
           initialMember={registerSelfProfile}
           existingRegistrations={selectedEventGroup?.registrations || []}
-          isFull={Boolean(selectedEventAvailability?.isFull)}
+          isFull={selectedEventFull}
           onClose={() => {
             setRegisterMemberOpen(false);
 
@@ -1589,6 +1596,17 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
       </button>
     </th>
   );
+}
+
+// Matches isWaitlistOnly in EventList.jsx, so the same event reads the same
+// way on both admin screens. Registration being open is part of it: a full
+// event whose window has closed is not offering a waitlist either, and
+// inviting someone into a queue that is not forming would be worse than the
+// ordinary wording.
+function isWaitlistOnlyEvent(group) {
+  return Boolean(group?.event)
+    && isEventFullForSeats(group.event, group.seatsTaken)
+    && isRegistrationWindowOpen(group.event);
 }
 
 function createEmptyRegistrationCounts() {

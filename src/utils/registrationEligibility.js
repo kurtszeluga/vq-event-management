@@ -73,6 +73,21 @@ export function hasOutstandingWaitlistOffer(registration) {
   return !Number.isNaN(expiresAtMillis) && expiresAtMillis > Date.now();
 }
 
+// Mirrors isSeatHoldingRegistration in api/_lib/registration-capacity.js: the
+// statuses that occupy a seat, plus a waitlisted registration holding an offer
+// it has not yet answered.
+//
+// Counting registrations with this, rather than adding up the Registrations
+// module's own tallies, is deliberate - those overlap, because a Registered
+// cash/check row awaiting collection is counted as both registered and
+// pendingPayment, so summing them reports events full that are not. A status
+// is a single value, so one pass over the records cannot double-count.
+export function holdsSeat(registration) {
+  return registration?.status === 'Registered'
+    || registration?.status === 'Pending Payment'
+    || hasOutstandingWaitlistOffer(registration);
+}
+
 export function isJoiningWaitlist(paymentReservation) {
   return paymentReservation?.status === 'Waitlisted';
 }
