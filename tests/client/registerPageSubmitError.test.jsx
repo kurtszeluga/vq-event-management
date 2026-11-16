@@ -52,3 +52,38 @@ describe('describeSubmitError', () => {
     expect(describeSubmitError(squareError)).toBe('Card declined by issuer.');
   });
 });
+
+describe('the finished signup', () => {
+  it('offers a way out rather than leaving the member on a dead end', async () => {
+    const { RegistrationCompletion } = await import('../../src/pages/RegisterPage.jsx');
+    const { render, screen, cleanup } = await import('@testing-library/react');
+
+    const event = { eventType: 'Membership', id: 'evt-1', title: 'Guild Membership' };
+    const confirmation = { paymentStatus: 'Paid', status: 'Registered' };
+
+    render(
+      <RegistrationCompletion
+        confirmation={confirmation}
+        event={event}
+        onReturn={() => {}}
+        returnLabel="Close"
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Return To List/i })).toBeNull();
+
+    cleanup();
+
+    // Every other event type keeps the wording it had.
+    render(
+      <RegistrationCompletion
+        confirmation={confirmation}
+        event={{ ...event, eventType: 'Workshop' }}
+        onReturn={() => {}}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /Return To List/i })).toBeInTheDocument();
+  });
+});

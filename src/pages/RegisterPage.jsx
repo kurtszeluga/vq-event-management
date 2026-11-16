@@ -559,6 +559,12 @@ function RegisterPage() {
 
   const handleCompletionClose = useCallback(() => {
     if (isStandaloneSignup) {
+      // Tried first because it is what the member actually wants - the signup
+      // was opened from the guild website and there is nothing here to go
+      // back to. It silently does nothing for a tab this app did not open,
+      // which is most of them, so the terminal card is set either way and
+      // becomes the visible result when the close does not happen.
+      window.close();
       setStandaloneExit('completed');
       return;
     }
@@ -730,7 +736,8 @@ function RegisterPage() {
             event={event}
             passwordSetupError={passwordSetupError}
             passwordSetupPending={passwordSetupPending}
-            onReturn={isStandaloneSignup ? null : handleCompletionClose}
+            onReturn={handleCompletionClose}
+            returnLabel={isStandaloneSignup ? 'Close' : 'Return To List'}
             onSetUpPassword={wantsPasswordSetup && passwordSetupToken ? handleSetUpPassword : null}
           />
         </div>
@@ -1538,7 +1545,8 @@ export function RegistrationCompletion({
   passwordSetupError,
   passwordSetupPending,
   onReturn,
-  onSetUpPassword
+  onSetUpPassword,
+  returnLabel = 'Return To List'
 }) {
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
@@ -1607,7 +1615,7 @@ export function RegistrationCompletion({
         ) : null}
         {onReturn ? (
           <button className="button-link button-reset" type="button" onClick={onReturn}>
-            Return To List
+            {returnLabel}
           </button>
         ) : null}
       </div>

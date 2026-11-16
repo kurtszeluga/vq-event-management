@@ -24,6 +24,7 @@ import { formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/ev
 import { isEventFullForSeats } from '../../utils/registrationAvailability.js';
 import { hasOutstandingWaitlistOffer, holdsSeat, isPaymentPending } from '../../utils/registrationEligibility.js';
 import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
+import { UNLISTED_EVENT_TYPES } from '../../data/eventOptions.js';
 import {
   getRegistrationWindowState,
   isRegistrationWindowOpen,
@@ -978,7 +979,7 @@ function RegistrationPanel({
                   >
                     View/Edit Registrations
                   </button>
-                  {canRegisterOthers && group.event ? (
+                  {canRegisterOthers && group.event && !isUnlistedSignup(group) ? (
                     <button
                       className="button-link button-reset secondary-action compact-action"
                       type="button"
@@ -993,7 +994,7 @@ function RegistrationPanel({
                       {isWaitlistOnlyEvent(group) ? 'Waitlist A Member' : 'Register A Member'}
                     </button>
                   ) : null}
-                  {canRegisterOthers && group.event ? (
+                  {canRegisterOthers && group.event && !isUnlistedSignup(group) ? (
                     <button
                       className="button-link button-reset secondary-action compact-action"
                       type="button"
@@ -1247,7 +1248,7 @@ function RegistrationPanel({
                 )}
               </div>
               <div className="form-actions registration-detail-footer-actions">
-                {canRegisterOthers && group.event ? (
+                {canRegisterOthers && group.event && !isUnlistedSignup(group) ? (
                   <button
                     className="button-link button-reset secondary-action"
                     type="button"
@@ -1261,7 +1262,7 @@ function RegistrationPanel({
                     {isWaitlistOnlyEvent(group) ? 'Waitlist A Member' : 'Register A Member'}
                   </button>
                 ) : null}
-                {canRegisterOthers && group.event ? (
+                {canRegisterOthers && group.event && !isUnlistedSignup(group) ? (
                   <button
                     className="button-link button-reset secondary-action"
                     type="button"
@@ -1632,6 +1633,15 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
 // event whose window has closed is not offering a waitlist either, and
 // inviting someone into a queue that is not forming would be worse than the
 // ordinary wording.
+// An unlisted signup is paid by card through its own link. Admin-initiated
+// registration has no card-entry path at all, so these controls could only
+// ever have produced a cash or cheque registration against dues that are not
+// collected that way - an invitation to make a record that does not match the
+// money. The link is the only route in, deliberately.
+function isUnlistedSignup(group) {
+  return UNLISTED_EVENT_TYPES.includes(group?.event?.eventType);
+}
+
 function isWaitlistOnlyEvent(group) {
   return Boolean(group?.event)
     && isEventFullForSeats(group.event, group.seatsTaken)

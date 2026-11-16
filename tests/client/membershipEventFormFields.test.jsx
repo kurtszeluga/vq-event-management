@@ -155,3 +155,16 @@ describe('every other event type', () => {
     expect(screen.getByLabelText(/List On Website/)).toBeInTheDocument();
   });
 });
+
+describe('an unlisted signup has no admin registration route', () => {
+  it('is named by UNLISTED_EVENT_TYPES, which both admin screens gate on', async () => {
+    const { UNLISTED_EVENT_TYPES } = await import('../../src/data/eventOptions.js');
+
+    // EventList and RegistrationPanel both hide their Register Myself /
+    // Register A Member controls for these types. Admin-initiated
+    // registration cannot take a card, so the only record it could have made
+    // is a cash or cheque one against dues collected by card - a record that
+    // does not match the money. The signup link is the only way in.
+    expect(UNLISTED_EVENT_TYPES).toContain('Membership');
+  });
+});
