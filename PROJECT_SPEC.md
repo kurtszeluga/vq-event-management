@@ -183,6 +183,15 @@ What makes it different from every other type:
   renewing, veteran (yes or no), and an optional free-text box for skills the
   member is willing to share. Four fixed questions, not a question builder -
   see `shared/membershipQuestions.js` for why.
+- **The signup page stands alone**: no site header, no navigation, no
+  breadcrumbs. Only Terms and Privacy remain in the footer, kept deliberately
+  because the page takes a card payment; Support is hidden. Driven by
+  `UNLISTED_EVENT_TYPES`, the same constant that keeps the type out of the
+  lists - a page reached only by a posted link has nowhere of its own to
+  navigate back to.
+- **It collects no location**, and the admin form locks the event type so it
+  cannot be changed by accident: changing it on a live signup would strip the
+  dues schedule and leave a flat-priced event.
 - **Its Google Sheet is four columns wider**, with the answers beside Phone.
   The standard eleven-column header is untouched for every other type, because
   everything to the right of the app's columns belongs to the coordinator and
@@ -192,6 +201,40 @@ What makes it different from every other type:
 Paying does **not** change a profile's Membership Status. That stays a manual
 act in User Controls, deliberately: there is no paid-through date on a profile
 to expire, so an automatic flip to Active would never flip back.
+
+Membership confirmations route to the **Membership** coordinator and the
+Membership email instruction box. Both areas already existed, the coordinator
+one declaring `coveredTypes: ['Membership']`, but `getEmailInstructionArea`
+fell through to Programs for any unrecognised type - so until the type was
+mapped, both were configurable and neither was reachable.
+
+#### The listing dates are the signup link's on/off switch
+
+`isEventVisible()` gates **registration** as well as listing, on the server as
+well as in the browser. Membership appears in no list, so "List On Website" is
+relabelled **"Open The Signup Link"** for this type - but the dates are not
+decorative: past the Remove Listing date the link stops accepting signups, and
+a Draft link does not work at all.
+
+#### Two traps this type sets
+
+**A requirement on a field the type does not render cannot be satisfied or
+seen.** Membership shows no location, date, time, capacity or payment type.
+Every one of those was still required by `validateEventForm`, so saving failed
+with "Please fix the highlighted fields" and nothing was highlighted. The
+`requires*` flags must agree with what the form renders for the type. The test
+that protects this asserts the **whole** error object is empty for the form
+the Membership module hands you; asserting individual keys is what let three
+of these survive a first fix.
+
+**The registration email box is locked to the signed-in account**, and the
+server enforces it: `createRegistration` and `beginSquarePaymentReservation`
+both reject a Firebase-authorized request whose email resolves to a different
+profile. Signing up while signed in as another account therefore shows that
+account's address, which reads as the form changing what was typed. The page
+says so and offers a sign-out route. Making the box editable is not a
+client-side change - it needs the request to drop Firebase authorization and
+use email-code verification on both server paths.
 
 ## Event Configuration
 
