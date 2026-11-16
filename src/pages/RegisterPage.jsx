@@ -905,9 +905,20 @@ function RegisterPage() {
           {needsEmailVerification ? (
             <div className="registration-lookup-card">
               <strong>Email Verification</strong>
-              <span>
-                We will send a six-digit code to this email address so you can continue securely.
-              </span>
+              {/* Only before a code is on its way. Once one has been sent, the
+                  message below says so, and "We will send..." sitting above
+                  "We sent..." reads as though something is still pending. */}
+              {emailVerificationChallengeId ? (
+                <span>
+                  Enter the six-digit code we emailed to <strong>{email}</strong>.
+                  It expires in 10 minutes. Check your junk folder if it is not
+                  there.
+                </span>
+              ) : (
+                <span>
+                  We will send a six-digit code to this email address so you can continue securely.
+                </span>
+              )}
               {emailVerificationError ? <p className="form-error">{emailVerificationError}</p> : null}
               {emailVerificationMessage ? <p className="form-success">{emailVerificationMessage}</p> : null}
               {emailVerificationChallengeId ? (
