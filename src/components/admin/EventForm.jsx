@@ -231,6 +231,9 @@ function EventForm({
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
   const showRegistrationSection = eventTypeSelected && !isListingOnly && !isLecture;
+  // A membership signup is how someone BECOMES a member, so restricting it to
+  // members is not a setting anyone should be able to choose wrongly.
+  const showNonMemberField = showRegistrationSection && !isMembership;
   const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge && !isLecture && !isMembership;
   // Membership replaces the Fees section rather than extending it: the price is
   // not a number typed here, it is the dues schedule from Configuration read
@@ -1827,22 +1830,30 @@ function EventForm({
                 </span>
               )}
             </label>
-            <label className="checkbox-label registration-exception-checkbox">
-              <input
-                checked={Boolean(form.allowNonMemberRegistration)}
-                disabled={!eventTypeSelected}
-                type="checkbox"
-                onChange={(event) =>
-                  handleAllowNonMemberRegistration(event.target.checked)
-                }
-              />
-              <span className="checkbox-label-copy">
-                <span>Allow Non-Members To Register</span>
-                <span className="form-help">
-                  Use only for rare events where Guild membership is not required.
+            {showNonMemberField ? (
+              <label className="checkbox-label registration-exception-checkbox">
+                <input
+                  checked={Boolean(form.allowNonMemberRegistration)}
+                  disabled={!eventTypeSelected}
+                  type="checkbox"
+                  onChange={(event) =>
+                    handleAllowNonMemberRegistration(event.target.checked)
+                  }
+                />
+                <span className="checkbox-label-copy">
+                  <span>Allow Non-Members To Register</span>
+                  <span className="form-help">
+                    Use only for rare events where Guild membership is not required.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            ) : null}
+            {isMembership ? (
+              <p className="form-help">
+                Anyone can use this signup, member or not - that is what it is
+                for, so there is no members-only option on it.
+              </p>
+            ) : null}
           </div>
           ) : null}
         </div>
@@ -2251,7 +2262,11 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     allowCashCheckPayment: hasFees && form.isPaid === true
       ? Boolean(form.allowCashCheckPayment) || Boolean(form.cashCheckOnly)
       : false,
-    allowNonMemberRegistration: !isListingOnly && Boolean(form.allowNonMemberRegistration),
+    // Forced for Membership rather than read from the form: the field is not
+    // on screen for it, and a stored false would make the signup unusable by
+    // exactly the people it exists for.
+    allowNonMemberRegistration: isMembership
+      || (!isListingOnly && Boolean(form.allowNonMemberRegistration)),
     address: toTitleCase(form.address.trim()),
     askingPrice: isForSale ? Number(form.askingPrice || 0) : 0,
     businessName: toTitleCase(form.businessName.trim()),

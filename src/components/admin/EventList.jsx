@@ -466,6 +466,28 @@ function EventList({
               ) : null}
             </div>
             <div className="card-actions-row">
+              {/* An unlisted signup gets one control, not two. "Register
+                  Myself" and "Register A Member" are the same panel with a
+                  different profile preselected, which reads as a real choice
+                  on a class and as noise on a membership signup - the admin is
+                  signing somebody up either way, themselves included.
+
+                  Worth knowing before using it: admin-initiated registration
+                  has no card-entry path, so the server only accepts it for a
+                  paid event when cash or cheque is taken (the override in the
+                  panel). Anyone paying by card has to use the signup link. */}
+              {unlistedTypes.has(event.eventType) ? (
+                canRegisterOthers ? (
+                  <button
+                    className="button-link button-reset secondary-action"
+                    type="button"
+                    onClick={() => onRegisterMember(event.id)}
+                  >
+                    Sign Up A Member
+                  </button>
+                ) : null
+              ) : (
+              <>
               {/* An admin registering themselves is still an admin registration,
                   so this opens the same panel as Register A Member with their own
                   profile chosen - which is what makes the cash/check "payment
@@ -506,6 +528,8 @@ function EventList({
                   {waitlistOnly ? 'Waitlist A Member' : 'Register A Member'}
                 </button>
               ) : null}
+              </>
+              )}
             </div>
           </div>
           </article>

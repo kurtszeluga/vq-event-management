@@ -724,7 +724,7 @@ function RegisterPage() {
             event={event}
             passwordSetupError={passwordSetupError}
             passwordSetupPending={passwordSetupPending}
-            onReturn={handleCompletionClose}
+            onReturn={isStandaloneSignup ? null : handleCompletionClose}
             onSetUpPassword={wantsPasswordSetup && passwordSetupToken ? handleSetUpPassword : null}
           />
         </div>
@@ -773,7 +773,9 @@ function RegisterPage() {
         ]}
         eyebrow="Registration"
         title={`Register For ${event.title}`}
-        description="Start with your email address so we can check your profile and membership."
+        description={isStandaloneSignup
+          ? 'Enter your email address and press Submit. We will email you a 6-digit code to confirm it, then you can fill in the rest of the form.'
+          : 'Start with your email address so we can check your profile and membership.'}
       />
       <ConfirmDialog
         cancelLabel="No Thanks"
@@ -835,7 +837,7 @@ function RegisterPage() {
               type="button"
               onClick={handleEmailLookup}
             >
-              {lookupLoading ? 'Checking...' : 'Check Email'}
+              {lookupLoading ? 'Sending...' : 'Submit'}
             </button>
           )}
           {lookupComplete ? (
@@ -1581,9 +1583,11 @@ export function RegistrationCompletion({
             {passwordSetupPending ? 'Opening...' : 'Create Your Password'}
           </button>
         ) : null}
-        <button className="button-link button-reset" type="button" onClick={onReturn}>
-          Return To List
-        </button>
+        {onReturn ? (
+          <button className="button-link button-reset" type="button" onClick={onReturn}>
+            Return To List
+          </button>
+        ) : null}
       </div>
       {passwordSetupError ? <p className="form-error">{passwordSetupError}</p> : null}
       {closeMessage ? <p className="form-help">{closeMessage}</p> : null}
