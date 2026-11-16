@@ -192,6 +192,14 @@ function EventForm({
   ]);
 
   const eventTypeSelected = Boolean(form.eventType);
+  // Locked, not merely defaulted. Reaching this form through the Membership
+  // module - or opening a Membership event to edit - means the type is already
+  // decided, and changing it by accident is a real hazard: it would strip the
+  // dues schedule and turn a live signup into a flat-priced event. The generic
+  // Events/Activities module still offers a free choice, so nothing here
+  // prevents creating one deliberately from there.
+  const eventTypeLocked = initialEventType === 'Membership'
+    || editingEvent?.eventType === 'Membership';
   const eventLabel = form.eventType || 'Event';
   const businessTypeOptions = mergeOptionLists(configuredBusinessTypes, BUSINESS_TYPES);
   const eventLocations = mergeOptionLists(configuredLocations, EVENT_LOCATIONS);
@@ -215,6 +223,8 @@ function EventForm({
   const showDirectTimeFields = showEventScheduleFields && isRetreat;
   const showPresenterField = showEventScheduleFields && !isRetreat && !isChallenge && !isMembership;
   const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge && !isMembership;
+  // A membership signup does not happen anywhere, so it collects no location.
+  const showLocationFields = showEventScheduleFields && !isMembership;
   const showImageUpload = eventTypeSelected;
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
@@ -396,7 +406,9 @@ function EventForm({
     const isChallengeType = value === 'Challenges';
     const isMembershipType = value === 'Membership';
     const isListingType = value === 'Business Listing' || value === 'For Sale';
-    const defaultLocation = value && !isListingType ? getDefaultLocationForEventType(value, eventLocations) : null;
+    const defaultLocation = value && !isListingType && !isMembershipType
+      ? getDefaultLocationForEventType(value, eventLocations)
+      : null;
     // Membership is in neither list for the same reason it is in both: it has
     // a price and no seat limit, but neither comes from the fee or capacity
     // fields, so both are handled below rather than by these flags.
@@ -419,7 +431,8 @@ function EventForm({
       ...current,
       eventType: value,
       location: defaultLocation ? getLocationSelectionValue(defaultLocation) : '',
-      locationPreset: defaultLocation?.value || (value && !isListingType ? 'other' : ''),
+      locationPreset: defaultLocation?.value
+        || (value && !isListingType && !isMembershipType ? 'other' : ''),
       timePreset: isChallengeType || isMembershipType ? 'other' : value ? nextTimeOption?.value || 'other' : '',
       startTime: isChallengeType || isMembershipType ? '00:00' : nextTimeOption?.startTime || '',
       endTime: isChallengeType || isMembershipType ? '00:00' : nextTimeOption?.endTime || '',
@@ -756,24 +769,34 @@ function EventForm({
       </div>
 
       <div className="form-grid stacked">
-        <label>
-          <span>Event Type *</span>
-          <select
-            className={fieldErrors.eventType ? 'field-invalid' : ''}
-            value={form.eventType}
-            onChange={(event) => handleEventType(event.target.value)}
-          >
-            <option value="">Select One</option>
-            {EVENT_TYPES.map((eventType) => (
-              <option key={eventType} value={eventType}>
-                {eventType}
-              </option>
-            ))}
-          </select>
-          <span className="form-help">
-            Choose this first so the form can show the right fields.
-          </span>
-        </label>
+        {eventTypeLocked ? (
+          <label>
+            <span>Event Type</span>
+            <input disabled readOnly value={form.eventType} />
+            <span className="form-help">
+              Set by the {form.eventType} section and cannot be changed here.
+            </span>
+          </label>
+        ) : (
+          <label>
+            <span>Event Type *</span>
+            <select
+              className={fieldErrors.eventType ? 'field-invalid' : ''}
+              value={form.eventType}
+              onChange={(event) => handleEventType(event.target.value)}
+            >
+              <option value="">Select One</option>
+              {EVENT_TYPES.map((eventType) => (
+                <option key={eventType} value={eventType}>
+                  {eventType}
+                </option>
+              ))}
+            </select>
+            <span className="form-help">
+              Choose this first so the form can show the right fields.
+            </span>
+          </label>
+        )}
 
         {!eventTypeSelected ? (
           <div className="event-form-placeholder form-span">
@@ -1045,6 +1068,7 @@ function EventForm({
               </div>
             ) : null}
 
+            {showLocationFields ? (
             <div className="form-stack-group">
               <label>
                 <span>{eventLabel} Location *</span>
@@ -1081,6 +1105,7 @@ function EventForm({
                 </label>
               ) : null}
             </div>
+            ) : null}
 
             {showPresenterField ? (
               <label>
@@ -1619,7 +1644,13 @@ function EventForm({
         <div className="form-grid stacked">
           <div className="form-stack-group">
             <label>
-              <span>List On Website</span>
+              {/* A membership signup is in no public list, so "List On
+                  Website" would promise something that never happens. These
+                  dates still decide whether the registration LINK works -
+                  isEventVisible() gates registration as well as listing, on
+                  the server as well as in the browser - so the control
+                  matters, it just does something else here. */}
+              <span>{isMembership ? 'Open The Signup Link' : 'List On Website'}</span>
               <select
                 className={fieldErrors.listingMode ? 'field-invalid' : ''}
                 disabled={!eventTypeSelected}
@@ -1631,7 +1662,9 @@ function EventForm({
                 <option value="future">In The Future</option>
               </select>
               <span className="form-help">
-                Choose Now to show the listing as soon as it is saved.
+                {isMembership
+                  ? 'Membership never appears in a list on the website. These dates control whether the registration link works - after the Remove Listing date it stops accepting signups.'
+                  : 'Choose Now to show the listing as soon as it is saved.'}
               </span>
             </label>
             {form.listingMode === 'future' || isChallenge ? (
@@ -1850,6 +1883,7 @@ export function validateEventForm(form) {
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
   const requiresSchedule = form.eventType && !isBusinessListing && !isForSale;
+  const requiresLocation = requiresSchedule && form.eventType !== 'Membership';
   const requiresDate = requiresSchedule && !isChallenge;
   const requiresEndDate = requiresDate && isRetreat;
   const requiresTime = requiresSchedule && !isChallenge;
@@ -1914,11 +1948,11 @@ export function validateEventForm(form) {
     errors.endTime = 'End time must be after the start time.';
   }
 
-  if (requiresSchedule && !form.locationPreset) {
+  if (requiresLocation && !form.locationPreset) {
     errors.locationPreset = 'Location is required.';
   }
 
-  if (requiresSchedule && !form.location.trim()) {
+  if (requiresLocation && !form.location.trim()) {
     errors.location = 'Location is required.';
   }
 
@@ -2217,8 +2251,8 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     isPaid: isMembership ? true : form.isPaid === true && hasFees,
     membershipFeeSchedule: isMembership ? membershipFeeSchedule : null,
     listingMode: form.listingMode,
-    location: hasSchedule ? toTitleCase(form.location.trim()) : '',
-    locationPreset: hasSchedule ? form.locationPreset : '',
+    location: hasSchedule && !isMembership ? toTitleCase(form.location.trim()) : '',
+    locationPreset: hasSchedule && !isMembership ? form.locationPreset : '',
     ownerName: toTitleCase(form.ownerName.trim()),
     presenter: hasSchedule && !isRetreat && !isChallenge && !isMembership ? toTitleCase(form.presenter.trim()) : '',
     registrationCloseAt: hasRegistrationWindow ? form.registrationCloseAt : '',

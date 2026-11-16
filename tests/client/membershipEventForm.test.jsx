@@ -68,6 +68,17 @@ describe('a saved Membership event', () => {
     expect(payload.endTime).toBe('00:00');
   });
 
+  it('stores no location - a membership signup does not happen anywhere', () => {
+    const payload = buildEventPayload(
+      membershipForm({ location: 'Chota Rec Center', locationPreset: 'chota-rec-center-room-a' }),
+      false,
+      false
+    );
+
+    expect(payload.location).toBe('');
+    expect(payload.locationPreset).toBe('');
+  });
+
   it('keeps its service fee, which is editable per event', () => {
     const payload = buildEventPayload(membershipForm({ serviceFee: '2.50' }), false, false);
 
@@ -101,6 +112,29 @@ describe('a saved Membership event', () => {
 });
 
 describe('every other event type', () => {
+  it('still stores its location', () => {
+    const payload = buildEventPayload(
+      {
+        ...DEFAULT_EVENT_FORM,
+        cost: '35',
+        date: '2026-08-01',
+        description: 'A class.',
+        eventType: 'Class (Half Day)',
+        isPaid: true,
+        listingMode: 'now',
+        location: 'Chota Rec Center',
+        locationPreset: 'chota-rec-center-room-a',
+        registrationMode: 'now',
+        title: 'Binding Class'
+      },
+      false,
+      false
+    );
+
+    expect(payload.locationPreset).toBe('chota-rec-center-room-a');
+    expect(payload.location).toBe('Chota Rec Center');
+  });
+
   it('saves a null schedule, so switching away from Membership clears it', () => {
     const payload = buildEventPayload(
       {
