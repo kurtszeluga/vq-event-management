@@ -1882,16 +1882,23 @@ export function validateEventForm(form) {
   const isChallenge = form.eventType === 'Challenges';
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
+  const isMembership = form.eventType === 'Membership';
   const requiresSchedule = form.eventType && !isBusinessListing && !isForSale;
-  const requiresLocation = requiresSchedule && form.eventType !== 'Membership';
-  const requiresDate = requiresSchedule && !isChallenge;
+  // Every one of these must agree with what the form actually SHOWS for the
+  // type. A requirement on a field the type does not render cannot be
+  // satisfied and cannot be seen: the save fails with "Please fix the
+  // highlighted fields" and nothing is highlighted, because the field is not
+  // on screen to highlight. Membership collects no location, date, time,
+  // capacity or payment type, so it requires none of them.
+  const requiresLocation = requiresSchedule && !isMembership;
+  const requiresDate = requiresSchedule && !isChallenge && !isMembership;
   const requiresEndDate = requiresDate && isRetreat;
-  const requiresTime = requiresSchedule && !isChallenge;
+  const requiresTime = requiresSchedule && !isChallenge && !isMembership;
   const requiresTimePreset = requiresTime && !isRetreat;
   const requiresDirectTime = requiresTime && isRetreat;
-  const requiresCapacity = requiresSchedule && !isLecture && !isChallenge;
+  const requiresCapacity = requiresSchedule && !isLecture && !isChallenge && !isMembership;
   const requiresRegistration = form.eventType && !isBusinessListing && !isForSale && !isLecture;
-  const requiresFees = requiresSchedule && !isLecture && !isChallenge;
+  const requiresFees = requiresSchedule && !isLecture && !isChallenge && !isMembership;
 
   if (!form.eventType) {
     errors.eventType = 'Event type is required.';

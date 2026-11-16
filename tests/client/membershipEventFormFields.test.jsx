@@ -84,7 +84,32 @@ describe('the Membership setup card', () => {
     ).toBeInTheDocument();
   });
 
-  it('does not require a location to validate', () => {
+  // The form that the Membership module actually hands you: the defaults, plus
+  // only the fields it puts on screen. If this does not validate, the save
+  // fails with "Please fix the highlighted fields" and NOTHING is highlighted,
+  // because every remaining error is on a field Membership does not render.
+  //
+  // Asserting the whole error object, not individual keys. Checking
+  // errors.locationPreset alone is what let three other invisible
+  // requirements - date, time preset and payment type - ship unnoticed.
+  it('validates with exactly what the Membership card asks for, and nothing else', () => {
+    const errors = validateEventForm({
+      ...DEFAULT_EVENT_FORM,
+      description: 'Join or renew your guild membership.',
+      eventType: 'Membership',
+      listingMode: 'now',
+      // These two ARE on screen for Membership and are the admin's to fill -
+      // the registration window is what opens and closes the signup link.
+      registrationCloseAt: '2027-06-30T17:00',
+      registrationMode: 'now',
+      registrationOpenAt: '2026-11-16T09:00',
+      title: 'Guild Membership'
+    });
+
+    expect(errors).toEqual({});
+  });
+
+  it('requires none of the fields it does not show', () => {
     const errors = validateEventForm({
       ...DEFAULT_EVENT_FORM,
       description: 'Join or renew.',
@@ -94,8 +119,9 @@ describe('the Membership setup card', () => {
       title: 'Guild Membership'
     });
 
-    expect(errors.locationPreset).toBeUndefined();
-    expect(errors.location).toBeUndefined();
+    for (const hidden of ['location', 'locationPreset', 'date', 'timePreset', 'startTime', 'endTime', 'capacity', 'isPaid', 'cost']) {
+      expect(errors[hidden]).toBeUndefined();
+    }
   });
 });
 
