@@ -3,6 +3,7 @@ import {
   getRegistrationWindowState
 } from '../../shared/registrationWindow.js';
 import { isCashCheckAwaitingCollection, isPaymentPending } from '../../shared/registrationPayment.js';
+import { getEventCostOn } from '../../shared/membershipDues.js';
 import { formatDateOnly, isEventVisible } from './eventFormat.js';
 
 export { isCashCheckAwaitingCollection, isPaymentPending };
@@ -19,7 +20,7 @@ const MEMBERSHIP_BLOCKED_STATUSES = [
 // An event is paid only when it is flagged paid AND carries a cost. The server
 // applies the same rule in api/create-registration.js; keep the two in step.
 export function isPaidEvent(event) {
-  return Boolean(event?.isPaid) && Number(event?.cost || 0) > 0;
+  return Boolean(event?.isPaid) && getEventCostOn(event) > 0;
 }
 
 // Billing address is collected for exactly the events that charge money.
@@ -39,8 +40,12 @@ export function mustPayByCashCheck(event) {
 }
 
 // What the registrant actually pays: the event cost plus the service fee.
-export function getEventPaymentTotal(event) {
-  return Number(event?.cost || 0) + Number(event?.serviceFee || 0);
+//
+// getEventCostOn rather than event.cost, because a Membership event is priced
+// by the day the member signs up. Every other type returns its stored cost
+// unchanged, so this is the same answer it always gave for them.
+export function getEventPaymentTotal(event, options = {}) {
+  return getEventCostOn(event, options) + Number(event?.serviceFee || 0);
 }
 
 export function requiresSquarePayment(event, paymentPreference) {

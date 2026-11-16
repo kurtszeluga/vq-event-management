@@ -61,7 +61,7 @@ const CASES = [
   },
   {
     // validPaymentSettings()
-    keys: ['allowAppInitiatedRefunds', 'defaultServiceFee', 'enableApplePay', 'enableCardPayments', 'enableGooglePay', 'updatedDate'],
+    keys: ['allowAppInitiatedRefunds', 'defaultServiceFee', 'enableApplePay', 'enableCardPayments', 'enableGooglePay', 'membershipEarlyFee', 'membershipEarlyStart', 'membershipRegularFee', 'membershipRegularStart', 'updatedDate'],
     name: 'paymentSettings',
     save: () => savePaymentSettings({ enableCardPayments: true }, ACTOR)
   },

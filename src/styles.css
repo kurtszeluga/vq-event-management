@@ -1712,6 +1712,11 @@ body.nav-sheet-open {
   color: #8f351d;
 }
 
+.event-type-pill.is-membership {
+  background: #e2f0f2;
+  color: #15606b;
+}
+
 .event-type-pill.is-other {
   background: #f0ece5;
   color: #5b544a;
@@ -2871,6 +2876,69 @@ body.nav-sheet-open {
 .payment-service-fee-field .form-help {
   max-width: 520px;
   width: max-content;
+}
+
+/* The one route to an unlisted signup, printed on its admin card so it can be
+   read and retyped when the clipboard is unavailable. Wraps rather than
+   scrolls: the whole address has to be visible to be copied by hand. */
+.event-registration-link {
+  font-size: 0.92rem;
+  margin: 0 0 10px;
+}
+
+.event-registration-link code {
+  background: #f4f1ec;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+  padding: 2px 6px;
+}
+
+/* The four membership questions, set apart from the contact fields above them
+   so it is clear they are being asked by the guild rather than needed to
+   complete the payment. */
+.membership-questions {
+  border-top: 1px solid #e3ddd3;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 18px;
+}
+
+.membership-questions h3 {
+  margin: 0;
+}
+
+/* Membership dues sit inside the Payment Settings card as their own group -
+   two rates and two start dates read as one rule, not as four loose fields. */
+.membership-dues-fieldset {
+  border: 1px solid #e3ddd3;
+  border-radius: 10px;
+  margin: 4px 0 0;
+  padding: 14px 16px 16px;
+}
+
+.membership-dues-fieldset legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
+.membership-dues-fieldset .form-grid {
+  margin-top: 10px;
+}
+
+.month-day-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+/* The month name needs the room; the day is two digits. */
+.month-day-inputs select:first-child {
+  flex: 1 1 auto;
+}
+
+.month-day-inputs select:last-child {
+  flex: 0 0 84px;
 }
 
 .configuration-card-actions {

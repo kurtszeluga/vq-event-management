@@ -132,6 +132,7 @@ describe('Manage/Edit module list', () => {
       'Challenges',
       'Business Listings',
       'For Sale',
+      'Membership',
       'Archive',
       'User Controls',
       'Setup / System Config'

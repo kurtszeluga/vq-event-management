@@ -8,7 +8,7 @@ import {
   isRegistrationWindowOpen
 } from '../../shared/registrationWindow.js';
 
-const EVENT_CATEGORY_CONFIG = {
+export const EVENT_CATEGORY_CONFIG = {
   business: {
     allowedTypes: ['Business Listing'],
     label: 'Business Listings',
@@ -20,7 +20,7 @@ const EVENT_CATEGORY_CONFIG = {
     supportsTypeFilters: false
   },
   events: {
-    excludedTypes: ['Business Listing', 'For Sale', 'Challenges'],
+    excludedTypes: ['Business Listing', 'For Sale', 'Challenges', 'Membership'],
     label: 'Events',
     supportsTypeFilters: true
   },
@@ -41,7 +41,11 @@ const EVENT_CATEGORY_CONFIG = {
   // see orderSummaryEvents.
   allevents: {
     challengesLast: true,
-    excludedTypes: ['Business Listing', 'For Sale'],
+    // Membership is excluded from every category, including this one. It is
+    // reached only by the direct registration link an admin posts by hand, so
+    // it must not surface in the website's own lists - see
+    // UNLISTED_EVENT_TYPES in src/data/eventOptions.js.
+    excludedTypes: ['Business Listing', 'For Sale', 'Membership'],
     label: 'Events',
     supportsTypeFilters: false
   }

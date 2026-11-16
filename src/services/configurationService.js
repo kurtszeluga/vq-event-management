@@ -15,6 +15,10 @@ import {
 import { auth, db } from '../lib/firebase.js';
 import { applyMemberDirectorySync, syncMemberDirectoryProfile } from './memberDirectoryProfile.js';
 import { normalizePermissions } from '../data/userRoles.js';
+import {
+  DEFAULT_MEMBERSHIP_FEE_SCHEDULE,
+  toMembershipDuesSettings
+} from '../../shared/membershipDues.js';
 
 const membershipSettingsRef = () => doc(db, 'appSettings', 'membership');
 const paymentSettingsRef = () => doc(db, 'appSettings', 'paymentSettings');
@@ -88,7 +92,15 @@ export const DEFAULT_PAYMENT_SETTINGS = {
   defaultServiceFee: 1,
   enableApplePay: false,
   enableCardPayments: true,
-  enableGooglePay: false
+  enableGooglePay: false,
+  // Guild membership dues. Two rates and the day each one starts - see
+  // shared/membershipDues.js for why it is expressed as starts rather than
+  // ranges. These are the values a Membership event copies in when it is
+  // saved; they are not read back at registration time.
+  membershipEarlyFee: DEFAULT_MEMBERSHIP_FEE_SCHEDULE.earlyFee,
+  membershipEarlyStart: DEFAULT_MEMBERSHIP_FEE_SCHEDULE.earlyStart,
+  membershipRegularFee: DEFAULT_MEMBERSHIP_FEE_SCHEDULE.regularFee,
+  membershipRegularStart: DEFAULT_MEMBERSHIP_FEE_SCHEDULE.regularStart
 };
 
 export const DEFAULT_DIRECTORY_SETTINGS = {
@@ -342,6 +354,10 @@ export async function savePaymentSettings(settings, actorProfile) {
     enableApplePay: Boolean(settings.enableApplePay),
     enableCardPayments: Boolean(settings.enableCardPayments),
     enableGooglePay: Boolean(settings.enableGooglePay),
+    // Normalized before the write so a half-typed start date cannot be stored.
+    // validPaymentSettings() in firestore.rules only checks the types; this is
+    // what keeps the values meaningful.
+    ...toMembershipDuesSettings(settings),
     updatedDate: serverTimestamp()
   };
 

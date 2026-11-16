@@ -5,6 +5,12 @@ import {
   getRegistrationListingConflicts,
   isRegistrationWindowInverted
 } from '../../../shared/registrationWindow.js';
+import {
+  formatMonthDay,
+  getDayBefore,
+  normalizeMembershipFeeSchedule,
+  readMembershipFeeSchedule
+} from '../../../shared/membershipDues.js';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
   BUSINESS_TYPES,
@@ -68,6 +74,7 @@ function EventForm({
   const [configuredTimeOptions, setConfiguredTimeOptions] = useState([]);
   const [confirmNonMemberRegistrationOpen, setConfirmNonMemberRegistrationOpen] = useState(false);
   const [defaultServiceFee, setDefaultServiceFee] = useState('1.00');
+  const [configuredDues, setConfiguredDues] = useState(() => normalizeMembershipFeeSchedule({}));
   const isEditing = Boolean(editingEvent);
 
   useEffect(() => {
@@ -88,8 +95,14 @@ function EventForm({
       () => setConfiguredTimeOptions([])
     );
     const unsubscribeSettings = subscribeToPaymentSettings(
-      (settings) => setDefaultServiceFee(formatServiceFeeDefault(settings.defaultServiceFee)),
-      () => setDefaultServiceFee('1.00')
+      (settings) => {
+        setDefaultServiceFee(formatServiceFeeDefault(settings.defaultServiceFee));
+        setConfiguredDues(readMembershipFeeSchedule(settings));
+      },
+      () => {
+        setDefaultServiceFee('1.00');
+        setConfiguredDues(normalizeMembershipFeeSchedule({}));
+      }
     );
 
     return () => {
@@ -99,6 +112,20 @@ function EventForm({
       unsubscribeSettings();
     };
   }, []);
+
+  useEffect(() => {
+    if (form.eventType !== 'Membership' || isEditing) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      membershipEarlyFee: formatServiceFeeDefault(configuredDues.earlyFee),
+      membershipEarlyStart: configuredDues.earlyStart,
+      membershipRegularFee: formatServiceFeeDefault(configuredDues.regularFee),
+      membershipRegularStart: configuredDues.regularStart
+    }));
+  }, [configuredDues, form.eventType, isEditing]);
 
   // An event saved before its type collected a time carries no timePreset and
   // no startTime - every published Lecture is in that state, since Lecture had
@@ -174,24 +201,29 @@ function EventForm({
   const isChallenge = form.eventType === 'Challenges';
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
+  const isMembership = form.eventType === 'Membership';
   const isListingOnly = isBusinessListing || isForSale;
   const showEventScheduleFields = eventTypeSelected && !isListingOnly;
   // A challenge runs over a posting window rather than happening on a day, so
   // it collects no date, time or presenter - only the visibleFrom/visibleUntil
   // pair further down.
-  const showDateField = showEventScheduleFields && !isChallenge;
+  const showDateField = showEventScheduleFields && !isChallenge && !isMembership;
   // A retreat runs across days, so its single date becomes a start/end pair.
   // The direct time fields below already give it a start and end time.
   const showEndDateField = showEventScheduleFields && isRetreat;
-  const showTimePresetField = showEventScheduleFields && !isRetreat && !isChallenge;
+  const showTimePresetField = showEventScheduleFields && !isRetreat && !isChallenge && !isMembership;
   const showDirectTimeFields = showEventScheduleFields && isRetreat;
-  const showPresenterField = showEventScheduleFields && !isRetreat && !isChallenge;
-  const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge;
+  const showPresenterField = showEventScheduleFields && !isRetreat && !isChallenge && !isMembership;
+  const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge && !isMembership;
   const showImageUpload = eventTypeSelected;
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
   const showRegistrationSection = eventTypeSelected && !isListingOnly && !isLecture;
-  const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge && !isLecture;
+  const showFeesSection = eventTypeSelected && !isListingOnly && !isChallenge && !isLecture && !isMembership;
+  // Membership replaces the Fees section rather than extending it: the price is
+  // not a number typed here, it is the dues schedule from Configuration read
+  // against the day the member signs up.
+  const showMembershipDuesSection = isMembership;
   const showRegistrationDateFields = ['future', 'now'].includes(form.registrationMode);
   const supportsNoRegistration = NO_REGISTRATION_EVENT_TYPES.includes(form.eventType);
 
@@ -362,19 +394,25 @@ function EventForm({
     const isLectureType = value === 'Lecture';
     const isRetreatType = value === 'Retreat';
     const isChallengeType = value === 'Challenges';
+    const isMembershipType = value === 'Membership';
     const isListingType = value === 'Business Listing' || value === 'For Sale';
     const defaultLocation = value && !isListingType ? getDefaultLocationForEventType(value, eventLocations) : null;
+    // Membership is in neither list for the same reason it is in both: it has
+    // a price and no seat limit, but neither comes from the fee or capacity
+    // fields, so both are handled below rather than by these flags.
     const doesNotUseFees = [
       'Business Listing',
       'For Sale',
       'Challenges',
-      'Lecture'
+      'Lecture',
+      'Membership'
     ].includes(value);
     const doesNotUseCapacity = [
       'Business Listing',
       'For Sale',
       'Challenges',
-      'Lecture'
+      'Lecture',
+      'Membership'
     ].includes(value);
 
     setForm((current) => ({
@@ -382,17 +420,19 @@ function EventForm({
       eventType: value,
       location: defaultLocation ? getLocationSelectionValue(defaultLocation) : '',
       locationPreset: defaultLocation?.value || (value && !isListingType ? 'other' : ''),
-      timePreset: isChallengeType ? 'other' : value ? nextTimeOption?.value || 'other' : '',
-      startTime: isChallengeType ? '00:00' : nextTimeOption?.startTime || '',
-      endTime: isChallengeType ? '00:00' : nextTimeOption?.endTime || '',
+      timePreset: isChallengeType || isMembershipType ? 'other' : value ? nextTimeOption?.value || 'other' : '',
+      startTime: isChallengeType || isMembershipType ? '00:00' : nextTimeOption?.startTime || '',
+      endTime: isChallengeType || isMembershipType ? '00:00' : nextTimeOption?.endTime || '',
       capacityUnlimited: doesNotUseCapacity ? true : current.capacityUnlimited,
       allowCashCheckPayment: doesNotUseFees ? false : current.allowCashCheckPayment,
       cashCheckOnly: doesNotUseFees ? false : current.cashCheckOnly,
-      allowNonMemberRegistration: value === 'Business Listing' || value === 'For Sale' || isLectureType
-        ? false
-        : current.allowNonMemberRegistration,
-      presenter: isRetreatType || isChallengeType ? '' : current.presenter,
-      date: isChallengeType ? '' : current.date,
+      allowNonMemberRegistration: isMembershipType
+        ? true
+        : value === 'Business Listing' || value === 'For Sale' || isLectureType
+          ? false
+          : current.allowNonMemberRegistration,
+      presenter: isRetreatType || isChallengeType || isMembershipType ? '' : current.presenter,
+      date: isChallengeType || isMembershipType ? '' : current.date,
       endDate: isRetreatType ? current.endDate : '',
       supplyListFileName: supportsSupplyList(value) ? current.supplyListFileName : '',
       supplyListTitle: supportsSupplyList(value) ? current.supplyListTitle : '',
@@ -1432,6 +1472,47 @@ function EventForm({
         </div>
       ) : null}
 
+      {showMembershipDuesSection ? (
+        <div className="form-subsection">
+          <h3>Membership Dues</h3>
+          <p className="form-help">
+            {describeDuesSchedule({
+              earlyFee: form.membershipEarlyFee,
+              earlyStart: form.membershipEarlyStart,
+              regularFee: form.membershipRegularFee,
+              regularStart: form.membershipRegularStart
+            })}
+          </p>
+          <p className="form-help">
+            The member is charged whichever rate covers the day they sign up.
+            Change the amounts or the dates in Configuration &gt; Payment
+            Settings, then save this event again to pick them up.
+          </p>
+          {fieldErrors.membershipEarlyFee ? (
+            <p className="form-error">{fieldErrors.membershipEarlyFee}</p>
+          ) : null}
+          {fieldErrors.membershipEarlyStart ? (
+            <p className="form-error">{fieldErrors.membershipEarlyStart}</p>
+          ) : null}
+          <div className="form-grid compact">
+            <label>
+              <span>Service Fee</span>
+              <input
+                min="0"
+                step="0.01"
+                type="number"
+                value={form.serviceFee}
+                onFocus={() => handleMoneyFieldFocus('serviceFee')}
+                onChange={(event) => updateField('serviceFee', event.target.value)}
+              />
+              <span className="form-help">
+                Added on top of the dues, the same as a paid class. Set it to 0
+                to charge the dues alone.
+              </span>
+            </label>
+          </div>
+        </div>
+      ) : null}
       {showFeesSection ? (
         <div className="form-subsection">
         <h3>Event/Activity Fees</h3>
@@ -1914,6 +1995,19 @@ export function validateEventForm(form) {
     errors.cost = 'Enter a cost greater than $0, or choose Free instead.';
   }
 
+  if (form.eventType === 'Membership') {
+    if (!(Number(form.membershipEarlyFee) > 0) || !(Number(form.membershipRegularFee) > 0)) {
+      errors.membershipEarlyFee = 'Both membership rates must be greater than $0. Set them in Configuration > Payment Settings.';
+    }
+
+    // Identical starts leave the year with one arc and no way to read which
+    // rate a day falls under; getMembershipRateName charges the regular rate
+    // rather than guess, which is not something to save on purpose.
+    if (form.membershipEarlyStart === form.membershipRegularStart) {
+      errors.membershipEarlyStart = 'The two rates cannot start on the same day. Change one in Configuration > Payment Settings.';
+    }
+  }
+
   if (requiresCapacity && !form.capacityUnlimited && !Number.isInteger(Number(form.capacity))) {
     errors.capacity = 'Maximum capacity must be a whole number.';
   } else if (requiresCapacity && !form.capacityUnlimited && Number(form.capacity) < 1) {
@@ -2044,17 +2138,35 @@ function validateDraftEventForm(form) {
   return errors;
 }
 
+// The schedule read back as the two windows it means, so an admin sees
+// "Jul 1 - Sep 30: $25.00" rather than four values they have to combine in
+// their head.
+export function describeDuesSchedule(schedule) {
+  const normalized = normalizeMembershipFeeSchedule(schedule);
+  const early = `${formatMonthDay(normalized.earlyStart)} - ${formatMonthDay(getDayBefore(normalized.regularStart))}`;
+  const regular = `${formatMonthDay(normalized.regularStart)} - ${formatMonthDay(getDayBefore(normalized.earlyStart))}`;
+
+  return `${early}: $${normalized.earlyFee.toFixed(2)}. ${regular}: $${normalized.regularFee.toFixed(2)}.`;
+}
+
 export function buildEventPayload(form, showSupplyListUpload, asDraft) {
   const isBusinessListing = form.eventType === 'Business Listing';
   const isForSale = form.eventType === 'For Sale';
   const isChallenge = form.eventType === 'Challenges';
   const isRetreat = form.eventType === 'Retreat';
   const isLecture = form.eventType === 'Lecture';
+  const isMembership = form.eventType === 'Membership';
   const isListingOnly = isBusinessListing || isForSale;
   const hasSchedule = !isListingOnly;
-  const hasTime = hasSchedule && !isChallenge;
-  const hasCapacity = hasSchedule && !isLecture && !isChallenge;
-  const hasFees = hasSchedule && !isLecture && !isChallenge;
+  const hasTime = hasSchedule && !isChallenge && !isMembership;
+  const hasCapacity = hasSchedule && !isLecture && !isChallenge && !isMembership;
+  const hasFees = hasSchedule && !isLecture && !isChallenge && !isMembership;
+  const membershipFeeSchedule = normalizeMembershipFeeSchedule({
+    earlyFee: form.membershipEarlyFee,
+    earlyStart: form.membershipEarlyStart,
+    regularFee: form.membershipRegularFee,
+    regularStart: form.membershipRegularStart
+  });
   const hasRegistration = !isListingOnly && !isLecture && form.registrationMode !== 'none';
   const hasRegistrationWindow = hasRegistration && ['future', 'now'].includes(form.registrationMode);
   const title = isBusinessListing ? form.businessName : form.title;
@@ -2080,31 +2192,44 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     contactEmail: form.contactEmail.trim(),
     contactName: toTitleCase(form.contactName.trim()),
     contactPhone: form.contactPhone.trim(),
-    cost: form.isPaid && hasFees ? Number(form.cost || 0) : 0,
+    // Membership prices itself from the schedule, so `cost` is the regular
+    // rate rather than the price of the day. It is a fallback, not the answer:
+    // every surface that shows or charges a membership price goes through
+    // getEventCostOn(). Storing the HIGHER of the two means a reader that
+    // somehow misses the helper quotes too much rather than too little, which
+    // is the error that gets reported instead of the one that loses money.
+    cost: isMembership
+      ? membershipFeeSchedule.regularFee
+      : form.isPaid && hasFees ? Number(form.cost || 0) : 0,
     // Written as '' rather than omitted: the public feed orders by date, and
     // Firestore drops documents missing the ordered field entirely.
-    date: hasSchedule && !isChallenge ? form.date : '',
+    date: hasSchedule && !isChallenge && !isMembership ? form.date : '',
     endDate: hasSchedule && isRetreat ? form.endDate : '',
     description: form.description.trim(),
     documentFileName: isChallenge ? form.documentFileName.trim() : '',
     documentTitle: isChallenge ? form.documentTitle.trim() : '',
     documentUrl: isChallenge ? form.documentUrl.trim() : '',
-    endTime: isChallenge ? '00:00' : hasTime ? form.endTime : '',
+    endTime: isChallenge || isMembership ? '00:00' : hasTime ? form.endTime : '',
     eventType: form.eventType,
     // Go-live transition, remove with the field in EventForm.
     externalRegistrationUrl: isListingOnly ? '' : String(form.externalRegistrationUrl || '').trim(),
     imageUrls: form.imageUrls.map((url) => url.trim()).filter(Boolean).slice(0, MAX_EVENT_IMAGES),
-    isPaid: form.isPaid === true && hasFees,
+    isPaid: isMembership ? true : form.isPaid === true && hasFees,
+    membershipFeeSchedule: isMembership ? membershipFeeSchedule : null,
     listingMode: form.listingMode,
     location: hasSchedule ? toTitleCase(form.location.trim()) : '',
     locationPreset: hasSchedule ? form.locationPreset : '',
     ownerName: toTitleCase(form.ownerName.trim()),
-    presenter: hasSchedule && !isRetreat && !isChallenge ? toTitleCase(form.presenter.trim()) : '',
+    presenter: hasSchedule && !isRetreat && !isChallenge && !isMembership ? toTitleCase(form.presenter.trim()) : '',
     registrationCloseAt: hasRegistrationWindow ? form.registrationCloseAt : '',
     registrationMode: isListingOnly || isLecture ? 'none' : form.registrationMode,
     registrationOpen: hasRegistration && form.registrationMode === 'now',
     registrationOpenAt: hasRegistrationWindow ? form.registrationOpenAt : '',
-    serviceFee: form.isPaid && hasFees && !form.cashCheckOnly ? Number(form.serviceFee || 0) : 0,
+    // Membership keeps the per-event service fee the Payment Settings default
+    // supplies, the same as any other online-paid event.
+    serviceFee: isMembership
+      ? Number(form.serviceFee || 0)
+      : form.isPaid && hasFees && !form.cashCheckOnly ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
     // Both halves are stored. businessTypeDefaults is admin-read-only, so the
     // public listing page and the GoDaddy feed have no way to resolve a value
@@ -2115,12 +2240,12 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
     businessTypeLabel: isBusinessListing ? (form.businessTypeLabel || '').trim() : '',
     // Stored as typed; normalizeWebsiteUrl adds the scheme where it is linked.
     website: isBusinessListing ? form.website.trim() : '',
-    startTime: isChallenge ? '00:00' : hasTime ? form.startTime : '',
+    startTime: isChallenge || isMembership ? '00:00' : hasTime ? form.startTime : '',
     status: asDraft ? 'Draft' : 'Published',
     supplyListFileName: showSupplyListUpload ? form.supplyListFileName.trim() : '',
     supplyListTitle: showSupplyListUpload ? form.supplyListTitle.trim() : '',
     supplyListUrl: showSupplyListUpload ? form.supplyListUrl.trim() : '',
-    timePreset: isChallenge ? 'other' : hasTime ? (isRetreat ? 'other' : form.timePreset) : '',
+    timePreset: isChallenge || isMembership ? 'other' : hasTime ? (isRetreat ? 'other' : form.timePreset) : '',
     title: toTitleCase(title.trim()),
     type: form.eventType,
     visibleFrom,

@@ -24,6 +24,7 @@ import {
 import { getRegistrationAvailability } from '../utils/registrationAvailability.js';
 import { openManagedPopup } from '../utils/popupWindow.js';
 import { listEventDocuments } from '../../shared/eventDocuments.js';
+import { getEventCostOn, isMembershipEvent } from '../../shared/membershipDues.js';
 
 function EventDetailsPage() {
   const navigate = useNavigate();
@@ -221,14 +222,16 @@ function EventDetailsPage() {
               <dt>Cost</dt>
               <dd>
                 {event.isPaid
-                  ? `${formatCurrency(event.cost)}${Number(event.serviceFee || 0) > 0 ? ` plus ${formatCurrency(event.serviceFee)} service fee` : ''}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+                  ? `${formatCurrency(getEventCostOn(event))}${Number(event.serviceFee || 0) > 0 ? ` plus ${formatCurrency(event.serviceFee)} service fee` : ''}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
                   : 'No Charge'}
               </dd>
             </div>
-            <div>
-              <dt>Availability</dt>
-              <dd>{availability.label}</dd>
-            </div>
+            {isMembershipEvent(event) ? null : (
+              <div>
+                <dt>Availability</dt>
+                <dd>{availability.label}</dd>
+              </div>
+            )}
           </dl>
           {canSeeRegistrants && showRegistrantNames && takesRegistrations ? (
             <div className="event-registrant-panel">

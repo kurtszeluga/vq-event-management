@@ -16,6 +16,8 @@ import {
 } from '../../utils/eventFormat.js';
 import { isRegistrationWindowOpen } from '../../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
+import { getEventCostOn } from '../../../shared/membershipDues.js';
+import { UNLISTED_EVENT_TYPES } from '../../data/eventOptions.js';
 
 const ALL_TYPES = 'All';
 const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
@@ -49,10 +51,28 @@ function EventList({
   sourceModule = ''
 }) {
   const excludedTypes = useMemo(() => new Set(excludedEventTypes), [excludedEventTypes]);
+  const unlistedTypes = useMemo(() => new Set(UNLISTED_EVENT_TYPES), []);
+
+  async function copyRegistrationLink(eventId) {
+    const url = buildRegistrationUrl(eventId);
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedLinkEventId(eventId);
+    } catch {
+      // A denied or unavailable clipboard is not a failure worth an error
+      // panel - the address is printed on the card below, ready to select by
+      // hand, which is what this falls back to.
+      setCopiedLinkEventId('');
+    }
+  }
   const [eventTypeFilter, setEventTypeFilter] = useState(defaultEventTypeFilter);
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
   const [now, setNow] = useState(Date.now());
+  // Which card last had its link copied, so the confirmation appears on that
+  // card rather than on all of them.
+  const [copiedLinkEventId, setCopiedLinkEventId] = useState('');
   const eventTypeFilters = useMemo(
     () =>
       DEFAULT_TYPE_FILTERS.filter((filter) =>
@@ -314,7 +334,7 @@ function EventList({
                   <dd>
                     {event.isPaid ? (
                       <>
-                        <span>{formatCurrency(event.cost || 0)} cost</span>
+                        <span>{formatCurrency(getEventCostOn(event))} cost</span>
                         {Number(event.serviceFee || 0) > 0 ? (
                           <>
                             <span> + {formatCurrency(event.serviceFee || 0)} service fee</span>
@@ -391,6 +411,12 @@ function EventList({
               the second carries the two "put someone on this event" controls,
               which are a different kind of act and were getting lost among
               the others when all seven sat on one wrapped row. */}
+          {unlistedTypes.has(event.eventType) ? (
+            <p className="event-registration-link">
+              <span>Registration link: </span>
+              <code>{buildRegistrationUrl(event.id)}</code>
+            </p>
+          ) : null}
           <div className="card-actions event-admin-card-actions">
             <div className="card-actions-row">
               <button
@@ -406,6 +432,19 @@ function EventList({
               <button className="button-link button-reset" type="button" onClick={() => onEdit(event)}>
                 Edit
               </button>
+              {/* An unlisted type appears in no public list, so this link is
+                  the only way anyone reaches it. The address is shown as well
+                  as copied: a blocked clipboard would otherwise leave the one
+                  route to the signup with no way to get at it. */}
+              {unlistedTypes.has(event.eventType) ? (
+                <button
+                  className="button-link button-reset secondary-action"
+                  type="button"
+                  onClick={() => copyRegistrationLink(event.id)}
+                >
+                  {copiedLinkEventId === event.id ? 'Link Copied' : 'Copy Registration Link'}
+                </button>
+              ) : null}
               {wasLastSaved ? <span className="recently-saved-flag">Saved</span> : null}
               {canViewRegistrations ? (
                 <button
@@ -492,8 +531,17 @@ function matchesEventTypeFilter(type, filterValue, filterMap) {
   return filter ? filter.types.includes(type) : type === filterValue;
 }
 
+// Absolute, because this is copied out of the app and pasted somewhere else -
+// into GoDaddy, into an email, onto a printed sheet. A relative path would
+// only work on a page that is already inside the app.
+function buildRegistrationUrl(eventId) {
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+
+  return `${origin}/register/${eventId}`;
+}
+
 function getEventPaymentTotal(event) {
-  return Number(event.cost || 0) + Number(event.serviceFee || 0);
+  return getEventCostOn(event) + Number(event.serviceFee || 0);
 }
 
 // Whether the label should read Join Waitlist rather than Register Myself.

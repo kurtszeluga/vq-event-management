@@ -134,6 +134,7 @@ Supported event/listing types:
 - Challenges
 - Business Listing
 - For Sale
+- Membership
 - Other
 
 Programs grouping:
@@ -144,7 +145,53 @@ Programs grouping:
 - Retreat
 - Other
 
-Administrative cards are separated so business listings, for-sale listings, challenges, workshops, and programs can be managed without crowding one event screen.
+Administrative cards are separated so business listings, for-sale listings, challenges, workshops, membership, and programs can be managed without crowding one event screen.
+
+### Membership
+
+A standing interim measure, not the membership module. The membership module is
+not expected before 2028, so joining and renewing are handled as an event type
+in the meantime: a member signs up and pays for membership exactly as they
+register for a class, through the same registration and Square path.
+
+What makes it different from every other type:
+
+- **It appears in no list.** Not the Programs page, not the home page summary,
+  not any GoDaddy feed category. It is reached only by the direct registration
+  link, which an admin copies from the Membership module in the admin dashboard
+  and posts by hand wherever they want it. `UNLISTED_EVENT_TYPES` in
+  `src/data/eventOptions.js` is the list that governs this, and the copy-link
+  control on the admin card is shown for exactly the types in it.
+- **Its price depends on the day the member signs up**, not on a number typed
+  into the event. Two rates and the day each starts live in Configuration >
+  Payment Settings, and are copied onto the event when it is saved - so
+  changing the guild's dues takes effect on an existing Membership event the
+  next time that event is saved. The default is $25.00 from Jul 1 and $50.00
+  from Oct 1. `shared/membershipDues.js` is the only thing that decides which
+  rate applies; `getEventCostOn()` is what every price display and both
+  server-side charge calculations call. A non-Membership event returns its
+  stored `cost` from the same function, unchanged.
+- **It has no seat limit**, so capacity is forced to unlimited, nobody is ever
+  waitlisted, and the seat-hold countdown is suppressed on the registration
+  form. The underlying reservation still happens: it is also what pins the
+  amount Square is told to charge and makes the attempt idempotent.
+- **Non-member registration is on by default**, because a new member is by
+  definition not a member yet.
+- **It runs over its listing window** rather than happening on a day, like a
+  Challenge, so it collects no date, time, presenter or location.
+- **It asks four extra questions**: type of phone (cell or home), new or
+  renewing, veteran (yes or no), and an optional free-text box for skills the
+  member is willing to share. Four fixed questions, not a question builder -
+  see `shared/membershipQuestions.js` for why.
+- **Its Google Sheet is four columns wider**, with the answers beside Phone.
+  The standard eleven-column header is untouched for every other type, because
+  everything to the right of the app's columns belongs to the coordinator and
+  widening the shared header would shift every hand-added column on every
+  existing sheet.
+
+Paying does **not** change a profile's Membership Status. That stays a manual
+act in User Controls, deliberately: there is no paid-through date on a profile
+to expire, so an automatic flip to Active would never flip back.
 
 ## Event Configuration
 

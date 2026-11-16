@@ -18,8 +18,16 @@ export const EVENT_TYPES = [
   'Challenges',
   'Business Listing',
   'For Sale',
+  'Membership',
   'Other'
 ];
+
+// Types that never appear in any public list - not the Programs page, not the
+// home page summary, not the GoDaddy feed. A Membership signup is reached only
+// by the direct link an admin copies out of the Events module and posts where
+// they want it, so it is excluded everywhere a list is built rather than being
+// given a page of its own.
+export const UNLISTED_EVENT_TYPES = ['Membership'];
 
 export const EVENT_TIME_OPTIONS = [
   {
@@ -108,6 +116,13 @@ export const DEFAULT_EVENT_FORM = {
   listingMode: '',
   location: '',
   locationPreset: '',
+  // Membership only - the two dues rates and the day each starts. Copied onto
+  // the event from Configuration at save, so changing the guild's dues applies
+  // to a Membership event the next time it is saved.
+  membershipEarlyFee: '25.00',
+  membershipEarlyStart: '07-01',
+  membershipRegularFee: '50.00',
+  membershipRegularStart: '10-01',
   ownerName: '',
   presenter: '',
   registrationCloseAt: '',

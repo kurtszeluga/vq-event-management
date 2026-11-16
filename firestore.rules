@@ -129,6 +129,7 @@ service cloud.firestore {
           'capacityUnlimited',
           'isPaid',
           'cost',
+          'membershipFeeSchedule',
           'serviceFee',
           'status',
           'registrationOpen',
@@ -160,6 +161,21 @@ service cloud.firestore {
             && request.resource.data.externalRegistrationUrl.size() <= 500)
         && (!('address' in request.resource.data) || request.resource.data.address is string)
         && (!('askingPrice' in request.resource.data) || request.resource.data.askingPrice is number)
+        // Membership only. Null on every other type, which is how switching a
+        // Membership event to another type clears it rather than leaving a
+        // stale schedule behind on a flat-priced event.
+        && (!('membershipFeeSchedule' in request.resource.data)
+          || request.resource.data.membershipFeeSchedule == null
+          || request.resource.data.membershipFeeSchedule.keys().hasOnly([
+              'earlyFee',
+              'earlyStart',
+              'regularFee',
+              'regularStart'
+            ])
+            && request.resource.data.membershipFeeSchedule.earlyFee is number
+            && request.resource.data.membershipFeeSchedule.earlyStart is string
+            && request.resource.data.membershipFeeSchedule.regularFee is number
+            && request.resource.data.membershipFeeSchedule.regularStart is string)
         && (!('businessName' in request.resource.data) || request.resource.data.businessName is string)
         && (!('contactEmail' in request.resource.data) || request.resource.data.contactEmail is string)
         && (!('contactName' in request.resource.data) || request.resource.data.contactName is string)
@@ -210,6 +226,10 @@ service cloud.firestore {
           'name',
           'email',
           'membershipStatusAtRegistration',
+          'membershipPhoneType',
+          'membershipRenewalType',
+          'membershipSkills',
+          'membershipVeteran',
           'phone',
           'profileMatchedAtRegistration',
           'profileStatusAtRegistration',
@@ -238,6 +258,15 @@ service cloud.firestore {
         && (!('eventServiceFee' in request.resource.data) || request.resource.data.eventServiceFee is number)
         && (!('eventTitle' in request.resource.data) || request.resource.data.eventTitle is string)
         && (!('eventType' in request.resource.data) || request.resource.data.eventType is string)
+        // Membership only; '' on every other type. Written server-side, but
+        // listed here so an admin editing a membership registration from the
+        // Registrations module is not denied by hasOnly.
+        && (!('membershipPhoneType' in request.resource.data) || request.resource.data.membershipPhoneType is string)
+        && (!('membershipRenewalType' in request.resource.data) || request.resource.data.membershipRenewalType is string)
+        && (!('membershipSkills' in request.resource.data)
+          || request.resource.data.membershipSkills is string
+            && request.resource.data.membershipSkills.size() <= 1500)
+        && (!('membershipVeteran' in request.resource.data) || request.resource.data.membershipVeteran is string)
         && request.resource.data.name is string
         && request.resource.data.email is string
         && (!('membershipStatusAtRegistration' in request.resource.data)
@@ -723,6 +752,10 @@ service cloud.firestore {
           'enableApplePay',
           'enableCardPayments',
           'enableGooglePay',
+          'membershipEarlyFee',
+          'membershipEarlyStart',
+          'membershipRegularFee',
+          'membershipRegularStart',
           'updatedDate'
         ])
         && request.resource.data.allowAppInitiatedRefunds is bool
@@ -730,6 +763,10 @@ service cloud.firestore {
         && request.resource.data.enableApplePay is bool
         && request.resource.data.enableCardPayments is bool
         && request.resource.data.enableGooglePay is bool
+        && request.resource.data.membershipEarlyFee is number
+        && request.resource.data.membershipEarlyStart is string
+        && request.resource.data.membershipRegularFee is number
+        && request.resource.data.membershipRegularStart is string
         && request.resource.data.updatedDate is timestamp;
     }
 

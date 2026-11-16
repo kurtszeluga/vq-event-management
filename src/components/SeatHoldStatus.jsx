@@ -4,21 +4,33 @@ import { useReservationCountdown } from '../hooks/useReservationCountdown.js';
 // free or cash/check registrant is holding a seat exactly as much as an
 // online-payment one, and should see the same countdown and the same
 // waitlist fallback rather than only the paying registrant getting one.
+// `seatsUnlimited` suppresses everything the hold says, not the hold itself.
+// An event with no seat limit still takes a reservation, because the
+// reservation is also what pins the amount Square is told to charge and makes
+// the attempt idempotent - but telling a member their seat is held for the
+// next ten minutes, on a signup that cannot run out of seats, invents a
+// deadline and a reason to panic that do not exist. Errors still show: a
+// reservation that failed means the registration is about to fail too.
 function SeatHoldStatus({
   joiningWaitlist,
   onExpired,
   reservation,
   reservationError,
-  reservationLoading
+  reservationLoading,
+  seatsUnlimited = false
 }) {
   const timeLeft = useReservationCountdown(reservation, onExpired);
 
   if (reservationLoading || (!reservation && !reservationError)) {
-    return <p className="form-help">Holding your seat...</p>;
+    return seatsUnlimited ? null : <p className="form-help">Holding your seat...</p>;
   }
 
   if (reservationError) {
     return <p className="form-error">{reservationError}</p>;
+  }
+
+  if (seatsUnlimited) {
+    return null;
   }
 
   if (joiningWaitlist) {

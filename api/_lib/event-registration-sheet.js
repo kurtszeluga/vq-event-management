@@ -2,6 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import {
   REGISTRATION_SHEET_COLUMN_COUNT,
   REGISTRATION_SHEET_HEADERS,
+  getRegistrationSheetHeaders,
   buildRegistrationSheetName,
   buildRegistrationSheetUpdate,
   eventTakesRegistrations
@@ -55,13 +56,22 @@ import { getGoogleAccessToken } from './google-access-token.js';
 
 const SHEET_TAB_TITLE = 'Registrations';
 const SETTINGS_DOCUMENT_ID = 'registrationSheets';
-const LAST_GRID_COLUMN = toColumnLetter(REGISTRATION_SHEET_COLUMN_COUNT - 1);
-const FIRST_EXTRA_COLUMN = toColumnLetter(REGISTRATION_SHEET_COLUMN_COUNT);
+// Derived per sheet rather than fixed at module load: a Membership event's
+// sheet carries four more app columns than every other type, so where the
+// app's region ends - and where the coordinator's own columns begin - depends
+// on the event being written.
+function lastGridColumn(columnCount) {
+  return toColumnLetter(columnCount - 1);
+}
+
+function firstExtraColumn(columnCount) {
+  return toColumnLetter(columnCount);
+}
 
 // The rightmost column this rewrite touches: the app's own columns, plus
 // however many the coordinator has added beside them.
-function lastExtraColumn(extraColumnCount) {
-  return toColumnLetter(REGISTRATION_SHEET_COLUMN_COUNT + extraColumnCount - 1);
+function lastExtraColumn(columnCount, extraColumnCount) {
+  return toColumnLetter(columnCount + extraColumnCount - 1);
 }
 
 export const DEFAULT_REGISTRATION_SHEET_SETTINGS = {
@@ -226,6 +236,7 @@ export async function syncEventRegistrationSheet(db, eventId) {
       .get();
     const { manualRowCount, registrationRowCount } = await writeRegistrationGrid({
       accessToken,
+      event,
       registrations: registrationsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
       sheet
     });
@@ -277,6 +288,7 @@ const DEFAULT_SHEETS_CLIENT = { clearValues, readValues, writeValues };
 // number on the first sync after they wrote it.
 export async function writeRegistrationGrid({
   accessToken,
+  event = null,
   registrations,
   sheet,
   sheetsClient = DEFAULT_SHEETS_CLIENT
@@ -290,11 +302,11 @@ export async function writeRegistrationGrid({
     spreadsheetId: sheet.spreadsheetId,
     valueRenderOption: 'FORMULA'
   });
-  const update = buildRegistrationSheetUpdate({ existingValues, registrations });
+  const update = buildRegistrationSheetUpdate({ event, existingValues, registrations });
 
   await sheetsClient.writeValues({
     accessToken,
-    range: buildA1Range(sheet.sheetTitle, 'A1', `${LAST_GRID_COLUMN}${update.rowCount}`),
+    range: buildA1Range(sheet.sheetTitle, 'A1', `${lastGridColumn(update.columnCount)}${update.rowCount}`),
     spreadsheetId: sheet.spreadsheetId,
     values: update.gridValues
   });
@@ -306,8 +318,8 @@ export async function writeRegistrationGrid({
       accessToken,
       range: buildA1Range(
         sheet.sheetTitle,
-        `${FIRST_EXTRA_COLUMN}1`,
-        `${lastExtraColumn(update.extraColumnCount)}${update.rowCount}`
+        `${firstExtraColumn(update.columnCount)}1`,
+        `${lastExtraColumn(update.columnCount, update.extraColumnCount)}${update.rowCount}`
       ),
       spreadsheetId: sheet.spreadsheetId,
       // As typed, not RAW: this is the half where a formula should stay a
@@ -333,7 +345,7 @@ export async function writeRegistrationGrid({
     range: buildA1Range(
       sheet.sheetTitle,
       `A${update.rowCount + 1}`,
-      lastExtraColumn(update.extraColumnCount)
+      lastExtraColumn(update.columnCount, update.extraColumnCount)
     ),
     spreadsheetId: sheet.spreadsheetId
   });
@@ -418,7 +430,7 @@ async function ensureSpreadsheet(db, { accessToken, event, eventId, folderId }) 
         spreadsheetId: link.spreadsheetId
       });
       const properties = resolveRegistrationTab(tabs, link)
-        || await createReplacementTab({ accessToken, eventId, link, tabs });
+        || await createReplacementTab({ accessToken, event, eventId, link, tabs });
 
       return {
         columnCount: properties.columnCount,
@@ -457,7 +469,7 @@ async function ensureSpreadsheet(db, { accessToken, event, eventId, folderId }) 
   try {
     await formatNewSheet({
       accessToken,
-      columnCount: REGISTRATION_SHEET_HEADERS.length,
+      columnCount: getRegistrationSheetHeaders(event).length,
       sheetId: properties.sheetId,
       sheetTitle: SHEET_TAB_TITLE,
       spreadsheetId: created.spreadsheetId
@@ -500,7 +512,7 @@ async function findExistingSpreadsheet(accessToken, link) {
 // The rows are rebuilt from Firestore, so the registrations come back intact;
 // what is lost is whatever the coordinator had typed into the deleted tab,
 // which went with the tab.
-async function createReplacementTab({ accessToken, eventId, link, tabs }) {
+async function createReplacementTab({ accessToken, event = null, eventId, link, tabs }) {
   const title = nextAvailableTabTitle(tabs);
 
   console.warn(
@@ -522,7 +534,7 @@ async function createReplacementTab({ accessToken, eventId, link, tabs }) {
   try {
     await formatNewSheet({
       accessToken,
-      columnCount: REGISTRATION_SHEET_COLUMN_COUNT,
+      columnCount: getRegistrationSheetHeaders(event).length,
       sheetId: created.sheetId,
       sheetTitle: created.sheetTitle,
       spreadsheetId: link.spreadsheetId

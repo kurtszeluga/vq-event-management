@@ -3,6 +3,11 @@ import {
   getExternalRegistrationUrl,
   getRegistrationWindowState
 } from '../shared/registrationWindow.js';
+import { getEventCostOn, isMembershipEvent } from '../shared/membershipDues.js';
+import {
+  getMembershipAnswerErrors,
+  sanitizeMembershipAnswers
+} from '../shared/membershipQuestions.js';
 import { getRequireMembershipCheck } from './_lib/membership-settings.js';
 import { syncEventRegistrantNames } from './_lib/event-registrant-names.js';
 import { syncEventRegistrationSheet } from './_lib/event-registration-sheet.js';
@@ -889,7 +894,12 @@ async function createRegistration(db, payload, authorization) {
       throw httpError(409, 'An active registration already exists for this email and event.');
     }
 
-    const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
+    // getEventCostOn, not event.cost: a Membership event is priced by the day
+    // the member signs up. This and the reservation below are the two places
+    // that decide what Square is actually told to charge, so they must agree -
+    // validatePaymentReservation rejects the registration if they do not.
+    const eventCost = getEventCostOn(event, { now: Date.now() });
+    const isPaidEvent = Boolean(event.isPaid) && eventCost > 0;
     const payLaterByCashCheck = isPaidEvent && isCashCheckPaymentAllowed({
       allowCashCheckOverride: payload.allowCashCheckOverride,
       authorizationKind: authorization.kind,
@@ -907,7 +917,6 @@ async function createRegistration(db, payload, authorization) {
       throw httpError(400, 'This event requires online card payment, which admin-initiated registration does not support. Enable cash or check payment for this event, use the cash/check override, or have the member register themselves.');
     }
 
-    const eventCost = Number(event.cost || 0);
     const eventServiceFee = Number(event.serviceFee || 0);
     const amountDue = isPaidEvent ? eventCost + eventServiceFee : 0;
     // Every registration now takes a seat hold before this final submit,
@@ -960,6 +969,24 @@ async function createRegistration(db, payload, authorization) {
     const profileUpdates = payload.profileUpdates || {};
     const registrantFirstName = profileUpdates.firstName || profile?.firstName || getFirstName(payload.name);
     const registrantLastName = profileUpdates.lastName || profile?.lastName || getLastName(payload.name);
+    const membershipRegistration = isMembershipEvent(event);
+
+    // Checked here as well as in the browser. The browser's copy is what makes
+    // the form usable; this is what makes the answers trustworthy, since the
+    // request can be made without it.
+    if (membershipRegistration) {
+      const answerErrors = getMembershipAnswerErrors({
+        phoneType: payload.membershipAnswers.membershipPhoneType,
+        renewalType: payload.membershipAnswers.membershipRenewalType,
+        skills: payload.membershipAnswers.membershipSkills,
+        veteran: payload.membershipAnswers.membershipVeteran
+      });
+
+      if (Object.keys(answerErrors).length) {
+        throw httpError(400, 'Answer every required membership question before registering.');
+      }
+    }
+
     const registration = {
       email: payload.email,
       eventId: payload.eventId,
@@ -974,6 +1001,14 @@ async function createRegistration(db, payload, authorization) {
       paymentPreference: payLaterByCashCheck ? 'cash-check-later' : '',
       name: payload.name,
       membershipStatusAtRegistration: membershipStatus,
+      // Membership only. Written as '' on every other type so the field set is
+      // the same shape for every registration, which is what lets the
+      // registration sheet and the admin panel read them without checking the
+      // event type first.
+      membershipPhoneType: membershipRegistration ? payload.membershipAnswers.membershipPhoneType : '',
+      membershipRenewalType: membershipRegistration ? payload.membershipAnswers.membershipRenewalType : '',
+      membershipSkills: membershipRegistration ? payload.membershipAnswers.membershipSkills : '',
+      membershipVeteran: membershipRegistration ? payload.membershipAnswers.membershipVeteran : '',
       paymentMethod: adminCollectedPayment?.method || '',
       paymentNote: adminCollectedPayment
         ? `Cash/check payment collected by ${authorization.actorName} at the time of registration.`
@@ -1252,7 +1287,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       requireMembershipCheck
     });
 
-    const isPaidEvent = Boolean(event.isPaid) && Number(event.cost || 0) > 0;
+    const isPaidEvent = Boolean(event.isPaid) && getEventCostOn(event, { now }) > 0;
     // Only ever reached via the self-service Square reservation flow, so
     // authorization.kind here is never 'admin' - the cash/check override has
     // no effect on this path, same as isCashCheckPaymentAllowed intends.
@@ -1307,7 +1342,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
       };
     }
 
-    const amountDue = Number(event.cost || 0) + Number(event.serviceFee || 0);
+    const amountDue = getEventCostOn(event, { now }) + Number(event.serviceFee || 0);
     const existingReservationSnap = payload.idempotencyKey
       ? await transaction.get(reservationRef)
       : null;
@@ -1552,6 +1587,10 @@ function sanitizeRegistrationPayload(payload) {
     email: normalizeEmail(payload.email),
     eventId: String(payload.eventId || '').trim(),
     idempotencyKey: sanitizeIdempotencyKey(payload.idempotencyKey),
+    // Always sanitized, never conditionally - the event type decides whether
+    // these are STORED, but an answer arriving on a non-Membership request is
+    // dropped here rather than being trusted as far as that check.
+    membershipAnswers: sanitizeMembershipAnswers(payload.membershipAnswers || {}),
     name: normalizeName(payload.name || ''),
     paymentPreference: payload.paymentPreference === 'cash-check-later' ? 'cash-check-later' : '',
     paymentReceived: Boolean(payload.paymentReceived),

@@ -25,6 +25,11 @@ import { isEventFullForSeats } from '../../utils/registrationAvailability.js';
 import { hasOutstandingWaitlistOffer, holdsSeat, isPaymentPending } from '../../utils/registrationEligibility.js';
 import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
 import { getRegistrationWindowState, isRegistrationWindowOpen } from '../../../shared/registrationWindow.js';
+import {
+  getMembershipPhoneTypeLabel,
+  getMembershipRenewalTypeLabel,
+  getMembershipVeteranLabel
+} from '../../../shared/membershipQuestions.js';
 
 const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Waitlisted', 'Cancelled'];
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -1165,6 +1170,26 @@ function RegistrationPanel({
                                       />
                                     ) : null}
                                     <DetailItem label="Registered Date" value={formatDateTime(registration.registrationDate)} />
+                                    {registration.eventType === 'Membership' ? (
+                                      <>
+                                        <DetailItem
+                                          label="Phone Type"
+                                          value={getMembershipPhoneTypeLabel(registration.membershipPhoneType)}
+                                        />
+                                        <DetailItem
+                                          label="New Or Renewing"
+                                          value={getMembershipRenewalTypeLabel(registration.membershipRenewalType)}
+                                        />
+                                        <DetailItem
+                                          label="Veteran"
+                                          value={getMembershipVeteranLabel(registration.membershipVeteran)}
+                                        />
+                                        <DetailItem
+                                          label="Skills Willing To Share"
+                                          value={registration.membershipSkills || 'None given'}
+                                        />
+                                      </>
+                                    ) : null}
                                     <DetailItem label="Current Membership" value={user?.membershipStatus || 'Unknown'} />
                                     <DetailItem
                                       label="Membership When Registered"

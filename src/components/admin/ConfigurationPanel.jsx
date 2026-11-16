@@ -36,6 +36,11 @@ import {
   subscribeToPaymentSettings,
   subscribeToRegistrationSheetSettings
 } from '../../services/configurationService.js';
+import {
+  formatMonthDay,
+  getDayBefore,
+  readMembershipFeeSchedule
+} from '../../../shared/membershipDues.js';
 import { BUSINESS_TYPES, EVENT_LOCATIONS, EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
 import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
@@ -648,6 +653,61 @@ function ConfigurationPanel({ currentUserProfile }) {
               Used as the starting service fee when an event or activity is marked as paid.
             </span>
           </label>
+          <fieldset className="membership-dues-fieldset">
+            <legend>Membership Dues</legend>
+            <p className="form-help">
+              What it costs to join or renew, and the day each rate starts. The
+              year is split between the two rates, so every day falls under one
+              of them. A Membership event picks these up when it is saved -
+              change them here, then open the Membership event and save it
+              again for the new amounts to apply.
+            </p>
+            <div className="form-grid compact">
+              <label>
+                <span>Early Rate</span>
+                <input
+                  min="0"
+                  step="0.01"
+                  type="number"
+                  value={paymentSettings.membershipEarlyFee ?? 25}
+                  onChange={(event) =>
+                    setPaymentSettings((current) => ({
+                      ...current,
+                      membershipEarlyFee: event.target.value
+                    }))
+                  }
+                />
+              </label>
+              {renderMonthDayField({
+                label: 'Early Rate Starts',
+                onChange: (value) =>
+                  setPaymentSettings((current) => ({ ...current, membershipEarlyStart: value })),
+                value: paymentSettings.membershipEarlyStart || '07-01'
+              })}
+              <label>
+                <span>Regular Rate</span>
+                <input
+                  min="0"
+                  step="0.01"
+                  type="number"
+                  value={paymentSettings.membershipRegularFee ?? 50}
+                  onChange={(event) =>
+                    setPaymentSettings((current) => ({
+                      ...current,
+                      membershipRegularFee: event.target.value
+                    }))
+                  }
+                />
+              </label>
+              {renderMonthDayField({
+                label: 'Regular Rate Starts',
+                onChange: (value) =>
+                  setPaymentSettings((current) => ({ ...current, membershipRegularStart: value })),
+                value: paymentSettings.membershipRegularStart || '10-01'
+              })}
+            </div>
+            <p className="form-help">{describeMembershipDues(paymentSettings)}</p>
+          </fieldset>
           <label className="checkbox-label registration-exception-checkbox">
             <input
               checked={Boolean(paymentSettings.allowAppInitiatedRefunds)}
@@ -2483,6 +2543,67 @@ function parseCsvRows(text) {
   }
 
   return rows;
+}
+
+const MONTH_OPTIONS = [
+  { label: 'January', value: '01' },
+  { label: 'February', value: '02' },
+  { label: 'March', value: '03' },
+  { label: 'April', value: '04' },
+  { label: 'May', value: '05' },
+  { label: 'June', value: '06' },
+  { label: 'July', value: '07' },
+  { label: 'August', value: '08' },
+  { label: 'September', value: '09' },
+  { label: 'October', value: '10' },
+  { label: 'November', value: '11' },
+  { label: 'December', value: '12' }
+];
+
+const DAY_OPTIONS = Array.from({ length: 31 }, (unused, index) => String(index + 1).padStart(2, '0'));
+
+// Month and day as two dropdowns rather than a typed 'MM-DD'. The stored value
+// is year-free because the schedule repeats every year, but a bare text box
+// invites '7/1' and '07-1', both of which price as the default and look like
+// the app ignoring what was typed.
+function renderMonthDayField({ label, onChange, value }) {
+  const [month = '01', day = '01'] = String(value || '').split('-');
+
+  return (
+    <label className="month-day-field">
+      <span>{label}</span>
+      <span className="month-day-inputs">
+        <select value={month} onChange={(event) => onChange(`${event.target.value}-${day}`)}>
+          {MONTH_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <select value={day} onChange={(event) => onChange(`${month}-${event.target.value}`)}>
+          {DAY_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {Number(option)}
+            </option>
+          ))}
+        </select>
+      </span>
+    </label>
+  );
+}
+
+// Reads the two rates back as the two windows they describe, so a Super User
+// can see that what they typed means what they meant before saving it.
+function describeMembershipDues(settings) {
+  const schedule = readMembershipFeeSchedule(settings);
+  const early = `${formatMonthDay(schedule.earlyStart)} - ${formatMonthDay(getDayBefore(schedule.regularStart))}`;
+  const regular = `${formatMonthDay(schedule.regularStart)} - ${formatMonthDay(getDayBefore(schedule.earlyStart))}`;
+
+  return `${early}: ${formatDuesAmount(schedule.earlyFee)}. ${regular}: ${formatDuesAmount(schedule.regularFee)}.`;
+}
+
+function formatDuesAmount(amount) {
+  return `$${Number(amount || 0).toFixed(2)}`;
 }
 
 function detectCsvDelimiter(text) {

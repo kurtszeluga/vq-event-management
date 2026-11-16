@@ -37,6 +37,14 @@ import {
   needsEmailVerification as getNeedsEmailVerification,
   requiresBillingAddress as getRequiresBillingAddress
 } from '../utils/registrationEligibility.js';
+import { getEventCostOn, isMembershipEvent } from '../../shared/membershipDues.js';
+import {
+  MEMBERSHIP_PHONE_TYPES,
+  MEMBERSHIP_RENEWAL_TYPES,
+  MEMBERSHIP_SKILLS_MAX_LENGTH,
+  MEMBERSHIP_VETERAN_ANSWERS,
+  getMembershipAnswerErrors
+} from '../../shared/membershipQuestions.js';
 import {
   buildBillingAddress,
   buildDisplayName,
@@ -101,6 +109,13 @@ function RegisterPage() {
   const [passwordSetupPending, setPasswordSetupPending] = useState(false);
   const [passwordSetupError, setPasswordSetupError] = useState('');
   const [formError, setFormError] = useState('');
+  // The four questions a Membership signup asks on top of the usual contact
+  // details. Held here rather than in a generic answers map because they are
+  // four fixed questions, not a question builder - see PROJECT_SPEC.md.
+  const [membershipPhoneType, setMembershipPhoneType] = useState('');
+  const [membershipRenewalType, setMembershipRenewalType] = useState('');
+  const [membershipVeteran, setMembershipVeteran] = useState('');
+  const [membershipSkills, setMembershipSkills] = useState('');
   const [paymentPreference, setPaymentPreference] = useState('');
   const [registrationFinalizing, setRegistrationFinalizing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -216,6 +231,12 @@ function RegisterPage() {
       email,
       eventId,
       idempotencyKey: registrationAttemptKey.current,
+      membershipAnswers: {
+        phoneType: membershipPhoneType,
+        renewalType: membershipRenewalType,
+        skills: membershipSkills,
+        veteran: membershipVeteran
+      },
       name: displayName,
       paymentPreference: canPayLaterByCashCheck
         ? (mustPayByCashCheck ? 'cash-check-later' : paymentPreference)
@@ -243,6 +264,10 @@ function RegisterPage() {
     firstName,
     lastName,
     matchedProfile,
+    membershipPhoneType,
+    membershipRenewalType,
+    membershipSkills,
+    membershipVeteran,
     mustPayByCashCheck,
     paymentPreference,
     phone,
@@ -251,6 +276,8 @@ function RegisterPage() {
     registrationVerificationToken,
     requiresBillingAddress
   ]);
+
+  const isMembershipRegistration = isMembershipEvent(event);
 
   const registrationUnavailable = useMemo(
     () => getRegistrationUnavailableReason(event),
@@ -365,7 +392,17 @@ function RegisterPage() {
 
   async function handleSubmit(formEvent) {
     formEvent.preventDefault();
-    const errors = validateForm({ email, firstName, lastName, phone });
+    const errors = validateForm({
+      email,
+      firstName,
+      isMembershipRegistration,
+      lastName,
+      membershipPhoneType,
+      membershipRenewalType,
+      membershipSkills,
+      membershipVeteran,
+      phone
+    });
 
     setFieldErrors(errors);
     setFormError('');
@@ -902,6 +939,86 @@ function RegisterPage() {
                   ) : null}
                 </div>
               ) : null}
+              {isMembershipRegistration ? (
+                <div className="membership-questions">
+                  <h3>Membership Questions</h3>
+                  <div
+                    className={`radio-field ${fieldErrors.membershipPhoneType ? 'field-invalid' : ''}`}
+                  >
+                    <span>Select the type of phone *</span>
+                    <div className="radio-options">
+                      {MEMBERSHIP_PHONE_TYPES.map((option) => (
+                        <label className="checkbox-label" key={option.value}>
+                          <input
+                            checked={membershipPhoneType === option.value}
+                            disabled={submitting || Boolean(confirmation)}
+                            name="membership-phone-type"
+                            type="radio"
+                            value={option.value}
+                            onChange={() => setMembershipPhoneType(option.value)}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div
+                    className={`radio-field ${fieldErrors.membershipRenewalType ? 'field-invalid' : ''}`}
+                  >
+                    <span>Are you a New member or Renewing your membership? *</span>
+                    <div className="radio-options">
+                      {MEMBERSHIP_RENEWAL_TYPES.map((option) => (
+                        <label className="checkbox-label" key={option.value}>
+                          <input
+                            checked={membershipRenewalType === option.value}
+                            disabled={submitting || Boolean(confirmation)}
+                            name="membership-renewal-type"
+                            type="radio"
+                            value={option.value}
+                            onChange={() => setMembershipRenewalType(option.value)}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div
+                    className={`radio-field ${fieldErrors.membershipVeteran ? 'field-invalid' : ''}`}
+                  >
+                    <span>Are you a Veteran? *</span>
+                    <div className="radio-options">
+                      {MEMBERSHIP_VETERAN_ANSWERS.map((option) => (
+                        <label className="checkbox-label" key={option.value}>
+                          <input
+                            checked={membershipVeteran === option.value}
+                            disabled={submitting || Boolean(confirmation)}
+                            name="membership-veteran"
+                            type="radio"
+                            value={option.value}
+                            onChange={() => setMembershipVeteran(option.value)}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <label>
+                    <span>
+                      What skills set (previous work skills, quilting techniques
+                      or designs, life experience and other talents) would you be
+                      willing to share?
+                    </span>
+                    <textarea
+                      disabled={submitting || Boolean(confirmation)}
+                      maxLength={MEMBERSHIP_SKILLS_MAX_LENGTH}
+                      rows={4}
+                      value={membershipSkills}
+                      onChange={(inputEvent) => setMembershipSkills(inputEvent.target.value)}
+                    />
+                    <span className="form-help">Optional.</span>
+                  </label>
+                </div>
+              ) : null}
               {needsProfileEdits ? (
                 <div className="detail-actions">
                   <button
@@ -989,6 +1106,7 @@ function RegisterPage() {
                     reservation={paymentReservation}
                     reservationError={paymentReservationError}
                     reservationLoading={paymentReservationLoading}
+                    seatsUnlimited={isMembershipRegistration || Boolean(event.capacityUnlimited)}
                   />
                   {paymentRequiredForCurrentSeat ? (
                     <RegistrationPaymentPanel
@@ -1192,7 +1310,7 @@ function EventSummary({ event }) {
     ? `${formatCurrency(getEventPaymentTotal(event))} total`
     : 'No Charge';
   const paymentBreakdown = event.isPaid && Number(event.serviceFee || 0) > 0
-    ? `${formatCurrency(event.cost || 0)} + ${formatCurrency(event.serviceFee || 0)} service fee`
+    ? `${formatCurrency(getEventCostOn(event))} + ${formatCurrency(event.serviceFee || 0)} service fee`
     : '';
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);
@@ -1347,7 +1465,17 @@ function createRegistrationAttemptKey() {
   return `attempt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function validateForm({ email, firstName, lastName, phone }) {
+function validateForm({
+  email,
+  firstName,
+  isMembershipRegistration = false,
+  lastName,
+  membershipPhoneType = '',
+  membershipRenewalType = '',
+  membershipSkills = '',
+  membershipVeteran = '',
+  phone
+}) {
   const errors = {};
 
   if (!firstName.trim()) {
@@ -1360,6 +1488,15 @@ function validateForm({ email, firstName, lastName, phone }) {
 
   if (!email.trim() || !email.includes('@')) {
     errors.email = 'Valid email is required.';
+  }
+
+  if (isMembershipRegistration) {
+    Object.assign(errors, getMembershipAnswerErrors({
+      phoneType: membershipPhoneType,
+      renewalType: membershipRenewalType,
+      skills: membershipSkills,
+      veteran: membershipVeteran
+    }));
   }
 
   if (phone.replace(/\D/g, '').length < 10) {

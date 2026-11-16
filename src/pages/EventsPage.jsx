@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import EventImageCarousel from '../components/EventImageCarousel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
-import { getEventPlaceholderImage } from '../data/eventOptions.js';
+import { UNLISTED_EVENT_TYPES, getEventPlaceholderImage } from '../data/eventOptions.js';
 import { subscribeToPublishedEvents } from '../services/eventService.js';
 import { loadPublicRegistrationCounts } from '../services/registrationService.js';
 import {
@@ -27,9 +27,10 @@ import { subscribeToEventRegistrantNames } from '../services/eventRegistrantName
 import { useAuth } from '../context/useAuth.js';
 import { openManagedPopup } from '../utils/popupWindow.js';
 import { listEventDocuments } from '../../shared/eventDocuments.js';
+import { getEventCostOn } from '../../shared/membershipDues.js';
 
 const DESCRIPTION_PREVIEW_LENGTH = 180;
-const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale']);
+const EXCLUDED_EVENT_TYPES = new Set(['Business Listing', 'For Sale', ...UNLISTED_EVENT_TYPES]);
 // 'All' carries no types on purpose: getEventFilter() asks each filter
 // whether it owns an event's type, and an empty list answers no for every
 // event - so the All button never becomes the answer to "which type is this",
@@ -139,7 +140,7 @@ function buildEventPrintHtml(event) {
   const presenter = escapeHtml(event.presenter || 'To be announced');
   const cost = escapeHtml(
     event.isPaid
-      ? `${formatCurrency(event.cost)}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+      ? `${formatCurrency(getEventCostOn(event))}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
       : 'No Charge'
   );
   const registration = isRegistrationWindowOpen(event) ? 'Registration open' : 'Registration closed';
@@ -693,7 +694,7 @@ function EventsPage() {
                     <dt>Cost</dt>
                     <dd>
                       {event.isPaid
-                        ? `${formatCurrency(event.cost)}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+                        ? `${formatCurrency(getEventCostOn(event))}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
                         : 'No Charge'}
                     </dd>
                   </div>

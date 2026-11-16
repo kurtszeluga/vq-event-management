@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getEventPlaceholderImage } from '../data/eventOptions.js';
 import { getEvent } from '../services/eventService.js';
+import { getEventCostOn } from '../../shared/membershipDues.js';
 import {
   formatCurrency,
   formatEventDate,
@@ -182,7 +183,7 @@ function EventListingPrintPage() {
               <dt>Cost</dt>
               <dd>
                 {event.isPaid
-                  ? `${formatCurrency(event.cost)}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+                  ? `${formatCurrency(getEventCostOn(event))}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
                   : 'No Charge'}
               </dd>
             </div>

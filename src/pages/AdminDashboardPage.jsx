@@ -65,6 +65,7 @@ function AdminDashboardPage() {
     { id: 'challenges', label: 'Challenges', visible: canManageEvents },
     { id: 'business-listings', label: 'Business Listings', visible: canManageEvents },
     { id: 'for-sale', label: 'For Sale', visible: canManageEvents },
+    { id: 'membership', label: 'Membership', visible: canManageEvents },
     { id: 'archive', label: 'Archive', visible: canManageEvents },
     { id: 'user-controls', label: 'User Controls', visible: isSuperUser || canAddUsers },
     { id: 'configuration', label: 'Setup / System Config', visible: isSuperUser }
@@ -92,7 +93,7 @@ function AdminDashboardPage() {
       showTypeFilters: true,
       createLabel: 'Create New Event/Activity',
       createType: '',
-      excludedEventTypes: ['Business Listing', 'For Sale', 'Challenges']
+      excludedEventTypes: ['Business Listing', 'For Sale', 'Challenges', 'Membership']
     },
     challenges: {
       title: 'Challenges',
@@ -116,6 +117,17 @@ function AdminDashboardPage() {
       showTypeFilters: false,
       createLabel: 'Create New For Sale Listing',
       createType: 'For Sale',
+      excludedEventTypes: []
+    },
+    // Membership has a module of its own for the same reason it has no public
+    // list: this is the only place it can be reached from. The signup is
+    // created, edited and link-copied here or nowhere.
+    membership: {
+      title: 'Membership',
+      filter: 'Membership',
+      showTypeFilters: false,
+      createLabel: 'Create New Membership Signup',
+      createType: 'Membership',
       excludedEventTypes: []
     }
   };
@@ -360,6 +372,10 @@ function AdminDashboardPage() {
 
     if (eventType === 'For Sale') {
       return 'for-sale';
+    }
+
+    if (eventType === 'Membership') {
+      return 'membership';
     }
 
     return 'events-activities';

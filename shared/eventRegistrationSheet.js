@@ -12,6 +12,12 @@ import {
   NON_REGISTRABLE_EVENT_TYPES,
   REGISTRATION_WINDOW_MODES
 } from './registrationWindow.js';
+import { isMembershipEvent } from './membershipDues.js';
+import {
+  getMembershipPhoneTypeLabel,
+  getMembershipRenewalTypeLabel,
+  getMembershipVeteranLabel
+} from './membershipQuestions.js';
 
 // The coordinator's working list, so it carries more than the member-visible
 // name list does: this sheet lives in the guild's own Drive, shared with the
@@ -40,6 +46,49 @@ export const REGISTRATION_SHEET_HEADERS = [
 // signal that the row is theirs and must survive the rewrite.
 export const REGISTRATION_ID_COLUMN_INDEX = REGISTRATION_SHEET_HEADERS.indexOf('Registration ID');
 
+// The four answers a Membership signup collects, as columns. They sit beside
+// Phone because that is where the reader already is - Phone Type qualifies the
+// number in the cell to its left.
+//
+// Membership sheets ONLY. Adding these to REGISTRATION_SHEET_HEADERS would
+// widen the app's region on every event's sheet, and everything from that
+// region rightwards belongs to the coordinator: every hand-added column on
+// every existing sheet would shift four places on the next sync, and the first
+// four would be overwritten. A second header set leaves those sheets untouched.
+export const MEMBERSHIP_ANSWER_HEADERS = [
+  'Phone Type',
+  'New Or Renewing',
+  'Veteran',
+  'Skills To Share'
+];
+
+export const MEMBERSHIP_REGISTRATION_SHEET_HEADERS = (() => {
+  const phoneIndex = REGISTRATION_SHEET_HEADERS.indexOf('Phone');
+
+  return [
+    ...REGISTRATION_SHEET_HEADERS.slice(0, phoneIndex + 1),
+    ...MEMBERSHIP_ANSWER_HEADERS,
+    ...REGISTRATION_SHEET_HEADERS.slice(phoneIndex + 1)
+  ];
+})();
+
+// Which header set an event's sheet uses. Everything downstream - the column
+// count, where the coordinator's own columns begin, which cell holds the
+// registration id - is derived from the answer, so this is the only place that
+// decides it.
+export function getRegistrationSheetHeaders(event) {
+  return isMembershipEvent(event)
+    ? MEMBERSHIP_REGISTRATION_SHEET_HEADERS
+    : REGISTRATION_SHEET_HEADERS;
+}
+
+// Derived per header set rather than read from the module constant: the id
+// column sits further right on a membership sheet, and a row read at the wrong
+// index is a row the sync mistakes for a coordinator's walk-in.
+export function getRegistrationIdColumnIndex(headers = REGISTRATION_SHEET_HEADERS) {
+  return headers.indexOf('Registration ID');
+}
+
 function hasContent(cell) {
   return String(cell ?? '').trim() !== '';
 }
@@ -63,8 +112,8 @@ export const REGISTRATION_SHEET_COLUMN_COUNT = REGISTRATION_SHEET_HEADERS.length
 
 // Trailing blanks trimmed, so a coordinator's one-column note does not make
 // every row 15 cells wide just because Sheets padded the row it came in on.
-function extraPartOf(row) {
-  const extras = Array.isArray(row) ? row.slice(REGISTRATION_SHEET_COLUMN_COUNT) : [];
+function extraPartOf(row, columnCount = REGISTRATION_SHEET_COLUMN_COUNT) {
+  const extras = Array.isArray(row) ? row.slice(columnCount) : [];
 
   while (extras.length && !hasContent(extras[extras.length - 1])) {
     extras.pop();
@@ -94,15 +143,18 @@ function extraPartOf(row) {
 // grow a tail of blank rows that never stops. A row with nothing in the app's
 // columns but something in a coordinator's column is kept as a manual row, so
 // a stray note is not thrown away just because its row has no name on it.
-export function partitionExistingGrid(existingValues = []) {
+export function partitionExistingGrid(existingValues = [], options = {}) {
+  const { headers = REGISTRATION_SHEET_HEADERS } = options;
+  const columnCount = headers.length;
+  const idColumnIndex = getRegistrationIdColumnIndex(headers);
   const rows = Array.isArray(existingValues) ? existingValues : [];
   const extrasById = new Map();
   const manualRows = [];
 
   rows.slice(1).forEach((row) => {
-    const grid = padRow(row, REGISTRATION_SHEET_COLUMN_COUNT);
-    const extras = extraPartOf(row);
-    const registrationId = String(grid[REGISTRATION_ID_COLUMN_INDEX] ?? '').trim();
+    const grid = padRow(row, columnCount);
+    const extras = extraPartOf(row, columnCount);
+    const registrationId = String(grid[idColumnIndex] ?? '').trim();
 
     if (registrationId) {
       if (extras.length) {
@@ -117,14 +169,16 @@ export function partitionExistingGrid(existingValues = []) {
     }
   });
 
-  return { extrasById, headerExtras: extraPartOf(rows[0]), manualRows };
+  return { extrasById, headerExtras: extraPartOf(rows[0], columnCount), manualRows };
 }
 
 // Kept as its own export because the rule it encodes - "a blank Registration
 // ID means the row is the coordinator's" - is the one a coordinator is told
 // about, and is worth being able to read and test on its own.
-export function extractManualRows(dataRows = []) {
-  return partitionExistingGrid([REGISTRATION_SHEET_HEADERS, ...dataRows])
+export function extractManualRows(dataRows = [], options = {}) {
+  const headers = options.headers || getRegistrationSheetHeaders(options.event);
+
+  return partitionExistingGrid([headers, ...dataRows], { headers })
     .manualRows
     .map((row) => row.grid);
 }
@@ -138,20 +192,23 @@ export function extractManualRows(dataRows = []) {
 // called "=Bob" is stored and not executed, while the coordinator's columns go
 // in as typed so a formula they wrote stays a formula.
 export function buildRegistrationSheetUpdate({
+  event = null,
   existingValues = [],
   registrations = [],
   timeZone = GUILD_TIME_ZONE
 } = {}) {
-  const { extrasById, headerExtras, manualRows } = partitionExistingGrid(existingValues);
+  const headers = getRegistrationSheetHeaders(event);
+  const idColumnIndex = getRegistrationIdColumnIndex(headers);
+  const { extrasById, headerExtras, manualRows } = partitionExistingGrid(existingValues, { headers });
   // The id is read back off the row the projection just built rather than
   // threaded alongside it, so there is only one place that decides which cell
   // holds it.
-  const syncedRows = buildRegistrationSheetRows(registrations, { timeZone }).map((grid) => ({
-    extras: extrasById.get(String(grid[REGISTRATION_ID_COLUMN_INDEX] ?? '').trim()) || [],
+  const syncedRows = buildRegistrationSheetRows(registrations, { event, timeZone }).map((grid) => ({
+    extras: extrasById.get(String(grid[idColumnIndex] ?? '').trim()) || [],
     grid
   }));
   const allRows = [
-    { extras: headerExtras, grid: REGISTRATION_SHEET_HEADERS },
+    { extras: headerExtras, grid: headers },
     ...syncedRows,
     ...manualRows
   ];
@@ -165,6 +222,7 @@ export function buildRegistrationSheetUpdate({
     extraValues: extraColumnCount
       ? allRows.map((row) => padRow(row.extras, extraColumnCount))
       : [],
+    columnCount: headers.length,
     gridValues: allRows.map((row) => row.grid),
     manualRowCount: manualRows.length,
     registrationRowCount: syncedRows.length,
@@ -229,22 +287,34 @@ export function buildRegistrationSheetName(event) {
 // here is therefore safe to change; moving those notes back onto positions
 // would not be.
 export function buildRegistrationSheetRows(registrations = [], options = {}) {
-  const { timeZone = GUILD_TIME_ZONE } = options;
+  const { event = null, timeZone = GUILD_TIME_ZONE } = options;
 
   return registrations
     .filter(isSheetVisibleRegistration)
     .slice()
     .sort(compareByRegistrationDate)
-    .map((registration) => buildRegistrationSheetRow(registration, { timeZone }));
+    .map((registration) => buildRegistrationSheetRow(registration, { event, timeZone }));
 }
 
 export function buildRegistrationSheetRow(registration = {}, options = {}) {
-  const { timeZone = GUILD_TIME_ZONE } = options;
+  const { event = null, timeZone = GUILD_TIME_ZONE } = options;
+  // Labels, not stored values: the coordinator reads this sheet, and 'cell'
+  // and 'renewing' are what the app calls those answers, not what the member
+  // was asked.
+  const membershipAnswers = isMembershipEvent(event)
+    ? [
+        getMembershipPhoneTypeLabel(registration.membershipPhoneType),
+        getMembershipRenewalTypeLabel(registration.membershipRenewalType),
+        getMembershipVeteranLabel(registration.membershipVeteran),
+        collapseWhitespace(registration.membershipSkills || '')
+      ]
+    : [];
 
   return [
     registration.name || '',
     registration.email || '',
     registration.phone || '',
+    ...membershipAnswers,
     formatSheetDateTime(registration.registrationDate, timeZone),
     registration.status || 'Registered',
     registration.paymentStatus || '',
