@@ -225,6 +225,8 @@ function EventForm({
   const showCapacityField = showEventScheduleFields && !isLecture && !isChallenge && !isMembership;
   // A membership signup does not happen anywhere, so it collects no location.
   const showLocationFields = showEventScheduleFields && !isMembership;
+  // Nothing to decide on an event that cannot fill.
+  const showWaitlistField = showCapacityField && !form.capacityUnlimited;
   const showImageUpload = eventTypeSelected;
   const showDocumentUpload = isChallenge;
   const showSupplyListUpload = supportsSupplyList(form.eventType);
@@ -1155,6 +1157,32 @@ function EventForm({
                     Check Unlimited Capacity if there is no registration limit.
                   </span>
                 </div>
+                {/* Only shown where seats can run out - an unlimited event has
+                    no full state for a waitlist to answer. Default on, which
+                    is what every event saved before this switch existed does
+                    anyway: isWaitlistEnabled reads an absent value as on, so
+                    adding the field cannot quietly take the waitlist away from
+                    anything already configured. */}
+                {showWaitlistField ? (
+                  <label className="checkbox-label registration-exception-checkbox">
+                    <input
+                      checked={form.waitlistEnabled !== false}
+                      disabled={!eventTypeSelected}
+                      type="checkbox"
+                      onChange={(event) =>
+                        updateField('waitlistEnabled', event.target.checked)
+                      }
+                    />
+                    <span className="checkbox-label-copy">
+                      <strong>Allow a waitlist once this is full</strong>
+                      <small>
+                        On, people who arrive after the last seat goes join a
+                        waitlist and are offered a place if one frees up. Off,
+                        they are told it is full and cannot register.
+                      </small>
+                    </span>
+                  </label>
+                ) : null}
               </div>
             ) : null}
           </>
@@ -2272,6 +2300,11 @@ export function buildEventPayload(form, showSupplyListUpload, asDraft) {
       ? Number(form.serviceFee || 0)
       : form.isPaid && hasFees && !form.cashCheckOnly ? Number(form.serviceFee || 0) : 0,
     specialty: toTitleCase(form.specialty.trim()),
+    // Only meaningful where seats can run out. An unlimited event never fills,
+    // so the flag is stored true rather than whatever the hidden box held.
+    waitlistEnabled: hasCapacity && !form.capacityUnlimited
+      ? Boolean(form.waitlistEnabled)
+      : true,
     // Both halves are stored. businessTypeDefaults is admin-read-only, so the
     // public listing page and the GoDaddy feed have no way to resolve a value
     // into a label - they read businessTypeLabel directly. The consequence is

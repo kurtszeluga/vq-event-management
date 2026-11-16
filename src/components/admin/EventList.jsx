@@ -14,7 +14,7 @@ import {
   getRegistrationStartDate,
   isListingEventType
 } from '../../utils/eventFormat.js';
-import { isRegistrationWindowOpen } from '../../../shared/registrationWindow.js';
+import { isRegistrationWindowOpen, isWaitlistEnabled } from '../../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
 import { getEventCostOn } from '../../../shared/membershipDues.js';
 import { UNLISTED_EVENT_TYPES } from '../../data/eventOptions.js';
@@ -556,7 +556,9 @@ function getEventPaymentTotal(event) {
 // an unavailable event from a missing permission or a bug. Both controls are
 // always offered; both refuse with a reason.
 function isWaitlistOnly(event, availability) {
-  return Boolean(availability?.isFull) && isRegistrationWindowOpen(event);
+  return Boolean(availability?.isFull)
+    && isRegistrationWindowOpen(event)
+    && isWaitlistEnabled(event);
 }
 
 function getEventRegistrationStats(event, counts = {}, totalPaid) {

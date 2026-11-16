@@ -1,7 +1,8 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import {
   getExternalRegistrationUrl,
-  getRegistrationWindowState
+  getRegistrationWindowState,
+  isWaitlistEnabled
 } from '../shared/registrationWindow.js';
 import { getEventCostOn, isMembershipEvent } from '../shared/membershipDues.js';
 import {
@@ -947,7 +948,19 @@ async function createRegistration(db, payload, authorization) {
       matchedReservation?.id || payload.paymentReservationId
     );
     const hasCapacity = hasAvailableSeat({ activeReservationCount, activeSeatCount, event });
-    const status = getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck });
+    // Refused rather than queued. A Waitlisted row on an event with no
+    // waitlist is a promise nothing in the app will keep: no offer is ever
+    // made against it, so the member waits for a call that cannot come.
+    if (!hasCapacity && !isWaitlistEnabled(event)) {
+      throw httpError(409, 'This event is full and is not taking a waitlist.');
+    }
+
+    const status = getInitialRegistrationStatus({
+      hasCapacity,
+      isPaidEvent,
+      payLaterByCashCheck,
+      waitlistEnabled: isWaitlistEnabled(event)
+    });
     // Only offered when the registration actually lands as 'Registered' - a
     // waitlisted registrant has not secured a seat to collect payment for.
     const adminCollectedPayment = status === 'Registered'
@@ -1333,12 +1346,15 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     const seatsAvailable = hasAvailableSeat({ activeReservationCount, activeSeatCount, event });
 
     if (!seatsAvailable) {
+      // The browser asks for a hold before showing the card form, so this is
+      // where it learns the event is full. 'Full' rather than 'Waitlisted'
+      // keeps the two cases distinguishable client-side.
       return {
         amountDue: 0,
         paymentRequired: false,
         reservationId: '',
         reservationToken: '',
-        status: 'Waitlisted'
+        status: isWaitlistEnabled(event) ? 'Waitlisted' : 'Full'
       };
     }
 

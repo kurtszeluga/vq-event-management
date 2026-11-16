@@ -139,6 +139,9 @@ export const DEFAULT_EVENT_FORM = {
   timePreset: '',
   title: '',
   visibleFrom: '',
+  // Whether a full event queues people. Default on, matching every event that
+  // predates the field - see isWaitlistEnabled in shared/registrationWindow.js.
+  waitlistEnabled: true,
   visibleUntil: '',
   // Business Listing only, and optional - stored exactly as typed, with the
   // scheme added at render time by normalizeWebsiteUrl.

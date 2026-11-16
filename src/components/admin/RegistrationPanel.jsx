@@ -24,7 +24,11 @@ import { formatDateOnly, formatEventDate, formatTimeRange } from '../../utils/ev
 import { isEventFullForSeats } from '../../utils/registrationAvailability.js';
 import { hasOutstandingWaitlistOffer, holdsSeat, isPaymentPending } from '../../utils/registrationEligibility.js';
 import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
-import { getRegistrationWindowState, isRegistrationWindowOpen } from '../../../shared/registrationWindow.js';
+import {
+  getRegistrationWindowState,
+  isRegistrationWindowOpen,
+  isWaitlistEnabled
+} from '../../../shared/registrationWindow.js';
 import {
   getMembershipPhoneTypeLabel,
   getMembershipRenewalTypeLabel,
@@ -1631,7 +1635,8 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
 function isWaitlistOnlyEvent(group) {
   return Boolean(group?.event)
     && isEventFullForSeats(group.event, group.seatsTaken)
-    && isRegistrationWindowOpen(group.event);
+    && isRegistrationWindowOpen(group.event)
+    && isWaitlistEnabled(group.event);
 }
 
 function createEmptyRegistrationCounts() {

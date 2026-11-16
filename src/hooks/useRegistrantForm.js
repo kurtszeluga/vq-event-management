@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { getProfileFirstName, getProfileLastName } from '../utils/profileFormat.js';
+import { DEFAULT_US_STATE } from '../data/usStates.js';
 
 // Owns the registrant's contact and billing fields plus their validation
 // errors. Identity verification and submission stay in RegisterPage and
@@ -9,7 +10,7 @@ export function useRegistrantForm() {
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
-  const [billingState, setBillingState] = useState('');
+  const [billingState, setBillingState] = useState(DEFAULT_US_STATE);
   const [billingStreet, setBillingStreet] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [firstName, setFirstName] = useState('');
@@ -34,7 +35,7 @@ export function useRegistrantForm() {
     setBillingCity('');
     setBillingCountry('United States');
     setBillingPostalCode('');
-    setBillingState('');
+    setBillingState(DEFAULT_US_STATE);
     setBillingStreet('');
   }, []);
 

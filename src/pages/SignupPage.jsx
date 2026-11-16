@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import PageHeader from '../components/PageHeader.jsx';
-import { US_STATES } from '../data/usStates.js';
+import { DEFAULT_US_STATE, US_STATES } from '../data/usStates.js';
 import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import {
@@ -25,7 +25,7 @@ function SignupPage() {
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
-  const [billingState, setBillingState] = useState('');
+  const [billingState, setBillingState] = useState(DEFAULT_US_STATE);
   const [billingStreet, setBillingStreet] = useState('');
   const [email, setEmail] = useState(searchParams.get('email') || '');
   const [firstName, setFirstName] = useState('');

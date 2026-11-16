@@ -98,7 +98,11 @@ describe('useRegistrantForm', () => {
     expect(result.current.lastName).toBe('');
     expect(result.current.phone).toBe('');
     expect(result.current.billingCity).toBe('');
-    expect(result.current.billingState).toBe('');
+    // Back to the defaults, not to blank - the guild is in Tennessee and
+    // almost every member is local, so the state select opens there the same
+    // way country opens on United States. What matters here is that the
+    // previous match's 'NC' is gone.
+    expect(result.current.billingState).toBe('TN');
     expect(result.current.billingCountry).toBe('United States');
   });
 

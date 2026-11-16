@@ -613,9 +613,17 @@ function EventsPage() {
                 </span>
                 {takesRegistrations ? (
                   <>
-                    <strong className={`event-availability-pill ${availabilityTone}`}>
-                      {availability.label}
-                    </strong>
+                    {/* Only while registration is actually open. "Seats
+                        available" beside "Registration closed" reads as a
+                        contradiction, and on a full event "Full - waitlist
+                        available" beside it offers a waitlist that is not
+                        forming either. Once the window shuts, the only thing
+                        worth saying is that it has. */}
+                    {externalRegistrationUrl || registrationOpen ? (
+                      <strong className={`event-availability-pill ${availabilityTone}`}>
+                        {availability.label}
+                      </strong>
+                    ) : null}
                     <strong
                       className={`event-availability-pill ${externalRegistrationUrl || registrationOpen ? 'open' : 'closed'}`}
                     >

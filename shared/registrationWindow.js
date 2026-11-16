@@ -21,6 +21,16 @@ export const REGISTRATION_WINDOW_MODES = ['future', 'now'];
 // Listings, not events - they never accept registrations regardless of dates.
 export const NON_REGISTRABLE_EVENT_TYPES = ['Business Listing', 'For Sale'];
 
+// Whether a full event queues people or simply turns them away.
+//
+// Read as "not switched off" rather than "switched on", deliberately: every
+// event saved before this field existed has no value for it, and those events
+// had a waitlist. A truthiness test would have silently removed the waitlist
+// from every event already in the system.
+export function isWaitlistEnabled(event) {
+  return event?.waitlistEnabled !== false;
+}
+
 // Go-live transition only. An event carrying `externalRegistrationUrl` is still
 // run by the guild's previous registration system, so the Register control
 // points there instead of into this app. Delete this and its callers once the

@@ -113,9 +113,18 @@ export function isCashCheckPaymentAllowed({
   return authorizationKind === 'admin' && allowCashCheckOverride === true;
 }
 
-export function getInitialRegistrationStatus({ hasCapacity, isPaidEvent, payLaterByCashCheck }) {
+export function getInitialRegistrationStatus({
+  hasCapacity,
+  isPaidEvent,
+  payLaterByCashCheck,
+  waitlistEnabled = true
+}) {
   if (!hasCapacity) {
-    return 'Waitlisted';
+    // Callers refuse this case before reaching here when the waitlist is off;
+    // returning 'Full' rather than 'Waitlisted' means a caller that forgets
+    // writes a status no part of the app treats as holding a seat, instead of
+    // quietly queueing someone on a waitlist that does not exist.
+    return waitlistEnabled ? 'Waitlisted' : 'Full';
   }
 
   if (isPaidEvent && !payLaterByCashCheck) {

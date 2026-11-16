@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import { PROFILE_TAG_OPTIONS, normalizeProfileTags } from '../../data/profileTags.js';
-import { US_STATES } from '../../data/usStates.js';
+import { DEFAULT_US_STATE, US_STATES } from '../../data/usStates.js';
 import {
   MEMBERSHIP_PAYMENT_STATUSES,
   normalizeMembershipPayment
@@ -168,7 +168,7 @@ function UserControlPanel({
         city: '',
         country: 'United States',
         postalCode: '',
-        state: '',
+        state: DEFAULT_US_STATE,
         street: ''
       },
       email: '',

@@ -10,7 +10,7 @@ import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { USER_PERMISSION_OPTIONS, normalizePermissions } from '../data/userRoles.js';
-import { US_STATES } from '../data/usStates.js';
+import { DEFAULT_US_STATE, US_STATES } from '../data/usStates.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import { applyMemberDirectorySync } from '../services/memberDirectoryProfile.js';
 import { subscribeToMembershipPayments } from '../services/registrationService.js';
@@ -30,7 +30,7 @@ function ProfilePage() {
   const [billingCity, setBillingCity] = useState('');
   const [billingCountry, setBillingCountry] = useState('United States');
   const [billingPostalCode, setBillingPostalCode] = useState('');
-  const [billingState, setBillingState] = useState('');
+  const [billingState, setBillingState] = useState(DEFAULT_US_STATE);
   const [billingStreet, setBillingStreet] = useState('');
   const [firstName, setFirstName] = useState('');
   const [formError, setFormError] = useState('');
@@ -153,7 +153,7 @@ function ProfilePage() {
     setBillingCity(billingAddress.city || '');
     setBillingCountry(billingAddress.country || 'United States');
     setBillingPostalCode(billingAddress.postalCode || '');
-    setBillingState(billingAddress.state || '');
+    setBillingState(billingAddress.state || DEFAULT_US_STATE);
     setBillingStreet(billingAddress.street || '');
     setFirstName(getProfileFirstName(userProfile) || getProfileFirstName({ name: currentUser?.displayName || '' }));
     setLastName(getProfileLastName(userProfile) || getProfileLastName({ name: currentUser?.displayName || '' }));

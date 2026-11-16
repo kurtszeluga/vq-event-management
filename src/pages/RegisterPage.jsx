@@ -113,6 +113,12 @@ function RegisterPage() {
   // The four questions a Membership signup asks on top of the usual contact
   // details. Held here rather than in a generic answers map because they are
   // four fixed questions, not a question builder - see PROJECT_SPEC.md.
+  // Where a standalone signup ends. Not a route: navigating anywhere would
+  // land the member on a page they are deliberately not allowed to reach, and
+  // every existing exit from this form goes to /events - a list this signup is
+  // not in. Rendering a terminal card instead means there is nothing to click
+  // and nowhere to go, which is what was asked for.
+  const [standaloneExit, setStandaloneExit] = useState('');
   const [membershipPhoneType, setMembershipPhoneType] = useState('');
   const [membershipRenewalType, setMembershipRenewalType] = useState('');
   const [membershipVeteran, setMembershipVeteran] = useState('');
@@ -527,6 +533,15 @@ function RegisterPage() {
 
   const handleClose = useCallback(() => {
     releaseCurrentReservation();
+
+    // A standalone signup was opened from a link on another site, so there is
+    // no origin to return to and window.close() only works for a tab the app
+    // opened itself. Stop here instead.
+    if (isStandaloneSignup) {
+      setStandaloneExit('cancelled');
+      return;
+    }
+
     window.close();
 
     window.setTimeout(() => {
@@ -534,22 +549,32 @@ function RegisterPage() {
         setCloseMessage('You can close this registration window or tab.');
       });
     }, 250);
-  }, [releaseCurrentReservation, returnToOrigin]);
+  }, [isStandaloneSignup, releaseCurrentReservation, returnToOrigin]);
 
   const handleCompletionClose = useCallback(() => {
+    if (isStandaloneSignup) {
+      setStandaloneExit('completed');
+      return;
+    }
+
     if (returnTarget) {
       window.location.assign(returnTarget);
       return;
     }
 
     navigate('/events');
-  }, [navigate, returnTarget]);
+  }, [isStandaloneSignup, navigate, returnTarget]);
 
   // Same ladder as Cancel, by the user's own observation that the two should
   // not behave differently.
   const handleUnavailableReturn = useCallback(() => {
+    if (isStandaloneSignup) {
+      setStandaloneExit('cancelled');
+      return;
+    }
+
     returnToOrigin(() => navigate('/events'));
-  }, [navigate, returnToOrigin]);
+  }, [isStandaloneSignup, navigate, returnToOrigin]);
 
   const handlePaymentReservationExpired = useCallback(() => {
     markReservationExpired();
@@ -562,6 +587,28 @@ function RegisterPage() {
       navigate('/events');
     }, 1500);
   }, [markReservationExpired, navigate, returnTarget]);
+
+  // Checked before every other branch: once a standalone signup has ended,
+  // nothing else on this page should render, including the event summary and
+  // the form it came from.
+  if (standaloneExit) {
+    return (
+      <section className="standalone-signup-exit">
+        <PageHeader
+          eyebrow="Membership"
+          title={standaloneExit === 'completed' ? 'Thank You' : 'Signup Cancelled'}
+          description={standaloneExit === 'completed'
+            ? 'Your membership signup is complete. A confirmation has been sent to your email address.'
+            : 'Your signup was cancelled and nothing has been charged.'}
+        />
+        <p className="form-help">
+          {standaloneExit === 'completed'
+            ? 'You can close this window.'
+            : 'You can close this window, or use the signup link again if you would like to start over.'}
+        </p>
+      </section>
+    );
+  }
 
   if (!eventId) {
     return (

@@ -1,3 +1,7 @@
+// The guild is in Loudon, TN. Forms open on this rather than on an empty
+// choice; a stored address is applied over it untouched.
+export const DEFAULT_US_STATE = 'TN';
+
 export const US_STATES = [
   { value: 'AL', label: 'Alabama' },
   { value: 'AK', label: 'Alaska' },

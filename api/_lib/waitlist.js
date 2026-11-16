@@ -6,6 +6,7 @@ import {
   verificationSecretsMatch
 } from './registration-verification.js';
 import { hasAvailableSeat, isSeatHoldingRegistration } from './registration-capacity.js';
+import { isWaitlistEnabled } from '../../shared/registrationWindow.js';
 
 // One day, on request, down from three.
 //
@@ -46,6 +47,16 @@ export async function createNextWaitlistOffer(db, event, {
   notifyWhenExhausted = true
 } = {}) {
   const now = Date.now();
+
+  // A waitlist switched off makes no offers, even against people already
+  // queued on it. An event can be switched off after a queue has formed, and
+  // offering a seat from a waitlist the admin has closed would be the app
+  // acting on a rule that has been withdrawn. Those registrations keep their
+  // Waitlisted status rather than being cancelled: it is the admin's call what
+  // happens to people who were already waiting, not this function's.
+  if (!isWaitlistEnabled(event)) {
+    return null;
+  }
 
   // An unlimited-capacity event has no seat scarcity, so nothing is ever
   // freed by a cancellation and nobody can be waiting for a seat. Running the

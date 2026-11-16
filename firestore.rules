@@ -134,6 +134,7 @@ service cloud.firestore {
           'status',
           'registrationOpen',
           'registrationMode',
+          'waitlistEnabled',
           'registrationOpenAt',
           'registrationCloseAt',
           'listingMode',
@@ -155,6 +156,10 @@ service cloud.firestore {
           || request.resource.data.allowCashCheckPayment is bool)
         && (!('allowNonMemberRegistration' in request.resource.data)
           || request.resource.data.allowNonMemberRegistration is bool)
+        // Absent means enabled, which is what every event predating the field
+        // relies on - see isWaitlistEnabled in shared/registrationWindow.js.
+        && (!('waitlistEnabled' in request.resource.data)
+          || request.resource.data.waitlistEnabled is bool)
         // Go-live transition, remove with the EventForm field.
         && (!('externalRegistrationUrl' in request.resource.data)
           || request.resource.data.externalRegistrationUrl is string
