@@ -2392,10 +2392,10 @@ function buildRegistrationConfirmationHtml({ area, coordinatorContact, event, in
                   <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">${escapeHtml(eventTitle)}</h2>
                   ${buildDetailRowHtml('Status', registration.status)}
                   ${buildDetailRowHtml('Event Type', event.eventType || 'Event')}
-                  ${buildDetailRowHtml('Date', formatEventDate(event.date))}
-                  ${event.eventType === 'Challenges' ? '' : buildDetailRowHtml('Time', formatTimeRange(event.startTime, event.endTime))}
-                  ${buildDetailRowHtml('Location', event.location || 'To be announced')}
-                  ${buildDetailRowHtml('Presenter', event.presenter || 'To be announced')}
+                  ${isMembershipEvent(event) ? '' : buildDetailRowHtml('Date', formatEventDate(event.date))}
+                  ${event.eventType === 'Challenges' || isMembershipEvent(event) ? '' : buildDetailRowHtml('Time', formatTimeRange(event.startTime, event.endTime))}
+                  ${isMembershipEvent(event) ? '' : buildDetailRowHtml('Location', event.location || 'To be announced')}
+                  ${isMembershipEvent(event) ? '' : buildDetailRowHtml('Presenter', event.presenter || 'To be announced')}
                   ${buildDetailRowHtml('Payment Status', registration.paymentStatus || 'Pending')}
                   ${registration.eventPaymentRequired ? buildDetailRowHtml('Amount', formatCurrency(registration.amountDue)) : ''}
                 </section>
@@ -2441,10 +2441,10 @@ function buildRegistrationConfirmationText({ area, coordinatorContact, event, in
     `Event: ${event.title || event.eventType || 'Event'}`,
     `Status: ${registration.status}`,
     `Event Type: ${event.eventType || 'Event'}`,
-    `Date: ${formatEventDate(event.date)}`,
-    event.eventType === 'Challenges' ? '' : `Time: ${formatTimeRange(event.startTime, event.endTime)}`,
-    `Location: ${event.location || 'To be announced'}`,
-    `Presenter: ${event.presenter || 'To be announced'}`,
+    isMembershipEvent(event) ? '' : `Date: ${formatEventDate(event.date)}`,
+    event.eventType === 'Challenges' || isMembershipEvent(event) ? '' : `Time: ${formatTimeRange(event.startTime, event.endTime)}`,
+    isMembershipEvent(event) ? '' : `Location: ${event.location || 'To be announced'}`,
+    isMembershipEvent(event) ? '' : `Presenter: ${event.presenter || 'To be announced'}`,
     `Payment Status: ${registration.paymentStatus || 'Pending'}`,
     registration.eventPaymentRequired ? `Amount: ${formatCurrency(registration.amountDue)}` : '',
     ...coordinatorLines,
@@ -2636,7 +2636,7 @@ function buildCoordinatorContactText(contact = {}) {
   ].filter(Boolean);
 }
 
-function getEmailInstructionArea(eventType) {
+export function getEmailInstructionArea(eventType) {
   if (['Class (Half Day)', 'Class (Full Day)', 'Class (Half-Day)', 'Class (Full-Day)', 'Lecture', 'Retreat'].includes(eventType)) {
     return { areaId: 'programs', areaLabel: 'Programs' };
   }
@@ -2647,6 +2647,16 @@ function getEmailInstructionArea(eventType) {
 
   if (eventType === 'Challenges') {
     return { areaId: 'challenges', areaLabel: 'Challenges' };
+  }
+
+  // COORDINATOR_ASSIGNMENT_AREAS and EMAIL_INSTRUCTION_AREAS have both carried
+  // a 'membership' area since before the Membership event type existed, the
+  // first of them declaring coveredTypes: ['Membership']. Without this line
+  // the mapping stopped short of them: a membership signup fell through to
+  // Programs, so the Membership instruction box and the Membership
+  // coordinator assignment were both configured and both unreachable.
+  if (eventType === 'Membership') {
+    return { areaId: 'membership', areaLabel: 'Membership' };
   }
 
   return { areaId: 'programs', areaLabel: 'Programs' };

@@ -942,7 +942,7 @@ function buildCoordinatorContactText(contact = {}) {
   ].filter(Boolean);
 }
 
-function getEmailInstructionArea(eventType) {
+export function getEmailInstructionArea(eventType) {
   if (['Class (Half Day)', 'Class (Full Day)', 'Class (Half-Day)', 'Class (Full-Day)', 'Lecture', 'Retreat'].includes(eventType)) {
     return { areaId: 'programs', areaLabel: 'Programs' };
   }
@@ -955,6 +955,16 @@ function getEmailInstructionArea(eventType) {
     return { areaId: 'challenges', areaLabel: 'Challenges' };
   }
 
+  // COORDINATOR_ASSIGNMENT_AREAS and EMAIL_INSTRUCTION_AREAS have both carried
+  // a 'membership' area since before the Membership event type existed, the
+  // first of them declaring coveredTypes: ['Membership']. Without this line
+  // the mapping stopped short of them: a membership signup fell through to
+  // Programs, so the Membership instruction box and the Membership
+  // coordinator assignment were both configured and both unreachable.
+  if (eventType === 'Membership') {
+    return { areaId: 'membership', areaLabel: 'Membership' };
+  }
+
   return { areaId: 'programs', areaLabel: 'Programs' };
 }
 
@@ -962,11 +972,12 @@ function buildDetailRowHtml(label, value) {
   return `<p style="margin:0 0 8px;font-size:15px;line-height:1.45;"><strong style="color:#1d2927;">${escapeHtml(label)}:</strong> ${escapeHtml(value || '')}</p>`;
 }
 
-// A challenge runs over a season rather than on a day, so it genuinely has no
-// date - printing "Date TBD" implies one is still coming. Any other type with
-// a missing date does still keep the row, where TBD is accurate.
-function hasEventDate(registration) {
-  return registration.eventType !== 'Challenges';
+// A challenge runs over a season rather than on a day, and a membership signup
+// does not happen on a day at all, so neither has a date - printing "Date TBD"
+// implies one is still coming. Any other type with a missing date does still
+// keep the row, where TBD is accurate.
+export function hasEventDate(registration) {
+  return !['Challenges', 'Membership'].includes(registration.eventType);
 }
 
 function formatEventDate(value) {

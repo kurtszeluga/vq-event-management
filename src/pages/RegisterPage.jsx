@@ -1310,6 +1310,12 @@ function LookupResult({
 }
 
 function EventSummary({ event }) {
+  // A membership signup has no date, no time, nowhere it happens and no seat
+  // limit. Rendering those rows anyway produced "Date TBD", "12:00 a.m. -
+  // 12:00 a.m." and "To be announced" on the one page a prospective member
+  // sees before paying - three answers to questions nobody asked, which read
+  // as a half-configured event rather than a deliberate omission.
+  const isMembership = isMembershipEvent(event);
   const cost = event.isPaid
     ? `${formatCurrency(getEventPaymentTotal(event))} total`
     : 'No Charge';
@@ -1327,7 +1333,7 @@ function EventSummary({ event }) {
           <dt>Type</dt>
           <dd>{event.eventType}</dd>
         </div>
-        {event.eventType !== 'Challenges' ? (
+        {event.eventType !== 'Challenges' && !isMembership ? (
           <>
             <div>
               <dt>Date</dt>
@@ -1345,10 +1351,12 @@ function EventSummary({ event }) {
             <dd>{formatRegistrationDateRange(event)}</dd>
           </div>
         ) : null}
-        <div>
-          <dt>Location</dt>
-          <dd>{event.location || 'To be announced'}</dd>
-        </div>
+        {!isMembership ? (
+          <div>
+            <dt>Location</dt>
+            <dd>{event.location || 'To be announced'}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Cost</dt>
           <dd>
@@ -1356,10 +1364,12 @@ function EventSummary({ event }) {
             {paymentBreakdown ? <span className="form-help">{paymentBreakdown}</span> : null}
           </dd>
         </div>
-        <div>
-          <dt>Capacity</dt>
-          <dd>{event.capacityUnlimited ? 'Unlimited' : event.capacity || 'To be announced'}</dd>
-        </div>
+        {!isMembership ? (
+          <div>
+            <dt>Capacity</dt>
+            <dd>{event.capacityUnlimited ? 'Unlimited' : event.capacity || 'To be announced'}</dd>
+          </div>
+        ) : null}
       </dl>
     </aside>
   );
@@ -1404,7 +1414,7 @@ export function RegistrationCompletion({
           <dt>Event</dt>
           <dd>{event.title}</dd>
         </div>
-        {event.eventType !== 'Challenges' ? (
+        {event.eventType !== 'Challenges' && !isMembershipEvent(event) ? (
           <>
             <div>
               <dt>Date</dt>

@@ -158,6 +158,25 @@ describe('every other event type', () => {
   });
 });
 
+describe('the Membership notification areas', () => {
+  // The other half of this lives in tests/membership-notifications.test.js,
+  // which asserts getEmailInstructionArea('Membership') returns 'membership'.
+  // That runner cannot import src/, so the two meet on the area id: this one
+  // proves the slot exists and claims the type, that one proves the mapping
+  // points at it.
+  it('exist in configuration and claim the Membership type', async () => {
+    const { COORDINATOR_ASSIGNMENT_AREAS, EMAIL_INSTRUCTION_AREAS } =
+      await import('../../src/services/configurationService.js');
+
+    expect(EMAIL_INSTRUCTION_AREAS.some((area) => area.areaId === 'membership')).toBe(true);
+
+    const coordinatorArea = COORDINATOR_ASSIGNMENT_AREAS.find((area) => area.areaId === 'membership');
+
+    expect(coordinatorArea).toBeDefined();
+    expect(coordinatorArea.coveredTypes).toContain('Membership');
+  });
+});
+
 describe('the unlisted types', () => {
   it('names Membership, and only types that actually exist', () => {
     expect(UNLISTED_EVENT_TYPES).toContain('Membership');
