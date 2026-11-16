@@ -467,8 +467,17 @@ a {
    page's normal layout and removes only the ways out of it. */
 body.signup-standalone .site-header,
 body.signup-standalone .site-identity,
-body.signup-standalone .site-footer,
 body.signup-standalone .pull-refresh-indicator {
+  display: none !important;
+}
+
+/* The footer stays, cut to Terms and Privacy. This page takes a card payment,
+   and those two are the links a payment page is expected to carry - removing
+   them to satisfy "no way to navigate away" would have been the wrong reading
+   of it. Support goes, being an invitation to wander off mid-signup rather
+   than anything the payment needs. The guild's name, address and the version
+   stay: they are text, not a way out. */
+body.signup-standalone .site-footer-support {
   display: none !important;
 }
 

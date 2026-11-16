@@ -185,7 +185,7 @@ function App() {
           <span>&copy; {currentYear} The Village Quilters, Inc.</span>
           <Link to="/terms">Terms</Link>
           <Link to="/privacy">Privacy</Link>
-          <Link to="/support">Support</Link>
+          <Link className="site-footer-support" to="/support">Support</Link>
           <span className="site-footer-version">{APP_VERSION}</span>
         </nav>
       </footer>
