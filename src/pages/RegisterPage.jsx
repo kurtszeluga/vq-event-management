@@ -38,6 +38,7 @@ import {
   requiresBillingAddress as getRequiresBillingAddress
 } from '../utils/registrationEligibility.js';
 import { getEventCostOn, isMembershipEvent } from '../../shared/membershipDues.js';
+import { UNLISTED_EVENT_TYPES } from '../data/eventOptions.js';
 import {
   MEMBERSHIP_PHONE_TYPES,
   MEMBERSHIP_RENEWAL_TYPES,
@@ -278,6 +279,19 @@ function RegisterPage() {
   ]);
 
   const isMembershipRegistration = isMembershipEvent(event);
+  // A type that appears in no list is reached only by a link posted
+  // elsewhere, so the site chrome around it offers a way "back" to places
+  // this page was never part of. The body class is what hides it; the
+  // breadcrumb is dropped below at the PageHeader itself.
+  const isStandaloneSignup = UNLISTED_EVENT_TYPES.includes(event?.eventType);
+
+  useEffect(() => {
+    document.body.classList.toggle('signup-standalone', isStandaloneSignup);
+
+    return () => {
+      document.body.classList.remove('signup-standalone');
+    };
+  }, [isStandaloneSignup]);
 
   const registrationUnavailable = useMemo(
     () => getRegistrationUnavailableReason(event),
@@ -609,7 +623,7 @@ function RegisterPage() {
     return (
       <section>
         <PageHeader
-          breadcrumb={[
+          breadcrumb={isStandaloneSignup ? undefined : [
             { label: 'Programs & Activities', to: '/events' },
             { label: event.title || event.eventType || 'Event', to: `/events/${event.id}` },
             { label: 'Registration Complete' }
@@ -657,7 +671,7 @@ function RegisterPage() {
     return (
       <section>
         <PageHeader
-          breadcrumb={[
+          breadcrumb={isStandaloneSignup ? undefined : [
             { label: 'Programs & Activities', to: '/events' },
             { label: event.title || event.eventType || 'Event', to: `/events/${event.id}` },
             { label: 'Register' }
@@ -680,7 +694,7 @@ function RegisterPage() {
   return (
     <section>
       <PageHeader
-        breadcrumb={[
+        breadcrumb={isStandaloneSignup ? undefined : [
           { label: 'Programs & Activities', to: '/events' },
           { label: event.title || event.eventType || 'Event', to: `/events/${event.id}` },
           { label: 'Register' }
@@ -704,7 +718,12 @@ function RegisterPage() {
       <div className="registration-layout">
         <EventSummary event={event} />
         <form className="form-panel registration-form" onSubmit={handleSubmit}>
-          {formError ? <p className="form-error">{formError}</p> : null}
+          {/* Only while the submit button is out of reach. Once the form is
+              long enough to have one, the copy beside the button is the one
+              that gets read - see the matching block down there. */}
+          {formError && !canShowRegistrantFields ? (
+            <p className="form-error">{formError}</p>
+          ) : null}
           <label>
             <span>{usingSignedInProfile ? 'Signed In Email' : 'Email *'}</span>
             <input
@@ -1132,6 +1151,12 @@ function RegisterPage() {
                         : 'Submitting registration and preparing confirmation...'}
                     </p>
                   ) : null}
+                  {/* "Please fix the highlighted fields" was rendered at the
+                      top of the form only. On a membership signup that is four
+                      questions, a terms panel and a card form above the
+                      button, so the one message telling you why nothing
+                      happened was off screen at the moment you needed it. */}
+                  {formError ? <p className="form-error">{formError}</p> : null}
                   <button
                     className="button-link button-reset"
                     disabled={submitting

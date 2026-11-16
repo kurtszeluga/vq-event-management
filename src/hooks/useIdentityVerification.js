@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import {
@@ -113,13 +113,33 @@ export function useIdentityVerification({
     }
   }, [applyProfile, eventId, onBeforeLookup, reset, setFieldErrors, setFormError]);
 
+  // Fills the email box from the signed-in account once, so a member
+  // registering themselves does not retype what the app already knows.
+  //
+  // Once per account per event, tracked by this ref, and that is the whole
+  // point of it. The guard used to be `lookupComplete`, which
+  // handleEmailChange sets back to false on every keystroke in the email box -
+  // so editing the address re-armed this effect and it overwrote what was
+  // being typed with the signed-in address. Worse than losing the typing: the
+  // lookup runs with alreadyVerified, so the signed-in profile was applied as
+  // a verified registrant and the registration would have been created for
+  // the wrong person, under an email the registrant never entered.
+  const autoLookupKeyRef = useRef('');
+
   useEffect(() => {
-    if (!eventId || !currentUser || !userProfile?.email || lookupComplete || lookupLoading) {
+    if (!eventId || !currentUser || !userProfile?.email || lookupLoading) {
       return;
     }
 
+    const autoLookupKey = `${eventId}:${String(userProfile.email).toLowerCase()}`;
+
+    if (autoLookupKeyRef.current === autoLookupKey) {
+      return;
+    }
+
+    autoLookupKeyRef.current = autoLookupKey;
     runEmailLookup(userProfile.email, { alreadyVerified: true });
-  }, [currentUser, eventId, lookupComplete, lookupLoading, runEmailLookup, userProfile]);
+  }, [currentUser, eventId, lookupLoading, runEmailLookup, userProfile]);
 
   const handleEmailLookup = useCallback(async () => {
     await runEmailLookup(email);

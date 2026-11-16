@@ -585,3 +585,70 @@ describe('password setup token', () => {
     expect(result.current.emailVerified).toBe(false);
   });
 });
+
+describe('the signed-in auto lookup', () => {
+  const signedIn = {
+    currentUser: { uid: 'user-1' },
+    userProfile: { email: 'vqhosting@villagequilters.com', userId: 'user-1' }
+  };
+
+  it('fills the email box from the signed-in account on arrival', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok', verified: true });
+    const { result } = setup(signedIn);
+
+    await waitFor(() => expect(result.current.email).toBe('vqhosting@villagequilters.com'));
+    expect(lookupRegistrationEmail).toHaveBeenCalledWith('vqhosting@villagequilters.com', 'event-a');
+  });
+
+  // The bug this guards: handleEmailChange clears lookupComplete, which used
+  // to re-arm the auto lookup. Typing a different address put the signed-in
+  // one straight back - and because the auto lookup runs alreadyVerified, the
+  // signed-in profile came with it, so the registration would have been
+  // created for the wrong person entirely.
+  it('does not overwrite a different email the registrant types', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok', verified: true });
+    const { result } = setup(signedIn);
+
+    await waitFor(() => expect(result.current.email).toBe('vqhosting@villagequilters.com'));
+
+    act(() => {
+      result.current.handleEmailChange('kurtszeluga@hotmail.com');
+    });
+
+    expect(result.current.email).toBe('kurtszeluga@hotmail.com');
+
+    // The re-arm was asynchronous, so a synchronous assertion alone would have
+    // passed against the broken version too.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(result.current.email).toBe('kurtszeluga@hotmail.com');
+    expect(lookupRegistrationEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs once, not once per keystroke in the email box', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok', verified: true });
+    const { result } = setup(signedIn);
+
+    await waitFor(() => expect(lookupRegistrationEmail).toHaveBeenCalledTimes(1));
+
+    for (const value of ['k', 'ku', 'kur', 'kurt@example.com']) {
+      act(() => {
+        result.current.handleEmailChange(value);
+      });
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(lookupRegistrationEmail).toHaveBeenCalledTimes(1);
+    expect(result.current.email).toBe('kurt@example.com');
+  });
+
+  it('does nothing at all when nobody is signed in', async () => {
+    const { result } = setup();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(lookupRegistrationEmail).not.toHaveBeenCalled();
+    expect(result.current.email).toBe('');
+  });
+});

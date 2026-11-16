@@ -459,6 +459,19 @@ a {
   max-width: 420px;
 }
 
+/* A signup for an unlisted type stands on its own. It is reached by a link
+   posted on another site, so the header, the nav and the footer links all
+   offer a way "back" into pages this signup was never part of - and the guild
+   wants the card to be the whole of it. Separate from popup-mode, which also
+   strips the page-content padding for the document viewers; this keeps the
+   page's normal layout and removes only the ways out of it. */
+body.signup-standalone .site-header,
+body.signup-standalone .site-identity,
+body.signup-standalone .site-footer,
+body.signup-standalone .pull-refresh-indicator {
+  display: none !important;
+}
+
 body.popup-mode .site-header,
 body.popup-mode .site-identity,
 body.popup-mode .pull-refresh-indicator {
