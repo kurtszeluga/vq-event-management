@@ -1949,7 +1949,14 @@ body.nav-sheet-open {
   aspect-ratio: 4 / 3;
   border-radius: 8px;
   display: block;
-  object-fit: cover;
+  /* `contain`, not `cover`. The box is landscape and a good many of these are
+     portrait flyers - the luncheon menu, supply lists - where cropping to fill
+     cuts the top and bottom off and takes the readable part with it. Letterbox
+     them instead: the whole image is visible, every card keeps the same 4:3
+     footprint so the grid does not go ragged, and the tinted background makes
+     the spare space read as a frame rather than as a broken image. */
+  background: #f4f1ec;
+  object-fit: contain;
   width: 100%;
 }
 

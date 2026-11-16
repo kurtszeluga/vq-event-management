@@ -1781,7 +1781,14 @@
         border-radius: 8px;
         display: block;
         height: var(--vq-media-height);
-        object-fit: cover;
+        /* `contain`, matching the app's own listing. The media box is
+           landscape and a good many of these are portrait flyers - the
+           luncheon menu, supply lists - so cropping to fill cut the top and
+           bottom off and took the readable part with it. Letterboxing keeps
+           every card the same size while showing the whole image, and the
+           tinted background makes the spare space read as a frame. */
+        background: #f4f1ec;
+        object-fit: contain;
         width: var(--vq-media-width);
       }
       .vq-feed-thumb-placeholder {
