@@ -1100,13 +1100,17 @@ function RegisterPage() {
                       This event is free - no payment is required.
                     </p>
                   ) : null}
+                  {/* Membership only, deliberately. Any unlimited event has
+                      the same non-existent deadline, but every other type
+                      keeps the countdown it has always shown - this stays to
+                      the one type it was asked for. */}
                   <SeatHoldStatus
                     joiningWaitlist={joiningWaitlist}
                     onExpired={handlePaymentReservationExpired}
                     reservation={paymentReservation}
                     reservationError={paymentReservationError}
                     reservationLoading={paymentReservationLoading}
-                    seatsUnlimited={isMembershipRegistration || Boolean(event.capacityUnlimited)}
+                    seatsUnlimited={isMembershipRegistration}
                   />
                   {paymentRequiredForCurrentSeat ? (
                     <RegistrationPaymentPanel
