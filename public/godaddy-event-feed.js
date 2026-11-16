@@ -1781,7 +1781,7 @@
         border-radius: 8px;
         display: block;
         height: var(--vq-media-height);
-        /* `contain`, matching the app's own listing. The media box is
+        /* contain, not cover, matching the app's own listing. The media box is
            landscape and a good many of these are portrait flyers - the
            luncheon menu, supply lists - so cropping to fill cut the top and
            bottom off and took the readable part with it. Letterboxing keeps
