@@ -75,6 +75,12 @@ function RegisterPage() {
     loadingEvent,
     membershipSettings
   } = useEventRegistration(eventId);
+  const isMembershipRegistration = isMembershipEvent(event);
+  // A type that appears in no list is reached only by a link posted
+  // elsewhere, so the site chrome around it offers a way "back" to places
+  // this page was never part of. The body class is what hides it; the
+  // breadcrumb is dropped below at the PageHeader itself.
+  const isStandaloneSignup = UNLISTED_EVENT_TYPES.includes(event?.eventType);
   const {
     applyProfile: applyProfileToForm,
     billingCity,
@@ -174,6 +180,7 @@ function RegisterPage() {
     applyProfile: applyProfileToForm,
     currentUser,
     eventId,
+    codeOnlyVerification: isStandaloneSignup,
     onBeforeLookup: resetSubmissionAndPaymentReservation,
     reset: resetRegistrantFields,
     setFieldErrors,
@@ -284,12 +291,6 @@ function RegisterPage() {
     requiresBillingAddress
   ]);
 
-  const isMembershipRegistration = isMembershipEvent(event);
-  // A type that appears in no list is reached only by a link posted
-  // elsewhere, so the site chrome around it offers a way "back" to places
-  // this page was never part of. The body class is what hides it; the
-  // breadcrumb is dropped below at the PageHeader itself.
-  const isStandaloneSignup = UNLISTED_EVENT_TYPES.includes(event?.eventType);
 
   useEffect(() => {
     document.body.classList.toggle('signup-standalone', isStandaloneSignup);
@@ -359,7 +360,12 @@ function RegisterPage() {
   // Only worth offering to someone who actually arrived by code and has an
   // account to attach a password to. A token is only minted when the profile
   // exists, so its presence is the check.
-  const offerPasswordSetup = emailVerified && Boolean(passwordSetupToken);
+  // Not on a temporary membership signup. The person came to pay their dues;
+  // interrupting that with an offer to create a password is the account
+  // machinery this signup exists to avoid.
+  const offerPasswordSetup = emailVerified
+    && Boolean(passwordSetupToken)
+    && !isStandaloneSignup;
 
   // A card here was too easy to scroll past on the way to the rest of the
   // form, so the offer interrupts instead - it cannot be missed, and both
@@ -840,7 +846,12 @@ function RegisterPage() {
               {lookupLoading ? 'Sending...' : 'Submit'}
             </button>
           )}
-          {lookupComplete ? (
+          {/* The lookup card reports what the app found out about the
+              address - an account, a membership status, a profile to edit.
+              None of that is this signup's business, and showing it would
+              announce whether the address has an account before the person
+              has proved it is theirs. */}
+          {lookupComplete && !isStandaloneSignup ? (
             <LookupResult
               billingAddress={{
                 city: billingCity,

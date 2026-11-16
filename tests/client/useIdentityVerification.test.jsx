@@ -652,3 +652,79 @@ describe('the signed-in auto lookup', () => {
     expect(result.current.email).toBe('');
   });
 });
+
+describe('codeOnlyVerification, the temporary membership signup', () => {
+  it('sends a code instead of asking for a password, even when an account exists', async () => {
+    // The reported behaviour: entering an email on the membership signup
+    // produced "Account Found - enter your password". That signup exists to
+    // take a payment, not to get someone into an account.
+    lookupRegistrationEmail.mockResolvedValue({
+      profile: { email: 'ada@example.com', firstName: 'Ada', status: 'Active' },
+      profileExists: true,
+      status: 'ok',
+      verified: true
+    });
+    startRegistrationEmailVerification.mockResolvedValue({ challengeId: 'chal-1' });
+
+    const { deps, result } = setup({ codeOnlyVerification: true });
+
+    await act(async () => {
+      await result.current.runEmailLookup('ada@example.com');
+    });
+
+    expect(startRegistrationEmailVerification).toHaveBeenCalledWith('ada@example.com', 'event-a');
+    expect(result.current.showEmailVerification).toBe(true);
+    // Never treated as signed in, so getNeedsAccountPassword cannot ask.
+    expect(result.current.accountVerified).toBe(false);
+    // The existing profile is NOT applied here - it is applied after the code
+    // is accepted, which is the right order and also means the page does not
+    // reveal that the address has an account.
+    expect(deps.applyProfile).not.toHaveBeenCalled();
+    expect(deps.reset).toHaveBeenCalled();
+  });
+
+  it('names the address in the message so it is obvious where to look', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: false, status: 'ok' });
+    startRegistrationEmailVerification.mockResolvedValue({ challengeId: 'chal-2' });
+
+    const { result } = setup({ codeOnlyVerification: true });
+
+    await act(async () => {
+      await result.current.runEmailLookup('New.Member@Example.com');
+    });
+
+    expect(result.current.emailVerificationMessage).toContain('new.member@example.com');
+    expect(result.current.emailVerificationChallengeId).toBe('chal-2');
+  });
+
+  it('surfaces a failure to send rather than sitting silent', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: false, status: 'ok' });
+    startRegistrationEmailVerification.mockRejectedValue(new Error('Email service is down.'));
+
+    const { result } = setup({ codeOnlyVerification: true });
+
+    await act(async () => {
+      await result.current.runEmailLookup('ada@example.com');
+    });
+
+    expect(result.current.emailVerificationError).toBe('Email service is down.');
+  });
+
+  it('leaves every other registration on the account path', async () => {
+    lookupRegistrationEmail.mockResolvedValue({
+      profile: { email: 'ada@example.com', status: 'Active' },
+      profileExists: true,
+      status: 'ok'
+    });
+
+    const { deps, result } = setup();
+
+    await act(async () => {
+      await result.current.runEmailLookup('ada@example.com');
+    });
+
+    expect(startRegistrationEmailVerification).not.toHaveBeenCalled();
+    expect(result.current.showEmailVerification).toBe(false);
+    expect(deps.applyProfile).toHaveBeenCalled();
+  });
+});

@@ -22,6 +22,11 @@ import { getProfileExists } from '../utils/registrationEligibility.js';
 // own state to only what it declares.
 export function useIdentityVerification({
   applyProfile,
+  // A temporary membership signup proves the address by emailed code and
+  // nothing else: no profile matching, no "Account Found", no password. The
+  // person is buying a membership, not getting into an account, and the
+  // account machinery is the part being replaced in 2028 anyway.
+  codeOnlyVerification = false,
   currentUser,
   eventId,
   onBeforeLookup,
@@ -93,7 +98,27 @@ export function useIdentityVerification({
       setLookup(result);
       setLookupComplete(true);
 
-      if (result.profile) {
+      if (codeOnlyVerification) {
+        // Straight to the code, whether or not an account exists - which also
+        // means the page never reveals whether one does. The details of a
+        // returning member are still filled in for them, just later:
+        // handleVerifyEmailCode applies the profile once the code is
+        // accepted, which is the right order anyway.
+        reset();
+        setShowEmailVerification(true);
+
+        try {
+          const challenge = await startRegistrationEmailVerification(normalizedEmail, eventId);
+
+          setEmailVerificationChallengeId(challenge.challengeId || '');
+          setEmailVerificationMessage(
+            challenge.message
+              || `We sent a 6-digit code to ${normalizedEmail}. Enter it below to continue.`
+          );
+        } catch (error) {
+          setEmailVerificationError(error.message);
+        }
+      } else if (result.profile) {
         applyProfile(result.profile);
         setAccountVerified(Boolean(alreadyVerified && result.verified));
         setReactivateProfile(Boolean(alreadyVerified && result.profile.status !== 'Active'));
@@ -111,7 +136,7 @@ export function useIdentityVerification({
     } finally {
       setLookupLoading(false);
     }
-  }, [applyProfile, eventId, onBeforeLookup, reset, setFieldErrors, setFormError]);
+  }, [applyProfile, codeOnlyVerification, eventId, onBeforeLookup, reset, setFieldErrors, setFormError]);
 
   // Fills the email box from the signed-in account once, so a member
   // registering themselves does not retype what the app already knows.
