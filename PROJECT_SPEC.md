@@ -185,13 +185,33 @@ What makes it different from every other type:
   see `shared/membershipQuestions.js` for why.
 - **The signup page stands alone**: no site header, no navigation, no
   breadcrumbs. Only Terms and Privacy remain in the footer, kept deliberately
-  because the page takes a card payment; Support is hidden. Driven by
-  `UNLISTED_EVENT_TYPES`, the same constant that keeps the type out of the
-  lists - a page reached only by a posted link has nowhere of its own to
-  navigate back to.
+  because the page takes a card payment; Support is hidden. It ends on a
+  terminal card - Close, then "Thank You" or "Signup Cancelled" - rather than
+  navigating anywhere, so there is nothing to click and nowhere to go.
+- **It has no account step.** Email, Submit, a 6-digit code, then the form.
+  No profile lookup, no "Account Found", no password, and no offer to create
+  one afterwards (`codeOnlyVerification` on `useIdentityVerification`). A
+  returning member's details are still filled in, by `handleVerifyEmailCode`
+  once the code is accepted rather than at lookup - which is the right order
+  and also means the page never reveals whether an address has an account.
+- **No admin can register anyone for it.** The register controls are hidden on
+  both the event card and the Review/Edit Registrations card. The server has
+  no card-entry path for admin-initiated registration, so the only record
+  those controls could produce is a cash or cheque one against dues collected
+  by card - a record that does not match the money. The signup link is the
+  only way in.
+- **Non-member registration is forced on and not offered as a choice**, since
+  a signup for becoming a member cannot be restricted to members.
+
+Those three - absence from every list, the chrome-less standalone page, and
+the lack of any admin registration route - all read from `UNLISTED_EVENT_TYPES`
+rather than from the type name, so they cannot drift apart.
 - **It collects no location**, and the admin form locks the event type so it
   cannot be changed by accident: changing it on a live signup would strip the
   dues schedule and leave a flat-priced event.
+- **Duplicate signups are refused** by the server's existing check: a second
+  active registration for the same email and event returns a 409, and that
+  path does not care about event type.
 - **Its Google Sheet is four columns wider**, with the answers beside Phone.
   The standard eleven-column header is untouched for every other type, because
   everything to the right of the app's columns belongs to the coordinator and
