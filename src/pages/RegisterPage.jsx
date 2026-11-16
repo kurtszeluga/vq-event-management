@@ -57,7 +57,7 @@ function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { eventId: routeEventId = '' } = useParams();
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, logOut, userProfile } = useAuth();
   const eventId = searchParams.get('eventId') || routeEventId || '';
   const returnUrl = getSafeReturnUrl(searchParams.get('returnUrl') || '');
   const referrerUrl = getExternalReferrerUrl();
@@ -321,6 +321,26 @@ function RegisterPage() {
     membershipBlocked
   });
   const usingSignedInProfile = Boolean(currentUser && userProfile?.email);
+
+  // Signing out is the only honest way to register a different address while
+  // signed in. The server refuses the alternative outright - createRegistration
+  // and beginSquarePaymentReservation both reject a Firebase-authorized request
+  // whose email resolves to another profile ("The signed-in account is not
+  // linked to this member profile"), so an editable box here would only move
+  // the failure to the end of the form, after the card details.
+  //
+  // Lands back on this same signup, signed out, with the email box empty and
+  // ready to verify by code.
+  async function handleUseDifferentEmail() {
+    setFormError('');
+
+    try {
+      await logOut();
+      handleEmailChange('');
+    } catch (error) {
+      setFormError(error.message || 'We could not sign you out. Please try again.');
+    }
+  }
   const requiresReactivationTerms = Boolean(
     reactivateProfile
       && matchedProfile
@@ -472,7 +492,12 @@ function RegisterPage() {
       setConfirmation(result);
     } catch (error) {
       setRegistrationFinalizing(false);
-      setFormError(error.message);
+      // Logged as well as shown. Square's SDK raises errors whose message is
+      // its own generic "An unexpected error occurred", with the useful part
+      // on the object rather than in the text - so without this there is
+      // nothing for anyone to go on, which is exactly what was reported.
+      console.error('Registration submit failed', error);
+      setFormError(describeSubmitError(error));
     } finally {
       setSubmitting(false);
     }
@@ -738,10 +763,22 @@ function RegisterPage() {
             />
             {usingSignedInProfile ? (
               <span className="form-help">
-                We used your signed-in profile to start this registration.
+                You are signed in as <strong>{userProfile.email}</strong>, and
+                this registration will be for that account. The address cannot
+                be changed while you are signed in.
               </span>
             ) : null}
           </label>
+          {usingSignedInProfile ? (
+            <button
+              className="button-link button-reset secondary-action"
+              disabled={submitting || Boolean(confirmation)}
+              type="button"
+              onClick={handleUseDifferentEmail}
+            >
+              Sign Out And Use A Different Email
+            </button>
+          ) : null}
           {usingSignedInProfile ? (
             lookupLoading ? <p className="form-help">Checking your profile...</p> : null
           ) : (
@@ -1332,6 +1369,26 @@ function LookupResult({
       ) : null}
     </div>
   );
+}
+
+// Never an empty panel. An error with no usable message used to set formError
+// to undefined, which renders as nothing at all: the submit visibly failed and
+// the page said why in zero words.
+export function describeSubmitError(error) {
+  const message = String(error?.message || '').trim();
+  // Square attaches the specifics here; its `message` is often the generic
+  // line on its own.
+  const detail = Array.isArray(error?.errors)
+    ? error.errors.map((item) => item?.detail || item?.message).filter(Boolean).join(' ')
+    : '';
+
+  if (message && detail && !message.includes(detail)) {
+    return `${message} (${detail})`;
+  }
+
+  return message
+    || detail
+    || 'Something went wrong completing this registration. Nothing has been charged. Please try again, and tell an administrator if it keeps happening.';
 }
 
 function EventSummary({ event }) {
