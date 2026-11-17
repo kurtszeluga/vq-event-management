@@ -987,6 +987,10 @@ async function createRegistration(db, payload, authorization) {
     // Checked here as well as in the browser. The browser's copy is what makes
     // the form usable; this is what makes the answers trustworthy, since the
     // request can be made without it.
+    if (membershipRegistration && !payload.termsAccepted) {
+      throw httpError(400, 'You must agree to the Guild terms and conditions before signing up.');
+    }
+
     if (membershipRegistration) {
       const answerErrors = getMembershipAnswerErrors({
         phoneType: payload.membershipAnswers.membershipPhoneType,
@@ -1022,6 +1026,13 @@ async function createRegistration(db, payload, authorization) {
       membershipRenewalType: membershipRegistration ? payload.membershipAnswers.membershipRenewalType : '',
       membershipSkills: membershipRegistration ? payload.membershipAnswers.membershipSkills : '',
       membershipVeteran: membershipRegistration ? payload.membershipAnswers.membershipVeteran : '',
+      // What they agreed to and when, stored on the registration rather than
+      // only on the profile. This row IS the dues record, and a membership
+      // sold on terms the record cannot name is not evidence of anything.
+      // Non-membership registrations write '' so the field set stays one
+      // shape across every registration.
+      termsAcceptedVersion: membershipRegistration ? (payload.termsVersion || 'Membership Terms') : '',
+      termsAcceptedDate: membershipRegistration ? FieldValue.serverTimestamp() : null,
       paymentMethod: adminCollectedPayment?.method || '',
       paymentNote: adminCollectedPayment
         ? `Cash/check payment collected by ${authorization.actorName} at the time of registration.`
@@ -1621,6 +1632,7 @@ function sanitizeRegistrationPayload(payload) {
     reactivateProfile: Boolean(payload.reactivateProfile),
     reactivationTermsAccepted: Boolean(payload.reactivationTermsAccepted),
     squarePaymentToken: String(payload.squarePaymentToken || '').trim(),
+    termsAccepted: Boolean(payload.termsAccepted),
     termsVersion: String(payload.termsVersion || '').trim(),
     verificationChallengeId: cleanText(payload.verificationChallengeId),
     verificationToken: cleanText(payload.verificationToken)

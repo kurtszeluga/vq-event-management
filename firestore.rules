@@ -235,6 +235,8 @@ service cloud.firestore {
           'membershipRenewalType',
           'membershipSkills',
           'membershipVeteran',
+          'termsAcceptedVersion',
+          'termsAcceptedDate',
           'phone',
           'profileMatchedAtRegistration',
           'profileStatusAtRegistration',
@@ -272,6 +274,12 @@ service cloud.firestore {
           || request.resource.data.membershipSkills is string
             && request.resource.data.membershipSkills.size() <= 1500)
         && (!('membershipVeteran' in request.resource.data) || request.resource.data.membershipVeteran is string)
+        // Membership only; '' and null on every other type.
+        && (!('termsAcceptedVersion' in request.resource.data)
+          || request.resource.data.termsAcceptedVersion is string)
+        && (!('termsAcceptedDate' in request.resource.data)
+          || request.resource.data.termsAcceptedDate == null
+          || request.resource.data.termsAcceptedDate is timestamp)
         && request.resource.data.name is string
         && request.resource.data.email is string
         && (!('membershipStatusAtRegistration' in request.resource.data)

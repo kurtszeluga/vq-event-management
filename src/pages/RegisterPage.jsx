@@ -34,6 +34,7 @@ import {
   isMembershipBlocked,
   mustPayByCashCheck as getMustPayByCashCheck,
   needsAccountPassword as getNeedsAccountPassword,
+  needsMembershipTerms as getNeedsMembershipTerms,
   needsEmailVerification as getNeedsEmailVerification,
   requiresBillingAddress as getRequiresBillingAddress
 } from '../utils/registrationEligibility.js';
@@ -125,6 +126,12 @@ function RegisterPage() {
   // not in. Rendering a terminal card instead means there is nothing to click
   // and nowhere to go, which is what was asked for.
   const [standaloneExit, setStandaloneExit] = useState('');
+  // Membership dues buy guild membership, so the signup has to take the same
+  // agreement /signup does, from the same configured text and version. Held
+  // separately from reactivationTermsAccepted: that one answers "reinstate my
+  // archived profile", this one answers "I am joining the guild", and a
+  // single flag would let either stand in for the other.
+  const [membershipTermsAccepted, setMembershipTermsAccepted] = useState(false);
   const [membershipPhoneType, setMembershipPhoneType] = useState('');
   const [membershipRenewalType, setMembershipRenewalType] = useState('');
   const [membershipVeteran, setMembershipVeteran] = useState('');
@@ -260,6 +267,10 @@ function RegisterPage() {
       profileUpdates,
       reactivateProfile,
       reactivationTermsAccepted,
+      // Recorded against the registration, not only acted on in the browser.
+      // A dues record whose agreement exists solely as a disabled button is
+      // not a record of anything.
+      termsAccepted: membershipTermsAccepted,
       termsVersion: displayedTermsVersion,
       verificationChallengeId: emailVerificationChallengeId,
       verificationToken: registrationVerificationToken
@@ -278,6 +289,7 @@ function RegisterPage() {
     firstName,
     lastName,
     matchedProfile,
+    membershipTermsAccepted,
     membershipPhoneType,
     membershipRenewalType,
     membershipSkills,
@@ -348,6 +360,11 @@ function RegisterPage() {
       setFormError(error.message || 'We could not sign you out. Please try again.');
     }
   }
+  const requiresMembershipTerms = getNeedsMembershipTerms({
+    canShowRegistrantFields,
+    confirmed: Boolean(confirmation),
+    isStandaloneSignup
+  });
   const requiresReactivationTerms = Boolean(
     reactivateProfile
       && matchedProfile
@@ -472,6 +489,11 @@ function RegisterPage() {
 
     if (registrationUnavailable) {
       setFormError(registrationUnavailable);
+      return;
+    }
+
+    if (requiresMembershipTerms && !membershipTermsAccepted) {
+      setFormError('You must read and agree to the Guild terms and conditions before signing up.');
       return;
     }
 
@@ -1171,6 +1193,39 @@ function RegisterPage() {
                   </button>
                 </div>
               ) : null}
+              {requiresMembershipTerms ? (
+                <div className="membership-terms">
+                  <div className="terms-panel">
+                    <h3>Terms And Conditions</h3>
+                    <p className="form-help">
+                      Terms version: {displayedTermsVersion}
+                    </p>
+                    {membershipSettings.termsText ? (
+                      <div className="terms-text">{membershipSettings.termsText}</div>
+                    ) : (
+                      <p className="form-help">
+                        Please review the Guild membership terms and conditions
+                        provided by the Guild before signing up.
+                      </p>
+                    )}
+                  </div>
+                  <label className="checkbox-label">
+                    <input
+                      checked={membershipTermsAccepted}
+                      disabled={submitting || Boolean(confirmation)}
+                      required
+                      type="checkbox"
+                      onChange={(inputEvent) => setMembershipTermsAccepted(inputEvent.target.checked)}
+                    />
+                    <span className="checkbox-label-copy">
+                      <span>I have read and agree to the Guild terms and conditions.</span>
+                      <span className="form-help">
+                        Required before signing up for membership.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              ) : null}
               {requiresReactivationTerms ? (
                 <>
                   <div className="terms-panel">
@@ -1278,7 +1333,8 @@ function RegisterPage() {
                       || Boolean(registrationUnavailable)
                       || paymentReservationExpired
                       || (paymentRequiredForCurrentSeat && (!squareCard && !squareWalletToken || Boolean(squareError && !squareWalletToken)))
-                      || (requiresReactivationTerms && !reactivationTermsAccepted)}
+                      || (requiresReactivationTerms && !reactivationTermsAccepted)
+                      || (requiresMembershipTerms && !membershipTermsAccepted)}
                     type="submit"
                   >
                     {submitting

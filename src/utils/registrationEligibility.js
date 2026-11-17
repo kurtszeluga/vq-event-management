@@ -186,6 +186,25 @@ export function isMembershipBlocked({ lookup, lookupComplete }) {
   return Boolean(lookupComplete) && MEMBERSHIP_BLOCKED_STATUSES.includes(lookup?.status);
 }
 
+// Whether a signup must take the guild's terms before it can be submitted.
+//
+// Only an unlisted signup, and only once the emailed code has been accepted -
+// `canShowRegistrantFields` is what turns true at that moment, and there is no
+// point putting an agreement in front of someone who has not yet proved the
+// address is theirs. A completed registration drops it, so the confirmation
+// does not re-ask for something already given.
+//
+// Deliberately separate from the reactivation agreement, which answers
+// "reinstate my archived profile" rather than "I am joining the guild". One
+// flag for both would let either stand in for the other.
+export function needsMembershipTerms({
+  canShowRegistrantFields,
+  confirmed,
+  isStandaloneSignup
+}) {
+  return Boolean(isStandaloneSignup) && Boolean(canShowRegistrantFields) && !confirmed;
+}
+
 export function needsAccountPassword({
   accountVerified,
   emailVerified,
