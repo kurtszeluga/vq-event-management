@@ -2142,7 +2142,12 @@ body.nav-sheet-open {
   align-items: start;
   display: grid;
   gap: 24px;
-  grid-template-columns: minmax(260px, 360px) minmax(280px, 520px);
+  /* 640px rather than 520px on the form side. "Are you a New member or
+     Renewing your membership?" wrapped to three lines at the old width, and
+     .page-content allows 1120px - the two columns were using 880 of it. The
+     narrow-viewport rule further down collapses this to one column, so the
+     extra width only applies where there is room for it. */
+  grid-template-columns: minmax(260px, 360px) minmax(280px, 640px);
   margin-top: 30px;
 }
 

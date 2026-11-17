@@ -361,6 +361,15 @@ function RegisterPage() {
   //
   // Lands back on this same signup, signed out, with the email box empty and
   // ready to verify by code.
+  // Back to an empty box and the Submit button, discarding the code that was
+  // sent. handleEmailChange is what clears the challenge, the lookup and the
+  // registrant fields; this just gives that a control of its own.
+  function handleResetEmailEntry() {
+    setFormError('');
+    handleEmailChange('');
+    setNeedsProfileEdits(false);
+  }
+
   async function handleUseDifferentEmail() {
     setFormError('');
 
@@ -844,6 +853,11 @@ function RegisterPage() {
           {formError && !canShowRegistrantFields ? (
             <p className="form-error">{formError}</p>
           ) : null}
+          {/* Hidden once the code is accepted: the registrant grid below
+              carries the address read-only from that point, and leaving an
+              editable copy above it offers a change that no longer does
+              anything. */}
+          {canShowRegistrantFields ? null : (
           <label>
             <span>{usingSignedInProfile ? 'Signed In Email' : 'Email *'}</span>
             <input
@@ -864,6 +878,7 @@ function RegisterPage() {
               </span>
             ) : null}
           </label>
+          )}
           {usingSignedInProfile ? (
             <button
               className="button-link button-reset secondary-action"
@@ -877,6 +892,12 @@ function RegisterPage() {
           {usingSignedInProfile ? (
             lookupLoading ? <p className="form-help">Checking your profile...</p> : null
           ) : (
+            /* Gone once a code is out, and gone for good once it is
+               accepted. Submit sends the code, so leaving it beside "Verify
+               Code And Continue" offers two next steps where there is one.
+               Editing the address clears the challenge and brings it back,
+               which is the way to correct a typo. */
+            emailVerificationChallengeId || canShowRegistrantFields ? null : (
             <button
               className="button-link button-reset"
               disabled={lookupLoading || submitting || Boolean(confirmation)}
@@ -885,6 +906,7 @@ function RegisterPage() {
             >
               {lookupLoading ? 'Sending...' : 'Submit'}
             </button>
+            )
           )}
           {/* The lookup card reports what the app found out about the
               address - an account, a membership status, a profile to edit.
@@ -1001,6 +1023,22 @@ function RegisterPage() {
                   onClick={handleStartEmailVerification}
                 >
                   {emailVerificationSending ? 'Sending...' : 'Send A New Code'}
+                </button>
+              ) : null}
+              {/* The way back from a mistyped address. Clearing the field
+                  already discards the challenge and brings Submit back, but
+                  nothing on screen said so - and someone who has just sent a
+                  code to an inbox they cannot read is exactly the person who
+                  will not go hunting for it. Named for the problem rather
+                  than the mechanism. */}
+              {emailVerificationChallengeId ? (
+                <button
+                  className="text-button"
+                  disabled={emailVerificationSending || emailVerificationVerifying}
+                  type="button"
+                  onClick={handleResetEmailEntry}
+                >
+                  Use A Different Email Address
                 </button>
               ) : null}
             </div>
