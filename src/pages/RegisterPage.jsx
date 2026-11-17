@@ -892,12 +892,17 @@ function RegisterPage() {
           {usingSignedInProfile ? (
             lookupLoading ? <p className="form-help">Checking your profile...</p> : null
           ) : (
-            /* Gone once a code is out, and gone for good once it is
-               accepted. Submit sends the code, so leaving it beside "Verify
-               Code And Continue" offers two next steps where there is one.
-               Editing the address clears the challenge and brings it back,
-               which is the way to correct a typo. */
-            emailVerificationChallengeId || canShowRegistrantFields ? null : (
+            /* Shown whenever neither the code panel nor the form is on
+               screen - stated in terms of what is visible rather than which
+               flags are set, because the state that matters is the one with
+               nothing else to press.
+               
+               That covers three cases: nothing entered yet, a code out (the
+               panel owns the next step), and the form open (done). It also
+               covers the one that was a dead end - a refused lookup, where
+               the code panel has gone and the form will not open, and Submit
+               is the only way to try a different address. */
+            needsEmailVerification || canShowRegistrantFields ? null : (
             <button
               className="button-link button-reset"
               disabled={lookupLoading || submitting || Boolean(confirmation)}
@@ -910,10 +915,18 @@ function RegisterPage() {
           )}
           {/* The lookup card reports what the app found out about the
               address - an account, a membership status, a profile to edit.
-              None of that is this signup's business, and showing it would
-              announce whether the address has an account before the person
-              has proved it is theirs. */}
-          {lookupComplete && !isStandaloneSignup ? (
+              None of that is this signup's business on the happy path, and
+              showing it would announce whether the address has an account
+              before the person has proved it is theirs.
+              
+              But its OTHER branches are the refusals: already registered,
+              membership not found, membership blocked. Hiding the card
+              outright swallowed those too, and a refusal with nothing on
+              screen is a dead end - the signup simply stopped, with an email
+              box and a Cancel button and no reason given. So a blocked lookup
+              still renders, which is also what makes the duplicate-signup
+              guard visible to the person it is guarding against. */}
+          {lookupComplete && (!isStandaloneSignup || membershipBlocked) ? (
             <LookupResult
               billingAddress={{
                 city: billingCity,
