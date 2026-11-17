@@ -152,7 +152,11 @@ export function useIdentityVerification({
   const autoLookupKeyRef = useRef('');
 
   useEffect(() => {
-    if (!eventId || !currentUser || !userProfile?.email || lookupLoading) {
+    // Never on a code-only signup. Prefilling is a convenience there; sending
+    // a code is an action, and this effect cannot do the first without the
+    // second. Opening the link while signed in would email a code before the
+    // visitor had typed anything or pressed anything.
+    if (codeOnlyVerification || !eventId || !currentUser || !userProfile?.email || lookupLoading) {
       return;
     }
 
@@ -164,7 +168,7 @@ export function useIdentityVerification({
 
     autoLookupKeyRef.current = autoLookupKey;
     runEmailLookup(userProfile.email, { alreadyVerified: true });
-  }, [currentUser, eventId, lookupLoading, runEmailLookup, userProfile]);
+  }, [codeOnlyVerification, currentUser, eventId, lookupLoading, runEmailLookup, userProfile]);
 
   const handleEmailLookup = useCallback(async () => {
     await runEmailLookup(email);

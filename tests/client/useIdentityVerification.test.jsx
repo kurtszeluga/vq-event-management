@@ -728,3 +728,44 @@ describe('codeOnlyVerification, the temporary membership signup', () => {
     expect(deps.applyProfile).toHaveBeenCalled();
   });
 });
+
+describe('a signed-in browser on a code-only signup', () => {
+  const signedIn = {
+    codeOnlyVerification: true,
+    currentUser: { uid: 'user-1' },
+    userProfile: { email: 'webmaster@villagequilters.com', userId: 'user-1' }
+  };
+
+  it('sends no code, and fills in nothing, just for opening the link', async () => {
+    // Reported from a fresh Firefox window: the guild account was still
+    // signed in, so opening the dues link announced "this registration will
+    // be for webmaster@villagequilters.com" and emailed a verification code
+    // before anything had been typed or pressed.
+    //
+    // The auto-lookup exists to spare a signed-in member retyping their
+    // address. On this path the lookup also SENDS AN EMAIL, and a
+    // convenience that posts mail on page load is not a convenience.
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok', verified: true });
+    startRegistrationEmailVerification.mockResolvedValue({ challengeId: 'chal-1' });
+
+    const { result } = setup(signedIn);
+
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(startRegistrationEmailVerification).not.toHaveBeenCalled();
+    expect(lookupRegistrationEmail).not.toHaveBeenCalled();
+    expect(result.current.email).toBe('');
+    expect(result.current.showEmailVerification).toBe(false);
+  });
+
+  it('still prefills a signed-in member on an ordinary event registration', async () => {
+    // The convenience is not removed, only kept off the path where it would
+    // send mail unasked.
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status: 'ok', verified: true });
+
+    const { result } = setup({ ...signedIn, codeOnlyVerification: false });
+
+    await waitFor(() => expect(result.current.email).toBe('webmaster@villagequilters.com'));
+    expect(startRegistrationEmailVerification).not.toHaveBeenCalled();
+  });
+});

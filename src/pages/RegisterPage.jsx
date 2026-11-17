@@ -339,7 +339,18 @@ function RegisterPage() {
     lookupComplete,
     membershipBlocked
   });
-  const usingSignedInProfile = Boolean(currentUser && userProfile?.email);
+  // Deliberately false on a standalone signup, whoever is signed in. The
+  // guild account stays signed in on shared machines, and on a public dues
+  // link that produced "this registration will be for
+  // webmaster@villagequilters.com" with the address locked - naming the wrong
+  // person and offering no way to correct it.
+  //
+  // Safe because authorization never depended on this flag:
+  // getMatchingUserIdToken only attaches a token when the signed-in address
+  // equals the one being registered, so anyone else goes through the emailed
+  // code exactly as an anonymous visitor does.
+  const usingSignedInProfile = Boolean(currentUser && userProfile?.email)
+    && !isStandaloneSignup;
 
   // Signing out is the only honest way to register a different address while
   // signed in. The server refuses the alternative outright - createRegistration
