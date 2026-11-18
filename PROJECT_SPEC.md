@@ -247,8 +247,23 @@ that protects this asserts the **whole** error object is empty for the form
 the Membership module hands you; asserting individual keys is what let three
 of these survive a first fix.
 
-**The registration email box is locked to the signed-in account**, and the
-server enforces it: `createRegistration` and `beginSquarePaymentReservation`
+**A standalone signup ignores the signed-in session entirely.** No prefill, no
+locked address, no auto-lookup - the guild account stays signed in on shared
+machines, and on a public dues link that produced "this registration will be
+for webmaster@villagequilters.com" with no way to correct it, plus a
+verification code emailed on page load. Safe because authorization never
+depended on it: `getMatchingUserIdToken` attaches a Firebase token only when
+the signed-in address equals the one being registered.
+
+**Card payment needs `web.squarecdn.com` in FOUR CSP directives** -
+`script-src`, `style-src`, `connect-src`, `frame-src` - plus the sandbox host
+for preview deploys. A gap in any one of them breaks the card form with
+Square's catch-all "An unexpected error occurred while using Card", which
+names neither CSP nor the blocked resource. `tests/csp-allows-square.test.js`
+guards it; nothing else in the repo reads `vercel.json`.
+
+**On every other event type the registration email box is locked to the
+signed-in account**, and the server enforces it: `createRegistration` and `beginSquarePaymentReservation`
 both reject a Firebase-authorized request whose email resolves to a different
 profile. Signing up while signed in as another account therefore shows that
 account's address, which reads as the form changing what was typed. The page
