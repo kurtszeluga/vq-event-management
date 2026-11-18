@@ -1,5 +1,6 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getRequireMembershipCheck } from './_lib/membership-settings.js';
+import { isMembershipEvent } from '../shared/membershipDues.js';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { ensureAuthUserForProfile } from './_lib/auth-account.js';
@@ -620,6 +621,30 @@ export function buildPublicLookupResponse(context) {
       allowNonMemberRegistration: false,
       profileExists: false,
       status: 'membership-not-found',
+      verificationRequired: false
+    };
+  }
+
+  // A Membership signup, and only that, tells an unauthenticated caller that
+  // the address is already registered.
+  //
+  // Every other event withholds it on purpose: this response goes to anyone
+  // who can type an address into a public form, and saying "already
+  // registered" confirms that this person signed up for that class. The
+  // duplicate is still caught for them - after the emailed code is accepted,
+  // where the caller has proved the address is theirs.
+  //
+  // The guild's decision for membership, and the reasoning is theirs: members
+  // get a member directory anyway, so whether someone has joined is not a
+  // secret the signup is keeping, and making a renewing member wait for a code
+  // only to be refused is a real cost paid by real people every year. The
+  // existing rate limits - five lookups per address per hour, ten per IP -
+  // already make bulk enumeration impractical.
+  if (context.hasExistingRegistration && isMembershipEvent(context.event)) {
+    return {
+      allowNonMemberRegistration: context.allowNonMemberRegistration,
+      profileExists: Boolean(context.profile),
+      status: 'already-registered',
       verificationRequired: false
     };
   }
