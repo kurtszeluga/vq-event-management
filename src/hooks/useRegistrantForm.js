@@ -24,7 +24,7 @@ export function useRegistrantForm() {
     setBillingCity(profile.billingAddress?.city || '');
     setBillingCountry(profile.billingAddress?.country || 'United States');
     setBillingPostalCode(profile.billingAddress?.postalCode || '');
-    setBillingState(profile.billingAddress?.state || '');
+    setBillingState(profile.billingAddress?.state || DEFAULT_US_STATE);
     setBillingStreet(profile.billingAddress?.street || '');
   }, []);
 

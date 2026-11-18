@@ -134,3 +134,34 @@ describe('useRegistrantForm', () => {
     expect(result.current.reset).toBe(firstReset);
   });
 });
+
+describe('the state default survives a matched profile', () => {
+  it('falls back to Tennessee when the stored address has no state', () => {
+    // Reported: the registration form was not defaulting to Tennessee. The
+    // initial value and reset() both set it, but applying a matched profile
+    // wrote '' straight over them whenever that profile had no state stored -
+    // which is most of them, and is exactly what a membership signup does
+    // after the emailed code is accepted.
+    const { result } = renderHook(() => useRegistrantForm());
+
+    act(() => {
+      result.current.applyProfile({
+        billingAddress: { city: 'Loudon' },
+        firstName: 'Ada',
+        lastName: 'Lovelace'
+      });
+    });
+
+    expect(result.current.billingState).toBe('TN');
+  });
+
+  it('still prefers a state the profile does have', () => {
+    const { result } = renderHook(() => useRegistrantForm());
+
+    act(() => {
+      result.current.applyProfile({ billingAddress: { state: 'NC' } });
+    });
+
+    expect(result.current.billingState).toBe('NC');
+  });
+});

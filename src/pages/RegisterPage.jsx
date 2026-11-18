@@ -318,7 +318,11 @@ function RegisterPage() {
     [event]
   );
 
-  const needsAccountPassword = getNeedsAccountPassword({
+  // Never on a standalone signup. There is no password step here, and while
+  // the code is being sent this condition is briefly true - a profile exists
+  // and the code panel is not open yet - which flashed an "Account Found"
+  // card for the length of the request.
+  const needsAccountPassword = !isStandaloneSignup && getNeedsAccountPassword({
     accountVerified,
     emailVerified,
     lookupComplete,
