@@ -191,6 +191,13 @@ export default function RegistrationPaymentPanel({
         }
       } catch (squareLoadError) {
         if (!cancelled) {
+          // Logged with the whole object, not just the message. Square's own
+          // wording here - "An unexpected error occurred while using Card" -
+          // says nothing about which call failed or why, and the useful part
+          // is on the error rather than in its text. Without this a report of
+          // it leaves nothing to work from, which is exactly what happened
+          // the first time it was raised.
+          console.error('Square payment form failed to initialize', squareLoadError);
           onCardReady(null);
           if (selectedPaymentTokenRef.current !== 'cnon:card-nonce-ok') {
             onWalletTokenReady('');
