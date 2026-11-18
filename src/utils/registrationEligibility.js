@@ -197,6 +197,21 @@ export function isMembershipBlocked({ lookup, lookupComplete }) {
 // Deliberately separate from the reactivation agreement, which answers
 // "reinstate my archived profile" rather than "I am joining the guild". One
 // flag for both would let either stand in for the other.
+// Whether the editable name/phone/address grid is on screen.
+//
+// Normally a matched profile is shown in the lookup card instead, with an Edit
+// button that sets needsProfileEdits - so the grid stays shut until asked for.
+// A standalone signup has no lookup card (it reports account details that flow
+// has no business showing), so hiding the grid there left a returning member
+// with no fields at all and nothing explaining why.
+export function showsRegistrantFields({
+  isStandaloneSignup,
+  matchedProfile,
+  needsProfileEdits
+}) {
+  return !matchedProfile || Boolean(needsProfileEdits) || Boolean(isStandaloneSignup);
+}
+
 export function needsMembershipTerms({
   canShowRegistrantFields,
   confirmed,

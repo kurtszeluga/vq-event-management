@@ -168,3 +168,61 @@ describe('an unlisted signup has no admin registration route', () => {
     expect(UNLISTED_EVENT_TYPES).toContain('Membership');
   });
 });
+
+describe('editing a saved Membership event', () => {
+  // Reported: the dues were changed in Configuration to $10 and the existing
+  // membership card kept charging the old rate.
+  //
+  // getInitialForm spreads the stored event, which carries the schedule
+  // NESTED as membershipFeeSchedule and never the flat fields this form uses.
+  // So an edit opened on DEFAULT_EVENT_FORM's 25/50 - not the stored rate and
+  // not the configured one - and saving wrote those defaults back over
+  // whatever Configuration said. Re-saving, the documented way to adopt new
+  // dues, could not work.
+  it('shows the configured dues, not the form defaults', async () => {
+    const { cleanup: cleanupDom } = await import('@testing-library/react');
+
+    cleanupDom();
+
+    vi.resetModules();
+    vi.doMock('../../src/services/configurationService.js', () => ({
+      subscribeToActiveBusinessTypeDefaults: (onNext) => { onNext([]); return () => {}; },
+      subscribeToActiveEventLocationDefaults: (onNext) => { onNext([]); return () => {}; },
+      subscribeToActiveEventTimeDefaults: (onNext) => { onNext([]); return () => {}; },
+      subscribeToPaymentSettings: (onNext) => {
+        onNext({
+          defaultServiceFee: 1,
+          membershipEarlyFee: 5,
+          membershipEarlyStart: '07-01',
+          membershipRegularFee: 10,
+          membershipRegularStart: '10-01'
+        });
+        return () => {};
+      }
+    }));
+
+    const { default: FreshEventForm } = await import('../../src/components/admin/EventForm.jsx');
+    const { render: freshRender, screen: freshScreen } = await import('@testing-library/react');
+
+    freshRender(
+      <FreshEventForm
+        editingEvent={{
+          eventType: 'Membership',
+          id: 'evt-1',
+          membershipFeeSchedule: { earlyFee: 25, earlyStart: '07-01', regularFee: 50, regularStart: '10-01' },
+          title: 'Guild Membership'
+        }}
+        onCancelEdit={vi.fn()}
+        onSaved={vi.fn()}
+        userProfile={{ id: 'admin-1' }}
+      />
+    );
+
+    // The read-back line is what the admin checks before saving, so it has to
+    // name the rates that will actually be stored.
+    expect(await freshScreen.findByText(/\$10\.00/)).toBeInTheDocument();
+    expect(freshScreen.queryByText(/\$50\.00/)).toBeNull();
+
+    vi.doUnmock('../../src/services/configurationService.js');
+  });
+});

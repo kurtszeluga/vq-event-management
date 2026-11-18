@@ -35,6 +35,7 @@ import {
   mustPayByCashCheck as getMustPayByCashCheck,
   needsAccountPassword as getNeedsAccountPassword,
   needsMembershipTerms as getNeedsMembershipTerms,
+  showsRegistrantFields,
   needsEmailVerification as getNeedsEmailVerification,
   requiresBillingAddress as getRequiresBillingAddress
 } from '../utils/registrationEligibility.js';
@@ -1059,7 +1060,7 @@ function RegisterPage() {
 
           {canShowRegistrantFields ? (
             <>
-              {(!matchedProfile || needsProfileEdits) ? (
+              {showsRegistrantFields({ isStandaloneSignup, matchedProfile, needsProfileEdits }) ? (
                 <div className="registration-profile-edit-grid">
                   <label>
                     <span>Email</span>

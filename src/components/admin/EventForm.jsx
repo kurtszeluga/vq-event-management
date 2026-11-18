@@ -114,7 +114,7 @@ function EventForm({
   }, []);
 
   useEffect(() => {
-    if (form.eventType !== 'Membership' || isEditing) {
+    if (form.eventType !== 'Membership') {
       return;
     }
 
@@ -125,7 +125,7 @@ function EventForm({
       membershipRegularFee: formatServiceFeeDefault(configuredDues.regularFee),
       membershipRegularStart: configuredDues.regularStart
     }));
-  }, [configuredDues, form.eventType, isEditing]);
+  }, [configuredDues, form.eventType]);
 
   // An event saved before its type collected a time carries no timePreset and
   // no startTime - every published Lecture is in that state, since Lecture had
