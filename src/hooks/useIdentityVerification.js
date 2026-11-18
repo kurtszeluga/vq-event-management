@@ -6,7 +6,7 @@ import {
   startRegistrationEmailVerification,
   verifyRegistrationEmailCode
 } from '../services/registrationService.js';
-import { getProfileExists } from '../utils/registrationEligibility.js';
+import { getProfileExists, isMembershipBlocked } from '../utils/registrationEligibility.js';
 
 // Owns proving who the registrant is: email lookup, password sign-in, and
 // the emailed-code fallback. Registrant form state is not owned here -
@@ -98,7 +98,16 @@ export function useIdentityVerification({
       setLookup(result);
       setLookupComplete(true);
 
-      if (codeOnlyVerification) {
+      // Refused before anything is emailed. The lookup already knows about an
+      // existing registration, a blocked membership or a missing one, so
+      // sending a code first means the registrant waits for an email, fetches
+      // a code, types it in, and is only then told they could not have
+      // continued. The refusal is the same either way; this just delivers it
+      // at the point it is known.
+      if (codeOnlyVerification && isMembershipBlocked({ lookup: result, lookupComplete: true })) {
+        reset();
+        setShowEmailVerification(false);
+      } else if (codeOnlyVerification) {
         // Straight to the code, whether or not an account exists - which also
         // means the page never reveals whether one does. The details of a
         // returning member are still filled in for them, just later:

@@ -769,3 +769,59 @@ describe('a signed-in browser on a code-only signup', () => {
     expect(startRegistrationEmailVerification).not.toHaveBeenCalled();
   });
 });
+
+describe('a refusal on a code-only signup', () => {
+  const codeOnly = { codeOnlyVerification: true };
+
+  it('stops at the lookup instead of emailing a code first', async () => {
+    // Without this, someone already signed up waits for an email, fetches the
+    // code, types it in, and only then learns they could not have continued.
+    // The lookup knew from the start.
+    lookupRegistrationEmail.mockResolvedValue({
+      profileExists: true,
+      status: 'already-registered'
+    });
+
+    const { result } = setup(codeOnly);
+
+    await act(async () => {
+      await result.current.runEmailLookup('member@example.com');
+    });
+
+    expect(startRegistrationEmailVerification).not.toHaveBeenCalled();
+    expect(result.current.showEmailVerification).toBe(false);
+    // lookupComplete with a blocked status is what renders the reason and
+    // brings Submit back, so another address can be tried.
+    expect(result.current.lookupComplete).toBe(true);
+    expect(result.current.lookup.status).toBe('already-registered');
+  });
+
+  it('stops for the other refusals too, not just a duplicate', async () => {
+    for (const status of ['membership-blocked', 'membership-not-found', 'profile-membership-blocked']) {
+      vi.clearAllMocks();
+      lookupRegistrationEmail.mockResolvedValue({ profileExists: true, status });
+
+      const { result } = setup(codeOnly);
+
+      await act(async () => {
+        await result.current.runEmailLookup('member@example.com');
+      });
+
+      expect(startRegistrationEmailVerification, status).not.toHaveBeenCalled();
+    }
+  });
+
+  it('still sends a code when the lookup raises nothing', async () => {
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: false, status: 'ok' });
+    startRegistrationEmailVerification.mockResolvedValue({ challengeId: 'chal-1' });
+
+    const { result } = setup(codeOnly);
+
+    await act(async () => {
+      await result.current.runEmailLookup('new@example.com');
+    });
+
+    expect(startRegistrationEmailVerification).toHaveBeenCalledWith('new@example.com', 'event-a');
+    expect(result.current.showEmailVerification).toBe(true);
+  });
+});
