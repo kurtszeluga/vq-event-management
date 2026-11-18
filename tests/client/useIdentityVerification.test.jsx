@@ -825,3 +825,53 @@ describe('a refusal on a code-only signup', () => {
     expect(result.current.showEmailVerification).toBe(true);
   });
 });
+
+describe('the code panel on a code-only signup', () => {
+  it('does not appear until there is a code to enter', async () => {
+    // It used to open before the request finished, so for the length of that
+    // request its button read "Send Verification Code" - offering the action
+    // the registrant had just taken by pressing Submit.
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: false, status: 'ok' });
+
+    let release;
+    startRegistrationEmailVerification.mockReturnValue(
+      new Promise((resolve) => { release = () => resolve({ challengeId: 'chal-1' }); })
+    );
+
+    const { result } = setup({ codeOnlyVerification: true });
+
+    let lookupDone;
+    await act(async () => {
+      lookupDone = result.current.runEmailLookup('new@example.com');
+      // Let the lookup settle while the code request is still outstanding.
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.showEmailVerification).toBe(false);
+
+    await act(async () => {
+      release();
+      await lookupDone;
+    });
+
+    expect(result.current.showEmailVerification).toBe(true);
+    expect(result.current.emailVerificationChallengeId).toBe('chal-1');
+  });
+
+  it('opens on a failed send, so the error and the retry are reachable', async () => {
+    // Both live inside the panel; leaving it shut would fail silently.
+    lookupRegistrationEmail.mockResolvedValue({ profileExists: false, status: 'ok' });
+    startRegistrationEmailVerification.mockRejectedValue(new Error('Email service is down.'));
+
+    const { result } = setup({ codeOnlyVerification: true });
+
+    await act(async () => {
+      await result.current.runEmailLookup('new@example.com');
+    });
+
+    expect(result.current.showEmailVerification).toBe(true);
+    expect(result.current.emailVerificationError).toBe('Email service is down.');
+    expect(result.current.emailVerificationChallengeId).toBe('');
+  });
+});

@@ -114,8 +114,13 @@ export function useIdentityVerification({
         // handleVerifyEmailCode applies the profile once the code is
         // accepted, which is the right order anyway.
         reset();
-        setShowEmailVerification(true);
 
+        // Opened only once there is a code to enter. Showing the panel first
+        // and sending afterwards meant it rendered with no challenge yet, so
+        // for the length of the request its button read "Send Verification
+        // Code" - inviting the registrant to do the thing they had just done.
+        // While the request is in flight the Submit button already reads
+        // "Sending...", which is the feedback that belongs to that moment.
         try {
           const challenge = await startRegistrationEmailVerification(normalizedEmail, eventId);
 
@@ -124,8 +129,12 @@ export function useIdentityVerification({
             challenge.message
               || `We sent a 6-digit code to ${normalizedEmail}. Enter it below to continue.`
           );
+          setShowEmailVerification(true);
         } catch (error) {
           setEmailVerificationError(error.message);
+          // Opened on failure too, because the error and the retry control
+          // both live inside it - without this the send fails silently.
+          setShowEmailVerification(true);
         }
       } else if (result.profile) {
         applyProfile(result.profile);
