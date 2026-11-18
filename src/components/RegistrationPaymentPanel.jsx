@@ -21,6 +21,8 @@ export default function RegistrationPaymentPanel({
 }) {
   const applePayRef = useRef(null);
   const cardContainerId = useRef(`square-card-${Math.random().toString(36).slice(2)}`);
+  // Resolves once the previous card and wallets have finished tearing down.
+  const teardownRef = useRef(Promise.resolve());
   const googlePayContainerId = useRef(`square-google-pay-${Math.random().toString(36).slice(2)}`);
   const [localError, setLocalError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,6 +81,21 @@ export default function RegistrationPaymentPanel({
     let walletInstances = [];
 
     async function initializeSquarePayments() {
+      // The previous run's cleanup cannot await its own teardown - a React
+      // cleanup is synchronous - so it leaves the promise here and this run
+      // waits for it. Without that, a re-render that remounts the form has a
+      // new card attaching into a container the old one is still vacating,
+      // which is precisely the "unexpected error" Square reports.
+      try {
+        await teardownRef.current;
+      } catch {
+        // A failed teardown must not stop the next form being built.
+      }
+
+      if (cancelled) {
+        return;
+      }
+
       setLoading(true);
       setLocalError('');
       setWalletMessage('');
@@ -223,8 +240,11 @@ export default function RegistrationPaymentPanel({
         googlePayContainer.removeEventListener('click', googlePayClickHandler);
       }
 
-      destroyPaymentMethod(cardInstance);
-      walletInstances.forEach(destroyPaymentMethod);
+      // Handed to the next run rather than fired and forgotten.
+      teardownRef.current = Promise.allSettled([
+        destroyPaymentMethod(cardInstance),
+        ...walletInstances.map(destroyPaymentMethod)
+      ]);
     };
   }, [amountDue, config, handleWalletPayment, onCardReady, onWalletTokenReady, onlinePaymentRequired]);
 
@@ -320,15 +340,20 @@ export default function RegistrationPaymentPanel({
 // finished attaching. That throw would escape a React cleanup function and
 // take the unmount with it, so nothing here is allowed to be fatal - the
 // instance is being discarded either way.
+// Returns the teardown promise so a caller can wait for it. Square's destroy()
+// is asynchronous: it tears down an iframe inside the container, and attaching
+// a new card before that finishes is what raises "An unexpected error occurred
+// while using Card". Callers that do not care may ignore the return value.
 function destroyPaymentMethod(paymentMethod) {
   if (!paymentMethod || typeof paymentMethod.destroy !== 'function') {
-    return;
+    return Promise.resolve();
   }
 
   try {
-    paymentMethod.destroy();
+    return Promise.resolve(paymentMethod.destroy()).catch(() => {});
   } catch {
     // Discarded regardless.
+    return Promise.resolve();
   }
 }
 

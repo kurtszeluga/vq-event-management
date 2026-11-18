@@ -136,7 +136,7 @@ describe('mounting the Square card field', () => {
       </StrictMode>
     );
 
-    await waitFor(() => expect(resolvers.length).toBeGreaterThan(1));
+    await waitFor(() => expect(resolvers.length).toBeGreaterThan(0));
     resolvers.forEach((resolve) => resolve());
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -149,6 +149,14 @@ describe('mounting the Square card field', () => {
       .reduce((count, instance) => count + instance.attachCalls.length, 0);
 
     expect(totalAttaches).toBe(1);
+
+    // Stronger than the count above, and the reason this assertion changed:
+    // each run now waits for the previous teardown before touching anything,
+    // so a superseded run discovers it has been cancelled BEFORE asking
+    // Square for a card at all. It used to create one and then discard it,
+    // which is why this test once required two card() calls to set the race
+    // up. Nothing is built that has to be thrown away.
+    expect(resolvers.length).toBe(1);
   });
 
   it('attaches the card once it is ready', async () => {
