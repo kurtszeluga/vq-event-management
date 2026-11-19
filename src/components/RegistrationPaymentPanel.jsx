@@ -30,9 +30,12 @@ export default function RegistrationPaymentPanel({
   const [walletMessage, setWalletMessage] = useState('');
   const [walletProcessing, setWalletProcessing] = useState('');
   const selectedPaymentTokenRef = useRef(selectedPaymentToken);
+  // googlePay is deliberately tri-state - null means "still setting up",
+  // which is the window during which its container has to be on the page.
+  // See the note on the wallet section below.
   const [walletSupport, setWalletSupport] = useState({
     applePay: false,
-    googlePay: false
+    googlePay: null
   });
 
   useEffect(() => {
@@ -100,7 +103,7 @@ export default function RegistrationPaymentPanel({
       setLocalError('');
       setWalletMessage('');
       onWalletTokenReady('');
-      setWalletSupport({ applePay: false, googlePay: false });
+      setWalletSupport({ applePay: false, googlePay: config.enableGooglePay ? null : false });
 
       try {
         validateSquarePaymentConfig(config);
@@ -193,7 +196,16 @@ export default function RegistrationPaymentPanel({
           try {
             const googlePay = await payments.googlePay(paymentRequest);
             walletInstances.push(googlePay);
-            googlePayContainer = document.getElementById(googlePayContainerId.current);
+
+            // The container is rendered by the branch above, but this effect
+            // can reach here before React has painted it - so wait for it
+            // rather than assuming. Without this the fix above would work or
+            // not depending on timing, which is worse than failing outright.
+            googlePayContainer = await waitForElement(googlePayContainerId.current);
+
+            if (!googlePayContainer) {
+              throw new Error('The Google Pay container was never rendered.');
+            }
 
             await googlePay.attach(`#${googlePayContainerId.current}`);
 
@@ -206,8 +218,13 @@ export default function RegistrationPaymentPanel({
             if (!cancelled) {
               setWalletSupport((current) => ({ ...current, googlePay: true }));
             }
-          } catch {
+          } catch (googlePayError) {
             if (!cancelled) {
+              // Logged for the same reason Apple Pay's failure is: a wallet
+              // button that never appears is indistinguishable from one that
+              // was switched off, and this catch swallowed the attach failure
+              // silently for as long as it existed.
+              console.warn('Google Pay unavailable', googlePayError);
               setWalletSupport((current) => ({ ...current, googlePay: false }));
             }
           }
@@ -266,7 +283,22 @@ export default function RegistrationPaymentPanel({
       </p>
       {onlinePaymentRequired ? (
         <>
-          {walletSupport.applePay || walletSupport.googlePay ? (
+          {/* Google Pay renders ITSELF into this container, so the container
+              has to be on the page before googlePay.attach() is called. It
+              used to be rendered only once walletSupport.googlePay was true -
+              which is set only after that same attach succeeds. Nothing could
+              ever satisfy both, so attach always failed against a container
+              that did not exist and Google Pay never appeared in any browser.
+              It looked Firefox-specific only because that is where someone
+              went looking.
+
+              Hence the tri-state: while googlePay is null the container is on
+              the page, empty and sized by its own min-height, waiting to be
+              attached to. It is removed only once setup has actually failed.
+              It must be genuinely rendered rather than hidden or off-screen -
+              Square refuses a container it cannot measure, which is the same
+              trap that made an isolated Apple Pay probe fail earlier. */}
+          {walletSupport.applePay || walletSupport.googlePay !== false ? (
             <div className="square-wallet-section">
               {walletSupport.applePay ? (
                 <button
@@ -279,7 +311,7 @@ export default function RegistrationPaymentPanel({
                   {walletProcessing === 'Apple Pay' ? 'Authorizing Apple Pay...' : ''}
                 </button>
               ) : null}
-              {walletSupport.googlePay ? (
+              {walletSupport.googlePay !== false ? (
                 <div
                   aria-label="Pay with Google Pay"
                   className={`square-google-pay-container${disabled || walletProcessing ? ' is-disabled' : ''}`}
@@ -421,6 +453,28 @@ function validateSquarePaymentConfig(config) {
       `Online payment setup has an invalid Square application ID. Check SQUARE_APPLICATION_ID in Vercel; it should start with ${expectedAppIdPrefix}.`
     );
   }
+}
+
+// Waits for an element React is about to paint. Square attaches its wallet
+// button by selector, so the node has to exist first; this effect can reach
+// that call in the same tick the container is rendered. Polls per animation
+// frame rather than using a fixed delay, so it costs nothing when the node is
+// already there and does not race on a slow machine. Returns null rather than
+// throwing, so the caller decides what a missing container means.
+async function waitForElement(elementId, maxFrames = 60) {
+  for (let frame = 0; frame < maxFrames; frame += 1) {
+    const element = document.getElementById(elementId);
+
+    if (element) {
+      return element;
+    }
+
+    await new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  return document.getElementById(elementId);
 }
 
 function buildSquarePaymentRequest(payments, amountDue) {
