@@ -661,7 +661,7 @@ function ProfilePage() {
           ) : null}
           <div className="form-actions">
             <button
-              className="button-primary"
+              className="button-link button-reset"
               disabled={emailChangeBusy
                 || (emailCodeSent ? emailCode.length !== 6 : !newEmail.trim())}
               type="submit"
