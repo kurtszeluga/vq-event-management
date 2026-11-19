@@ -24,11 +24,11 @@ import {
 } from './_lib/registration-verification.js';
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
 import {
+  PAYMENT_RESERVATION_EXPIRATION_MS,
   computeRegistrationSummary,
   getInitialPaymentStatus,
   getInitialRegistrationStatus,
   getReservationExpiryMillis,
-  getReservationWindowMs,
   hasActiveWaitlistOffer,
   hasAvailableSeat,
   isActiveReservation,
@@ -1274,6 +1274,7 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     ? db.collection('registrationReservations').doc(payload.idempotencyKey)
     : db.collection('registrationReservations').doc();
   const now = Date.now();
+  const expiresAtMillis = now + PAYMENT_RESERVATION_EXPIRATION_MS;
   const requireMembershipCheck = await getRequireMembershipCheck(db);
 
   return db.runTransaction(async (transaction) => {
@@ -1288,9 +1289,6 @@ async function beginSquarePaymentReservation(db, payload, authorization) {
     }
 
     const event = { id: eventSnap.id, ...eventSnap.data() };
-    // Computed here rather than before the transaction because the window
-    // depends on the event, which is only known once it has been read.
-    const expiresAtMillis = now + getReservationWindowMs(event);
     const profile = payload.profileUserId
       ? await getProfileById(transaction, db, payload.profileUserId, payload.email)
       : await findUserProfileByEmail(db, payload.email);

@@ -68,9 +68,6 @@ export default function RegistrationPaymentPanel({
 
   useEffect(() => {
     if (!onlinePaymentRequired || !config?.enabled) {
-      console.info('[vq-pay] skipped: payment not required or config disabled', {
-        configEnabled: config?.enabled, onlinePaymentRequired
-      });
       onCardReady(null);
       onWalletTokenReady('');
       setWalletSupport({ applePay: false, googlePay: false });
@@ -139,9 +136,6 @@ export default function RegistrationPaymentPanel({
           const cardContainer = document.getElementById(cardContainerId.current);
 
           if (!cardContainer || selectedPaymentTokenRef.current === 'cnon:card-nonce-ok') {
-            console.info('[vq-pay] card abandoned, wallets will be skipped', {
-              hasContainer: Boolean(cardContainer)
-            });
             // Destroyed here rather than left for the cleanup: this path
             // abandons the instance, and an unattached card left behind holds
             // the Square iframe open.
@@ -170,12 +164,7 @@ export default function RegistrationPaymentPanel({
           }
 
           onCardReady(cardInstance);
-          console.info('[vq-pay] card attached');
         }
-
-        console.info('[vq-pay] reached wallets', {
-          enableApplePay: config.enableApplePay, enableGooglePay: config.enableGooglePay
-        });
 
         if (config.enableApplePay) {
           try {
@@ -183,11 +172,8 @@ export default function RegistrationPaymentPanel({
             walletInstances.push(applePay);
 
             if (!cancelled) {
-              console.info('[vq-pay] Apple Pay ready - button should render');
               applePayRef.current = applePay;
               setWalletSupport((current) => ({ ...current, applePay: true }));
-            } else {
-              console.info('[vq-pay] Apple Pay created but this run was superseded');
             }
           } catch (applePayError) {
             if (!cancelled) {
