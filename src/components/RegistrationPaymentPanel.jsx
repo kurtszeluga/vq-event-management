@@ -175,8 +175,14 @@ export default function RegistrationPaymentPanel({
               applePayRef.current = applePay;
               setWalletSupport((current) => ({ ...current, applePay: true }));
             }
-          } catch {
+          } catch (applePayError) {
             if (!cancelled) {
+              // Logged, because the button simply not appearing is
+              // indistinguishable from the feature being off. Square throws
+              // here for several unrelated reasons - the browser cannot do
+              // Apple Pay, the device has no card in Wallet, the domain is
+              // not verified with Square - and only the error says which.
+              console.warn('Apple Pay unavailable', applePayError);
               applePayRef.current = null;
               setWalletSupport((current) => ({ ...current, applePay: false }));
             }

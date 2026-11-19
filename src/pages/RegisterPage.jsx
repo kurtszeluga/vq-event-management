@@ -330,7 +330,12 @@ function RegisterPage() {
     profileExists,
     showEmailVerification
   });
-  const needsEmailVerification = getNeedsEmailVerification({
+  // Kept shut while the code request is still in flight on a standalone
+  // signup. The gate below opens for any address with no profile as soon as
+  // the lookup completes, which is before the code exists - and a panel with
+  // no challenge renders a "Send Verification Code" button, offering the
+  // action just taken. The Submit button reads "Sending..." during this.
+  const needsEmailVerification = !(isStandaloneSignup && lookupLoading) && getNeedsEmailVerification({
     emailVerified,
     lookup,
     lookupComplete,
