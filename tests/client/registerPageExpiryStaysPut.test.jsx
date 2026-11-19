@@ -60,7 +60,7 @@ vi.mock('../../src/hooks/useIdentityVerification.js', () => ({
     emailVerificationSending: false,
     emailVerificationVerifying: false,
     emailVerified: true,
-    handleEmailChange: () => {},
+    handleEmailChange,
     handleEmailLookup: () => {},
     handlePasswordSignIn: () => {},
     handleStartEmailVerification: () => {},
@@ -82,14 +82,15 @@ vi.mock('../../src/hooks/useIdentityVerification.js', () => ({
   })
 }));
 
-const markReservationExpired = vi.fn();
+const resetPaymentReservation = vi.fn();
+const handleEmailChange = vi.fn();
 
 vi.mock('../../src/hooks/usePaymentReservation.js', () => ({
   usePaymentReservation: () => ({
     ensurePaymentReservation: () => Promise.resolve(null),
     isPaidEvent: true,
     joiningWaitlist: false,
-    markReservationExpired,
+    markReservationExpired: () => {},
     paymentRequiredForCurrentSeat: true,
     // Already past, so the countdown fires onExpired on its first tick.
     paymentReservation: { expiresAt: new Date(Date.now() - 1000).toISOString() },
@@ -98,7 +99,7 @@ vi.mock('../../src/hooks/usePaymentReservation.js', () => ({
     paymentReservationLoading: false,
     releaseCurrentReservation: () => {},
     requiresSquarePayment: true,
-    resetPaymentReservation: () => {},
+    resetPaymentReservation,
     setSquareCard: () => {},
     setSquareWalletToken: () => {},
     squareCard: null,
@@ -113,10 +114,11 @@ const { default: RegisterPage } = await import('../../src/pages/RegisterPage.jsx
 
 afterEach(() => {
   cleanup();
-  markReservationExpired.mockClear();
+  resetPaymentReservation.mockClear();
+  handleEmailChange.mockClear();
 });
 
-it('leaves an idle registration where it is instead of returning to the listing', async () => {
+it('sends an idle registration back to the email box instead of to the listing', async () => {
   render(
     <MemoryRouter initialEntries={['/events/event-1/register']}>
       <Routes>
@@ -129,11 +131,23 @@ it('leaves an idle registration where it is instead of returning to the listing'
   // Proves the form mounted and the expiry really ran. Without this the
   // assertion below would hold for a page that never got far enough to
   // navigate in the first place.
-  await waitFor(() => expect(markReservationExpired).toHaveBeenCalled());
+  await waitFor(() => expect(resetPaymentReservation).toHaveBeenCalled());
 
   // The old code waited 1.5 seconds and then left.
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   expect(screen.queryByText('Events list')).toBeNull();
-  expect(screen.getByTestId('payment-panel')).toBeInTheDocument();
+
+  // Back to the start of the same page rather than stopped on a form full of
+  // details that can no longer be submitted. Identity is mocked here, so what
+  // is checked is the page's own half: it asks for the email box to be
+  // emptied and drops the dead hold. Whether handleEmailChange then clears
+  // the lookup, the code and the registrant fields belongs to
+  // useIdentityVerification, and is covered by its own tests.
+  expect(handleEmailChange).toHaveBeenCalledWith('');
+
+  // The page they were filling in has just emptied itself. This is the only
+  // thing that explains why, so it is not optional.
+  expect(screen.getByText(/time to complete payment ran out/i)).toBeInTheDocument();
+  expect(screen.getByText(/nothing was charged/i)).toBeInTheDocument();
 });

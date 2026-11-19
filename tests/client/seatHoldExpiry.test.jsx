@@ -55,11 +55,34 @@ describe('a seat hold running out while the member is idle', () => {
     expect(screen.getByText(/seat hold expired/i)).toBeInTheDocument();
   });
 
-  it('says nothing at all while the hold is still good and seats are unlimited', () => {
+  // The deadline is real on an unlimited-seat signup too - the hold runs out
+  // and the form stops - so it is shown. What changes is what it is called:
+  // there is no seat to lose, and describing it as one invents a competition
+  // that is not happening.
+  it('shows the time left to pay when seats are unlimited', () => {
+    render(<SeatHoldStatus onExpired={() => {}} reservation={liveHold} seatsUnlimited />);
+
+    const message = screen.getByText(/you have/i).textContent;
+
+    expect(message).toMatch(/to complete your payment/i);
+    expect(message).toMatch(/\d+:\d{2}/);
+    expect(message).not.toMatch(/seat/i);
+  });
+
+  it('still calls a held seat a held seat everywhere else', () => {
+    render(<SeatHoldStatus onExpired={() => {}} reservation={liveHold} />);
+
+    expect(screen.getByText(/your seat is held for \d+:\d{2}/i)).toBeInTheDocument();
+  });
+
+  // The countdown is the only warning the member gets, and it was previously
+  // suppressed here entirely - so a Membership signup ran out of time with
+  // nothing on screen having said it was running.
+  it('never leaves an unlimited-seat signup with no deadline on screen', () => {
     const { container } = render(
       <SeatHoldStatus onExpired={() => {}} reservation={liveHold} seatsUnlimited />
     );
 
-    expect(container.textContent).toBe('');
+    expect(container.textContent.trim()).not.toBe('');
   });
 });

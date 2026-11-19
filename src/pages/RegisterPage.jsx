@@ -446,7 +446,6 @@ function RegisterPage() {
     ensurePaymentReservation,
     isPaidEvent,
     joiningWaitlist,
-    markReservationExpired,
     paymentRequiredForCurrentSeat,
     paymentReservation,
     paymentReservationError,
@@ -640,20 +639,36 @@ function RegisterPage() {
     returnToOrigin(() => navigate('/events'));
   }, [isStandaloneSignup, navigate, returnToOrigin]);
 
-  // An idle registration stops where it is. It used to wait 1.5 seconds and
-  // then throw the member to the event listing, which is the one thing it
-  // must not do: whatever they had typed went with it, and 1.5 seconds is
-  // not long enough to read why. A standalone Membership signup landed
-  // somewhere worse still - /events does not list Membership, so the page
-  // they were sent to had no route back to the one they were on.
+  // Running out of time sends the member back to the email box to start over,
+  // on the same page. It used to throw them to the event listing instead,
+  // which lost the page as well as the attempt - and on a standalone
+  // Membership signup lost the only route back, since /events does not list
+  // Membership.
   //
-  // Stopping is already fully handled: markReservationExpired clears the
-  // hold, sets the message, and disables Submit, and ensurePaymentReservation
-  // refuses to quietly take a fresh hold afterwards. The member keeps the
-  // page, the explanation and everything they entered.
+  // Starting over rather than stopping dead is the point: the alternative
+  // leaves a form that is still full of their details but can no longer be
+  // submitted, and no way to clear it. This puts the page back to the state
+  // it opens in.
+  //
+  // resetPaymentReservation as well as the identity reset, because
+  // handleEmailChange does not touch the hold - without it the cleared page
+  // would still be carrying an expired reservation, and ensurePaymentReser-
+  // vation would refuse to take a new one on the next attempt. Resetting it
+  // cannot immediately re-reserve either: the auto-reserve effect needs a
+  // verified email, which is exactly what has just been cleared.
+  //
+  // setFormError goes last. handleEmailChange resets the registrant form
+  // underneath it, and this message is the only thing that explains why the
+  // page they were filling in is suddenly empty.
   const handlePaymentReservationExpired = useCallback(() => {
-    markReservationExpired();
-  }, [markReservationExpired]);
+    resetPaymentReservation();
+    handleEmailChange('');
+    setNeedsProfileEdits(false);
+    setConfirmation(null);
+    setFormError(
+      'Your time to complete payment ran out, so nothing was charged and the form has been cleared. Enter your email address to start again.'
+    );
+  }, [handleEmailChange, resetPaymentReservation, setNeedsProfileEdits]);
 
   // Checked before every other branch: once a standalone signup has ended,
   // nothing else on this page should render, including the event summary and
