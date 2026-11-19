@@ -3,21 +3,24 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const updateRegistrationPaymentMock = vi.fn();
+const checkSquareRefundStatusMock = vi.fn();
 
 vi.mock('../../src/services/registrationService.js', () => ({
+  checkSquareRefundStatus: (...args) => checkSquareRefundStatusMock(...args),
   resolvePaymentReviewItem: vi.fn(),
   subscribeToRegistrations: (onSnapshot) => {
     onSnapshot({ docs: REGISTRATION_DOCS });
     return () => {};
   },
   subscribeToSquareWebhookEvents: (onSnapshot) => {
-    onSnapshot({ docs: [] });
+    onSnapshot({ docs: WEBHOOK_EVENT_DOCS });
     return () => {};
   },
   updateRegistrationPayment: (...args) => updateRegistrationPaymentMock(...args)
 }));
 
 let REGISTRATION_DOCS = [];
+let WEBHOOK_EVENT_DOCS = [];
 
 const { default: PaymentReconciliationPanel } = await import(
   '../../src/components/admin/PaymentReconciliationPanel.jsx'
@@ -27,8 +30,9 @@ function toDoc(registration) {
   return { id: registration.id, data: () => registration };
 }
 
-function renderPanel(registrations) {
+function renderPanel(registrations, webhookEvents = []) {
   REGISTRATION_DOCS = registrations.map(toDoc);
+  WEBHOOK_EVENT_DOCS = webhookEvents.map(toDoc);
   return render(<PaymentReconciliationPanel />);
 }
 
@@ -43,8 +47,33 @@ const AWAITING_COLLECTION = {
   status: 'Registered'
 };
 
+// The registration as production actually left it on 2026-11-19: cancelled,
+// refund requested, Square never confirmed, and the review row marked Reviewed
+// by hand - which did nothing to the registration.
+const REFUND_PENDING_REGISTRATION = {
+  amountPaid: 11,
+  eventTitle: 'TESTING - 2027 Annual Guild Membership',
+  id: 'reg-refund',
+  name: 'Test Member',
+  paymentMethod: 'Online',
+  paymentStatus: 'Refund Pending',
+  status: 'Cancelled'
+};
+
+const REVIEWED_REFUND_ITEM = {
+  eventTitle: 'TESTING - 2027 Annual Guild Membership',
+  id: 'refund-pending-abc',
+  reconciliationStatus: 'Reviewed',
+  registrationEmail: 'member@example.com',
+  registrationId: 'reg-refund',
+  registrationName: 'Test Member',
+  status: 'Reviewed'
+};
+
 beforeEach(() => {
   updateRegistrationPaymentMock.mockReset();
+  checkSquareRefundStatusMock.mockReset();
+  WEBHOOK_EVENT_DOCS = [];
 });
 
 afterEach(cleanup);
@@ -138,5 +167,57 @@ describe('cash/check awaiting collection', () => {
     }));
     expect(await screen.findByText(/Marked Ada Lovelace paid/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Mark Payment Received?' })).toBeNull();
+  });
+});
+
+describe('checking a pending refund with Square', () => {
+  it('offers the check even on a review item already marked Reviewed', async () => {
+    // This is the case that matters: clearing the review item never resolved
+    // the registration, so keying the button off the review row's label would
+    // have hidden it on the only refund that needed it.
+    renderPanel([REFUND_PENDING_REGISTRATION], [REVIEWED_REFUND_ITEM]);
+
+    await userEvent.click(screen.getByRole('button', { name: /^All \(/ }));
+
+    expect(screen.getByRole('button', { name: 'Check With Square' })).toBeInTheDocument();
+  });
+
+  it('reports what Square said, pending included', async () => {
+    checkSquareRefundStatusMock.mockResolvedValue({
+      message: 'Square still has this refund as pending.',
+      outcome: 'pending'
+    });
+    renderPanel([REFUND_PENDING_REGISTRATION], [REVIEWED_REFUND_ITEM]);
+
+    await userEvent.click(screen.getByRole('button', { name: /^All \(/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check With Square' }));
+
+    expect(checkSquareRefundStatusMock).toHaveBeenCalledWith('reg-refund');
+    await waitFor(() => {
+      expect(screen.getByText('Square still has this refund as pending.')).toBeInTheDocument();
+    });
+  });
+
+  it('surfaces a failure to reach Square as an error', async () => {
+    checkSquareRefundStatusMock.mockRejectedValue(new Error('Square is unavailable.'));
+    renderPanel([REFUND_PENDING_REGISTRATION], [REVIEWED_REFUND_ITEM]);
+
+    await userEvent.click(screen.getByRole('button', { name: /^All \(/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check With Square' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Square is unavailable.')).toBeInTheDocument();
+    });
+  });
+
+  it('drops the check once the registration is no longer awaiting a refund', async () => {
+    renderPanel(
+      [{ ...REFUND_PENDING_REGISTRATION, paymentStatus: 'Refunded' }],
+      [{ ...REVIEWED_REFUND_ITEM, reconciliationStatus: 'Refund Completed' }]
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^All \(/ }));
+
+    expect(screen.queryByRole('button', { name: 'Check With Square' })).toBeNull();
   });
 });

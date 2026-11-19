@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
+  checkSquareRefundStatus,
   resolvePaymentReviewItem,
   subscribeToRegistrations,
   subscribeToSquareWebhookEvents,
@@ -24,6 +25,7 @@ function PaymentReconciliationPanel() {
   const [loading, setLoading] = useState(true);
   const [resolutionNotes, setResolutionNotes] = useState({});
   const [resolvingId, setResolvingId] = useState('');
+  const [checkingRefundId, setCheckingRefundId] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [registrations, setRegistrations] = useState([]);
   const [loadingCashCheck, setLoadingCashCheck] = useState(true);
@@ -126,8 +128,43 @@ function PaymentReconciliationPanel() {
     () => events.filter((event) => matchesFilter(event, filter)),
     [events, filter]
   );
+  // Keyed on the REGISTRATION's own payment status, not on the review row's
+  // label. Marking a review item Reviewed never resolved the registration, so
+  // production ended up with a Reviewed row sitting beside a registration
+  // still at Refund Pending - and a button that keyed off the label would have
+  // been hidden on the one refund that actually needed it.
+  const refundsAwaitingSquare = useMemo(
+    () => Object.fromEntries(
+      registrations
+        .filter((registration) => registration.paymentStatus === 'Refund Pending')
+        .map((registration) => [registration.id, true])
+    ),
+    [registrations]
+  );
   const handleNoteChange = (eventId, value) => {
     setResolutionNotes((currentNotes) => ({ ...currentNotes, [eventId]: value }));
+  };
+  // A pending refund resolves itself: the daily cron asks Square and applies
+  // the answer. This is for the admin who thinks it has been too long - it
+  // runs that same check now, on this one registration, rather than leaving
+  // them to guess whether anything is still watching.
+  const handleCheckRefund = async (event) => {
+    setError('');
+    setSuccessMessage('');
+    setCheckingRefundId(event.id);
+
+    try {
+      const result = await checkSquareRefundStatus(event.registrationId);
+
+      // Square's answer is reported either way. "Still pending" is a real
+      // result and the admin needs to see it, so it is not treated as an
+      // error - the only error here is failing to ask.
+      setSuccessMessage(result.message || 'Square was asked about this refund.');
+    } catch (checkError) {
+      setError(checkError.message || 'The refund could not be checked with Square.');
+    } finally {
+      setCheckingRefundId('');
+    }
   };
   const handleResolveReview = async (event) => {
     const resolutionNote = String(resolutionNotes[event.id] || '').trim();
@@ -307,6 +344,18 @@ function PaymentReconciliationPanel() {
                     </td>
                     <td data-label="Review Details">{formatReviewDetails(event)}</td>
                     <td data-label="Action">
+                      {refundsAwaitingSquare[event.registrationId] ? (
+                        <div className="payment-review-actions">
+                          <button
+                            className="button-link button-reset secondary-action"
+                            disabled={checkingRefundId === event.id}
+                            type="button"
+                            onClick={() => handleCheckRefund(event)}
+                          >
+                            {checkingRefundId === event.id ? 'Asking Square...' : 'Check With Square'}
+                          </button>
+                        </div>
+                      ) : null}
                       {isNeedsReviewEvent(event) ? (
                         <div className="payment-review-actions">
                           <label htmlFor={`payment-review-note-${event.id}`}>Resolution note</label>

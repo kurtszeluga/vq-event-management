@@ -42,6 +42,7 @@ import {
   expireStaleWaitlistOffers,
   waitlistOfferTokenMatches
 } from './_lib/waitlist.js';
+import { sweepPendingSquareRefunds } from './_lib/square-refund-sweep.js';
 
 export default async function handler(request, response) {
   response.setHeader('Cache-Control', 'no-store');
@@ -50,7 +51,7 @@ export default async function handler(request, response) {
   // below since this is the only action Vercel itself ever calls this way -
   // everything else on this endpoint remains POST.
   if (request.method === 'GET') {
-    await handleWaitlistCronRequest(request, response);
+    await handleDailyCronRequest(request, response);
     return;
   }
 
@@ -258,7 +259,15 @@ export default async function handler(request, response) {
   }
 }
 
-async function handleWaitlistCronRequest(request, response) {
+// The one daily cron Vercel calls, and now it does two unrelated jobs. Kept
+// on one schedule rather than adding a second entry because the Hobby plan
+// caps both cron entries and API functions, and because neither sweep is
+// urgent to the minute.
+//
+// The refund sweep runs even if the waitlist sweep throws, and the response
+// reports both. A pair of sweeps where one failure silently cancels the other
+// is the kind of thing that only shows up as "why is this still pending".
+async function handleDailyCronRequest(request, response) {
   const cronSecret = process.env.CRON_SECRET || '';
   const authHeader = request.headers.authorization || '';
 
@@ -267,18 +276,48 @@ async function handleWaitlistCronRequest(request, response) {
     return;
   }
 
+  let waitlist = null;
+  let refunds = null;
+  const errors = [];
+
   try {
     initializeAdminApp();
     const db = getFirestore();
-    const result = await expireStaleWaitlistOffers(db);
 
-    response.status(200).json({ ok: true, ...result });
+    try {
+      waitlist = await expireStaleWaitlistOffers(db);
+    } catch (error) {
+      console.error('Waitlist cron sweep failed', error);
+      errors.push(`waitlist: ${error.message || 'sweep failed'}`);
+    }
+
+    try {
+      refunds = await sweepPendingSquareRefunds(db);
+    } catch (error) {
+      console.error('Square refund cron sweep failed', error);
+      errors.push(`refunds: ${error.message || 'sweep failed'}`);
+    }
   } catch (error) {
-    console.error('Waitlist cron sweep failed', error);
+    console.error('Daily cron sweep could not start', error);
     response.status(error.statusCode || 500).json({
-      error: error.message || 'Waitlist cron sweep failed.'
+      error: error.message || 'Daily cron sweep failed.'
     });
+    return;
   }
+
+  response.status(errors.length ? 500 : 200).json({
+    ok: errors.length === 0,
+    ...(waitlist || {}),
+    refunds: refunds
+      ? {
+          checked: refunds.checked,
+          completed: refunds.completed,
+          errors: refunds.errors,
+          stillPending: refunds.stillPending
+        }
+      : null,
+    ...(errors.length ? { errors } : {})
+  });
 }
 
 async function handleClaimWaitlistOffer(request, response, db) {

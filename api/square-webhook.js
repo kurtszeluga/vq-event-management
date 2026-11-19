@@ -3,7 +3,12 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './_lib/public-event-feed.js';
 import { syncEventRegistrantNames } from './_lib/event-registrant-names.js';
 import { syncEventRegistrationSheet } from './_lib/event-registration-sheet.js';
-import { getSquareAmount, isRefundSidePaymentUpdate } from './_lib/square-reconciliation.js';
+import {
+  buildRefundCompletionUpdate,
+  classifySquareRefund,
+  getSquareAmount,
+  isRefundSidePaymentUpdate
+} from './_lib/square-reconciliation.js';
 
 const REGISTRATION_PAID_UPDATE = {
   paymentMethod: 'Online',
@@ -279,21 +284,28 @@ async function buildRefundReconciliation(db, squareRefund) {
     };
   }
 
-  const refundAmount = getSquareAmount(squareRefund.amount_money);
   const recordedPaymentAmount = Number(payment?.amount || 0);
+  // Shared with the daily sweep in _lib/square-refund-sweep.js. Both paths
+  // reach the same conclusion about the same refund by construction rather
+  // than by two copies of the comparison agreeing.
+  const verdict = classifySquareRefund(squareRefund, { recordedPaymentAmount });
 
-  if (recordedPaymentAmount && refundAmount < recordedPaymentAmount) {
+  if (verdict.outcome === 'partial') {
     return {
       context,
       status: 'Partial Refund Needs Review',
       webhookOnly: {
         recordedPaymentAmount,
-        refundAmount,
+        refundAmount: verdict.refundAmount,
         squarePaymentId,
         squareRefundId: cleanText(squareRefund.id || '')
       }
     };
   }
+
+  const { paymentUpdate, registrationUpdate } = buildRefundCompletionUpdate(squareRefund, {
+    now: FieldValue.serverTimestamp()
+  });
 
   return {
     context,
@@ -317,31 +329,8 @@ async function buildRefundReconciliation(db, squareRefund) {
       }
     ],
     registrationRef,
-    registrationUpdate: {
-      amountPaid: 0,
-      paymentMethod: 'Online',
-      paymentNote: buildRefundNote(squareRefund),
-      paymentStatus: 'Refunded',
-      paymentUpdatedDate: FieldValue.serverTimestamp(),
-      squareRefundId: cleanText(squareRefund.id || ''),
-      status: 'Cancelled'
-    },
-    paymentUpdate: {
-      amount: refundAmount,
-      method: 'Online',
-      note: buildRefundNote(squareRefund),
-      processor: 'Square',
-      registrationStatus: 'Cancelled',
-      squareRefundId: cleanText(squareRefund.id || ''),
-      status: 'Refunded',
-      updatedRegistrationSnapshot: {
-        amountPaid: 0,
-        paymentMethod: 'Online',
-        paymentPreference: 'online',
-        paymentStatus: 'Refunded',
-        status: 'Cancelled'
-      }
-    },
+    registrationUpdate,
+    paymentUpdate,
     status: 'Refund Completed'
   };
 }
@@ -484,17 +473,6 @@ function getNotificationUrl(request) {
   const protocol = request.headers['x-forwarded-proto'] || 'https';
 
   return `${protocol}://${host}/api/square-webhook`;
-}
-
-function buildRefundNote(squareRefund) {
-  const reason = cleanText(squareRefund.reason || '');
-  const refundId = cleanText(squareRefund.id || '');
-
-  return [
-    'Refund confirmed by Square.',
-    refundId ? `Refund ID: ${refundId}.` : '',
-    reason ? `Reason: ${reason}.` : ''
-  ].filter(Boolean).join(' ');
 }
 
 function hashWebhookEvent(event) {

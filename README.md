@@ -92,7 +92,7 @@ Vercel production needs these server-side values when payments, webhooks, and em
 - `SQUARE_ENVIRONMENT` (`sandbox` or `production`)
 - `SQUARE_WEBHOOK_SIGNATURE_KEY`
 - `SQUARE_WEBHOOK_NOTIFICATION_URL` (typically `https://<your-vercel-domain>/api/square-webhook`)
-- `CRON_SECRET` — any random string; authorizes the daily waitlist-offer-expiry job (see Scheduled Jobs below)
+- `CRON_SECRET` — any random string; authorizes the daily job that expires waitlist offers and checks pending Square refunds (see Scheduled Jobs below)
 
 Optional:
 
@@ -208,7 +208,9 @@ Notes:
 
 `vercel.json` declares one Vercel Cron job (`0 13 * * *`, once daily — the Hobby plan's maximum frequency) that hits `/api/create-registration` via `GET` to advance any unclaimed waitlist offers to the next person. Vercel picks this up automatically on deploy; the only setup needed is setting `CRON_SECRET` above, which the cron request must present as a bearer token. Without it, the cron call is refused and unclaimed offers simply never advance until it's set.
 
-What the job does *not* control is the seat. An offer stops holding its seat the moment it expires, because `isSeatHoldingRegistration` only counts an offer expiring in the future — so nothing is ever stranded waiting for the sweep, and the job only decides how soon the next person is told. That is why the claim window (`WAITLIST_OFFER_WINDOW_MS`, 1 day) can be shorter than the gap between cron runs: the worst case per unclaimed offer is the window plus up to a day of sweep lag, and shortening the window shortens that total. The sweep's query is `waitlistOfferExpiresAt < now`, so it catches an expired offer however long ago it expired and cannot "miss" one by running at the wrong moment.
+The same daily call runs a second, unrelated sweep: any registration still at `Refund Pending` with a `squareRefundId` is looked up with `GET /v2/refunds/{id}`, and a refund Square reports as `COMPLETED` is applied exactly as the `refund.updated` webhook would apply it. This exists because that webhook cannot be relied on — on 2026-11-19 a real refund completed at Square and no webhook ever arrived, leaving the registration stuck at `Refund Pending` with nothing in the system able to move it. Asking Square cannot be missed, misrouted or rejected for a signature mismatch, and needs nothing configured in a dashboard, so the webhook is now an optimisation rather than the mechanism. A partial refund is deliberately left alone for an admin to record by hand. The two sweeps are independent: one failing does not cancel the other, and the response reports both. An admin who does not want to wait for the next run can press **Check With Square** on the Payment Review item, which runs the identical check on that one registration.
+
+What the waitlist job does *not* control is the seat. An offer stops holding its seat the moment it expires, because `isSeatHoldingRegistration` only counts an offer expiring in the future — so nothing is ever stranded waiting for the sweep, and the job only decides how soon the next person is told. That is why the claim window (`WAITLIST_OFFER_WINDOW_MS`, 1 day) can be shorter than the gap between cron runs: the worst case per unclaimed offer is the window plus up to a day of sweep lag, and shortening the window shortens that total. The sweep's query is `waitlistOfferExpiresAt < now`, so it catches an expired offer however long ago it expired and cannot "miss" one by running at the wrong moment.
 
 Use Square sandbox credentials while testing and production credentials only when ready to take live payments.
 

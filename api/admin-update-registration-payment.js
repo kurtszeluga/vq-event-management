@@ -6,6 +6,11 @@ import { syncEventRegistrationSheet } from './_lib/event-registration-sheet.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
 import { isSeatHoldingRegistration } from './_lib/registration-capacity.js';
 import { createNextWaitlistOffer } from './_lib/waitlist.js';
+import { describeRefundCheckOutcome } from './_lib/square-reconciliation.js';
+import {
+  createSquareRefundFetcher,
+  resolvePendingSquareRefund
+} from './_lib/square-refund-sweep.js';
 
 const PAYMENT_METHODS = ['', 'Online', 'Cash', 'Check', 'Comped'];
 const PAYMENT_STATUSES = ['Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
@@ -79,6 +84,12 @@ export default async function handler(request, response) {
         request,
         response
       });
+      return;
+    }
+
+    if (request.body?.action === 'checkSquareRefund') {
+      await enforceAdminPaymentRateLimit(db, request, actorUid, 'checkSquareRefund', request.body || {});
+      await checkSquareRefund({ db, request, response });
       return;
     }
 
@@ -257,6 +268,40 @@ async function enforceAdminPaymentRateLimit(db, request, actorUid, action, paylo
       windowMs: oneHour
     });
   }
+}
+
+// The same check the daily cron runs, on one registration, on demand - for
+// when a refund is taking longer to resolve than the admin expected. It asks
+// Square and applies whatever Square says; there is nothing for the admin to
+// decide and nothing to type, so no audit entry is written here, matching the
+// cron and webhook paths that do the identical work.
+async function checkSquareRefund({ db, request, response }) {
+  const registrationId = cleanText(request.body?.registrationId);
+
+  if (!registrationId) {
+    throw httpError(400, 'Registration ID is required.');
+  }
+
+  const registrationSnap = await db.collection('registrations').doc(registrationId).get();
+
+  if (!registrationSnap.exists) {
+    throw httpError(404, 'Registration record could not be found.');
+  }
+
+  if ((registrationSnap.data().paymentStatus || '') !== 'Refund Pending') {
+    throw httpError(400, 'This registration is not waiting on a Square refund.');
+  }
+
+  const result = await resolvePendingSquareRefund(db, registrationSnap, {
+    fetchRefund: createSquareRefundFetcher()
+  });
+
+  response.status(200).json({
+    message: describeRefundCheckOutcome(result),
+    ok: result.outcome !== 'error',
+    outcome: result.outcome,
+    squareStatus: result.squareStatus || ''
+  });
 }
 
 async function processSquareRefundIfNeeded(db, {

@@ -88,6 +88,34 @@ export async function resolvePaymentReviewItem(reviewId, resolutionNote) {
   return result;
 }
 
+// Asks Square what became of a refund it accepted as pending, and applies the
+// answer. Returns the server's own wording rather than a status code, because
+// the useful part for the admin is what to do next - wait, or go into Square.
+export async function checkSquareRefundStatus(registrationId) {
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error('You must be signed in to check a refund with Square.');
+  }
+
+  const idToken = await currentUser.getIdToken();
+  const response = await fetch('/api/admin-update-registration-payment', {
+    body: JSON.stringify({ action: 'checkSquareRefund', registrationId }),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'The refund could not be checked with Square.');
+  }
+
+  return result;
+}
+
 export function subscribeToRegistrationPayments(registrationId, userId, onNext, onError) {
   if (!registrationId) {
     return () => {};
