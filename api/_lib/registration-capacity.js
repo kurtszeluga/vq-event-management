@@ -1,8 +1,23 @@
 import { MAX_EVENT_IMAGES } from '../../shared/eventImages.js';
+import { isMembershipEvent } from '../../shared/membershipDues.js';
 import { isPaymentPending } from '../../shared/registrationPayment.js';
 import { getTimestampMillis } from './registration-verification.js';
 
 export const PAYMENT_RESERVATION_EXPIRATION_MS = 5 * 60 * 1000;
+
+// Membership holds a seat nobody is queuing for - the signup has no capacity
+// and cannot turn anyone away - so a longer window costs nothing, while five
+// minutes is genuinely tight for the people it is aimed at: there is a terms
+// panel to read before the card field is even reached. Every other event
+// keeps five, because there the window is the time a real seat is withheld
+// from everyone else.
+export const UNLIMITED_SEAT_RESERVATION_EXPIRATION_MS = 10 * 60 * 1000;
+
+export function getReservationWindowMs(event = {}) {
+  return isMembershipEvent(event)
+    ? UNLIMITED_SEAT_RESERVATION_EXPIRATION_MS
+    : PAYMENT_RESERVATION_EXPIRATION_MS;
+}
 
 const SEAT_HOLDING_STATUSES = ['Pending Payment', 'Registered'];
 

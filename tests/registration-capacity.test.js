@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   PAYMENT_RESERVATION_EXPIRATION_MS,
+  UNLIMITED_SEAT_RESERVATION_EXPIRATION_MS,
+  getReservationWindowMs,
   computeRegistrationSummary,
   getArchiveBlockError,
   getEventCapacityError,
@@ -592,4 +594,39 @@ test('computeRegistrationSummary handles an event with no registrations at all',
     seatsAvailable: 10,
     totalPaid: 0
   });
+});
+
+// Membership was given a longer window than everything else, on the grounds
+// that its seat hold holds nothing: the signup has no capacity and turns
+// nobody away, so the window costs other members nothing. Five minutes is
+// tight there - the terms panel has to be read before the card field is
+// reached at all.
+//
+// The inverse is the part that matters, and the reason this is pinned: on a
+// real event the window is exactly how long a seat is withheld from everyone
+// else, so widening it there is not free and must not happen by accident.
+test('a Membership signup gets a longer payment window than a real seat', () => {
+  assert.equal(
+    getReservationWindowMs({ eventType: 'Membership' }),
+    UNLIMITED_SEAT_RESERVATION_EXPIRATION_MS
+  );
+  assert.ok(
+    UNLIMITED_SEAT_RESERVATION_EXPIRATION_MS > PAYMENT_RESERVATION_EXPIRATION_MS
+  );
+
+  for (const eventType of ['Workshop', 'Class', 'Lecture', 'Challenge', 'For Sale']) {
+    assert.equal(
+      getReservationWindowMs({ eventType }),
+      PAYMENT_RESERVATION_EXPIRATION_MS,
+      `${eventType} must not hold a real seat for longer than the standard window`
+    );
+  }
+});
+
+test('an unrecognised or missing event falls back to the shorter window', () => {
+  // The safe direction: a reservation whose event could not be read holds a
+  // seat for less time, not more.
+  for (const event of [undefined, {}, null, { eventType: '' }]) {
+    assert.equal(getReservationWindowMs(event ?? undefined), PAYMENT_RESERVATION_EXPIRATION_MS);
+  }
 });
