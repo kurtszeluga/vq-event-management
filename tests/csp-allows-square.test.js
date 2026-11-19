@@ -60,8 +60,15 @@ test('the CSP allows the hosts Square and Google Pay actually fetch from', () =>
       'https://d1g145x70srn7h.cloudfront.net',
       'https://cash-f.squarecdn.com'
     ],
-    // The card form's info icon.
-    'img-src': ['https://web.squarecdn.com'],
+    // The card form's info icon, and - the whole reason Google Pay's button
+    // looked blank - the Google Pay button itself. Google's pay.js draws no
+    // text: every variant of the button, the long ones with "Buy with G Pay"
+    // included, is a single background-image SVG per colour and locale served
+    // from www.gstatic.com/instantbuy/svg/. Block that host and the button
+    // still renders, still sizes itself, still takes the click - with nothing
+    // drawn on it, which is exactly how the Apple Pay button failed for a
+    // different reason - see tests/apple-pay-button-style.test.js.
+    'img-src': ['https://web.squarecdn.com', 'https://www.gstatic.com'],
     // Google Pay's SDK, and the gapi iframe Firebase Auth loads.
     'script-src': ['https://pay.google.com', 'https://apis.google.com']
   };
