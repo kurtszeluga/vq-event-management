@@ -76,6 +76,19 @@ test('the CSP allows the hosts Square and Google Pay actually fetch from', () =>
   }
 });
 
+test('the CSP allows the Firebase Auth iframe', () => {
+  // Firebase Auth loads an iframe from <project>.firebaseapp.com. Blocking it
+  // is not a payment problem but it surfaced in the same console dump, and a
+  // wildcard covers both the production and test projects rather than naming
+  // one and breaking the other.
+  const directives = cspDirectives();
+
+  assert.ok(
+    directives['frame-src']?.includes('https://*.firebaseapp.com'),
+    'frame-src does not allow the Firebase Auth iframe'
+  );
+});
+
 test('the sandbox host is allowed wherever the live one is', () => {
   // Preview deploys run against Square sandbox, which serves from a different
   // host; allowing only one of the pair breaks whichever environment is not
