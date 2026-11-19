@@ -120,6 +120,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [memberFormOpen, setMemberFormOpen] = useState(false);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM);
   const [memberImportMode, setMemberImportMode] = useState('');
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [memberStatusFilter, setMemberStatusFilter] = useState('Active');
   const [members, setMembers] = useState([]);
   const [configurationView, setConfigurationView] = useState('membership');
@@ -130,9 +131,27 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
   const memberCounts = getMemberCounts(members);
-  const filteredMembers = sortMembersByLastName(
-    members.filter((member) => (member.membershipStatus || 'Unknown') === memberStatusFilter)
+  const statusMembers = members.filter(
+    (member) => (member.membershipStatus || 'Unknown') === memberStatusFilter
   );
+  const filteredMembers = sortMembersByLastName(
+    filterMembershipProfilesBySearch(statusMembers, memberSearchTerm)
+  );
+  // The status buttons are exclusive - exactly one status is on screen at a
+  // time - so a search that runs inside the chosen status is silent about a
+  // profile filed under a different one. That is the trap the User Controls
+  // search fell into: "I searched for her and she is not in the system" when
+  // she is sitting under Inactive. Widening the search past the status would
+  // make the status buttons lie, so the count line reports the matches waiting
+  // elsewhere instead and leaves the switch to the admin.
+  const otherStatusMatchCount = memberSearchTerm.trim()
+    ? filterMembershipProfilesBySearch(
+      members.filter(
+        (member) => (member.membershipStatus || 'Unknown') !== memberStatusFilter
+      ),
+      memberSearchTerm
+    ).length
+    : 0;
 
   function renderMemberForm() {
     return (
@@ -1257,6 +1276,39 @@ function ConfigurationPanel({ currentUserProfile }) {
             ))}
           </div>
         ) : null}
+        <div className="profile-search-row">
+          <label>
+            <span>Search Membership Profiles</span>
+            <input
+              type="search"
+              placeholder="Search name, email, phone, or town"
+              value={memberSearchTerm}
+              onChange={(event) => setMemberSearchTerm(event.target.value)}
+            />
+          </label>
+          {memberSearchTerm ? (
+            <button
+              className="button-link button-reset secondary-action"
+              type="button"
+              onClick={() => setMemberSearchTerm('')}
+            >
+              Clear Search
+            </button>
+          ) : null}
+        </div>
+        <span className="form-help profile-match-count profile-search-count" aria-live="polite">
+          {memberSearchTerm.trim()
+            ? [
+              `${filteredMembers.length} matching ${statusMembers.length} `
+                + `${memberStatusFilter.toLowerCase()} profiles.`,
+              otherStatusMatchCount
+                ? `${otherStatusMatchCount} `
+                  + `${otherStatusMatchCount === 1 ? 'match is' : 'matches are'} `
+                  + 'filed under another status.'
+                : ''
+            ].filter(Boolean).join(' ')
+            : `${statusMembers.length} ${memberStatusFilter.toLowerCase()} profiles shown.`}
+        </span>
         <div className="status-filter-group" aria-label="Membership status filter">
           {MEMBER_FILTERS.map((status) => (
             <button
@@ -1272,7 +1324,10 @@ function ConfigurationPanel({ currentUserProfile }) {
         {memberFormOpen && !memberForm.id ? renderMemberForm() : null}
         <ConfigurationTable
           columns={['First Name', 'Last Name', 'Email', 'Phone', 'Membership', 'Profile', 'Actions']}
-          emptyText={`No ${memberStatusFilter.toLowerCase()} membership profiles found.`}
+          emptyText={memberSearchTerm.trim()
+            ? `No ${memberStatusFilter.toLowerCase()} membership profiles match `
+              + `"${memberSearchTerm.trim()}".`
+            : `No ${memberStatusFilter.toLowerCase()} membership profiles found.`}
           rows={filteredMembers.map((member) => ({
             id: member.id,
             cells: [
@@ -2136,6 +2191,50 @@ function getLastNameFallback(name = '') {
   const parts = name.trim().split(/\s+/).filter(Boolean);
 
   return parts.length > 1 ? parts.slice(1).join(' ') : '';
+}
+
+// Exported with getMembershipProfileSearchText kept private: the pair is what
+// matters, and the test drives the filter rather than the text builder, so a
+// field dropped from the text is a failing test rather than a passing one.
+export function filterMembershipProfilesBySearch(members, searchTerm) {
+  const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
+
+  if (!normalizedSearch) {
+    return members || [];
+  }
+
+  const searchDigits = normalizedSearch.replace(/\D/g, '');
+
+  return (members || []).filter((member) => {
+    if (getMembershipProfileSearchText(member).includes(normalizedSearch)) {
+      return true;
+    }
+
+    // "5551234" has to find "(555) 123-4567". Nobody types a phone number back
+    // the way it happens to be punctuated in the record, and the CSV import
+    // stores whatever the spreadsheet held. Three digits is the floor, so a
+    // stray digit inside a name search does not drag in every phone number.
+    return searchDigits.length >= 3
+      && String(member?.phone || '').replace(/\D/g, '').includes(searchDigits);
+  });
+}
+
+function getMembershipProfileSearchText(member) {
+  return [
+    member?.firstName || getFirstNameFallback(member?.name),
+    member?.lastName || getLastNameFallback(member?.name),
+    member?.name,
+    member?.email,
+    member?.phone,
+    member?.membershipStatus,
+    member?.status,
+    member?.membershipMemberId,
+    member?.billingAddress?.city,
+    member?.billingAddress?.state
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 }
 
 function sortMembersByLastName(members) {
