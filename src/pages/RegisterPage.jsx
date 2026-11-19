@@ -640,17 +640,20 @@ function RegisterPage() {
     returnToOrigin(() => navigate('/events'));
   }, [isStandaloneSignup, navigate, returnToOrigin]);
 
+  // An idle registration stops where it is. It used to wait 1.5 seconds and
+  // then throw the member to the event listing, which is the one thing it
+  // must not do: whatever they had typed went with it, and 1.5 seconds is
+  // not long enough to read why. A standalone Membership signup landed
+  // somewhere worse still - /events does not list Membership, so the page
+  // they were sent to had no route back to the one they were on.
+  //
+  // Stopping is already fully handled: markReservationExpired clears the
+  // hold, sets the message, and disables Submit, and ensurePaymentReservation
+  // refuses to quietly take a fresh hold afterwards. The member keeps the
+  // page, the explanation and everything they entered.
   const handlePaymentReservationExpired = useCallback(() => {
     markReservationExpired();
-    window.setTimeout(() => {
-      if (returnTarget) {
-        window.location.assign(returnTarget);
-        return;
-      }
-
-      navigate('/events');
-    }, 1500);
-  }, [markReservationExpired, navigate, returnTarget]);
+  }, [markReservationExpired]);
 
   // Checked before every other branch: once a standalone signup has ended,
   // nothing else on this page should render, including the event summary and

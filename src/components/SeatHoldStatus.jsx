@@ -48,7 +48,7 @@ function SeatHoldStatus({
   return (
     <p className={timeLeft === 'expired' ? 'form-error' : 'form-success'}>
       {timeLeft === 'expired'
-        ? 'Your seat hold expired. Returning you to the listing.'
+        ? 'Your seat hold expired. Start registration again.'
         : `Your seat is held for ${timeLeft} while you complete registration.`}
     </p>
   );
