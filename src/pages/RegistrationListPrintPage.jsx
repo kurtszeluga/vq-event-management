@@ -12,6 +12,7 @@ import { getEventRegistrationSheet } from '../services/eventRegistrationSheet.js
 import { getRegistrationSheetSettings } from '../services/configurationService.js';
 import { getRegistrationSheetStatus } from '../utils/registrationSheetStatus.js';
 import { formatCurrency, formatEventDate } from '../utils/eventFormat.js';
+import { isMembershipEvent } from '../../shared/membershipDues.js';
 import { getTotalPaidAmount } from '../utils/registrationFinancials.js';
 import {
   buildCsvFilename,
@@ -411,16 +412,18 @@ function RegistrationListPrintPage() {
               </strong>
             </div>
             <dl className="registration-event-info">
-              {event.eventType !== 'Challenges' ? (
+              {event.eventType !== 'Challenges' && !isMembershipEvent(event) ? (
                 <div>
                   <dt>Date</dt>
                   <dd>{formatEventDate(event.date)}</dd>
                 </div>
               ) : null}
-              <div>
-                <dt>Location</dt>
-                <dd>{event.location || 'Not Set'}</dd>
-              </div>
+              {isMembershipEvent(event) ? null : (
+                <div>
+                  <dt>Location</dt>
+                  <dd>{event.location || 'Not Set'}</dd>
+                </div>
+              )}
             </dl>
           </div>
         </div>
@@ -610,10 +613,14 @@ function escapeHtml(value) {
 function buildRegistrationListPrintHtml(event, registrations, counts, totalPaid) {
   const title = escapeHtml(event.title || event.eventType || 'Event');
   const eventType = escapeHtml(event.eventType || 'Event / Activity');
-  const dateRow = event.eventType === 'Challenges'
+  const dateRow = event.eventType === 'Challenges' || isMembershipEvent(event)
     ? ''
     : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
-  const location = escapeHtml(event.location || 'Not Set');
+  // Built as a whole row rather than a value, so a Membership signup drops
+  // the label with it instead of printing "Location: Not Set".
+  const locationRow = isMembershipEvent(event)
+    ? ''
+    : `<div class="meta-row"><div class="meta-label">Location</div><div>${escapeHtml(event.location || 'Not Set')}</div></div>`;
   const registrantCount = `${registrations.length} registrant${registrations.length === 1 ? '' : 's'}`;
   const totalPaidPill = event.isPaid
     ? `<span class="pill">${escapeHtml(formatCurrency(totalPaid))} Total Paid</span>`
@@ -763,7 +770,7 @@ function buildRegistrationListPrintHtml(event, registrations, counts, totalPaid)
         </div>
         <div class="meta">
           ${dateRow}
-          <div class="meta-row"><div class="meta-label">Location</div><div>${location}</div></div>
+          ${locationRow}
         </div>
         <div class="stats">${statsPills}</div>
         ${tableOrEmpty}

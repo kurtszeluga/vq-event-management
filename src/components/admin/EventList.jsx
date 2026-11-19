@@ -16,7 +16,7 @@ import {
 } from '../../utils/eventFormat.js';
 import { isRegistrationWindowOpen, isWaitlistEnabled } from '../../../shared/registrationWindow.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
-import { getEventCostOn } from '../../../shared/membershipDues.js';
+import { getEventCostOn, isMembershipEvent } from '../../../shared/membershipDues.js';
 import { UNLISTED_EVENT_TYPES } from '../../data/eventOptions.js';
 
 const ALL_TYPES = 'All';
@@ -309,7 +309,7 @@ function EventList({
               </dl>
             ) : (
               <dl>
-                {event.eventType !== 'Challenges' ? (
+                {event.eventType !== 'Challenges' && !isMembershipEvent(event) ? (
                   <>
                     <div>
                       <dt>{event.endDate && event.endDate !== event.date ? 'Dates' : 'Date'}</dt>
@@ -321,14 +321,23 @@ function EventList({
                     </div>
                   </>
                 ) : null}
-                <div>
-                  <dt>Location</dt>
-                  <dd>{event.location || 'Location TBD'}</dd>
-                </div>
-                <div>
-                  <dt>Presenter</dt>
-                  <dd>{event.presenter || 'To be announced'}</dd>
-                </div>
+                {/* Location and Presenter go with them for a Membership
+                    signup. A Challenge has both and keeps them; dues are held
+                    nowhere and nobody presents them, so these would read
+                    "Location TBD" and "To be announced" forever. Both
+                    confirmation emails already leave all four out. */}
+                {isMembershipEvent(event) ? null : (
+                  <>
+                    <div>
+                      <dt>Location</dt>
+                      <dd>{event.location || 'Location TBD'}</dd>
+                    </div>
+                    <div>
+                      <dt>Presenter</dt>
+                      <dd>{event.presenter || 'To be announced'}</dd>
+                    </div>
+                  </>
+                )}
                 <div>
                   <dt>Payment Details</dt>
                   <dd>

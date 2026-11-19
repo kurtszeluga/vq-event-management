@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { isRegistrationWindowOpen } from '../../shared/registrationWindow.js';
 import { getEventPlaceholderImage } from '../data/eventOptions.js';
 import { getEvent } from '../services/eventService.js';
-import { getEventCostOn } from '../../shared/membershipDues.js';
+import { getEventCostOn, isMembershipEvent } from '../../shared/membershipDues.js';
 import {
   formatCurrency,
   formatEventDate,
@@ -153,7 +153,7 @@ function EventListingPrintPage() {
           <h2>{event.title}</h2>
           {event.description ? <p>{event.description}</p> : null}
           <dl>
-            {event.eventType !== 'Challenges' ? (
+            {event.eventType !== 'Challenges' && !isMembershipEvent(event) ? (
               <>
                 <div className="event-card-date">
                   <dt>Date</dt>

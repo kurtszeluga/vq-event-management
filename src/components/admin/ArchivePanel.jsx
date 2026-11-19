@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { formatCurrency, formatEventDate } from '../../utils/eventFormat.js';
+import { isMembershipEvent } from '../../../shared/membershipDues.js';
 import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
 
 // Registrations are never deleted when an event archives (see
@@ -116,7 +117,7 @@ function ArchivePanel({
                   </div>
                   <h3>{event.title || 'Untitled Event'}</h3>
                   <dl className="registration-event-info">
-                    {event.eventType !== 'Challenges' ? (
+                    {event.eventType !== 'Challenges' && !isMembershipEvent(event) ? (
                       <div>
                         <dt>Date</dt>
                         <dd>{formatEventDate(event.date)}</dd>
@@ -163,10 +164,12 @@ function ArchivePanel({
               </div>
               <h3>{selectedEvent.title || 'Untitled Event'}</h3>
               <dl className="registration-event-info">
-                <div>
-                  <dt>Date</dt>
-                  <dd>{formatEventDate(selectedEvent.date)}</dd>
-                </div>
+                {isMembershipEvent(selectedEvent) ? null : (
+                  <div>
+                    <dt>Date</dt>
+                    <dd>{formatEventDate(selectedEvent.date)}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Location</dt>
                   <dd>{selectedEvent.location || 'Not Set'}</dd>
@@ -305,7 +308,7 @@ function escapeHtml(value) {
 function buildArchiveReportHtml(event, registrations, totalPaid) {
   const title = escapeHtml(event.title || 'Untitled Event');
   const eventType = escapeHtml(event.eventType || 'Event / Activity');
-  const dateRow = event.eventType === 'Challenges'
+  const dateRow = event.eventType === 'Challenges' || isMembershipEvent(event)
     ? ''
     : `<div class="meta-row"><div class="meta-label">Date</div><div>${escapeHtml(formatEventDate(event.date))}</div></div>`;
   const location = escapeHtml(event.location || 'Not Set');
