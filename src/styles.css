@@ -2245,11 +2245,19 @@ body.nav-sheet-open {
   width: 100%;
 }
 
+/* Safari draws the Apple Pay logo and wording itself, but only while the
+   button's appearance IS -apple-pay-button. It treats `appearance` and
+   `-webkit-appearance` as one property, so an `appearance: none` here - the
+   usual way to strip a button's native styling - silently undid the line
+   above it and left a black bar with nothing written on it. The button was
+   the right size, it was wired to the wallet, and tapping it opened Apple
+   Pay; it just looked like no button at all, which read as Apple Pay never
+   having appeared. Do not add an appearance reset to this rule. */
 .square-apple-pay-button {
   -webkit-appearance: -apple-pay-button;
   -apple-pay-button-style: black;
   -apple-pay-button-type: pay;
-  appearance: none;
+  appearance: -apple-pay-button;
   background: #000000;
   border: 0;
   border-radius: 6px;
