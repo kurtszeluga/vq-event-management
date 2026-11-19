@@ -122,12 +122,37 @@ describe('users/{uid} self-update', () => {
           state: 'TN',
           street: '12 Awohili Drive'
         },
-        email: 'member@example.com',
         firstName: 'Grace',
         lastName: 'Hopper',
         name: 'Grace Hopper',
         phone: '(352) 653-8189',
         updatedDate: new Date('2026-07-25T00:00:00Z')
+      })
+    );
+  });
+
+  // The address a member signs in with lives in the Firebase Auth record, so a
+  // profile-only edit splits the two: they would keep signing in with the old
+  // address while every notification went to the new one. Changing it goes
+  // through the verified flow on /api/admin-update-user-profile, which moves
+  // both together - and this is what stops a client going round it.
+  test('the owner cannot change their own email address directly', async () => {
+    await seed();
+
+    await assertRefusedOnMerit(
+      updateDoc(doc(ownerDb(), 'users', OWNER_UID), { email: 'someone-else@example.com' })
+    );
+  });
+
+  // Writing the SAME address is not a change, so it must not be refused -
+  // otherwise any payload that echoes the current email back would break.
+  test('rewriting the same email address is not treated as a change', async () => {
+    await seed();
+
+    await assertSucceeds(
+      updateDoc(doc(ownerDb(), 'users', OWNER_UID), {
+        email: 'member@example.com',
+        phone: '(352) 653-8190'
       })
     );
   });

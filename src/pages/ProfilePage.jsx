@@ -14,6 +14,7 @@ import { DEFAULT_US_STATE, US_STATES } from '../data/usStates.js';
 import { auth, db, firebaseConfigured } from '../lib/firebase.js';
 import { applyMemberDirectorySync } from '../services/memberDirectoryProfile.js';
 import { subscribeToMembershipPayments } from '../services/registrationService.js';
+import { confirmOwnEmailChange, startOwnEmailChange } from '../services/userService.js';
 import { formatCurrency } from '../utils/eventFormat.js';
 import {
   buildDisplayName,
@@ -40,6 +41,18 @@ function ProfilePage() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('');
   const [phone, setPhone] = useState('');
+  const [emailChangeOpen, setEmailChangeOpen] = useState(false);
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailCode, setEmailCode] = useState('');
+  const [emailChangeBusy, setEmailChangeBusy] = useState(false);
+  const [emailChangeError, setEmailChangeError] = useState('');
+  const [emailChangeMessage, setEmailChangeMessage] = useState('');
+  // Set by a completed change and preferred over both of the usual sources.
+  // currentUser.email is cached on the Auth object, and the profile doc's copy
+  // arrives on the next snapshot - until one of them catches up, this is the
+  // only place that knows the new address.
+  const [changedEmail, setChangedEmail] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -200,6 +213,66 @@ function ProfilePage() {
     return <Navigate to="/login" state={{ from: { pathname: '/profile' } }} replace />;
   }
 
+  const displayedEmail = changedEmail || currentUser.email || userProfile?.email || '';
+
+  // Two-step on purpose. A mistyped address here is not a cosmetic mistake:
+  // it becomes the address the member signs in with, so password reset goes to
+  // somewhere they cannot read and only an admin repairing the Auth record
+  // gets them back in. Requiring the code means a typo fails harmlessly.
+  async function handleSendEmailCode() {
+    setEmailChangeError('');
+    setEmailChangeMessage('');
+    setEmailChangeBusy(true);
+
+    try {
+      const result = await startOwnEmailChange(newEmail.trim());
+
+      setEmailChangeMessage(result.message || 'We sent a six-digit code to that address.');
+      setEmailCodeSent(true);
+    } catch (error) {
+      setEmailChangeError(error.message || 'That code could not be sent.');
+    } finally {
+      setEmailChangeBusy(false);
+    }
+  }
+
+  async function handleConfirmEmailChange() {
+    setEmailChangeError('');
+    setEmailChangeMessage('');
+    setEmailChangeBusy(true);
+
+    try {
+      const result = await confirmOwnEmailChange(emailCode.trim());
+
+      // Held locally because neither source refreshes on its own:
+      // currentUser.email is cached on the Auth object until it reloads, and
+      // onAuthStateChanged does not fire for a change made server-side.
+      setChangedEmail(result.email || newEmail.trim().toLowerCase());
+      setEmailChangeOpen(false);
+      setEmailCodeSent(false);
+      setNewEmail('');
+      setEmailCode('');
+      setSuccessMessage(result.message || 'Your email address has been changed.');
+
+      // Best effort: it keeps the rest of the session consistent, and a
+      // failure here changes nothing that was just saved.
+      await currentUser.reload?.().catch(() => {});
+    } catch (error) {
+      setEmailChangeError(error.message || 'Your email address could not be changed.');
+    } finally {
+      setEmailChangeBusy(false);
+    }
+  }
+
+  function handleCancelEmailChange() {
+    setEmailChangeOpen(false);
+    setEmailCodeSent(false);
+    setNewEmail('');
+    setEmailCode('');
+    setEmailChangeError('');
+    setEmailChangeMessage('');
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setFormError('');
@@ -224,7 +297,11 @@ function ProfilePage() {
           state: billingState,
           street: billingStreet
         }),
-        email: currentUser.email || userProfile?.email || '',
+        // `email` is not written here. It belongs to the verified email-change
+        // flow, which moves the Auth record with it, and the Firestore rules no
+        // longer let a member change it on the profile directly. Sending it
+        // would also have been actively harmful: currentUser.email can be stale
+        // just after a change, so this save would have put the OLD address back.
         firstName: formattedFirstName,
         lastName: formattedLastName,
         name: displayName,
@@ -341,7 +418,7 @@ function ProfilePage() {
                 </div>
                 <div>
                   <dt>Email</dt>
-                  <dd>{currentUser.email || userProfile?.email || 'Not provided'}</dd>
+                  <dd>{displayedEmail || 'Not provided'}</dd>
                 </div>
                 <div>
                   <dt>Phone</dt>
@@ -439,9 +516,82 @@ function ProfilePage() {
           </label>
           <label>
             <span>Email</span>
-            <input disabled readOnly value={currentUser.email || userProfile?.email || ''} />
-            <span className="form-help">Email changes are handled separately.</span>
+            <input disabled readOnly value={displayedEmail} />
+            <span className="form-help">
+              This is the address you sign in with. Changing it needs a code sent to the
+              new address.
+            </span>
           </label>
+          {emailChangeOpen ? (
+            <div className="form-subsection compact-subsection">
+              <h3>Change Email Address</h3>
+              {emailChangeError ? <p className="form-error">{emailChangeError}</p> : null}
+              {emailChangeMessage ? <p className="form-success">{emailChangeMessage}</p> : null}
+              <label>
+                <span>New Email Address</span>
+                <input
+                  autoComplete="email"
+                  disabled={emailChangeBusy || emailCodeSent}
+                  onChange={(event) => setNewEmail(event.target.value)}
+                  type="email"
+                  value={newEmail}
+                />
+              </label>
+              {emailCodeSent ? (
+                <label>
+                  <span>Six-Digit Code</span>
+                  <input
+                    autoComplete="one-time-code"
+                    disabled={emailChangeBusy}
+                    inputMode="numeric"
+                    onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                    value={emailCode}
+                  />
+                  <span className="form-help">
+                    Nothing changes until you enter this. The code expires in 10 minutes.
+                  </span>
+                </label>
+              ) : null}
+              <div className="form-actions">
+                {emailCodeSent ? (
+                  <button
+                    className="button-primary"
+                    disabled={emailChangeBusy || emailCode.length !== 6}
+                    type="button"
+                    onClick={handleConfirmEmailChange}
+                  >
+                    {emailChangeBusy ? 'Changing...' : 'Confirm Change'}
+                  </button>
+                ) : (
+                  <button
+                    className="button-primary"
+                    disabled={emailChangeBusy || !newEmail.trim()}
+                    type="button"
+                    onClick={handleSendEmailCode}
+                  >
+                    {emailChangeBusy ? 'Sending...' : 'Send Code'}
+                  </button>
+                )}
+                <button
+                  className="button-link button-reset secondary-action"
+                  disabled={emailChangeBusy}
+                  type="button"
+                  onClick={handleCancelEmailChange}
+                >
+                  Cancel Email Change
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="button-link button-reset secondary-action"
+              disabled={saving}
+              type="button"
+              onClick={() => setEmailChangeOpen(true)}
+            >
+              Change Email Address
+            </button>
+          )}
           <label>
             <span>Phone</span>
             <input

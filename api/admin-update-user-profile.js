@@ -1,10 +1,26 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { getGoogleAccessToken } from './_lib/google-access-token.js';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
 import { lookupAuthAccounts } from './_lib/auth-account.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
+import {
+  EMAIL_CODE_EXPIRATION_MS,
+  EMAIL_CODE_MAX_ATTEMPTS,
+  generateEmailCode,
+  getTimestampMillis,
+  hashVerificationSecret,
+  normalizeEmail,
+  verificationSecretsMatch
+} from './_lib/registration-verification.js';
+import {
+  buildEmailChangeChallengeId,
+  buildEmailChangeCodeEmail,
+  buildEmailChangedNotice,
+  getEmailCodeSendDecision,
+  validateEmailChange
+} from './_lib/email-change.js';
 
 let firebaseProjectId = '';
 
@@ -84,6 +100,20 @@ export default async function handler(request, response) {
 
     if (request.body?.action === 'authStatus') {
       await handleAuthStatus(request, response, actorProfile);
+      return;
+    }
+
+    // Self-service, so these sit ahead of the admin gate - like setPassword
+    // above, which carries its own. They act ONLY on actorUid, taken from the
+    // verified token: no profileId is read from the body, because an action
+    // that runs before canUpdateUsers must have no way to name a target.
+    if (request.body?.action === 'startEmailChange') {
+      await handleStartEmailChange(request, response, db, actorUid, actorProfile);
+      return;
+    }
+
+    if (request.body?.action === 'confirmEmailChange') {
+      await handleConfirmEmailChange(request, response, db, actorUid, actorProfile);
       return;
     }
 
@@ -591,6 +621,229 @@ async function handleAuthStatus(request, response, actorProfile) {
   });
 }
 
+async function handleStartEmailChange(request, response, db, actorUid, actorProfile) {
+  if ((actorProfile.status || 'Active') !== 'Active') {
+    response.status(403).json({ error: 'This account cannot change its email address.' });
+    return;
+  }
+
+  const validation = validateEmailChange({
+    currentEmail: actorProfile.email,
+    newEmail: request.body?.newEmail
+  });
+
+  if (!validation.ok) {
+    response.status(400).json({ error: validation.error });
+    return;
+  }
+
+  if (await isEmailTakenByAnotherProfile(db, validation.email, actorUid)) {
+    response.status(409).json({ error: 'Another account already uses that email address.' });
+    return;
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    response.status(500).json({
+      error: 'Email changes are not available yet - the email service is not configured.'
+    });
+    return;
+  }
+
+  const challengeId = buildEmailChangeChallengeId(actorUid);
+  const challengeRef = db.collection('emailChangeVerifications').doc(challengeId);
+  const existingSnap = await challengeRef.get();
+  const now = Date.now();
+  const decision = getEmailCodeSendDecision({
+    challenge: existingSnap.exists ? existingSnap.data() : {},
+    now
+  });
+
+  if (!decision.allowed) {
+    response.status(decision.statusCode).json({ error: decision.error });
+    return;
+  }
+
+  const code = generateEmailCode();
+  const nowTimestamp = Timestamp.fromMillis(now);
+
+  await challengeRef.set({
+    attemptCount: 0,
+    codeExpiresAt: Timestamp.fromMillis(now + EMAIL_CODE_EXPIRATION_MS),
+    codeHash: hashVerificationSecret(challengeId, code),
+    consumedAt: null,
+    lastSentAt: nowTimestamp,
+    newEmail: validation.email,
+    previousEmail: normalizeEmail(actorProfile.email),
+    sendCount: decision.sendCount,
+    sendWindowStartedAt: decision.inCurrentWindow
+      ? existingSnap.data().sendWindowStartedAt
+      : nowTimestamp,
+    updatedAt: nowTimestamp,
+    userId: actorUid
+  });
+
+  try {
+    await sendResendEmail({
+      ...buildEmailChangeCodeEmail({ code }),
+      to: validation.email
+    });
+  } catch (error) {
+    // No challenge is left behind for an address that was never reached -
+    // otherwise the resend throttle would hold against a code nobody has.
+    await challengeRef.delete().catch(() => {});
+    throw error;
+  }
+
+  response.status(200).json({
+    message: 'We sent a six-digit code to that address. Enter it to finish the change.',
+    newEmail: validation.email,
+    ok: true
+  });
+}
+
+async function handleConfirmEmailChange(request, response, db, actorUid, actorProfile) {
+  if ((actorProfile.status || 'Active') !== 'Active') {
+    response.status(403).json({ error: 'This account cannot change its email address.' });
+    return;
+  }
+
+  const code = cleanText(request.body?.code);
+
+  if (!/^\d{6}$/.test(code)) {
+    response.status(400).json({ error: 'Enter the six-digit code from your email.' });
+    return;
+  }
+
+  const challengeId = buildEmailChangeChallengeId(actorUid);
+  const challengeRef = db.collection('emailChangeVerifications').doc(challengeId);
+  const challengeSnap = await challengeRef.get();
+
+  if (!challengeSnap.exists) {
+    response.status(400).json({ error: 'That code is no longer available. Request a new one.' });
+    return;
+  }
+
+  const challenge = challengeSnap.data();
+
+  if (Number(challenge.attemptCount || 0) >= EMAIL_CODE_MAX_ATTEMPTS) {
+    response.status(429).json({ error: 'Too many incorrect attempts. Request a new code.' });
+    return;
+  }
+
+  if (getTimestampMillis(challenge.codeExpiresAt) <= Date.now()) {
+    response.status(400).json({ error: 'That code has expired. Request a new one.' });
+    return;
+  }
+
+  if (!verificationSecretsMatch(challenge.codeHash, challengeId, code)) {
+    await challengeRef.update({
+      attemptCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    response.status(400).json({ error: 'That code is incorrect. Please try again.' });
+    return;
+  }
+
+  const newEmail = normalizeEmail(challenge.newEmail);
+  const previousEmail = normalizeEmail(challenge.previousEmail || actorProfile.email);
+
+  if (!newEmail) {
+    response.status(400).json({ error: 'This request is no longer valid. Request a new code.' });
+    return;
+  }
+
+  // Re-checked after the code, not only before it: ten minutes is long enough
+  // for somebody else to have taken the address in between.
+  if (await isEmailTakenByAnotherProfile(db, newEmail, actorUid)) {
+    response.status(409).json({ error: 'Another account now uses that email address.' });
+    return;
+  }
+
+  const profileUserId = actorProfile.userId || actorUid;
+
+  // The Auth record first, and on its own. It is the half that decides what
+  // the member can sign in with, and the only half that can refuse - if
+  // Identity Platform rejects the address, nothing else has been touched yet.
+  try {
+    await updateAuthUser(profileUserId, {
+      disabled: (actorProfile.status || 'Active') !== 'Active',
+      displayName: actorProfile.name || '',
+      email: newEmail
+    });
+  } catch (authError) {
+    const message = String(authError.message || '');
+
+    if (message.includes('EMAIL_EXISTS')) {
+      response.status(409).json({ error: 'Another account already uses that email address.' });
+      return;
+    }
+
+    throw authError;
+  }
+
+  const now = FieldValue.serverTimestamp();
+  const updatedProfile = { ...actorProfile, email: newEmail };
+  // The same fan-out the admin path does. Every one of these holds a COPY of
+  // the address taken when it was written - the member directory entry, and
+  // each coordinator assignment, whose copy is what the coordinator emails
+  // read. Miss them and the old address keeps being used by the parts of the
+  // app that never look at the profile again.
+  const coordinatorDocs = await findCoordinatorAssignmentsForUser(db, actorUid, profileUserId);
+  const batch = db.batch();
+
+  batch.update(db.collection('users').doc(actorUid), { email: newEmail, updatedDate: now });
+  applyMemberDirectorySync(db, batch, actorUid, updatedProfile, now);
+  coordinatorDocs.forEach((assignmentDoc) => {
+    batch.update(assignmentDoc.ref, { assignedUserEmail: newEmail, updatedDate: now });
+  });
+  batch.update(challengeRef, {
+    codeHash: '',
+    consumedAt: now,
+    updatedAt: now
+  });
+  batch.set(db.collection('auditLogs').doc(), {
+    action: 'Update',
+    actorEmail: previousEmail,
+    actorName: actorProfile.name || previousEmail || 'Member',
+    actorRole: actorProfile.role || '',
+    actorUserId: profileUserId,
+    after: { email: newEmail },
+    before: { email: previousEmail },
+    createdDate: now,
+    entityId: actorUid,
+    entityType: 'User',
+    summary: `Member changed their own email address from "${previousEmail}" to "${newEmail}"`
+  });
+
+  await batch.commit();
+
+  // Best effort, and deliberately not gated on the registration-confirmation
+  // setting: this is a security notice to the address being left behind, not
+  // a courtesy email, and the change has already happened either way.
+  if (previousEmail && previousEmail !== newEmail) {
+    try {
+      await sendResendEmail({
+        ...buildEmailChangedNotice({ newEmail }),
+        to: previousEmail
+      });
+    } catch (noticeError) {
+      console.error('Email change applied but the old address was not notified', noticeError);
+    }
+  }
+
+  response.status(200).json({
+    email: newEmail,
+    message: 'Your email address has been changed. Sign in with the new address from now on.',
+    ok: true
+  });
+}
+
+async function isEmailTakenByAnotherProfile(db, email, actorUid) {
+  const snapshot = await db.collection('users').where('email', '==', email).limit(2).get();
+
+  return snapshot.docs.some((userDoc) => userDoc.id !== actorUid);
+}
+
 function canUpdateUsers(actorProfile) {
   if (actorProfile.status !== 'Active') {
     return false;
@@ -719,7 +972,7 @@ async function sendResendEmail({ html, replyTo, subject, text, to }) {
   const result = textResponse ? safeJsonParse(textResponse) : {};
 
   if (!resendResponse.ok) {
-    const message = result.message || result.error || 'Resend could not send the test email.';
+    const message = result.message || result.error || 'Resend could not send the email.';
     const error = new Error(message);
     error.statusCode = resendResponse.status;
     throw error;

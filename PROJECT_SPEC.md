@@ -501,6 +501,7 @@ Primary collections:
 - `eventLocationDefaults`: reusable location defaults
 - `eventTimeDefaults`: reusable time defaults
 - `registrationVerifications`: private hashed email-code verification records with TTL
+- `emailChangeVerifications`: private hashed email-code records for a member changing their own email address, holding the pending new address until the code is entered
 - `registrationReservations`: private temporary online-payment seat holds with TTL
 - `registrationAttempts`: private idempotency records
 - `apiRateLimits`: private Firestore-backed API rate-limit counters with TTL

@@ -54,6 +54,44 @@ export async function updateUserProfile(userId, updates) {
   return result;
 }
 
+// A member changing their OWN email address, in two steps. Both act on the
+// signed-in account only - the server takes the uid from the verified token
+// and never reads a profileId for these, so neither can be pointed at anybody
+// else. Step one sends a code to the new address; step two applies it, moving
+// the Firebase Auth record along with the profile, the member directory copy
+// and every coordinator assignment copy.
+export async function startOwnEmailChange(newEmail) {
+  return postOwnEmailChange({ action: 'startEmailChange', newEmail });
+}
+
+export async function confirmOwnEmailChange(code) {
+  return postOwnEmailChange({ action: 'confirmEmailChange', code });
+}
+
+async function postOwnEmailChange(body) {
+  const idToken = await getAdminIdToken();
+
+  if (!idToken) {
+    throw new Error('You must be signed in to change your email address.');
+  }
+
+  const response = await fetch('/api/admin-update-user-profile', {
+    body: JSON.stringify(body),
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST'
+  });
+  const result = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Your email address could not be changed.');
+  }
+
+  return result;
+}
+
 // Sign-in history for the admin user list, read live from Firebase Auth rather
 // than from a mirrored field - see the handleAuthStatus note in
 // api/admin-update-user-profile.js for why there is no stored copy, and why it

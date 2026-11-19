@@ -467,18 +467,24 @@ service cloud.firestore {
     // change to exactly these seven fields, so role, status, permissions,
     // profileTags and every membership field are immutable here by
     // construction, rather than by a separate comparison for each one.
+    // `email` is deliberately NOT in this list. The address a member signs in
+    // with lives in the Firebase Auth record, and a profile-only edit splits
+    // the two - signing in with the old address while every notification goes
+    // to the new one, with nothing to reconcile them. Changing it goes through
+    // the verified flow on /api/admin-update-user-profile (startEmailChange,
+    // then confirmEmailChange), which moves the Auth record, the profile, the
+    // member directory copy and every coordinator assignment copy together.
+    // Leaving `email` writable here would have left a way round that.
     function validSelfProfileEdit() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'firstName',
           'lastName',
           'name',
-          'email',
           'phone',
           'billingAddress',
           'updatedDate'
         ])
         && request.resource.data.name is string
-        && request.resource.data.email is string
         && request.resource.data.phone is string
         && (!('firstName' in request.resource.data)
           || request.resource.data.firstName is string)
@@ -1025,6 +1031,14 @@ service cloud.firestore {
     }
 
     match /accountRecoveryVerifications/{verificationId} {
+      allow read, write: if false;
+    }
+
+    // Holds the hashed code and the pending new address for a member changing
+    // their own email. Server-only, like the other two: a client that could
+    // read it would know the code, and one that could write it could set its
+    // own pending address and confirm it.
+    match /emailChangeVerifications/{verificationId} {
       allow read, write: if false;
     }
 
