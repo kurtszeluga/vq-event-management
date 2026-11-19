@@ -103,7 +103,12 @@ export default async function handler(request, response) {
       return;
     }
 
-    // Self-service, so these sit ahead of the admin gate - like setPassword
+    // Exported for tests/email-change-guard.test.js, which pins the one hole that
+// mattered: the endpoint hands these an empty object when no profile document
+// exists at the token's uid, and every gate used to read that as a healthy
+// active member.
+//
+// Self-service, so these sit ahead of the admin gate - like setPassword
     // above, which carries its own. They act ONLY on actorUid, taken from the
     // verified token: no profileId is read from the body, because an action
     // that runs before canUpdateUsers must have no way to name a target.
@@ -621,11 +626,20 @@ async function handleAuthStatus(request, response, actorProfile) {
   });
 }
 
-async function handleStartEmailChange(request, response, db, actorUid, actorProfile) {
+export async function handleStartEmailChange(request, response, db, actorUid, actorProfile) {
   if ((actorProfile.status || 'Active') !== 'Active') {
     response.status(403).json({ error: 'This account cannot change its email address.' });
     return;
   }
+
+  if (!cleanText(actorProfile.email)) {
+    response.status(404).json({
+      error: 'Your profile could not be found, so your email cannot be changed here. '
+        + 'Ask an administrator to check your account.'
+    });
+    return;
+  }
+
 
   const validation = validateEmailChange({
     currentEmail: actorProfile.email,
@@ -701,11 +715,20 @@ async function handleStartEmailChange(request, response, db, actorUid, actorProf
   });
 }
 
-async function handleConfirmEmailChange(request, response, db, actorUid, actorProfile) {
+export async function handleConfirmEmailChange(request, response, db, actorUid, actorProfile) {
   if ((actorProfile.status || 'Active') !== 'Active') {
     response.status(403).json({ error: 'This account cannot change its email address.' });
     return;
   }
+
+  if (!cleanText(actorProfile.email)) {
+    response.status(404).json({
+      error: 'Your profile could not be found, so your email cannot be changed here. '
+        + 'Ask an administrator to check your account.'
+    });
+    return;
+  }
+
 
   const code = cleanText(request.body?.code);
 
@@ -815,7 +838,43 @@ async function handleConfirmEmailChange(request, response, db, actorUid, actorPr
     summary: `Member changed their own email address from "${previousEmail}" to "${newEmail}"`
   });
 
-  await batch.commit();
+  // The Auth record has already moved by this point, so a failed write here
+  // would leave the member signing in with the new address while every record
+  // in the app still says the old one - the precise split this whole flow
+  // exists to prevent. Putting Auth back is the only honest outcome.
+  try {
+    await batch.commit();
+  } catch (writeError) {
+    console.error('Email change write failed; putting the Auth record back', actorUid, writeError);
+
+    try {
+      await updateAuthUser(profileUserId, {
+        disabled: (actorProfile.status || 'Active') !== 'Active',
+        displayName: actorProfile.name || '',
+        email: previousEmail
+      });
+      response.status(500).json({
+        error: 'Your email address could not be changed, and nothing was altered. '
+          + 'Please try again.'
+      });
+      return;
+    } catch (rollbackError) {
+      // Both halves failed, which is the one case worth shouting about: the
+      // records now disagree and only an admin can reconcile them.
+      console.error(
+        'Email change left Auth and the profile out of step',
+        actorUid,
+        previousEmail,
+        newEmail,
+        rollbackError
+      );
+      response.status(500).json({
+        error: 'Your sign-in address was changed but your profile was not. '
+          + `Sign in with ${newEmail} and tell an administrator, quoting this address.`
+      });
+      return;
+    }
+  }
 
   // Best effort, and deliberately not gated on the registration-confirmation
   // setting: this is a security notice to the address being left behind, not

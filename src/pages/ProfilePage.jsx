@@ -41,7 +41,6 @@ function ProfilePage() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccessMessage, setPasswordSuccessMessage] = useState('');
   const [phone, setPhone] = useState('');
-  const [emailChangeOpen, setEmailChangeOpen] = useState(false);
   const [emailCodeSent, setEmailCodeSent] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [emailCode, setEmailCode] = useState('');
@@ -219,6 +218,17 @@ function ProfilePage() {
   // it becomes the address the member signs in with, so password reset goes to
   // somewhere they cannot read and only an admin repairing the Auth record
   // gets them back in. Requiring the code means a typo fails harmlessly.
+  async function handleEmailChangeSubmit(event) {
+    event.preventDefault();
+
+    if (emailCodeSent) {
+      await handleConfirmEmailChange();
+      return;
+    }
+
+    await handleSendEmailCode();
+  }
+
   async function handleSendEmailCode() {
     setEmailChangeError('');
     setEmailChangeMessage('');
@@ -248,11 +258,10 @@ function ProfilePage() {
       // currentUser.email is cached on the Auth object until it reloads, and
       // onAuthStateChanged does not fire for a change made server-side.
       setChangedEmail(result.email || newEmail.trim().toLowerCase());
-      setEmailChangeOpen(false);
       setEmailCodeSent(false);
       setNewEmail('');
       setEmailCode('');
-      setSuccessMessage(result.message || 'Your email address has been changed.');
+      setEmailChangeMessage(result.message || 'Your email address has been changed.');
 
       // Best effort: it keeps the rest of the session consistent, and a
       // failure here changes nothing that was just saved.
@@ -265,7 +274,6 @@ function ProfilePage() {
   }
 
   function handleCancelEmailChange() {
-    setEmailChangeOpen(false);
     setEmailCodeSent(false);
     setNewEmail('');
     setEmailCode('');
@@ -518,80 +526,10 @@ function ProfilePage() {
             <span>Email</span>
             <input disabled readOnly value={displayedEmail} />
             <span className="form-help">
-              This is the address you sign in with. Changing it needs a code sent to the
-              new address.
+              This is the address you sign in with. Saving this form never changes it -
+              use Change Email Address further down the page.
             </span>
           </label>
-          {emailChangeOpen ? (
-            <div className="form-subsection compact-subsection">
-              <h3>Change Email Address</h3>
-              {emailChangeError ? <p className="form-error">{emailChangeError}</p> : null}
-              {emailChangeMessage ? <p className="form-success">{emailChangeMessage}</p> : null}
-              <label>
-                <span>New Email Address</span>
-                <input
-                  autoComplete="email"
-                  disabled={emailChangeBusy || emailCodeSent}
-                  onChange={(event) => setNewEmail(event.target.value)}
-                  type="email"
-                  value={newEmail}
-                />
-              </label>
-              {emailCodeSent ? (
-                <label>
-                  <span>Six-Digit Code</span>
-                  <input
-                    autoComplete="one-time-code"
-                    disabled={emailChangeBusy}
-                    inputMode="numeric"
-                    onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                    value={emailCode}
-                  />
-                  <span className="form-help">
-                    Nothing changes until you enter this. The code expires in 10 minutes.
-                  </span>
-                </label>
-              ) : null}
-              <div className="form-actions">
-                {emailCodeSent ? (
-                  <button
-                    className="button-primary"
-                    disabled={emailChangeBusy || emailCode.length !== 6}
-                    type="button"
-                    onClick={handleConfirmEmailChange}
-                  >
-                    {emailChangeBusy ? 'Changing...' : 'Confirm Change'}
-                  </button>
-                ) : (
-                  <button
-                    className="button-primary"
-                    disabled={emailChangeBusy || !newEmail.trim()}
-                    type="button"
-                    onClick={handleSendEmailCode}
-                  >
-                    {emailChangeBusy ? 'Sending...' : 'Send Code'}
-                  </button>
-                )}
-                <button
-                  className="button-link button-reset secondary-action"
-                  disabled={emailChangeBusy}
-                  type="button"
-                  onClick={handleCancelEmailChange}
-                >
-                  Cancel Email Change
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              className="button-link button-reset secondary-action"
-              disabled={saving}
-              type="button"
-              onClick={() => setEmailChangeOpen(true)}
-            >
-              Change Email Address
-            </button>
-          )}
           <label>
             <span>Phone</span>
             <input
@@ -680,6 +618,70 @@ function ProfilePage() {
           </div>
           </form>
           )}
+          <form className="form-panel" onSubmit={handleEmailChangeSubmit}>
+          <div className="form-section-header">
+            <h2>Change Email Address</h2>
+          </div>
+          <p className="form-help">
+            We send a six-digit code to the new address first. Entering it changes your
+            email straight away - there is no Save to press afterwards, and Save Profile
+            above never touches your email.
+          </p>
+          {emailChangeError ? <p className="form-error">{emailChangeError}</p> : null}
+          {emailChangeMessage ? <p className="form-success">{emailChangeMessage}</p> : null}
+          <label>
+            <span>Current Email</span>
+            <input disabled readOnly value={displayedEmail} />
+          </label>
+          <label>
+            <span>New Email Address</span>
+            <input
+              autoComplete="email"
+              disabled={emailChangeBusy || emailCodeSent}
+              onChange={(event) => setNewEmail(event.target.value)}
+              type="email"
+              value={newEmail}
+            />
+          </label>
+          {emailCodeSent ? (
+            <label>
+              <span>Six-Digit Code</span>
+              <input
+                autoComplete="one-time-code"
+                disabled={emailChangeBusy}
+                inputMode="numeric"
+                onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                value={emailCode}
+              />
+              <span className="form-help">
+                Sent to {newEmail.trim() || 'the new address'}. Nothing has changed yet.
+                The code expires in 10 minutes.
+              </span>
+            </label>
+          ) : null}
+          <div className="form-actions">
+            <button
+              className="button-primary"
+              disabled={emailChangeBusy
+                || (emailCodeSent ? emailCode.length !== 6 : !newEmail.trim())}
+              type="submit"
+            >
+              {emailChangeBusy
+                ? (emailCodeSent ? 'Changing...' : 'Sending...')
+                : (emailCodeSent ? 'Confirm Email Change' : 'Send Code')}
+            </button>
+            {emailCodeSent ? (
+              <button
+                className="button-link button-reset secondary-action"
+                disabled={emailChangeBusy}
+                type="button"
+                onClick={handleCancelEmailChange}
+              >
+                Start Over
+              </button>
+            ) : null}
+          </div>
+          </form>
           <form className="form-panel" onSubmit={handlePasswordSubmit}>
           <div className="form-section-header">
             <h2>Change Password</h2>
