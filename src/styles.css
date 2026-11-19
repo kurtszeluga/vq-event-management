@@ -625,8 +625,15 @@ body.popup-mode .page-content {
   font-weight: 800;
 }
 
+/* textarea belongs in this list and was missing from it. Unlike input and
+   select, a textarea's default font is the browser's own - small, and on most
+   browsers monospace - so the one multi-line field on this form (the
+   Membership skills box) rendered in noticeably smaller type than everything
+   above it, and only while being typed into did anyone notice. `font:
+   inherit` is what the other two were already getting. */
 .form-panel input,
-.form-panel select {
+.form-panel select,
+.form-panel textarea {
   border: 1px solid #c9bbb0;
   border-radius: 8px;
   color: #1d2927;
@@ -635,13 +642,20 @@ body.popup-mode .page-content {
   width: 100%;
 }
 
+/* Left to the rows attribute, and vertical only: a textarea that can be
+   dragged wider escapes the panel it sits in. */
+.form-panel textarea {
+  resize: vertical;
+}
+
 .form-panel .field-invalid {
   border-color: #c24124;
   outline: 3px solid #f8d6ca;
 }
 
 .form-panel input:focus,
-.form-panel select:focus {
+.form-panel select:focus,
+.form-panel textarea:focus {
   border-color: #225c56;
   outline: 3px solid #cfe3de;
 }

@@ -40,7 +40,10 @@ const REGISTRATION_STATUS_FILTERS = ['All', 'Pending Payment', 'Registered', 'Wa
 const PAYMENT_STATUS_FILTERS = ['All', 'Pending', 'Paid', 'Refund Pending', 'Refunded', 'Failed', 'Waived', 'No Charge'];
 const EVENT_STATUS_FILTERS = ['Active', 'Archived'];
 const MANUAL_PAYMENT_METHOD_OPTIONS = ['Cash', 'Check'];
-const ACTIVITY_FILTERS = ['Programs', 'Workshops', 'Retreat', 'Challenges'];
+// Membership is last because it is the one that is not an activity. It still
+// belongs here: without a filter of its own it matched no button at all, so
+// picking any filter hid it and there was no way to ask for only it.
+export const ACTIVITY_FILTERS = ['Programs', 'Workshops', 'Retreat', 'Challenges', 'Membership'];
 const QUARTER_FILTERS = [
   { label: 'All Quarters', value: '' },
   { label: 'Q1 (Jan-March)', value: 'Q1' },
@@ -2184,7 +2187,7 @@ function matchesEventStatus(event, statusFilter) {
     : event.status !== 'Archived';
 }
 
-function getActivityFilterValue(eventType = '') {
+export function getActivityFilterValue(eventType = '') {
   if (['Class (Half Day)', 'Class (Full Day)', 'Class (Half-Day)', 'Class (Full-Day)', 'Lecture'].includes(eventType)) {
     return 'Programs';
   }
@@ -2201,6 +2204,12 @@ function getActivityFilterValue(eventType = '') {
     return 'Challenges';
   }
 
+  if (eventType === 'Membership') {
+    return 'Membership';
+  }
+
+  // Business Listing, For Sale and Other still fall through deliberately -
+  // they have no button, so they appear only in the unfiltered view.
   return '';
 }
 
