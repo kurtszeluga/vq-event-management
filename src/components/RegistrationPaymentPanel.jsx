@@ -207,7 +207,19 @@ export default function RegistrationPaymentPanel({
               throw new Error('The Google Pay container was never rendered.');
             }
 
-            await googlePay.attach(`#${googlePayContainerId.current}`);
+            // Square's defaults for these are undocumented, and what they
+            // actually produce is a narrow, icon-only button: 'short' draws
+            // the bare G Pay mark with no wording, and 'static' sizes the
+            // button to its own content instead of the container. Beside a
+            // full-width Apple Pay bar that reads as a different, lesser
+            // control. 'long' is the variant whose face carries the wording,
+            // and 'fill' is what makes it span the card.
+            await googlePay.attach(`#${googlePayContainerId.current}`, {
+              buttonColor: 'black',
+              buttonRadius: 6,
+              buttonSizeMode: 'fill',
+              buttonType: 'long'
+            });
 
             googlePayClickHandler = (clickEvent) => {
               clickEvent.preventDefault();

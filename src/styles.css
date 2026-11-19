@@ -2288,8 +2288,14 @@ body.nav-sheet-open {
   pointer-events: none;
 }
 
+/* Google Pay sizes its own button from the attach options, so this container
+   is what has to match the Apple Pay button above it - same 44px, same full
+   width, or the two wallets read as different kinds of control. `height` and
+   not `min-height`: in buttonSizeMode 'fill' Google's button asks for
+   height: 100%, which resolves against this element's height PROPERTY, and a
+   min-height leaves that `auto`. */
 .square-google-pay-container {
-  min-height: 44px;
+  height: 44px;
   width: 100%;
 }
 

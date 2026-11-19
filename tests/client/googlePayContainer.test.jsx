@@ -25,6 +25,7 @@ const CONFIG = {
 };
 
 let attachedSelectors;
+let attachedOptions;
 let containerAtAttach;
 
 const { default: RegistrationPaymentPanel } =
@@ -32,6 +33,7 @@ const { default: RegistrationPaymentPanel } =
 
 beforeEach(() => {
   attachedSelectors = [];
+  attachedOptions = [];
   containerAtAttach = [];
 
   const script = document.createElement('script');
@@ -48,8 +50,9 @@ beforeEach(() => {
         destroy: () => {}
       }),
       googlePay: () => Promise.resolve({
-        attach: (selector) => {
+        attach: (selector, options) => {
           attachedSelectors.push(selector);
+          attachedOptions.push(options);
           // The whole bug, captured: was the node actually there?
           containerAtAttach.push(document.querySelector(selector));
           return Promise.resolve();
@@ -88,4 +91,34 @@ it('has the Google Pay container on the page before Square attaches to it', asyn
   // nothing else can have put this container on the page.
   expect(containerAtAttach[0]).not.toBeNull();
   expect(attachedSelectors[0]).toMatch(/^#/);
+});
+
+// Square's defaults for these are undocumented and produce a narrow,
+// icon-only button, which is what shipped: the G Pay mark alone, sized to
+// itself, sitting beside a full-width Apple Pay bar. Asserted here because
+// the only symptom is pixels - every other test passed with the defaults, and
+// so did lint and the build.
+it('asks Square for a full-width button with the wording on it', async () => {
+  render(
+    <RegistrationPaymentPanel
+      amountDue={11}
+      config={CONFIG}
+      disabled={false}
+      error=""
+      onCardReady={() => {}}
+      onEnsureReservation={() => Promise.resolve()}
+      onWalletTokenReady={() => {}}
+      onlinePaymentRequired
+      selectedPaymentToken=""
+    />
+  );
+
+  await waitFor(() => expect(attachedSelectors.length).toBeGreaterThan(0));
+
+  // 'short' is the icon-only variant and 'static' sizes to content; it is the
+  // pairing of 'long' with 'fill' that matches the Apple Pay button.
+  expect(attachedOptions[0]).toMatchObject({
+    buttonSizeMode: 'fill',
+    buttonType: 'long'
+  });
 });
