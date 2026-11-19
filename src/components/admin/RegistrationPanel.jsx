@@ -25,6 +25,7 @@ import { isEventFullForSeats } from '../../utils/registrationAvailability.js';
 import { hasOutstandingWaitlistOffer, holdsSeat, isPaymentPending } from '../../utils/registrationEligibility.js';
 import { getTotalPaidAmount } from '../../utils/registrationFinancials.js';
 import { UNLISTED_EVENT_TYPES } from '../../data/eventOptions.js';
+import { isMembershipEvent } from '../../../shared/membershipDues.js';
 import {
   getRegistrationWindowState,
   isRegistrationWindowOpen,
@@ -1854,29 +1855,44 @@ function getAmountDue(registration) {
   return Number(registration.eventCost || 0) + Number(registration.eventServiceFee || 0);
 }
 
-function getEventInfoItems(event, registrationSnapshot = {}, registeredCount = 0, showCapacity = true) {
+export function getEventInfoItems(event, registrationSnapshot = {}, registeredCount = 0, showCapacity = true) {
   const eventType = event?.eventType || registrationSnapshot.eventType || 'Event';
   const eventDate = event?.date || registrationSnapshot.eventDate || '';
   const location = event?.location || registrationSnapshot.eventLocation || registrationSnapshot.location || '';
-  const items = [
-    { label: 'Date', value: formatEventDate(eventDate) },
-    { label: 'Location', value: location || 'Not Set' },
-    { label: 'Cost', value: getEventCostSummary(event, registrationSnapshot) }
-  ];
+  const items = [];
+
+  // A Membership signup genuinely has no date, time or location - the event
+  // form does not ask for any of them. Printing the empty values anyway
+  // produced "Date TBD", "12:00 a.m. - 12:00 a.m." and "Not Set", which read
+  // as three facts about the event rather than as three fields nobody filled
+  // in. The midnight range is the worst of them, because 00:00 is a real
+  // time: it is the form's own default, so it formats rather than falling
+  // back to "Time TBD", and it looks deliberate.
+  //
+  // The same omission is already made on the event details page, the
+  // registration page and both confirmation emails. This card was the one
+  // place still printing them.
+  if (!isMembershipEvent({ eventType })) {
+    items.push({ label: 'Date', value: formatEventDate(eventDate) });
+
+    if (eventType !== 'Challenges') {
+      items.push({
+        label: 'Time',
+        value: event?.startTime || event?.endTime
+          ? formatTimeRange(event.startTime, event.endTime)
+          : 'Time TBD'
+      });
+    }
+
+    items.push({ label: 'Location', value: location || 'Not Set' });
+  }
+
+  items.push({ label: 'Cost', value: getEventCostSummary(event, registrationSnapshot) });
 
   // Shown as its own pill in the stats row instead - repeating it here (the
   // list card's only use of showCapacity={false}) was the literal duplicate.
   if (showCapacity) {
     items.push({ label: 'Capacity', value: getCapacitySummary(event, registeredCount) });
-  }
-
-  if (eventType !== 'Challenges') {
-    items.splice(1, 0, {
-      label: 'Time',
-      value: event?.startTime || event?.endTime
-        ? formatTimeRange(event.startTime, event.endTime)
-        : 'Time TBD'
-    });
   }
 
   return items;
