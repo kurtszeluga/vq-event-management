@@ -46,6 +46,36 @@ test('the CSP lets Square load everything its card form needs', () => {
   }
 });
 
+// Each of these was blocked on the live site and reported from the browser
+// console, one host at a time. They are listed by what breaks when they are
+// missing, because the symptom never names the host: a blocked font or icon
+// leaves the wallet sheet half-rendered, and a blocked pay.js means Google
+// Pay never appears at all.
+test('the CSP allows the hosts Square and Google Pay actually fetch from', () => {
+  const directives = cspDirectives();
+  const required = {
+    // Square Sans, SQ Market and Cash Sans, three separate hosts.
+    'font-src': [
+      'https://square-fonts-production-f.squarecdn.com',
+      'https://d1g145x70srn7h.cloudfront.net',
+      'https://cash-f.squarecdn.com'
+    ],
+    // The card form's info icon.
+    'img-src': ['https://web.squarecdn.com'],
+    // Google Pay's SDK, and the gapi iframe Firebase Auth loads.
+    'script-src': ['https://pay.google.com', 'https://apis.google.com']
+  };
+
+  for (const [directive, hosts] of Object.entries(required)) {
+    for (const host of hosts) {
+      assert.ok(
+        directives[directive]?.includes(host),
+        `${directive} does not allow ${host}`
+      );
+    }
+  }
+});
+
 test('the sandbox host is allowed wherever the live one is', () => {
   // Preview deploys run against Square sandbox, which serves from a different
   // host; allowing only one of the pair breaks whichever environment is not
