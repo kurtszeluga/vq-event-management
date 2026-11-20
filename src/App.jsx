@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import MobileNavSheet from './components/MobileNavSheet.jsx';
 import { useAuth } from './context/useAuth.js';
+import { subscribeToDirectorySettings } from './services/configurationService.js';
 import { getAccountDisplayName } from './utils/profileFormat.js';
 import { APP_VERSION } from './version.js';
 
@@ -9,6 +10,12 @@ function App() {
   const location = useLocation();
   const { currentUser, hasPermission, isAdmin, isSuperUser, logOut, userProfile } = useAuth();
   const [navSheetOpen, setNavSheetOpen] = useState(false);
+  // The nav link used to ask only whether this member was allowed to USE the
+  // directory, never whether the directory was switched on - so turning it off
+  // in System Config left the link in place, leading to a page that then
+  // refused. Starts false so a slow settings read never advertises a feature
+  // that is off; an error leaves it off for the same reason.
+  const [directoryEnabled, setDirectoryEnabled] = useState(false);
   const menuButtonRef = useRef(null);
   const normalizedPath = location.pathname.replace(/\/+$/, '');
   // Both document viewers open in a popup window, so neither wants the site
@@ -18,6 +25,18 @@ function App() {
     || normalizedPath.endsWith('/challenge-pdf')
     || normalizedPath.endsWith('/print');
   const pullState = usePullToRefresh(isPopupMode);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setDirectoryEnabled(false);
+      return undefined;
+    }
+
+    return subscribeToDirectorySettings(
+      (settings) => setDirectoryEnabled(Boolean(settings?.enableMemberDirectory)),
+      () => setDirectoryEnabled(false)
+    );
+  }, [currentUser]);
   const showAdminSignupLink =
     currentUser
     && (isSuperUser
@@ -28,6 +47,7 @@ function App() {
       || hasPermission('viewRegistrations'));
   const showMemberDirectoryLink =
     currentUser
+    && directoryEnabled
     && userHasActiveMembership(userProfile);
   // AdminDashboardPage builds its module list from exactly these four checks
   // and falls back to "No Admin Modules Enabled" when none of them holds, so
