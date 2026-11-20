@@ -1,6 +1,10 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import ConfirmDialog from '../ConfirmDialog.jsx';
-import { PROFILE_TAG_OPTIONS, normalizeProfileTags } from '../../data/profileTags.js';
+import {
+  PROFILE_TAG_OPTIONS,
+  isServiceAccount,
+  normalizeProfileTags
+} from '../../data/profileTags.js';
 import { DEFAULT_US_STATE, US_STATES } from '../../data/usStates.js';
 import {
   MEMBERSHIP_PAYMENT_STATUSES,
@@ -581,6 +585,9 @@ function UserControlPanel({
     );
   }
 
+  // Pinned Active/Active/Waived on every write path, so the form disables
+  // them rather than offering a value the save will overwrite.
+  const formIsServiceAccount = isServiceAccount(form || {});
   const sortedFilteredUsers = sortUsers(searchedUsers, sortConfig);
 
   return (
@@ -887,7 +894,11 @@ function UserControlPanel({
                   />
                 ) : null}
                 {canManageAdminUsers ? (
-                  <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
+                  <ProfileTagPanel
+                    canManageAdminUsers={canManageAdminUsers}
+                    profileTags={form.profileTags}
+                    onChange={updateProfileTag}
+                  />
                 ) : null}
               </div>
             </div>
@@ -1075,7 +1086,7 @@ function UserControlPanel({
                     <label>
                       <span>Status</span>
                       <select
-                        disabled={form.role === 'Super User'}
+                        disabled={form.role === 'Super User' || formIsServiceAccount}
                         value={form.status}
                         onChange={(event) => updateFormField('status', event.target.value)}
                       >
@@ -1093,6 +1104,7 @@ function UserControlPanel({
                           <label>
                             <span>Membership Status</span>
                             <select
+                              disabled={formIsServiceAccount}
                               value={form.membershipStatus}
                               onChange={(event) =>
                                 updateFormField('membershipStatus', event.target.value)
@@ -1138,7 +1150,11 @@ function UserControlPanel({
                       />
                     ) : null}
                     {canManageAdminUsers ? (
-                      <ProfileTagPanel profileTags={form.profileTags} onChange={updateProfileTag} />
+                      <ProfileTagPanel
+                    canManageAdminUsers={canManageAdminUsers}
+                    profileTags={form.profileTags}
+                    onChange={updateProfileTag}
+                  />
                     ) : null}
                     {canManageAdminUsers ? (
                       <div className="password-panel">
@@ -1236,6 +1252,10 @@ function hasSelectedAdminPermission(permissions) {
   return USER_PERMISSION_OPTIONS.some((permission) => permissions[permission.key]);
 }
 
+// A service account's membership and profile status are pinned Active and its
+// dues Waived, by applyServiceAccountLock on every write path. The form
+// disables them rather than letting an admin set a value the save will
+// silently overwrite.
 function canProfileHoldAdminAuthority(profile) {
   return profile.role === 'Super User'
     || profile.status === 'Active' && profile.membershipStatus === 'Active';
@@ -1770,20 +1790,29 @@ function PermissionPanel({ canEditAdminPermissions = true, permissions, role, on
   );
 }
 
-function ProfileTagPanel({ profileTags, onChange }) {
+function ProfileTagPanel({ canManageAdminUsers = false, profileTags, onChange }) {
   const normalizedTags = normalizeProfileTags(profileTags);
 
   return (
     <div className="permission-panel">
       <span className="field-label">Profile Tags</span>
+      {!canManageAdminUsers ? (
+        <span className="form-help">
+          Only a Super User can change these.
+        </span>
+      ) : null}
       {PROFILE_TAG_OPTIONS.map((tag) => (
         <label className="checkbox-label" key={tag.key}>
           <input
             checked={normalizedTags.includes(tag.key)}
+            disabled={!canManageAdminUsers}
             type="checkbox"
             onChange={(event) => onChange(tag.key, event.target.checked)}
           />
-          <span>{tag.label}</span>
+          <span className="checkbox-label-copy">
+            <strong>{tag.label}</strong>
+            <small>{tag.description}</small>
+          </span>
         </label>
       ))}
     </div>

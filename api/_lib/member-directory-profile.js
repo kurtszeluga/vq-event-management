@@ -1,7 +1,13 @@
+import { isServiceAccount } from '../../shared/profileTags.js';
+
+// A service account is a standing guild mailbox, not a person, so it never
+// belongs in a directory of members - and it would otherwise qualify, since
+// its membership and profile are both locked Active.
 export function isEligibleForMemberDirectory(profile = {}) {
   return profile.status === 'Active'
     && profile.membershipStatus === 'Active'
-    && profile.role !== 'Super User';
+    && profile.role !== 'Super User'
+    && !isServiceAccount(profile);
 }
 
 export function buildMemberDirectoryProfile(userId, profile = {}, updatedDate) {

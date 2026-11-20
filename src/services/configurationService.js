@@ -16,6 +16,11 @@ import { auth, db } from '../lib/firebase.js';
 import { applyMemberDirectorySync, syncMemberDirectoryProfile } from './memberDirectoryProfile.js';
 import { normalizePermissions } from '../data/userRoles.js';
 import {
+  applyServiceAccountLock,
+  isServiceAccount,
+  normalizeProfileTags
+} from '../../shared/profileTags.js';
+import {
   DEFAULT_MEMBERSHIP_FEE_SCHEDULE,
   toMembershipDuesSettings
 } from '../../shared/membershipDues.js';
@@ -860,6 +865,16 @@ export async function archiveMember(member, actorProfile) {
 }
 
 export async function archiveMembershipProfile(profile, actorProfile) {
+  // Deliberately a two-step: a Super User clears the Service Account tag
+  // first, then archives. Letting the archive override the lock would make
+  // the lock advisory, and the whole value of it is that nothing routine can
+  // switch one of these accounts off.
+  if (isServiceAccount(profile)) {
+    throw new Error(
+      'This is a service account. Clear its Service Account tag before archiving it.'
+    );
+  }
+
   const batch = writeBatch(db);
   const profileRef = doc(db, 'users', profile.id);
   const payload = buildMembershipStatusProfile(profile, 'Archived');
@@ -1381,7 +1396,7 @@ export function buildManualMembershipProfile(profile, existingProfile, profileId
     previousPaymentStatus
   );
 
-  return {
+  return applyServiceAccountLock(existingProfile, {
     billingAddress: {
       ...(existingProfile.billingAddress || getEmptyBillingAddress()),
       city: clearableText(profile.town, existingProfile.billingAddress?.city)
@@ -1406,13 +1421,13 @@ export function buildManualMembershipProfile(profile, existingProfile, profileId
     name,
     permissions: getMembershipAllowedPermissions(existingProfile, membershipStatus),
     phone: clearableText(profile.phone, existingProfile.phone),
-    profileTags: Array.isArray(existingProfile.profileTags) ? existingProfile.profileTags : [],
+    profileTags: normalizeProfileTags(existingProfile.profileTags),
     role,
     status: existingProfile.status || 'Active',
     ...preserveTermsAcceptance(existingProfile),
     updatedDate: serverTimestamp(),
     userId: existingProfile.userId || profileId
-  };
+  });
 }
 
 export function buildMembershipStatusProfile(profile, membershipStatus) {
@@ -1496,9 +1511,19 @@ function preserveTermsAcceptance(profile) {
   };
 }
 
-function getProfilesMissingFromImport(users, importedProfileIds) {
+// Service accounts are skipped alongside Super Users, and for the same reason:
+// neither is a member the roster can speak for. A role mailbox will never be
+// in the CSV, so without this the annual refresh marks it Inactive, which
+// demotes it to General User and clears its permissions - the admin account
+// for programs or workshops would stop working every January.
+//
+// Exported so the Annual Refresh confirmation can count exactly what it is
+// about to change, rather than claiming a number that includes profiles it
+// will not touch.
+export function getProfilesMissingFromImport(users, importedProfileIds) {
   return users.filter((profile) =>
     profile.role !== 'Super User'
+      && !isServiceAccount(profile)
       && profile.status !== 'Archived'
       && profile.membershipStatus !== 'Archived'
       && !importedProfileIds.has(profile.id)
@@ -1602,6 +1627,13 @@ async function getMembershipSyncWrites(members) {
           : '';
 
       if (!matchedBy) {
+        return;
+      }
+
+      // A role mailbox is not a member record, even if a row happens to carry
+      // its address. Its membership is locked Active and nothing in the
+      // roster speaks for it.
+      if (isServiceAccount(user)) {
         return;
       }
 

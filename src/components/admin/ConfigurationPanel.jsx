@@ -45,6 +45,7 @@ import {
 import { BUSINESS_TYPES, EVENT_LOCATIONS, EVENT_TYPES } from '../../data/eventOptions.js';
 import { formatClockTime } from '../../utils/eventFormat.js';
 import { formatPhoneNumber, toTitleCase } from '../../utils/profileFormat.js';
+import { isServiceAccount } from '../../../shared/profileTags.js';
 
 const EMPTY_MEMBER_FORM = {
   email: '',
@@ -132,8 +133,14 @@ function ConfigurationPanel({ currentUserProfile }) {
   const [successMessage, setSuccessMessage] = useState('');
   const [timeFormOpen, setTimeFormOpen] = useState(false);
   const [timeForm, setTimeForm] = useState(EMPTY_TIME_FORM);
-  const memberCounts = getMemberCounts(members);
-  const statusMembers = members.filter(
+  // Service accounts are standing guild mailboxes, not members. Counting them
+  // would overstate the roster every year and leave a permanently Active
+  // "member" nobody can account for - and the Annual Refresh warning below
+  // reads its figure from the same place, so it would overstate what that
+  // import is about to change.
+  const rosterMembers = members.filter((member) => !isServiceAccount(member));
+  const memberCounts = getMemberCounts(rosterMembers);
+  const statusMembers = rosterMembers.filter(
     (member) => (member.membershipStatus || 'Unknown') === memberStatusFilter
   );
   const filteredMembers = sortMembersByLastName(
@@ -148,7 +155,7 @@ function ConfigurationPanel({ currentUserProfile }) {
   // elsewhere instead and leaves the switch to the admin.
   const otherStatusMatchCount = memberSearchTerm.trim()
     ? filterMembershipProfilesBySearch(
-      members.filter(
+      rosterMembers.filter(
         (member) => (member.membershipStatus || 'Unknown') !== memberStatusFilter
       ),
       memberSearchTerm

@@ -403,12 +403,7 @@ service cloud.firestore {
         && (!('profileTags' in request.resource.data)
           || request.resource.data.profileTags is list
             && request.resource.data.profileTags.size() <= 20
-            && request.resource.data.profileTags.hasOnly([
-              'vqBooking',
-              'vqHosting',
-              'teacher',
-              'volunteer'
-            ]))
+            && request.resource.data.profileTags.hasOnly(['serviceAccount']))
         && request.resource.data.permissions.keys().hasOnly([
           'manageEvents',
           'managePrograms',
@@ -582,6 +577,23 @@ service cloud.firestore {
           || request.resource.data.role == 'General User'
             && hasNoAdminPermissions());
     }
+
+    // Who may change the Service Account tag is NOT enforced here, and that is
+    // deliberate. Adding the before/after comparison to the addUsers branch
+    // tipped this rule set past Firestore's 1000-expression ceiling - a
+    // refusal has to evaluate every branch before it can answer "no", so the
+    // cost is the sum of them - and every users update began failing with
+    // "maximum of 1000 expressions to evaluate has been reached", which
+    // surfaces as an ordinary permission denial. Third time this ceiling has
+    // bitten here; see the notes on validSelfProfileEdit and
+    // validUserAdminUpdate.
+    //
+    // What the rules still do is pin the VALUE: profileTags may contain
+    // nothing but 'serviceAccount'. Who may set it is enforced in
+    // api/admin-update-user-profile.js, which carries the stored tags through
+    // untouched for anyone who is not a Super User, and the client writers
+    // (the CSV import, the Membership Profiles card) preserve them by
+    // construction rather than rebuilding them.
 
     function hasNoAdminPermissions() {
       return request.resource.data.permissions.manageEvents == false

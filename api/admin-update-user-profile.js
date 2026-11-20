@@ -5,6 +5,7 @@ import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { applyMemberDirectorySync } from './_lib/member-directory-profile.js';
 import { lookupAuthAccounts } from './_lib/auth-account.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
+import { applyServiceAccountLock, normalizeProfileTags } from '../shared/profileTags.js';
 import {
   EMAIL_CODE_EXPIRATION_MS,
   EMAIL_CODE_MAX_ATTEMPTS,
@@ -305,6 +306,12 @@ export default async function handler(request, response) {
 
 function sanitizePayload(payload, actorProfile, before, profileId) {
   const isSuperUser = actorProfile.role === 'Super User';
+  // Only a Super User may set or clear the Service Account tag; for anyone
+  // else the stored value is carried through, so an ordinary admin saving the
+  // profile cannot strip it by sending a payload without it.
+  const profileTags = isSuperUser
+    ? normalizeProfileTags(payload.profileTags)
+    : normalizeProfileTags(before.profileTags);
   const requestedRole = ['Super User', 'Admin', 'General User'].includes(payload.role)
     ? payload.role
     : before.role || 'General User';
@@ -331,7 +338,9 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
     status
   });
 
-  return {
+  // The lock is applied to the finished payload, after every other rule, so
+  // nothing above can leave a service account Inactive or unpaid.
+  return applyServiceAccountLock({ profileTags }, {
     billingAddress: {
       city: cleanText(payload.billingAddress?.city),
       country: cleanText(payload.billingAddress?.country) || 'United States',
@@ -349,13 +358,11 @@ function sanitizePayload(payload, actorProfile, before, profileId) {
     name: buildDisplayName(payload.firstName, payload.lastName),
     permissions: getPermissionsForRole(role, payload.permissions),
     phone: cleanText(payload.phone),
-    profileTags: isSuperUser
-      ? normalizeProfileTags(payload.profileTags)
-      : normalizeProfileTags(before.profileTags),
+    profileTags,
     role,
     status,
     userId: before.userId || profileId
-  };
+  });
 }
 
 function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedRole, status }) {
@@ -970,14 +977,6 @@ function profileAuthFieldsChanged(before, profile, targetProfileId) {
     || cleanText(before.email).toLowerCase() !== profile.email
     || cleanText(before.name) !== profile.name
     || (before.status || 'Active') !== profile.status;
-}
-
-function normalizeProfileTags(profileTags = []) {
-  const allowedTags = ['vqBooking', 'vqHosting'];
-
-  return Array.isArray(profileTags)
-    ? profileTags.filter((tag) => allowedTags.includes(tag))
-    : [];
 }
 
 async function updateAuthUser(localId, { disabled, displayName, email }) {

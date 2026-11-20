@@ -15,6 +15,7 @@ import { auth } from '../lib/firebase.js';
 import { db } from '../lib/firebase.js';
 import { applyMemberDirectorySync, syncMemberDirectoryProfile } from './memberDirectoryProfile.js';
 import { DEFAULT_USER_PERMISSIONS } from '../data/userRoles.js';
+import { isServiceAccount } from '../../shared/profileTags.js';
 
 const usersCollection = () => collection(db, 'users');
 const auditLogsCollection = () => collection(db, 'auditLogs');
@@ -136,6 +137,15 @@ export async function archiveUserProfile(userId, actorProfile) {
   const userRef = doc(db, 'users', userId);
   const userSnap = await getDoc(userRef);
   const before = userSnap.exists() ? userSnap.data() : {};
+
+  // The same two-step as archiveMembershipProfile: clear the Service Account
+  // tag first. Archiving sets status Inactive and demotes an Admin, which is
+  // exactly what the tag exists to prevent happening by accident.
+  if (isServiceAccount(before)) {
+    throw new Error(
+      'This is a service account. Clear its Service Account tag before archiving it.'
+    );
+  }
   const archivedBy = actorProfile?.name || actorProfile?.email || 'Unknown Admin';
   const batch = writeBatch(db);
   const after = {
