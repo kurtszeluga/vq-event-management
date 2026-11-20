@@ -1758,7 +1758,12 @@ function PermissionPanel({ canEditAdminPermissions = true, permissions, role, on
             type="checkbox"
             onChange={(event) => onChange(permission.key, event.target.checked)}
           />
-          <span>{permission.label}</span>
+          {/* Same strong/small pairing the event form's checkboxes use, so a
+              permission reads like every other explained option in the app. */}
+          <span className="checkbox-label-copy">
+            <strong>{permission.label}</strong>
+            <small>{permission.description}</small>
+          </span>
         </label>
       ))}
     </div>

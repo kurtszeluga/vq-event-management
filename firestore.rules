@@ -411,6 +411,7 @@ service cloud.firestore {
             ]))
         && request.resource.data.permissions.keys().hasOnly([
           'manageEvents',
+          'managePrograms',
           'viewRegistrations',
           'managePayments',
           'addUsers',
@@ -421,6 +422,8 @@ service cloud.firestore {
         && request.resource.data.permissions.manageEvents is bool
         && request.resource.data.permissions.viewRegistrations is bool
         && request.resource.data.permissions.managePayments is bool
+        && (!('managePrograms' in request.resource.data.permissions)
+          || request.resource.data.permissions.managePrograms is bool)
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers is bool)
         && request.resource.data.permissions.manageMembershipStatus is bool
@@ -564,6 +567,7 @@ service cloud.firestore {
         && request.resource.data.permissions is map
         && request.resource.data.permissions.keys().hasOnly([
           'manageEvents',
+          'managePrograms',
           'viewRegistrations',
           'managePayments',
           'addUsers',
@@ -584,6 +588,8 @@ service cloud.firestore {
         && request.resource.data.permissions.viewRegistrations == false
         && request.resource.data.permissions.managePayments == false
         && request.resource.data.permissions.manageMembershipStatus == false
+        && (!('managePrograms' in request.resource.data.permissions)
+          || request.resource.data.permissions.managePrograms == false)
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers == false)
         && (!('registerOthers' in request.resource.data.permissions)
@@ -991,7 +997,7 @@ service cloud.firestore {
         || hasPermission('viewRegistrations');
       allow create, update: if hasPermission('viewRegistrations')
         && validEventRegistrantNames(eventId);
-      allow delete: if hasPermission('manageEvents');
+      allow delete: if hasPermission('manageEvents') || hasPermission('managePrograms');
     }
 
     // The link between an event and its Google Sheet, plus the outcome of the
@@ -1007,7 +1013,9 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      allow read: if resource.data.status == 'Published' || hasPermission('manageEvents');
+      allow read: if resource.data.status == 'Published'
+        || hasPermission('manageEvents')
+        || hasPermission('managePrograms');
       // Event writes are server-only through /api/admin-manage-event.
       allow create, update, delete: if false;
     }

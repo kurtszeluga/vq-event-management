@@ -374,6 +374,7 @@ function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedR
 // because api/ is bundled separately and cannot import from src/.
 const USER_PERMISSION_KEYS = [
   'manageEvents',
+  'managePrograms',
   'viewRegistrations',
   'managePayments',
   'addUsers',

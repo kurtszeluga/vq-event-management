@@ -23,6 +23,7 @@ function App() {
     && (isSuperUser
       || hasPermission('addUsers')
       || hasPermission('manageEvents')
+      || hasPermission('managePrograms')
       || hasPermission('manageMembershipStatus')
       || hasPermission('viewRegistrations'));
   const showMemberDirectoryLink =
@@ -38,6 +39,7 @@ function App() {
     isAdmin
     && (isSuperUser
       || hasPermission('manageEvents')
+      || hasPermission('managePrograms')
       || hasPermission('addUsers')
       || hasPermission('viewRegistrations'));
   const currentYear = new Date().getFullYear();

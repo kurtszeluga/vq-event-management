@@ -280,6 +280,7 @@ export function getPermissionsForRole(role, permissions = {}) {
   const normalized = {
     addUsers: Boolean(permissions.addUsers),
     manageEvents: Boolean(permissions.manageEvents),
+    managePrograms: Boolean(permissions.managePrograms),
     managePayments: Boolean(permissions.managePayments),
     manageMembershipStatus: Boolean(permissions.manageMembershipStatus),
     registerOthers: Boolean(permissions.registerOthers),
@@ -288,6 +289,7 @@ export function getPermissionsForRole(role, permissions = {}) {
 
   return role === 'Admin' ? normalized : {
     manageEvents: false,
+    managePrograms: false,
     managePayments: false,
     manageMembershipStatus: false,
     registerOthers: false,

@@ -9,6 +9,10 @@ export { getEventPlaceholderImage } from '../../shared/eventImages.js';
 // one that does not offer it.
 export const NO_REGISTRATION_EVENT_TYPES = ['Other', 'Workshop'];
 
+// Re-exported so a component can reach the split without knowing where it
+// lives; shared/ is the home because the server enforces the same list.
+export { PROGRAM_EVENT_TYPES, isProgramEventType } from '../../shared/eventTypes.js';
+
 export const EVENT_TYPES = [
   'Class (Half Day)',
   'Class (Full Day)',

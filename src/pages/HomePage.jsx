@@ -10,7 +10,8 @@ function HomePage() {
   const canAddUsers = hasPermission('addUsers');
   const canReviewMemberships = isSuperUser || hasPermission('manageMembershipStatus');
   const hasAdminDashboardAccess =
-    isSuperUser || canAddUsers || hasPermission('manageEvents') || hasPermission('manageMembershipStatus');
+    isSuperUser || canAddUsers || hasPermission('manageEvents') || hasPermission('managePrograms')
+    || hasPermission('manageMembershipStatus');
   const [pendingMembershipCount, setPendingMembershipCount] = useState(0);
 
   useEffect(() => {

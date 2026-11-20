@@ -10,6 +10,7 @@ import PaymentReconciliationPanel from '../components/admin/PaymentReconciliatio
 import RegistrationPanel from '../components/admin/RegistrationPanel.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
+import { EVENT_TYPES, PROGRAM_EVENT_TYPES } from '../data/eventOptions.js';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
 import {
   loadPublicRegistrationCounts,
@@ -45,6 +46,7 @@ function AdminDashboardPage() {
   // to that event instead of making the admin find it again in its own list.
   const [registrationsJump, setRegistrationsJump] = useState(null);
   const canManageEvents = hasPermission('manageEvents');
+  const canManagePrograms = hasPermission('managePrograms');
   const canAddUsers = hasPermission('addUsers');
   const canRegisterOthers = isSuperUser || hasPermission('registerOthers');
   const canManageWaitlist = isSuperUser || hasPermission('manageWaitlist');
@@ -61,6 +63,7 @@ function AdminDashboardPage() {
     // Attention" alert chip is now its sole entry point, gated the same way
     // (canViewRegistrations) regardless of manageEvents.
     { id: 'registrations', label: 'Registrations', visible: canViewRegistrations && !canManageEvents },
+    { id: 'programs', label: 'Programs', visible: canManagePrograms },
     { id: 'events-activities', label: 'Events/Activities', visible: canManageEvents },
     { id: 'challenges', label: 'Challenges', visible: canManageEvents },
     { id: 'business-listings', label: 'Business Listings', visible: canManageEvents },
@@ -86,14 +89,35 @@ function AdminDashboardPage() {
       setUserControlsMembershipFilter(location.state.userControlsMembershipFilter);
     }
   }, [location.state]);
+  // The two event tabs are defined by exclusion from the same type list, so a
+  // type added later lands in exactly one of them rather than both or neither.
+  // Programs is the shared list; Events/Activities is everything that is left
+  // once Programs and the listing types are taken out.
+  const canManageActiveEventModule = activeModule === 'programs'
+    ? canManagePrograms
+    : canManageEvents;
   const eventModuleConfig = {
+    programs: {
+      title: 'Programs',
+      filter: 'All',
+      showTypeFilters: true,
+      createLabel: 'Create New Program',
+      createType: '',
+      excludedEventTypes: EVENT_TYPES.filter((type) => !PROGRAM_EVENT_TYPES.includes(type))
+    },
     'events-activities': {
       title: 'Events/Activities',
       filter: 'All',
       showTypeFilters: true,
       createLabel: 'Create New Event/Activity',
       createType: '',
-      excludedEventTypes: ['Business Listing', 'For Sale', 'Challenges', 'Membership']
+      excludedEventTypes: [
+        ...PROGRAM_EVENT_TYPES,
+        'Business Listing',
+        'For Sale',
+        'Challenges',
+        'Membership'
+      ]
     },
     challenges: {
       title: 'Challenges',
@@ -486,7 +510,7 @@ function AdminDashboardPage() {
             />
           </div>
         ) : null}
-        {canManageEvents && activeModule in eventModuleConfig ? (
+        {canManageActiveEventModule && activeModule in eventModuleConfig ? (
           <section className="admin-list-panel" id="existing-events-card">
             <div className="form-section-header form-section-header-stacked">
               <div className="form-section-header-top">
@@ -572,7 +596,7 @@ function AdminDashboardPage() {
         {isSuperUser && activeModule === 'configuration' ? (
           <ConfigurationPanel currentUserProfile={userProfile} />
         ) : null}
-        {!canManageEvents && !isSuperUser && !canAddUsers && !canViewRegistrations ? (
+        {!canManageEvents && !canManagePrograms && !isSuperUser && !canAddUsers && !canViewRegistrations ? (
           <div className="empty-state">
             <h2>No Admin Modules Enabled</h2>
             <p>Ask the Super User to update this profile's permissions.</p>
