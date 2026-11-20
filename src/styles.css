@@ -2253,6 +2253,15 @@ body.nav-sheet-open {
   pointer-events: none;
 }
 
+/* The explanation that stands in for the registration controls on an event
+   that cannot take one. Sized like the buttons it replaces so the card's
+   action row does not change height when an event closes. */
+.event-registration-unavailable {
+  align-self: center;
+  margin: 0;
+  max-width: 46ch;
+}
+
 .square-wallet-section {
   display: grid;
   gap: 8px;

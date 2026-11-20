@@ -15,6 +15,7 @@ import {
   isListingEventType
 } from '../../utils/eventFormat.js';
 import { isRegistrationWindowOpen, isWaitlistEnabled } from '../../../shared/registrationWindow.js';
+import { getRegistrationUnavailableReason } from '../../utils/registrationEligibility.js';
 import { getRegistrationAvailability } from '../../utils/registrationAvailability.js';
 import { getEventCostOn, isMembershipEvent } from '../../../shared/membershipDues.js';
 import { UNLISTED_EVENT_TYPES } from '../../data/eventOptions.js';
@@ -238,6 +239,9 @@ function EventList({
         const registrationStats = getEventRegistrationStats(event, counts, totalPaidByEventId[event.id]);
         const holdTimeLeft = formatHoldTimeLeft(counts.heldExpiresAt, now);
         const waitlistOnly = isWaitlistOnly(event, availability);
+        // The same helper the register page and the admin register panel use,
+        // so the card cannot disagree with the page it would have opened.
+        const registrationUnavailableReason = getRegistrationUnavailableReason(event);
         const isListing = isListingEventType(event.eventType);
 
         return (
@@ -486,6 +490,24 @@ function EventList({
                   paid event when cash or cheque is taken (the override in the
                   panel). Anyone paying by card has to use the signup link. */}
               {unlistedTypes.has(event.eventType) ? null : (
+              registrationUnavailableReason ? (
+                // The reason in place of the controls, rather than controls
+                // that open a page saying the same thing.
+                //
+                // 1e6182f (14 Nov) deliberately kept both buttons on an
+                // unavailable event, on the grounds that the register page
+                // names why and hiding them left an admin unable to tell an
+                // unavailable event from a missing permission. The first half
+                // of that did not survive contact: clicking through to be told
+                // "Registration is not currently open for this event" is a
+                // wasted trip to read a sentence the card can show. The second
+                // half still matters, which is why this says something rather
+                // than rendering nothing - an admin can still tell this apart
+                // from a card with no registration controls at all.
+                <span className="form-help event-registration-unavailable">
+                  {registrationUnavailableReason}
+                </span>
+              ) : (
               <>
               {/* An admin registering themselves is still an admin registration,
                   so this opens the same panel as Register A Member with their own
@@ -528,7 +550,7 @@ function EventList({
                 </button>
               ) : null}
               </>
-              )}
+              ))}
             </div>
           </div>
           </article>

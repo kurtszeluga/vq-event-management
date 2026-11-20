@@ -67,15 +67,17 @@ describe('the register controls on a full event', () => {
     expect(screen.getByRole('button', { name: 'Waitlist A Member' })).toBeTruthy();
   });
 
-  // Nothing is being offered on a closed event, waitlist included, so the
-  // labels stay put rather than inviting a queue that is not forming.
-  it('keeps ordinary wording on a full event whose registration has closed', () => {
+  // Nothing is being offered on a closed event, waitlist included - so rather
+  // than labels that invite a queue which is not forming, the card now says
+  // when registration closed and offers no controls at all.
+  it('shows the closing date instead of controls on a full, closed event', () => {
     renderList({ registered: 2 }, {
       registrationCloseAt: new Date(Date.now() - 86_400_000).toISOString()
     });
 
-    expect(screen.getByRole('button', { name: 'Register Myself' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Register A Member' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Register Myself' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Waitlist A Member|Register A Member/ })).toBeNull();
+    expect(screen.getByText(/Registration for this event closed/i)).toBeTruthy();
   });
 
   it('never says waitlist for an unlimited-capacity event', () => {
