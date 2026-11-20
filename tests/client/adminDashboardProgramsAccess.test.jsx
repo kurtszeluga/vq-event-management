@@ -30,12 +30,23 @@ vi.mock('../../src/context/useAuth.js', () => ({
 }));
 vi.mock('../../src/services/eventService.js', () => ({
   archiveEvent: vi.fn(),
+  createEvent: vi.fn(),
+  deleteEvent: vi.fn(),
+  getEvent: vi.fn(),
+  getEventRegistrationSheetState: vi.fn(() => Promise.resolve({})),
   reactivateEvent: vi.fn(),
   subscribeToAdminEvents: (onNext) => {
     subscribeCalled += 1;
     onNext({ docs: EVENTS.map((event) => ({ data: () => event, id: event.id })) });
     return () => {};
-  }
+  },
+  // Reached once a module auto-opens and renders its panel.
+  subscribeToPublishedEvents: (onNext) => {
+    onNext({ docs: EVENTS.map((event) => ({ data: () => event, id: event.id })) });
+    return () => {};
+  },
+  syncEventRegistrationSheet: vi.fn(),
+  updateEvent: vi.fn()
 }));
 vi.mock('../../src/services/registrationService.js', () => ({
   loadPublicRegistrationCounts: () => Promise.resolve({}),
@@ -54,7 +65,40 @@ vi.mock('../../src/services/userService.js', () => ({
     return () => {};
   }
 }));
-vi.mock('../../src/components/PageHeader.jsx', () => ({ default: () => null }));
+// Rendered rather than stubbed to null: the description is the thing under
+// test in half of these, and it lives in the header.
+vi.mock('../../src/components/PageHeader.jsx', () => ({
+  default: ({ description, title }) => (
+    <div>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </div>
+  )
+}));
+// The panels themselves are not under test here - this is about which of them
+// an account is given and whether their data is fetched - and rendering the
+// real ones drags in every service each one touches.
+vi.mock('../../src/components/admin/EventList.jsx', () => ({
+  default: () => <div data-testid="event-list" />
+}));
+vi.mock('../../src/components/admin/EventForm.jsx', () => ({
+  default: () => <div data-testid="event-form" />
+}));
+vi.mock('../../src/components/admin/RegistrationPanel.jsx', () => ({
+  default: () => <div data-testid="registration-panel" />
+}));
+vi.mock('../../src/components/admin/PaymentReconciliationPanel.jsx', () => ({
+  default: () => <div data-testid="payment-review" />
+}));
+vi.mock('../../src/components/admin/UserControlPanel.jsx', () => ({
+  default: () => <div data-testid="user-controls" />
+}));
+vi.mock('../../src/components/admin/ArchivePanel.jsx', () => ({
+  default: () => <div data-testid="archive-panel" />
+}));
+vi.mock('../../src/components/admin/ConfigurationPanel.jsx', () => ({
+  default: () => <div data-testid="configuration-panel" />
+}));
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to }) => <a href={to}>{children}</a>,
   useLocation: () => ({ state: null })
@@ -94,6 +138,82 @@ describe('a Programs-only admin', () => {
     render(<AdminDashboardPage />);
 
     expect(screen.queryByText('No Admin Modules Enabled')).toBeNull();
+  });
+});
+
+describe('the dashboard header and landing', () => {
+  it('describes only what this account can manage', async () => {
+    // The fixed sentence listed workshops, challenges, business listings and
+    // items for sale to an admin who could reach none of them.
+    permissions = { managePrograms: true };
+
+    render(<AdminDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Manage programs.')).toBeInTheDocument();
+    });
+  });
+
+  it('joins several modules readably', async () => {
+    permissions = { manageEvents: true, managePrograms: true };
+
+    render(<AdminDashboardPage />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/^Manage programs, events\/activities, .* and archive\.$/)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('opens the only module instead of asking which one', async () => {
+    permissions = { managePrograms: true };
+
+    render(<AdminDashboardPage />);
+
+    // The module's own panel is on screen without anything being clicked.
+    await waitFor(() => {
+      expect(screen.getByTestId('event-list')).toBeInTheDocument();
+    });
+  });
+
+  it('still asks when there is more than one module', async () => {
+    permissions = { manageEvents: true, managePrograms: true };
+
+    render(<AdminDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Programs' })).toBeInTheDocument();
+    });
+    // Nothing auto-selected, so no panel is showing yet.
+    expect(screen.queryByTestId('event-list')).toBeNull();
+  });
+});
+
+describe('a Programs admin who can also view registrations', () => {
+  it('gets the registrations overview on the Programs tab', async () => {
+    // It used to be keyed to Events/Activities alone, and the Registrations
+    // tab hides for anyone who can manage events - so this account had no
+    // route to the overview at all, only the Payment Review chip.
+    permissions = { managePrograms: true, viewRegistrations: true };
+
+    render(<AdminDashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Registrations/i })).toBeInTheDocument();
+    });
+  });
+
+  it('still gets no separate Registrations tab, which is deliberate', () => {
+    permissions = { managePrograms: true, viewRegistrations: true };
+
+    render(<AdminDashboardPage />);
+
+    // That tab exists only for someone who cannot reach registrations through
+    // an events card at all.
+    const tabs = screen.getAllByRole('button').map((button) => button.textContent);
+
+    expect(tabs).toContain('Programs');
   });
 });
 

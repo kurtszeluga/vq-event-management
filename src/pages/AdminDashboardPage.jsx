@@ -21,6 +21,14 @@ import { subscribeToUsers } from '../services/userService.js';
 import { isCashCheckAwaitingCollection } from '../utils/registrationEligibility.js';
 import { getTotalPaidAmount } from '../utils/registrationFinancials.js';
 
+function formatManageList(labels) {
+  if (labels.length <= 1) {
+    return labels[0] || '';
+  }
+
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+}
+
 function AdminDashboardPage() {
   const location = useLocation();
   const { hasPermission, isSuperUser, userProfile } = useAuth();
@@ -82,6 +90,25 @@ function AdminDashboardPage() {
   ].filter((module) => module.visible);
   const activeManageLabel =
     manageModules.find((module) => module.id === activeModule)?.label || 'Choose a section';
+  // Built from the modules this account actually has, not from a fixed
+  // sentence. The fixed one listed workshops, challenges, business listings
+  // and items for sale to an admin who could reach none of them, which is a
+  // worse first impression than saying nothing.
+  const manageDescription = manageModules.length
+    ? `Manage ${formatManageList(manageModules.map((module) => module.label.toLowerCase()))}.`
+    : 'No admin modules are enabled for this account.';
+  // With one module there is nothing to choose, so the chooser is pure
+  // friction between the admin and the only page they came for.
+  const onlyModuleId = manageModules.length === 1 ? manageModules[0].id : '';
+  // The two modules that hold registerable events. Challenges, listings and
+  // For Sale have no registration list to open.
+  const showsRegistrationsAction = ['events-activities', 'programs'].includes(activeModule);
+
+  useEffect(() => {
+    if (!activeModule && onlyModuleId) {
+      setActiveModule(onlyModuleId);
+    }
+  }, [activeModule, onlyModuleId]);
 
   useEffect(() => {
     if (location.state?.module) {
@@ -427,7 +454,7 @@ function AdminDashboardPage() {
       <PageHeader
         eyebrow="Admin"
         title="Admin Dashboard"
-        description="Manage programs, workshops, challenges, business listings, and items for sale."
+        description={manageDescription}
       />
       {canReviewMemberships || canViewRegistrations ? (
         <nav className="admin-alert-strip" aria-label="Needs attention">
@@ -495,7 +522,7 @@ function AdminDashboardPage() {
         {!activeModule && (canManageAnyEvents || isSuperUser || canAddUsers) ? (
           <div className="empty-state">
             <h2>Choose what you want to manage</h2>
-            <p>Use Manage/Edit above to open events, listings, user profiles, or setup tools - Registrations lives inside Events/Activities, and Payment Review is in the alert strip above.</p>
+            <p>Use Manage/Edit above to open events, listings, user profiles, or setup tools - Registrations lives inside the tab for the events it belongs to, and Payment Review is in the alert strip above.</p>
           </div>
         ) : null}
         {canManageAnyEvents && activeModule === 'event-details' ? (
@@ -528,9 +555,9 @@ function AdminDashboardPage() {
               <div className="form-section-header-top">
                 <h2>{eventModuleConfig[activeModule].title}</h2>
               </div>
-              {eventModuleConfig[activeModule].createLabel || (activeModule === 'events-activities' && canViewRegistrations) ? (
+              {eventModuleConfig[activeModule].createLabel || (showsRegistrationsAction && canViewRegistrations) ? (
                 <div className="admin-list-panel-actions">
-                  {activeModule === 'events-activities' && canViewRegistrations ? (
+                  {showsRegistrationsAction && canViewRegistrations ? (
                     <button
                       className="button-link button-reset secondary-action"
                       type="button"
