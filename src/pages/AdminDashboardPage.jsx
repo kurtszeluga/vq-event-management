@@ -47,6 +47,13 @@ function AdminDashboardPage() {
   const [registrationsJump, setRegistrationsJump] = useState(null);
   const canManageEvents = hasPermission('manageEvents');
   const canManagePrograms = hasPermission('managePrograms');
+  // Anything that is about EVENTS rather than about a particular tab has to
+  // ask this, not canManageEvents. Reading the events collection, editing an
+  // event, loading registration counts: a Programs-only admin does all three,
+  // just for fewer types. Gating the subscription on canManageEvents alone is
+  // what made the Programs tab show "No events yet" - the list was never
+  // fetched at all, which looks identical to there being none.
+  const canManageAnyEvents = canManageEvents || canManagePrograms;
   const canAddUsers = hasPermission('addUsers');
   const canRegisterOthers = isSuperUser || hasPermission('registerOthers');
   const canManageWaitlist = isSuperUser || hasPermission('manageWaitlist');
@@ -62,7 +69,7 @@ function AdminDashboardPage() {
     // in at all. Payment Review has no such tab anymore: the "Needs
     // Attention" alert chip is now its sole entry point, gated the same way
     // (canViewRegistrations) regardless of manageEvents.
-    { id: 'registrations', label: 'Registrations', visible: canViewRegistrations && !canManageEvents },
+    { id: 'registrations', label: 'Registrations', visible: canViewRegistrations && !canManageAnyEvents },
     { id: 'programs', label: 'Programs', visible: canManagePrograms },
     { id: 'events-activities', label: 'Events/Activities', visible: canManageEvents },
     { id: 'challenges', label: 'Challenges', visible: canManageEvents },
@@ -157,7 +164,7 @@ function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    if (!canManageEvents) {
+    if (!canManageAnyEvents) {
       setLoadingEvents(false);
       return undefined;
     }
@@ -175,10 +182,10 @@ function AdminDashboardPage() {
     );
 
     return unsubscribe;
-  }, [canManageEvents]);
+  }, [canManageAnyEvents]);
 
   useEffect(() => {
-    if (!canManageEvents || !events.length) {
+    if (!canManageAnyEvents || !events.length) {
       setEventRegistrationCounts({});
       return undefined;
     }
@@ -207,7 +214,7 @@ function AdminDashboardPage() {
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [canManageEvents, events]);
+  }, [canManageAnyEvents, events]);
 
   useEffect(() => {
     if (!canReviewMemberships) {
@@ -402,6 +409,10 @@ function AdminDashboardPage() {
       return 'membership';
     }
 
+    if (PROGRAM_EVENT_TYPES.includes(eventType)) {
+      return 'programs';
+    }
+
     return 'events-activities';
   }
 
@@ -479,17 +490,18 @@ function AdminDashboardPage() {
           ))}
         </div>
       </nav>
-      {eventsError && canManageEvents ? <p className="form-error">{eventsError}</p> : null}
+      {eventsError && canManageAnyEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
-        {!activeModule && (canManageEvents || isSuperUser || canAddUsers) ? (
+        {!activeModule && (canManageAnyEvents || isSuperUser || canAddUsers) ? (
           <div className="empty-state">
             <h2>Choose what you want to manage</h2>
             <p>Use Manage/Edit above to open events, listings, user profiles, or setup tools - Registrations lives inside Events/Activities, and Payment Review is in the alert strip above.</p>
           </div>
         ) : null}
-        {canManageEvents && activeModule === 'event-details' ? (
+        {canManageAnyEvents && activeModule === 'event-details' ? (
           <div id="event-details-card">
             <EventForm
+              allowedEventTypes={canManageEvents ? EVENT_TYPES : PROGRAM_EVENT_TYPES}
               editingEvent={editingEvent}
               initialEventType={draftEventType}
               onCancelEdit={() => {
@@ -596,7 +608,7 @@ function AdminDashboardPage() {
         {isSuperUser && activeModule === 'configuration' ? (
           <ConfigurationPanel currentUserProfile={userProfile} />
         ) : null}
-        {!canManageEvents && !canManagePrograms && !isSuperUser && !canAddUsers && !canViewRegistrations ? (
+        {!canManageAnyEvents && !isSuperUser && !canAddUsers && !canViewRegistrations ? (
           <div className="empty-state">
             <h2>No Admin Modules Enabled</h2>
             <p>Ask the Super User to update this profile's permissions.</p>

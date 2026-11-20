@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MAX_EVENT_IMAGES } from '../../../shared/eventImages.js';
 import { isListingEventType } from '../../../shared/eventListing.js';
 import {
@@ -51,12 +51,25 @@ function isInvalidTimeRange(startTime, endTime) {
 }
 
 function EventForm({
+  allowedEventTypes = EVENT_TYPES,
   editingEvent,
   initialEventType = '',
   onCancelEdit,
   onSaved,
   userProfile
 }) {
+  // An account restricted to Programs is offered only program types, because
+  // /api/admin-manage-event will refuse anything else and a dropdown that
+  // leads to a refusal on save explains nothing at the moment of choosing.
+  // An event already being edited keeps its own type in the list, so opening
+  // an existing record never silently blanks the field.
+  const selectableEventTypes = useMemo(() => {
+    const existing = editingEvent?.eventType;
+
+    return existing && !allowedEventTypes.includes(existing)
+      ? [...allowedEventTypes, existing]
+      : allowedEventTypes;
+  }, [allowedEventTypes, editingEvent]);
   const documentInputRef = useRef(null);
   const imageInputRefs = useRef([]);
   const pdfInputRef = useRef(null);
@@ -791,7 +804,7 @@ function EventForm({
               onChange={(event) => handleEventType(event.target.value)}
             >
               <option value="">Select One</option>
-              {EVENT_TYPES.map((eventType) => (
+              {selectableEventTypes.map((eventType) => (
                 <option key={eventType} value={eventType}>
                   {eventType}
                 </option>
