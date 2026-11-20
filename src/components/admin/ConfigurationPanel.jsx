@@ -22,6 +22,7 @@ import {
   saveEventTimeDefault,
   saveCoordinatorAssignment,
   sendEmailInstructionsTest,
+  MEMBERSHIP_PAYMENT_STATUS_OPTIONS,
   saveMembershipProfile,
   saveMembershipSettings,
   savePaymentSettings,
@@ -51,6 +52,7 @@ const EMPTY_MEMBER_FORM = {
   id: '',
   lastName: '',
   name: '',
+  paymentStatus: 'Pending',
   phone: '',
   status: 'Active',
   town: ''
@@ -216,7 +218,7 @@ function ConfigurationPanel({ currentUserProfile }) {
           />
         </label>
         <label>
-          <span>Status</span>
+          <span>Membership Status</span>
           <select
             value={memberForm.status}
             onChange={(event) =>
@@ -229,6 +231,30 @@ function ConfigurationPanel({ currentUserProfile }) {
             <option value="Archived">Archived</option>
             <option value="Unknown">Unknown</option>
           </select>
+          <span className="form-help">
+            Whether this person is a Guild member in good standing. Separate
+            from the profile status in User Controls, which governs signing in.
+          </span>
+        </label>
+        <label>
+          <span>Payment Status</span>
+          <select
+            value={memberForm.paymentStatus}
+            onChange={(event) =>
+              setMemberForm((current) => ({ ...current, paymentStatus: event.target.value }))
+            }
+          >
+            {MEMBERSHIP_PAYMENT_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+          <span className="form-help">
+            Whether this year&apos;s dues are in. Recording the amount, method
+            and note is still done in User Controls - this sets the status
+            only.
+          </span>
         </label>
         <div className="configuration-actions configuration-span">
           <button className="button-link button-reset" disabled={savingSection === 'member'} type="submit">
@@ -1323,7 +1349,7 @@ function ConfigurationPanel({ currentUserProfile }) {
         </div>
         {memberFormOpen && !memberForm.id ? renderMemberForm() : null}
         <ConfigurationTable
-          columns={['First Name', 'Last Name', 'Email', 'Phone', 'Membership', 'Profile', 'Actions']}
+          columns={['First Name', 'Last Name', 'Email', 'Phone', 'Membership', 'Payment', 'Profile', 'Actions']}
           emptyText={memberSearchTerm.trim()
             ? `No ${memberStatusFilter.toLowerCase()} membership profiles match `
               + `"${memberSearchTerm.trim()}".`
@@ -1336,6 +1362,7 @@ function ConfigurationPanel({ currentUserProfile }) {
               member.email || '-',
               member.phone || '-',
               member.membershipStatus || 'Unknown',
+              member.membershipPaymentStatus || 'Pending',
               member.status || 'Active',
             <RowActions
                 key={member.id}
@@ -1352,6 +1379,7 @@ function ConfigurationPanel({ currentUserProfile }) {
                   setMemberForm({
                     ...EMPTY_MEMBER_FORM,
                     ...member,
+                    paymentStatus: member.membershipPaymentStatus || 'Pending',
                     status: member.membershipStatus || 'Unknown',
                     town: member.billingAddress?.city || ''
                   });

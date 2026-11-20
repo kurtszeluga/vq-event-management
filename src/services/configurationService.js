@@ -1372,6 +1372,14 @@ export function buildManualMembershipProfile(profile, existingProfile, profileId
     : cleanText(profile.name || existingProfile.name);
   const membershipStatus = getValidProfileMembershipStatus(profile.status || profile.membershipStatus);
   const role = getMembershipAllowedRole(existingProfile, membershipStatus);
+  const previousPaymentStatus = existingProfile.membershipPaymentStatus || 'Pending';
+  // Editable from this card now, but it still falls back to what is stored:
+  // the CSV import writes 'Imported' here, and a form that did not send the
+  // field at all must not quietly reset that to Pending.
+  const membershipPaymentStatus = getValidMembershipPaymentStatus(
+    profile.paymentStatus,
+    previousPaymentStatus
+  );
 
   return {
     billingAddress: {
@@ -1387,8 +1395,12 @@ export function buildManualMembershipProfile(profile, existingProfile, profileId
     membershipPaymentAmount: existingProfile.membershipPaymentAmount || 0,
     membershipPaymentMethod: existingProfile.membershipPaymentMethod || '',
     membershipPaymentNote: existingProfile.membershipPaymentNote || '',
-    membershipPaymentStatus: existingProfile.membershipPaymentStatus || 'Pending',
-    membershipPaymentUpdatedDate: existingProfile.membershipPaymentUpdatedDate || serverTimestamp(),
+    membershipPaymentStatus,
+    // Only moved on when the status actually changed, so re-saving a name does
+    // not make an untouched payment look as though it was just reviewed.
+    membershipPaymentUpdatedDate: membershipPaymentStatus === previousPaymentStatus
+      ? existingProfile.membershipPaymentUpdatedDate || serverTimestamp()
+      : serverTimestamp(),
     membershipStatus,
     membershipUpdatedDate: serverTimestamp(),
     name,
@@ -1636,6 +1648,21 @@ function getValidMemberStatus(status) {
   }
 
   return 'Active';
+}
+
+// The five the Firestore rules accept. Anything else falls back to what was
+// already stored rather than to a default, so an unknown value cannot silently
+// downgrade a member who has paid.
+export const MEMBERSHIP_PAYMENT_STATUS_OPTIONS = [
+  'Pending',
+  'Paid',
+  'Imported',
+  'Waived',
+  'Refunded'
+];
+
+function getValidMembershipPaymentStatus(status, fallback) {
+  return MEMBERSHIP_PAYMENT_STATUS_OPTIONS.includes(status) ? status : fallback;
 }
 
 function getValidProfileMembershipStatus(status) {
