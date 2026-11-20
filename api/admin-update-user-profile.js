@@ -18,6 +18,7 @@ import {
   buildEmailChangeChallengeId,
   buildEmailChangeCodeEmail,
   buildEmailChangedNotice,
+  buildEmailTakenMessage,
   getEmailCodeSendDecision,
   validateEmailChange
 } from './_lib/email-change.js';
@@ -651,8 +652,10 @@ export async function handleStartEmailChange(request, response, db, actorUid, ac
     return;
   }
 
-  if (await isEmailTakenByAnotherProfile(db, validation.email, actorUid)) {
-    response.status(409).json({ error: 'Another account already uses that email address.' });
+  const startConflict = await findProfileUsingEmail(db, validation.email, actorUid);
+
+  if (startConflict) {
+    response.status(409).json({ error: buildEmailTakenMessage(startConflict) });
     return;
   }
 
@@ -777,8 +780,10 @@ export async function handleConfirmEmailChange(request, response, db, actorUid, 
 
   // Re-checked after the code, not only before it: ten minutes is long enough
   // for somebody else to have taken the address in between.
-  if (await isEmailTakenByAnotherProfile(db, newEmail, actorUid)) {
-    response.status(409).json({ error: 'Another account now uses that email address.' });
+  const confirmConflict = await findProfileUsingEmail(db, newEmail, actorUid);
+
+  if (confirmConflict) {
+    response.status(409).json({ error: buildEmailTakenMessage(confirmConflict) });
     return;
   }
 
@@ -897,10 +902,16 @@ export async function handleConfirmEmailChange(request, response, db, actorUid, 
   });
 }
 
-async function isEmailTakenByAnotherProfile(db, email, actorUid) {
+// Returns the clashing profile rather than a boolean, so the refusal can say
+// WHICH kind of account holds the address. Archived ones are deliberately
+// still counted: they keep both their profile email and their Auth record, so
+// letting the change through would only move the failure to Identity
+// Platform, which answers EMAIL_EXISTS and nothing useful.
+async function findProfileUsingEmail(db, email, actorUid) {
   const snapshot = await db.collection('users').where('email', '==', email).limit(2).get();
+  const clash = snapshot.docs.find((userDoc) => userDoc.id !== actorUid);
 
-  return snapshot.docs.some((userDoc) => userDoc.id !== actorUid);
+  return clash ? clash.data() : null;
 }
 
 function canUpdateUsers(actorProfile) {

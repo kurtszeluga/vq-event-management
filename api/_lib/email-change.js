@@ -154,3 +154,24 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+// Archiving a membership only sets `membershipStatus: 'Archived'` on the
+// profile - it does not touch the email, and it does not touch the Firebase
+// Auth record either. So an archived account goes on holding its address at
+// both layers, and a member trying to reuse it is refused for a reason the
+// generic "already in use" wording does not explain and they cannot act on.
+export function isArchivedProfileRecord(profile = {}) {
+  return profile.membershipStatus === 'Archived'
+    || profile.status === 'Archived'
+    || Boolean(profile.archivedDate)
+    || Boolean(profile.archivedBy);
+}
+
+export function buildEmailTakenMessage(conflictingProfile) {
+  if (conflictingProfile && isArchivedProfileRecord(conflictingProfile)) {
+    return 'That address belongs to an archived account. An administrator can free it '
+      + 'by changing or clearing the email on that account first.';
+  }
+
+  return 'Another account already uses that email address.';
+}

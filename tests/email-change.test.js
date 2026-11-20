@@ -4,7 +4,9 @@ import {
   buildEmailChangeChallengeId,
   buildEmailChangeCodeEmail,
   buildEmailChangedNotice,
+  buildEmailTakenMessage,
   getEmailCodeSendDecision,
+  isArchivedProfileRecord,
   validateEmailChange
 } from '../api/_lib/email-change.js';
 
@@ -146,4 +148,38 @@ test('an address with html in it cannot inject into either email', () => {
 
   assert.equal(notice.html.includes('<script>'), false);
   assert.match(notice.html, /&lt;script&gt;/);
+});
+
+// Reported from the test site: trying to move to an address an ARCHIVED
+// account holds was refused with the same wording as a clash with an active
+// member - true, but useless, because archiving does not release the address
+// and the member has no way to know that or what to do about it.
+test('an archived holder is recognised however it was archived', () => {
+  assert.equal(isArchivedProfileRecord({ membershipStatus: 'Archived' }), true);
+  assert.equal(isArchivedProfileRecord({ status: 'Archived' }), true);
+  assert.equal(isArchivedProfileRecord({ archivedDate: '2026-01-01' }), true);
+  assert.equal(isArchivedProfileRecord({ archivedBy: 'admin-1' }), true);
+
+  assert.equal(isArchivedProfileRecord({ membershipStatus: 'Active' }), false);
+  assert.equal(isArchivedProfileRecord({}), false);
+  assert.equal(isArchivedProfileRecord(), false);
+});
+
+test('the refusal says which kind of account holds the address', () => {
+  const archived = buildEmailTakenMessage({ membershipStatus: 'Archived' });
+
+  assert.match(archived, /archived account/);
+  // Without this the message states a fact the member cannot act on.
+  assert.match(archived, /administrator can free it/);
+
+  assert.equal(
+    buildEmailTakenMessage({ membershipStatus: 'Active' }),
+    'Another account already uses that email address.'
+  );
+  // No profile to inspect - the Identity Platform EMAIL_EXISTS path reaches
+  // here with nothing, and must still produce the plain wording.
+  assert.equal(
+    buildEmailTakenMessage(null),
+    'Another account already uses that email address.'
+  );
 });
