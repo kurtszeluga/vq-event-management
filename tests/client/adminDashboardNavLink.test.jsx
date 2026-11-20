@@ -19,6 +19,15 @@ vi.mock('../../src/services/userService.js', () => ({
   subscribeToUsers: () => () => {}
 }));
 
+// Required, not optional. App asks whether the member directory is switched on
+// before offering its nav link, and an unstubbed subscription reaches the real
+// implementation, which calls doc() on a `db` that is null without
+// VITE_FIREBASE_* set - so it passes on a machine with .env.local and fails
+// anywhere without one.
+vi.mock('../../src/services/configurationService.js', () => ({
+  subscribeToDirectorySettings: () => () => {}
+}));
+
 // An active Admin whose ticked permissions are whatever is passed in.
 // hasPermission() in the real app already requires role Admin and status
 // Active, so the set alone decides.
