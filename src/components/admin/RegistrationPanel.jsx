@@ -55,7 +55,17 @@ const QUARTER_FILTERS = [
 const DEFAULT_YEAR_FILTER = String(new Date().getFullYear());
 const DEFAULT_QUARTER_FILTER = getQuarterFilterValue(new Date());
 
+// null means unrestricted. It cannot default to ACTIVITY_FILTERS, because
+// Business Listing, For Sale and Other map to '' deliberately - they have no
+// filter button and appear only in the unfiltered view - so a list of the five
+// buttons would quietly drop them for everybody.
+function isActivityInScope(eventType, allowedActivityFilters) {
+  return !allowedActivityFilters
+    || allowedActivityFilters.includes(getActivityFilterValue(eventType));
+}
+
 function RegistrationPanel({
+  allowedActivityFilters = null,
   canManageEvents = false,
   canManageWaitlist = false,
   canRegisterOthers = false,
@@ -66,6 +76,9 @@ function RegistrationPanel({
   isSuperUser = false,
   onReturnToSource
 }) {
+  const visibleActivityFilters = allowedActivityFilters
+    ? ACTIVITY_FILTERS.filter((filter) => allowedActivityFilters.includes(filter))
+    : ACTIVITY_FILTERS;
   const [activityFilter, setActivityFilter] = useState('');
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [registerMemberOpen, setRegisterMemberOpen] = useState(false);
@@ -125,17 +138,30 @@ function RegistrationPanel({
       canManageEvents ? subscribeToAdminEvents : subscribeToPublishedEvents
     )(
       (snapshot) => {
-        setEvents(snapshot.docs.map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() })));
+        // Scoped here rather than at each of the dozen places that read it,
+        // so the type buttons, the status counts and every list below follow
+        // from one filter instead of each remembering to apply it.
+        setEvents(
+          snapshot.docs
+            .map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() }))
+            .filter((event) => isActivityInScope(event.eventType, allowedActivityFilters))
+        );
         markLoaded();
       },
       handleError
     );
     const unsubscribeRegistrations = subscribeToRegistrations(
       (snapshot) => {
-        setRegistrations(snapshot.docs.map((registrationDoc) => ({
-          id: registrationDoc.id,
-          ...registrationDoc.data()
-        })));
+        setRegistrations(
+          snapshot.docs
+            .map((registrationDoc) => ({ id: registrationDoc.id, ...registrationDoc.data() }))
+            // A registration carries its own eventType, which is what the rest
+            // of this panel falls back to when the event is not loaded.
+            .filter((registration) => isActivityInScope(
+              registration.eventType,
+              allowedActivityFilters
+            ))
+        );
         markLoaded();
       },
       handleError
@@ -874,8 +900,12 @@ function RegistrationPanel({
           </button>
         ))}
       </div>
+      {/* Hidden entirely when there is only one kind of activity in scope:
+          a single button that filters to everything already on screen is a
+          control with nothing to do. */}
+      {visibleActivityFilters.length > 1 ? (
       <div className="registration-activity-filters" aria-label="Registration activity filters">
-        {ACTIVITY_FILTERS.map((filter) => (
+        {visibleActivityFilters.map((filter) => (
           <button
             className={`status-filter-button${activityFilter === filter ? ' active' : ''}`}
             key={filter}
@@ -886,6 +916,7 @@ function RegistrationPanel({
           </button>
         ))}
       </div>
+      ) : null}
       <div className="registration-quarter-filters" aria-label="Registration quarter filters">
         <label className="registration-year-filter">
           <span>Year</span>

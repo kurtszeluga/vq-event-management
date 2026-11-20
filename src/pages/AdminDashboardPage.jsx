@@ -456,34 +456,6 @@ function AdminDashboardPage() {
         title="Admin Dashboard"
         description={manageDescription}
       />
-      {canReviewMemberships || canViewRegistrations ? (
-        <nav className="admin-alert-strip" aria-label="Needs attention">
-          {canReviewMemberships ? (
-            <button
-              className={`admin-alert-chip${pendingMembershipCount ? ' pending' : ''}`}
-              type="button"
-              onClick={openPendingMembershipReview}
-            >
-              <span className="admin-alert-dot" aria-hidden="true" />
-              {pendingMembershipCount
-                ? `${pendingMembershipCount} membership review${pendingMembershipCount === 1 ? '' : 's'} pending`
-                : 'No membership reviews pending'}
-            </button>
-          ) : null}
-          {canViewRegistrations ? (
-            <button
-              className={`admin-alert-chip${paymentReviewCount ? ' pending' : ''}`}
-              type="button"
-              onClick={() => setActiveModule('payment-review')}
-            >
-              {paymentReviewCount ? <span className="admin-alert-dot" aria-hidden="true" /> : null}
-              {paymentReviewCount
-                ? `${paymentReviewCount} payment${paymentReviewCount === 1 ? ' needs' : 's need'} review`
-                : 'Payment Review'}
-            </button>
-          ) : null}
-        </nav>
-      ) : null}
       <nav className="admin-module-nav admin-manage-nav admin-tab-nav" aria-label="Admin dashboard modules">
         <button
           className="admin-nav-toggle button-link button-reset"
@@ -517,6 +489,37 @@ function AdminDashboardPage() {
           ))}
         </div>
       </nav>
+      {/* Below the tab row, not above it. Sitting between the page title and
+          the tabs, a lone Payment Review chip read as a tab in a different
+          style; here it sits with the workspace it opens. */}
+      {canReviewMemberships || canViewRegistrations ? (
+        <nav className="admin-alert-strip" aria-label="Needs attention">
+          {canReviewMemberships ? (
+            <button
+              className={`admin-alert-chip${pendingMembershipCount ? ' pending' : ''}`}
+              type="button"
+              onClick={openPendingMembershipReview}
+            >
+              <span className="admin-alert-dot" aria-hidden="true" />
+              {pendingMembershipCount
+                ? `${pendingMembershipCount} membership review${pendingMembershipCount === 1 ? '' : 's'} pending`
+                : 'No membership reviews pending'}
+            </button>
+          ) : null}
+          {canViewRegistrations ? (
+            <button
+              className={`admin-alert-chip${paymentReviewCount ? ' pending' : ''}`}
+              type="button"
+              onClick={() => setActiveModule('payment-review')}
+            >
+              {paymentReviewCount ? <span className="admin-alert-dot" aria-hidden="true" /> : null}
+              {paymentReviewCount
+                ? `${paymentReviewCount} payment${paymentReviewCount === 1 ? ' needs' : 's need'} review`
+                : 'Payment Review'}
+            </button>
+          ) : null}
+        </nav>
+      ) : null}
       {eventsError && canManageAnyEvents ? <p className="form-error">{eventsError}</p> : null}
       <div className="admin-workspace">
         {!activeModule && (canManageAnyEvents || isSuperUser || canAddUsers) ? (
@@ -618,6 +621,7 @@ function AdminDashboardPage() {
         ) : null}
         {canViewRegistrations && activeModule === 'registrations' ? (
           <RegistrationPanel
+            allowedActivityFilters={canManageEvents ? null : ['Programs']}
             canManageEvents={canManageEvents}
             canManageWaitlist={canManageWaitlist}
             canRegisterOthers={canRegisterOthers}

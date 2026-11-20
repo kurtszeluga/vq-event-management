@@ -1,4 +1,5 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The Programs tab appeared and listed nothing.
@@ -14,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let permissions = {};
 let subscribeCalled = 0;
+let registrationPanelProps = null;
 
 const EVENTS = [
   { date: '2027-03-01', eventType: 'Lecture', id: 'e1', status: 'Published', title: 'Quilt History' },
@@ -85,7 +87,10 @@ vi.mock('../../src/components/admin/EventForm.jsx', () => ({
   default: () => <div data-testid="event-form" />
 }));
 vi.mock('../../src/components/admin/RegistrationPanel.jsx', () => ({
-  default: () => <div data-testid="registration-panel" />
+  default: (props) => {
+    registrationPanelProps = props;
+    return <div data-testid="registration-panel" />;
+  }
 }));
 vi.mock('../../src/components/admin/PaymentReconciliationPanel.jsx', () => ({
   default: () => <div data-testid="payment-review" />
@@ -109,6 +114,7 @@ const { default: AdminDashboardPage } = await import('../../src/pages/AdminDashb
 beforeEach(() => {
   permissions = {};
   subscribeCalled = 0;
+  registrationPanelProps = null;
 });
 
 afterEach(cleanup);
@@ -214,6 +220,38 @@ describe('a Programs admin who can also view registrations', () => {
     const tabs = screen.getAllByRole('button').map((button) => button.textContent);
 
     expect(tabs).toContain('Programs');
+  });
+});
+
+describe('the registrations card a Programs admin opens', () => {
+  it('is scoped to Programs, not every activity', async () => {
+    // Reported: the card offered Workshops, Retreat, Challenges and
+    // Membership filters, and counted every registration in the guild, to an
+    // admin who manages classes and lectures.
+    permissions = { managePrograms: true, viewRegistrations: true };
+
+    render(<AdminDashboardPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Registrations/i }));
+    await waitFor(() => {
+      expect(registrationPanelProps).not.toBeNull();
+    });
+    expect(registrationPanelProps.allowedActivityFilters).toEqual(['Programs']);
+  });
+
+  it('is unrestricted for an admin who manages every type', async () => {
+    permissions = { manageEvents: true, viewRegistrations: true };
+
+    render(<AdminDashboardPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Events/Activities' }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Registrations$/i }));
+    await waitFor(() => {
+      expect(registrationPanelProps).not.toBeNull();
+    });
+    // null, not the full list: Business Listing, For Sale and Other map to no
+    // filter button at all and would be dropped by an explicit list.
+    expect(registrationPanelProps.allowedActivityFilters).toBeNull();
   });
 });
 
