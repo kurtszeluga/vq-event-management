@@ -80,6 +80,10 @@ function RegistrationPanel({
   const visibleActivityFilters = allowedActivityFilters
     ? ACTIVITY_FILTERS.filter((filter) => allowedActivityFilters.includes(filter))
     : ACTIVITY_FILTERS;
+  // Kept apart from the panel-wide `error`, which renders at the top of the
+  // card: a refusal to save the payment edit belongs beside the button that
+  // was pressed, not above a form the admin has scrolled past.
+  const [paymentEditError, setPaymentEditError] = useState('');
   // Which event's Google Sheet card is open, if any.
   const [sheetCardEventId, setSheetCardEventId] = useState('');
   const [activityFilter, setActivityFilter] = useState('');
@@ -674,11 +678,13 @@ function RegistrationPanel({
     setSelectedPaymentAmount(String(registration.amountPaid ?? ''));
     setSelectedPaymentMethod(normalizePaymentMethod(registration.paymentMethod));
     setSelectedPaymentNote(registration.paymentNote || '');
+    setPaymentEditError('');
     setSelectedPaymentStatus(registration.paymentStatus || 'Pending');
   }
 
   function handlePaymentStatusChange(nextStatus) {
     setSelectedPaymentStatus(nextStatus);
+    setPaymentEditError('');
 
     if (nextStatus === 'Pending') {
       setSelectedPaymentMethod('');
@@ -773,10 +779,12 @@ function RegistrationPanel({
     });
 
     if (nextPayment.error) {
-      setError(nextPayment.error);
+      setPaymentEditError(nextPayment.error);
       setSuccessMessage('');
       return;
     }
+
+    setPaymentEditError('');
 
     const paymentChanged = hasPaymentChanged(selectedRegistration, nextPayment.payment);
 
@@ -1498,10 +1506,14 @@ function RegistrationPanel({
                 <label className="registration-payment-note">
                   <span>Payment Note</span>
                   <textarea
+                    className={paymentEditError === REFUND_NOTE_ERROR ? 'field-invalid' : ''}
                     disabled={paymentEditState.noteLocked}
                     rows="3"
                     value={selectedPaymentNote}
-                    onChange={(event) => setSelectedPaymentNote(event.target.value)}
+                    onChange={(event) => {
+                      setSelectedPaymentNote(event.target.value);
+                      setPaymentEditError('');
+                    }}
                     placeholder={selectedPaymentStatus === 'Refunded' ? 'Enter refund date, who approved it, and why.' : ''}
                   />
                 </label>
@@ -1514,6 +1526,9 @@ function RegistrationPanel({
               <h3>Payment History</h3>
               <PaymentHistoryList payments={selectedPaymentHistory} />
             </div>
+            {paymentEditError ? (
+              <p className="form-error registration-payment-error">{paymentEditError}</p>
+            ) : null}
             <div className="form-actions">
               <button
                 className="button-link button-reset"

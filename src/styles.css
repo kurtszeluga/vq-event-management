@@ -3935,6 +3935,26 @@ div.csv-preview-warning {
   grid-column: 1 / -1;
 }
 
+/* .field-invalid is styled only inside .admin-form and .form-panel, and this
+   textarea is in neither - so without this rule the box the error tells you to
+   fill in would not actually be marked. */
+.registration-payment-note .field-invalid {
+  background: #fff6f3;
+  border-color: #b42318;
+}
+
+.registration-payment-note .field-invalid:focus {
+  border-color: #b42318;
+  outline-color: #ffd7cc;
+}
+
+/* Directly above the button that refused, so the reason and the control that
+   produced it are read together rather than one being at the top of a card the
+   admin has already scrolled past. */
+.registration-payment-error {
+  margin: 0 0 10px;
+}
+
 .registration-payment-help {
   grid-column: 1 / -1;
   margin: 0;
