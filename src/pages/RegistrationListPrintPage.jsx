@@ -4,13 +4,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth.js';
 import { getEvent } from '../services/eventService.js';
 import { getRegistrationsForEvent } from '../services/registrationService.js';
-import {
-  getEventRegistrationSheetState,
-  syncEventRegistrationSheet
-} from '../services/eventService.js';
-import { getEventRegistrationSheet } from '../services/eventRegistrationSheet.js';
-import { getRegistrationSheetSettings } from '../services/configurationService.js';
-import { getRegistrationSheetStatus } from '../utils/registrationSheetStatus.js';
 import { formatCurrency, formatEventDate } from '../utils/eventFormat.js';
 import { isMembershipEvent } from '../../shared/membershipDues.js';
 import { getTotalPaidAmount } from '../utils/registrationFinancials.js';
@@ -29,26 +22,6 @@ import { isPaymentPending } from '../utils/registrationEligibility.js';
 // wrong, which is the ordinary state for an event set up before the feature
 // was switched on. Muted text made those too easy to miss; .form-error would
 // cry wolf.
-const SHEET_TONE_CLASS = {
-  error: 'form-error',
-  info: 'form-info',
-  notice: 'form-notice'
-};
-
-// Says what happened to the coordinator's own rows as well as to the synced
-// ones. Worth naming explicitly: a coordinator who has typed walk-ins into the
-// sheet wants to know the rewrite put them back, not just that it ran.
-function buildSyncSummary({ manualRowCount = 0, rowCount = 0 }) {
-  const registrations = `${rowCount} registration${rowCount === 1 ? '' : 's'}`;
-
-  if (!manualRowCount) {
-    return `Sheet updated with ${registrations}.`;
-  }
-
-  return `Sheet updated with ${registrations}, keeping ${manualRowCount} `
-    + `hand-entered row${manualRowCount === 1 ? '' : 's'}.`;
-}
-
 function RegistrationListPrintPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -61,19 +34,11 @@ function RegistrationListPrintPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [printDocumentHtml, setPrintDocumentHtml] = useState('');
-  const [sheetLink, setSheetLink] = useState(null);
   // null means "not known": the settings read failed. Deliberately distinct
   // from false, because showing nothing (which is correct when the feature is
   // off) would otherwise be indistinguishable from the page quietly failing to
   // find out.
-  const [sheetsEnabled, setSheetsEnabled] = useState(false);
-  const [sheetEdited, setSheetEdited] = useState(false);
-  const [sheetMessage, setSheetMessage] = useState('');
-  const [syncingSheet, setSyncingSheet] = useState(false);
-  const [sheetPromptOpen, setSheetPromptOpen] = useState(false);
   // Once per visit. A reload raises it again, but a re-render does not, and
-  // neither does answering it or putting the sheet right.
-  const [sheetPromptSeen, setSheetPromptSeen] = useState(false);
   const printFrameRef = useRef(null);
 
   useEffect(() => {
@@ -86,24 +51,9 @@ function RegistrationListPrintPage() {
 
     async function loadData() {
       try {
-        const [
-          eventRecord,
-          registrationRecords,
-          sheetRecord,
-          sheetSettings,
-          sheetState
-        ] = await Promise.all([
+        const [eventRecord, registrationRecords] = await Promise.all([
           getEvent(eventId),
-          getRegistrationsForEvent(eventId),
-          // Never the reason this page fails to load: the attendee list is
-          // what the coordinator came for, and anything about the sheet is a
-          // convenience on top of it.
-          getEventRegistrationSheet(eventId).catch(() => null),
-          getRegistrationSheetSettings().catch(() => 'unreadable'),
-          // Only the server can reach Drive, and this is the one question the
-          // app's own records cannot answer. Never the reason the page fails
-          // to load - the attendee list matters more than the sheet status.
-          getEventRegistrationSheetState(eventId).catch(() => null)
+          getRegistrationsForEvent(eventId)
         ]);
 
         if (!active) {
@@ -112,13 +62,6 @@ function RegistrationListPrintPage() {
 
         setEvent(eventRecord);
         setRegistrations(registrationRecords);
-        setSheetLink(sheetRecord);
-        setSheetsEnabled(
-          sheetSettings === 'unreadable'
-            ? null
-            : sheetSettings?.enableRegistrationSheets === true
-        );
-        setSheetEdited(sheetState?.editedSinceSync === true);
         setError('');
       } catch (loadError) {
         if (active) {
@@ -148,32 +91,7 @@ function RegistrationListPrintPage() {
     registered: 0,
     waitlisted: 0
   }), [sortedRegistrations]);
-  // What, if anything, to offer about the Google Sheet. The sync is automatic,
-  // so the control is only rendered in the states where pressing it does
-  // something - see src/utils/registrationSheetStatus.js.
-  const sheetStatus = useMemo(
-    () => getRegistrationSheetStatus({
-      editedSinceSync: sheetEdited,
-      enabled: sheetsEnabled,
-      registrations,
-      sheet: sheetLink
-    }),
-    [registrations, sheetEdited, sheetLink, sheetsEnabled]
-  );
   const totalPaid = useMemo(() => getTotalPaidAmount(sortedRegistrations), [sortedRegistrations]);
-
-  // Interrupts only where the sheet is KNOWN to disagree with the app - behind,
-  // or the last sync failed. Never for an event that has simply never had a
-  // sheet, and never when everything is current: a popup that fires when
-  // nothing is wrong is how people learn to dismiss popups without reading.
-  useEffect(() => {
-    if (sheetPromptSeen || !sheetStatus.prompt) {
-      return;
-    }
-
-    setSheetPromptOpen(true);
-    setSheetPromptSeen(true);
-  }, [sheetPromptSeen, sheetStatus.prompt]);
 
   // Printing the live SPA page directly (window.print() on this document)
   // is what made Safari's print dialog take forever - every other report in
@@ -302,28 +220,6 @@ function RegistrationListPrintPage() {
   // predates the feature has never had a sheet at all. The server answers with
   // ok:false and a reason rather than an error when the feature is switched
   // off, so that reason is what gets shown.
-  async function handleSyncSheet() {
-    setSyncingSheet(true);
-    setSheetMessage('');
-
-    try {
-      const result = await syncEventRegistrationSheet(eventId);
-
-      setSheetLink(await getEventRegistrationSheet(eventId));
-      // The rewrite has just put the sheet back, so whatever was edited by
-      // hand no longer differs - without this the warning would persist until
-      // the page was reloaded.
-      setSheetEdited(false);
-      setSheetMessage(result.ok ? buildSyncSummary(result) : (
-        result.reason || 'The sheet could not be updated.'
-      ));
-    } catch (syncError) {
-      setSheetMessage(syncError.message);
-    } finally {
-      setSyncingSheet(false);
-    }
-  }
-
   function handleExportCsv() {
     downloadCsv(
       buildCsvFilename(event.title || event.eventType, event.date),
@@ -342,26 +238,6 @@ function RegistrationListPrintPage() {
           <h1>{event.title || event.eventType || 'Event'}</h1>
         </div>
         <div className="viewer-actions">
-          {sheetStatus.state !== 'disabled' && sheetLink?.spreadsheetUrl ? (
-            <a
-              className="button-link secondary-action"
-              href={sheetLink.spreadsheetUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Open Google Sheet
-            </a>
-          ) : null}
-          {sheetStatus.actionable ? (
-            <button
-              className="button-link secondary-action"
-              disabled={syncingSheet}
-              type="button"
-              onClick={handleSyncSheet}
-            >
-              {syncingSheet ? 'Working...' : sheetStatus.actionLabel}
-            </button>
-          ) : null}
           <button
             className="button-link secondary-action"
             disabled={!sortedRegistrations.length}
@@ -378,30 +254,11 @@ function RegistrationListPrintPage() {
           </button>
         </div>
       </header>
-      {sheetMessage ? <p className="form-success">{sheetMessage}</p> : null}
-      {!sheetMessage && sheetStatus.message ? (
-        <p className={SHEET_TONE_CLASS[sheetStatus.tone] || 'form-info'}>
-          Google Sheet: {sheetStatus.message}
-          {/* Only where the toolbar is not already offering a button. A hand
-              edit to the sheet cannot be detected from here, so this stays
-              available as the way back from one - quiet enough not to read as
-              an instruction, which is what the old permanent button did. */}
-          {sheetStatus.canRefresh && !sheetStatus.actionable ? (
-            <>
-              {' '}
-              <button
-                className="text-button"
-                disabled={syncingSheet}
-                type="button"
-                onClick={handleSyncSheet}
-              >
-                {syncingSheet ? 'Updating...' : 'Update now'}
-              </button>
-              {sheetStatus.refreshHint ? ` ${sheetStatus.refreshHint}` : null}
-            </>
-          ) : null}
-        </p>
-      ) : null}
+      {/* Everything about the Google Sheet now lives on its own card, reached
+          from the Google Sheet button beside Print Registration List in the
+          registrations module. It was here because this page happened to load
+          the event - but nobody opens a print view to reach a spreadsheet, so
+          in practice these controls were hidden. */}
       <article className="registration-admin-card">
         <div className="registration-admin-card-header">
           <div>
@@ -486,20 +343,6 @@ function RegistrationListPrintPage() {
           )}
         </div>
       </article>
-      <ConfirmDialog
-        busy={syncingSheet}
-        cancelLabel="Not now"
-        confirmLabel={sheetStatus.actionLabel || 'Update Sheet'}
-        description={`${sheetStatus.message || ''} Updating rebuilds it from the registrations shown here.`}
-        onCancel={() => setSheetPromptOpen(false)}
-        onConfirm={async () => {
-          await handleSyncSheet();
-          setSheetPromptOpen(false);
-        }}
-        open={sheetPromptOpen}
-        title={sheetStatus.promptTitle || 'The Google Sheet needs updating'}
-        tone={sheetStatus.tone === 'error' ? 'danger' : 'default'}
-      />
       <iframe
         aria-hidden="true"
         className="print-helper-frame"

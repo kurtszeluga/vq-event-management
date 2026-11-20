@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AdminRegisterMemberPanel from './AdminRegisterMemberPanel.jsx';
+import EventGoogleSheetCard from './EventGoogleSheetCard.jsx';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import ModalDialog from '../ModalDialog.jsx';
 import {
@@ -79,6 +80,8 @@ function RegistrationPanel({
   const visibleActivityFilters = allowedActivityFilters
     ? ACTIVITY_FILTERS.filter((filter) => allowedActivityFilters.includes(filter))
     : ACTIVITY_FILTERS;
+  // Which event's Google Sheet card is open, if any.
+  const [sheetCardEventId, setSheetCardEventId] = useState('');
   const [activityFilter, setActivityFilter] = useState('');
   const [eventStatusFilter, setEventStatusFilter] = useState('Active');
   const [registerMemberOpen, setRegisterMemberOpen] = useState(false);
@@ -698,6 +701,12 @@ function RegistrationPanel({
     if (nextStatus === 'Refunded') {
       setSelectedPaymentMethod(normalizePaymentMethod(selectedRegistration?.paymentMethod));
       setSelectedPaymentAmount(String(selectedRegistration?.amountPaid ?? 0));
+      // Emptied so the requirement is visible. The box opens holding whatever
+      // note the registration already carries - for an online payment that is
+      // "Paid online through Square." - which is why a non-empty check never
+      // stopped anybody. Nothing is lost: the Paid branch of
+      // normalizePaymentEdit ignores this field and keeps the stored note.
+      setSelectedPaymentNote('');
       return;
     }
 
@@ -1318,6 +1327,19 @@ function RegistrationPanel({
                 >
                   Print Registration List
                 </Link>
+                {/* Beside the print link, because that is where someone
+                    looking for "what can I do with this event's list" already
+                    is. These controls used to live in the print page's
+                    toolbar, which nobody opens to reach a spreadsheet. */}
+                <button
+                  className="button-link button-reset secondary-action"
+                  type="button"
+                  onClick={() => setSheetCardEventId(
+                    sheetCardEventId === group.eventId ? '' : group.eventId
+                  )}
+                >
+                  {sheetCardEventId === group.eventId ? 'Hide Google Sheet' : 'Google Sheet'}
+                </button>
                 <button
                   className="button-link button-reset"
                   type="button"
@@ -1326,6 +1348,14 @@ function RegistrationPanel({
                   Return
                 </button>
               </div>
+              {sheetCardEventId === group.eventId ? (
+                <EventGoogleSheetCard
+                  eventId={group.eventId}
+                  eventTitle={group.event?.title || group.eventTitle || ''}
+                  registrations={group.registrations}
+                  onClose={() => setSheetCardEventId('')}
+                />
+              ) : null}
             </article>
           );
         }) : null}
@@ -2057,7 +2087,22 @@ function getPaymentEditState(registration, paymentStatus) {
   };
 }
 
-function normalizePaymentEdit(registration, paymentEdit) {
+const REFUND_NOTE_ERROR = 'Enter refund details: when, who approved it, and why.';
+
+// Not merely non-empty: different from the note already on the registration.
+// The edit form pre-fills this field from the registration, so "has something
+// in it" was always true and the old check never fired once - a Square refund
+// could be processed with the payment's own note, "Paid online through
+// Square.", left standing as its explanation, and the server then appended the
+// refund id to it. The record that resulted said nothing about who approved
+// the refund or why, which is the whole reason the field is required.
+function isRefundNoteMissing(paymentNote, registration) {
+  return !paymentNote || paymentNote === String(registration?.paymentNote || '').trim();
+}
+
+// Exported for tests/client/refundNoteRequired.test.js: this is the guard that
+// stands between an admin and a real Square refund, and it silently did not.
+export function normalizePaymentEdit(registration, paymentEdit) {
   const paymentStatus = paymentEdit.paymentStatus || 'Pending';
   const paymentNote = paymentEdit.paymentNote.trim();
 
@@ -2088,8 +2133,8 @@ function normalizePaymentEdit(registration, paymentEdit) {
       return { error: 'Online Square payments can only be marked refunded.' };
     }
 
-    if (!paymentNote) {
-      return { error: 'Enter refund details: when, who approved it, and why.' };
+    if (isRefundNoteMissing(paymentNote, registration)) {
+      return { error: REFUND_NOTE_ERROR };
     }
 
     return {
@@ -2136,8 +2181,8 @@ function normalizePaymentEdit(registration, paymentEdit) {
   }
 
   if (paymentStatus === 'Refunded') {
-    if (!paymentNote) {
-      return { error: 'Enter refund details: when, who approved it, and why.' };
+    if (isRefundNoteMissing(paymentNote, registration)) {
+      return { error: REFUND_NOTE_ERROR };
     }
 
     return {
