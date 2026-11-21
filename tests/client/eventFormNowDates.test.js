@@ -14,7 +14,7 @@ vi.mock('../../src/services/configurationService.js', () => ({
   subscribeToPaymentSettings: () => () => {}
 }));
 
-const { stampNowDates } = await import('../../src/components/admin/EventForm.jsx');
+const { getListingEndDefault, stampNowDates } = await import('../../src/components/admin/EventForm.jsx');
 
 const today = new Date().toISOString().slice(0, 10);
 const FUTURE = '2099-11-30T09:00';
@@ -93,5 +93,91 @@ describe('stampNowDates', () => {
     });
 
     expect(result.registrationOpenAt).toBe('');
+  });
+});
+
+describe('the listing end default', () => {
+  const EVENT_DAY = '2099-12-11';
+
+  it('comes down at 9 a.m. on the day of the event', () => {
+    // Asked for on 2026-11-21: the guild takes registrations nearly up to the
+    // day, so a listing told to appear Now should come down that morning
+    // rather than having no stated end at all.
+    const result = stampNowDates({
+      date: EVENT_DAY,
+      eventType: 'Class (Full Day)',
+      listingMode: 'now',
+      registrationMode: 'none',
+      visibleFrom: '',
+      visibleUntil: ''
+    });
+
+    expect(result.visibleUntil).toBe(`${EVENT_DAY}T09:00`);
+  });
+
+  it('leaves a Remove Listing date the admin typed alone', () => {
+    const result = stampNowDates({
+      date: EVENT_DAY,
+      eventType: 'Class (Full Day)',
+      listingMode: 'now',
+      registrationMode: 'none',
+      visibleFrom: FUTURE,
+      visibleUntil: '2099-12-01T17:00'
+    });
+
+    expect(result.visibleUntil).toBe('2099-12-01T17:00');
+  });
+
+  it('invents nothing for a type with no event date', () => {
+    // Challenges and Membership collect no date, and the two listing types
+    // carry their own expiry - For Sale is six months out, a Business
+    // Listing is open-ended.
+    for (const eventType of ['Challenges', 'Membership', 'For Sale', 'Business Listing']) {
+      expect(getListingEndDefault({ date: '', eventType })).toBe('');
+    }
+
+    // Even with a date on it, a challenge keeps its own midnight window.
+    expect(getListingEndDefault({ date: EVENT_DAY, eventType: 'Challenges' })).toBe('');
+  });
+
+  it('pulls a defaulted registration close date back to the listing end', () => {
+    // A full-day class closes registration at its 9:30 start by default,
+    // which is AFTER the 9 a.m. listing end - and validateEventForm refuses
+    // that pair, because isEventVisible() gates registration as well as
+    // listing. Without this the form would refuse its own suggestion.
+    const result = stampNowDates(
+      {
+        date: EVENT_DAY,
+        eventType: 'Class (Full Day)',
+        listingMode: 'now',
+        registrationMode: 'now',
+        registrationCloseAt: `${EVENT_DAY}T09:30`,
+        visibleFrom: '',
+        visibleUntil: ''
+      },
+      { defaultCloseAt: `${EVENT_DAY}T09:30` }
+    );
+
+    expect(result.visibleUntil).toBe(`${EVENT_DAY}T09:00`);
+    expect(result.registrationCloseAt).toBe(`${EVENT_DAY}T09:00`);
+  });
+
+  it('leaves a close date the admin typed for the validation to refuse', () => {
+    // The existing rule in this file: a deliberate choice is refused rather
+    // than silently rewritten.
+    const result = stampNowDates(
+      {
+        date: EVENT_DAY,
+        eventType: 'Class (Full Day)',
+        listingMode: 'now',
+        registrationMode: 'now',
+        registrationCloseAt: `${EVENT_DAY}T16:30`,
+        visibleFrom: '',
+        visibleUntil: ''
+      },
+      { defaultCloseAt: `${EVENT_DAY}T09:30` }
+    );
+
+    expect(result.registrationCloseAt).toBe(`${EVENT_DAY}T16:30`);
   });
 });

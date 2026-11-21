@@ -2,7 +2,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { verifyFirebaseIdToken } from './_lib/firebase-token.js';
 import { enforceRateLimit } from './_lib/rate-limit.js';
-import { isProgramEventType } from '../shared/eventTypes.js';
+import { getEventTypePermissionKey } from '../shared/eventTypes.js';
 import {
   didCapacityGrow,
   getArchiveBlockError,
@@ -136,13 +136,13 @@ export default async function handler(request, response) {
     const eventData = request.body?.eventData && typeof request.body.eventData === 'object'
       ? request.body.eventData
       : {};
-    const programScopeError = await getProgramScopeError(db, actorProfile, {
+    const eventScopeError = await getEventScopeError(db, actorProfile, {
       eventData,
       eventId
     });
 
-    if (programScopeError) {
-      response.status(403).json({ error: programScopeError });
+    if (eventScopeError) {
+      response.status(403).json({ error: eventScopeError });
       return;
     }
 
@@ -351,26 +351,27 @@ function canManageEvents(actorProfile) {
 
   return actorProfile.role === 'Admin'
     && (actorProfile.permissions?.manageEvents === true
-      || actorProfile.permissions?.managePrograms === true);
-}
-
-// Whether this account may manage EVERY type, as opposed to only Programs.
-function canManageEveryEventType(actorProfile) {
-  return actorProfile.role === 'Super User'
-    || actorProfile.permissions?.manageEvents === true;
+      || actorProfile.permissions?.managePrograms === true
+      || actorProfile.permissions?.manageChallenges === true);
 }
 
 // Event writes are server-only - firestore.rules refuses create/update/delete
-// on /events outright - so this function is the whole boundary between a
-// Programs-only admin and the rest of the calendar. The tabs showing them
-// nothing else is presentation; this is enforcement.
+// on /events outright - so this function is the whole boundary between an
+// admin holding one slice of the calendar and the rest of it. The tabs showing
+// them nothing else is presentation; this is enforcement.
+//
+// Each event type belongs to exactly one permission
+// (getEventTypePermissionKey), so this asks the same question of every slice
+// rather than special-casing Programs: Programs covers the classes and
+// lectures, Challenges covers challenges, and Manage Events And Activities
+// covers everything else.
 //
 // Both the submitted type and the stored one are checked. Only the submitted
 // one, and a Programs admin could edit a workshop by labelling it a lecture;
 // only the stored one, and they could convert a lecture into a workshop and
 // keep editing it.
-async function getProgramScopeError(db, actorProfile, { eventData, eventId }) {
-  if (canManageEveryEventType(actorProfile)) {
+async function getEventScopeError(db, actorProfile, { eventData, eventId }) {
+  if (actorProfile.role === 'Super User') {
     return '';
   }
 
@@ -384,10 +385,12 @@ async function getProgramScopeError(db, actorProfile, { eventData, eventId }) {
     }
   }
 
-  const outOfScope = types.filter(Boolean).find((type) => !isProgramEventType(type));
+  const outOfScope = types
+    .filter(Boolean)
+    .find((type) => actorProfile.permissions?.[getEventTypePermissionKey(type)] !== true);
 
   return outOfScope
-    ? `This account manages Programs only, not ${outOfScope}.`
+    ? `This account does not manage ${outOfScope} events.`
     : '';
 }
 

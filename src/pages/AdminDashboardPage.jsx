@@ -11,6 +11,7 @@ import RegistrationPanel from '../components/admin/RegistrationPanel.jsx';
 import UserControlPanel from '../components/admin/UserControlPanel.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { EVENT_TYPES, PROGRAM_EVENT_TYPES } from '../data/eventOptions.js';
+import { getManageableEventTypes } from '../../shared/eventTypes.js';
 import { archiveEvent, reactivateEvent, subscribeToAdminEvents } from '../services/eventService.js';
 import {
   loadPublicRegistrationCounts,
@@ -55,13 +56,50 @@ function AdminDashboardPage() {
   const [registrationsJump, setRegistrationsJump] = useState(null);
   const canManageEvents = hasPermission('manageEvents');
   const canManagePrograms = hasPermission('managePrograms');
+  const canManageChallenges = hasPermission('manageChallenges');
   // Anything that is about EVENTS rather than about a particular tab has to
   // ask this, not canManageEvents. Reading the events collection, editing an
   // event, loading registration counts: a Programs-only admin does all three,
   // just for fewer types. Gating the subscription on canManageEvents alone is
   // what made the Programs tab show "No events yet" - the list was never
   // fetched at all, which looks identical to there being none.
-  const canManageAnyEvents = canManageEvents || canManagePrograms;
+  const canManageAnyEvents = canManageEvents || canManagePrograms || canManageChallenges;
+  // Which types the event form may offer. Built from the same per-type
+  // permission map the server enforces, so a Challenges-only admin is offered
+  // Challenges and a workshops admin is not - rather than the old all-or-
+  // Programs choice, which offered a Challenges admin nothing at all.
+  const allowedEventTypes = useMemo(() => {
+    if (isSuperUser) {
+      return EVENT_TYPES;
+    }
+
+    return getManageableEventTypes(EVENT_TYPES, {
+      manageChallenges: canManageChallenges,
+      manageEvents: canManageEvents,
+      managePrograms: canManagePrograms
+    });
+  }, [canManageChallenges, canManageEvents, canManagePrograms, isSuperUser]);
+  // null means unrestricted, which is what an events admin gets: Business
+  // Listing, For Sale and Other have no filter button of their own, so naming
+  // the buttons explicitly would drop them. An admin holding only the narrower
+  // permissions is scoped to the filters those permissions cover.
+  const registrationActivityFilters = useMemo(() => {
+    if (isSuperUser || canManageEvents) {
+      return null;
+    }
+
+    const filters = [];
+
+    if (canManagePrograms) {
+      filters.push('Programs');
+    }
+
+    if (canManageChallenges) {
+      filters.push('Challenges');
+    }
+
+    return filters.length ? filters : ['Programs'];
+  }, [canManageChallenges, canManageEvents, canManagePrograms, isSuperUser]);
   const canAddUsers = hasPermission('addUsers');
   const canRegisterOthers = isSuperUser || hasPermission('registerOthers');
   const canManageWaitlist = isSuperUser || hasPermission('manageWaitlist');
@@ -79,8 +117,12 @@ function AdminDashboardPage() {
     // (canViewRegistrations) regardless of manageEvents.
     { id: 'registrations', label: 'Registrations', visible: canViewRegistrations && !canManageAnyEvents },
     { id: 'programs', label: 'Programs', visible: canManagePrograms },
-    { id: 'events-activities', label: 'Events/Activities', visible: canManageEvents },
-    { id: 'challenges', label: 'Challenges', visible: canManageEvents },
+    // Workshops sits beside Programs rather than inside Retreats/Other
+    // Events: it is the guild's second-busiest calendar and was previously
+    // one type among three on a tab whose own name hid it.
+    { id: 'workshops', label: 'Workshops', visible: canManageEvents },
+    { id: 'events-activities', label: 'Retreats/Other Events', visible: canManageEvents },
+    { id: 'challenges', label: 'Challenges', visible: canManageChallenges },
     { id: 'business-listings', label: 'Business Listings', visible: canManageEvents },
     { id: 'for-sale', label: 'For Sale', visible: canManageEvents },
     { id: 'membership', label: 'Membership', visible: canManageEvents },
@@ -102,7 +144,7 @@ function AdminDashboardPage() {
   const onlyModuleId = manageModules.length === 1 ? manageModules[0].id : '';
   // The two modules that hold registerable events. Challenges, listings and
   // For Sale have no registration list to open.
-  const showsRegistrationsAction = ['events-activities', 'programs'].includes(activeModule);
+  const showsRegistrationsAction = ['events-activities', 'programs', 'workshops'].includes(activeModule);
 
   useEffect(() => {
     if (!activeModule && onlyModuleId) {
@@ -129,7 +171,9 @@ function AdminDashboardPage() {
   // once Programs and the listing types are taken out.
   const canManageActiveEventModule = activeModule === 'programs'
     ? canManagePrograms
-    : canManageEvents;
+    : activeModule === 'challenges'
+      ? canManageChallenges
+      : canManageEvents;
   const eventModuleConfig = {
     programs: {
       title: 'Programs',
@@ -139,8 +183,16 @@ function AdminDashboardPage() {
       createType: '',
       excludedEventTypes: EVENT_TYPES.filter((type) => !PROGRAM_EVENT_TYPES.includes(type))
     },
+    workshops: {
+      title: 'Workshops',
+      filter: 'Workshop',
+      showTypeFilters: false,
+      createLabel: 'Create New Workshop',
+      createType: 'Workshop',
+      excludedEventTypes: []
+    },
     'events-activities': {
-      title: 'Events/Activities',
+      title: 'Retreats/Other Events',
       filter: 'All',
       showTypeFilters: true,
       createLabel: 'Create New Event/Activity',
@@ -150,7 +202,8 @@ function AdminDashboardPage() {
         'Business Listing',
         'For Sale',
         'Challenges',
-        'Membership'
+        'Membership',
+        'Workshop'
       ]
     },
     challenges: {
@@ -440,6 +493,10 @@ function AdminDashboardPage() {
       return 'programs';
     }
 
+    if (eventType === 'Workshop') {
+      return 'workshops';
+    }
+
     return 'events-activities';
   }
 
@@ -531,7 +588,7 @@ function AdminDashboardPage() {
         {canManageAnyEvents && activeModule === 'event-details' ? (
           <div id="event-details-card">
             <EventForm
-              allowedEventTypes={canManageEvents ? EVENT_TYPES : PROGRAM_EVENT_TYPES}
+              allowedEventTypes={allowedEventTypes}
               editingEvent={editingEvent}
               initialEventType={draftEventType}
               onCancelEdit={() => {
@@ -621,7 +678,7 @@ function AdminDashboardPage() {
         ) : null}
         {canViewRegistrations && activeModule === 'registrations' ? (
           <RegistrationPanel
-            allowedActivityFilters={canManageEvents ? null : ['Programs']}
+            allowedActivityFilters={registrationActivityFilters}
             canManageEvents={canManageEvents}
             canManageWaitlist={canManageWaitlist}
             canRegisterOthers={canRegisterOthers}

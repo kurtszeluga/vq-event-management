@@ -121,12 +121,18 @@ function RegisterPage() {
   // The four questions a Membership signup asks on top of the usual contact
   // details. Held here rather than in a generic answers map because they are
   // four fixed questions, not a question builder - see PROJECT_SPEC.md.
-  // Where a standalone signup ends. Not a route: navigating anywhere would
-  // land the member on a page they are deliberately not allowed to reach, and
-  // every existing exit from this form goes to /events - a list this signup is
-  // not in. Rendering a terminal card instead means there is nothing to click
-  // and nowhere to go, which is what was asked for.
-  const [standaloneExit, setStandaloneExit] = useState('');
+  // Where a registration ends when there is nowhere to send the member. Not a
+  // route: navigating anywhere would land them on a page they are deliberately
+  // not allowed to reach, and every existing exit from this form goes to
+  // /events - a list a standalone signup is not even in. Rendering a terminal
+  // card instead means there is nothing to click and nowhere to go, which is
+  // what was asked for.
+  //
+  // Used by any registration now, not only the unlisted types: the guild is
+  // rolling the system out in chunks, so a member who arrived from the guild
+  // website is sent back there if we know the address and given this card if
+  // we do not, rather than being dropped into the app's own event list.
+  const [registrationExit, setRegistrationExit] = useState('');
   // Membership dues buy guild membership, so the signup has to take the same
   // agreement /signup does, from the same configured text and version. Held
   // separately from reactivationTermsAccepted: that one answers "reinstate my
@@ -305,13 +311,21 @@ function RegisterPage() {
   ]);
 
 
+  // The confirmation screen gets the same treatment as a standalone signup,
+  // for the go-live posture rather than for the event type: the member has
+  // just paid, and the site nav above the receipt offered Home, Login,
+  // Business Listings and For Sale - four ways into a system that is still
+  // being rolled out a chunk at a time. The footer's Terms and Privacy links
+  // stay, which is what a page that took a card payment is expected to carry.
   useEffect(() => {
-    document.body.classList.toggle('signup-standalone', isStandaloneSignup);
+    const strippedChrome = isStandaloneSignup || Boolean(confirmation) || Boolean(registrationExit);
+
+    document.body.classList.toggle('signup-standalone', strippedChrome);
 
     return () => {
       document.body.classList.remove('signup-standalone');
     };
-  }, [isStandaloneSignup]);
+  }, [confirmation, isStandaloneSignup, registrationExit]);
 
   const registrationUnavailable = useMemo(
     () => getRegistrationUnavailableReason(event),
@@ -595,7 +609,7 @@ function RegisterPage() {
     // no origin to return to and window.close() only works for a tab the app
     // opened itself. Stop here instead.
     if (isStandaloneSignup) {
-      setStandaloneExit('cancelled');
+      setRegistrationExit('cancelled');
       return;
     }
 
@@ -608,31 +622,31 @@ function RegisterPage() {
     }, 250);
   }, [isStandaloneSignup, releaseCurrentReservation, returnToOrigin]);
 
+  // Return from a finished registration. Deliberately NOT the app's event
+  // list any more: the guild is rolling this system out a chunk at a time, and
+  // a member who came from the guild website should land back on the guild
+  // website, not inside pages they were never shown a way into.
+  //
+  // The ladder is the guild page we were told about, then closing the tab,
+  // then a terminal card saying so. window.close() only works on a tab this
+  // app opened itself - the feed's Register link uses target="_blank", which
+  // is not one - so the card is set either way and becomes the visible result
+  // when the close does nothing.
   const handleCompletionClose = useCallback(() => {
-    if (isStandaloneSignup) {
-      // Tried first because it is what the member actually wants - the signup
-      // was opened from the guild website and there is nothing here to go
-      // back to. It silently does nothing for a tab this app did not open,
-      // which is most of them, so the terminal card is set either way and
-      // becomes the visible result when the close does not happen.
-      window.close();
-      setStandaloneExit('completed');
-      return;
-    }
-
     if (returnTarget) {
       window.location.assign(returnTarget);
       return;
     }
 
-    navigate('/events');
-  }, [isStandaloneSignup, navigate, returnTarget]);
+    window.close();
+    setRegistrationExit('completed');
+  }, [returnTarget]);
 
   // Same ladder as Cancel, by the user's own observation that the two should
   // not behave differently.
   const handleUnavailableReturn = useCallback(() => {
     if (isStandaloneSignup) {
-      setStandaloneExit('cancelled');
+      setRegistrationExit('cancelled');
       return;
     }
 
@@ -670,23 +684,31 @@ function RegisterPage() {
     );
   }, [handleEmailChange, resetPaymentReservation, setNeedsProfileEdits]);
 
-  // Checked before every other branch: once a standalone signup has ended,
-  // nothing else on this page should render, including the event summary and
-  // the form it came from.
-  if (standaloneExit) {
+  // Checked before every other branch: once a registration has ended, nothing
+  // else on this page should render, including the event summary and the form
+  // it came from.
+  if (registrationExit) {
     return (
       <section className="standalone-signup-exit">
         <PageHeader
-          eyebrow="Membership"
-          title={standaloneExit === 'completed' ? 'Thank You' : 'Signup Cancelled'}
-          description={standaloneExit === 'completed'
-            ? 'Your membership signup is complete. A confirmation has been sent to your email address.'
-            : 'Your signup was cancelled and nothing has been charged.'}
+          eyebrow={isStandaloneSignup ? 'Membership' : 'Registration'}
+          title={registrationExit === 'completed'
+            ? 'Thank You'
+            : isStandaloneSignup ? 'Signup Cancelled' : 'Registration Cancelled'}
+          description={registrationExit === 'completed'
+            ? isStandaloneSignup
+              ? 'Your membership signup is complete. A confirmation has been sent to your email address.'
+              : 'Your registration is complete. A confirmation has been sent to your email address.'
+            : isStandaloneSignup
+              ? 'Your signup was cancelled and nothing has been charged.'
+              : 'Your registration was cancelled and nothing has been charged.'}
         />
         <p className="form-help">
-          {standaloneExit === 'completed'
+          {registrationExit === 'completed'
             ? 'You can close this window.'
-            : 'You can close this window, or use the signup link again if you would like to start over.'}
+            : isStandaloneSignup
+              ? 'You can close this window, or use the signup link again if you would like to start over.'
+              : 'You can close this window, or use the registration link again if you would like to start over.'}
         </p>
       </section>
     );
@@ -776,12 +798,10 @@ function RegisterPage() {
   if (confirmation) {
     return (
       <section>
+        {/* No breadcrumb: those are three more links out of a page that has
+            just taken a payment, and the whole point of this screen is that
+            it carries none. */}
         <PageHeader
-          breadcrumb={isStandaloneSignup ? undefined : [
-            { label: 'Programs & Activities', to: '/events' },
-            { label: event.title || event.eventType || 'Event', to: `/events/${event.id}` },
-            { label: 'Registration Complete' }
-          ]}
           eyebrow="Registration"
           title="Registration Complete"
           description="Your registration has been received."
@@ -807,7 +827,7 @@ function RegisterPage() {
             passwordSetupError={passwordSetupError}
             passwordSetupPending={passwordSetupPending}
             onReturn={handleCompletionClose}
-            returnLabel={isStandaloneSignup ? 'Close' : 'Return To List'}
+            returnLabel={isStandaloneSignup ? 'Close' : 'Return'}
             onSetUpPassword={wantsPasswordSetup && passwordSetupToken ? handleSetUpPassword : null}
           />
         </div>
@@ -1692,7 +1712,10 @@ export function RegistrationCompletion({
   passwordSetupPending,
   onReturn,
   onSetUpPassword,
-  returnLabel = 'Return To List'
+  // Not "Return To List" any more. The list it meant is the app's own events
+  // page, which is not where a member who came from the guild website should
+  // be sent while the system is still being rolled out a chunk at a time.
+  returnLabel = 'Return'
 }) {
   const registrationStartDate = getRegistrationStartDate(event);
   const registrationEndDate = getRegistrationEndDate(event);

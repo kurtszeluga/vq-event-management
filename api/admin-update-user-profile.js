@@ -382,6 +382,7 @@ function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedR
 const USER_PERMISSION_KEYS = [
   'manageEvents',
   'managePrograms',
+  'manageChallenges',
   'viewRegistrations',
   'managePayments',
   'addUsers',

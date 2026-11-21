@@ -128,13 +128,14 @@ describe('a Programs-only admin', () => {
     await waitFor(() => expect(subscribeCalled).toBeGreaterThan(0));
   });
 
-  it('gets a Programs tab and no Events/Activities tab', () => {
+  it('gets a Programs tab and none of the other event tabs', () => {
     permissions = { managePrograms: true };
 
     render(<AdminDashboardPage />);
 
     expect(screen.getByRole('button', { name: 'Programs' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Events/Activities' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retreats/Other Events' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Workshops' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Challenges' })).toBeNull();
   });
 
@@ -167,7 +168,7 @@ describe('the dashboard header and landing', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/^Manage programs, events\/activities, .* and archive\.$/)
+        screen.getByText(/^Manage programs, workshops, retreats\/other events, .* and archive\.$/)
       ).toBeInTheDocument();
     });
   });
@@ -198,7 +199,7 @@ describe('the dashboard header and landing', () => {
 
 describe('a Programs admin who can also view registrations', () => {
   it('gets the registrations overview on the Programs tab', async () => {
-    // It used to be keyed to Events/Activities alone, and the Registrations
+    // It used to be keyed to the activities tab alone, and the Registrations
     // tab hides for anyone who can manage events - so this account had no
     // route to the overview at all, only the Payment Review chip.
     permissions = { managePrograms: true, viewRegistrations: true };
@@ -244,7 +245,7 @@ describe('the registrations card a Programs admin opens', () => {
 
     render(<AdminDashboardPage />);
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Events/Activities' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Retreats/Other Events' }));
     await userEvent.click(await screen.findByRole('button', { name: /^Registrations$/i }));
     await waitFor(() => {
       expect(registrationPanelProps).not.toBeNull();
@@ -256,15 +257,62 @@ describe('the registrations card a Programs admin opens', () => {
 });
 
 describe('an Events-only admin', () => {
-  it('still fetches events and gets the other tabs, but not Programs', () => {
+  it('still fetches events and gets the other tabs, but not Programs or Challenges', () => {
     permissions = { manageEvents: true };
 
     render(<AdminDashboardPage />);
 
     expect(subscribeCalled).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Events/Activities' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Workshops' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retreats/Other Events' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Programs' })).toBeNull();
+    // Challenges has its own permission as of 2026-11-21, so this account no
+    // longer reaches it.
+    expect(screen.queryByRole('button', { name: 'Challenges' })).toBeNull();
+  });
+});
+
+describe('a Challenges-only admin', () => {
+  it('fetches events, which is the gate every narrow permission has to pass', async () => {
+    // The same trap Programs fell into: the events subscription was gated on
+    // manageEvents, so the tab read "No events yet" because the list was
+    // never fetched. An unfetched list looks exactly like an empty one.
+    permissions = { manageChallenges: true };
+
+    render(<AdminDashboardPage />);
+
+    await waitFor(() => expect(subscribeCalled).toBeGreaterThan(0));
+  });
+
+  it('gets the Challenges tab and nothing else about events', () => {
+    permissions = { manageChallenges: true };
+
+    render(<AdminDashboardPage />);
+
     expect(screen.getByRole('button', { name: 'Challenges' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Programs' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Workshops' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retreats/Other Events' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull();
+  });
+
+  it('is not told there are no admin modules enabled', () => {
+    permissions = { manageChallenges: true };
+
+    render(<AdminDashboardPage />);
+
+    expect(screen.queryByText('No Admin Modules Enabled')).toBeNull();
+  });
+
+  it('gets a registrations card scoped to Challenges', async () => {
+    permissions = { manageChallenges: true, viewRegistrations: true };
+
+    render(<AdminDashboardPage />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Challenges' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('event-list')).not.toBeNull();
+    });
   });
 });
 

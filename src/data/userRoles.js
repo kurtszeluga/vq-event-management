@@ -7,8 +7,8 @@ export const MEMBERSHIP_STATUS_OPTIONS = ['Pending', 'Active', 'Inactive', 'Arch
 // Each description says what the permission actually opens, taken from where
 // the key is read rather than from what its label sounds like. The labels on
 // their own mislead: "Manage Events And Activities" reads as one tab and is in
-// fact six, because Challenges, Business Listings, For Sale and Membership are
-// all event TYPES in the same collection, and Archive is archived events. That
+// fact several, because Business Listings, For Sale and Membership are all
+// event TYPES in the same collection, and Archive is archived events. That
 // surprised the person granting it, which is what these are here to prevent.
 export const USER_PERMISSION_OPTIONS = [
   {
@@ -19,11 +19,19 @@ export const USER_PERMISSION_OPTIONS = [
     label: 'Manage Programs'
   },
   {
-    description: 'Opens everything else events: the Events/Activities tab (workshops, '
-      + 'retreats and other), plus Challenges, Business Listings, For Sale, Membership '
-      + 'and Archive. It does NOT include Programs, which has its own permission above.',
+    description: 'Opens everything else events: the Workshops tab and the '
+      + 'Retreats/Other Events tab, plus Business Listings, For Sale, Membership and '
+      + 'Archive. It does NOT include Programs or Challenges, which each have a '
+      + 'permission of their own.',
     key: 'manageEvents',
     label: 'Manage Events And Activities'
+  },
+  {
+    description: 'Opens the Challenges tab only: the guild challenges members quilt to, '
+      + 'with their posting window and their challenge PDF. Grant this alone to someone '
+      + 'who runs the challenges and nothing else.',
+    key: 'manageChallenges',
+    label: 'Manage Challenges'
   },
   {
     description: 'Opens the Registrations tab and Payment Review: who has signed up for '

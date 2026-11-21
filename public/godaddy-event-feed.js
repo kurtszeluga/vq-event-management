@@ -779,7 +779,7 @@
     try {
       const origin = getSourceOrigin(sourceUrl);
       const url = new URL(`/register?eventId=${encodeURIComponent(event.id || '')}`, origin);
-      const returnUrl = getSafeReturnUrl(window.location.href);
+      const returnUrl = getEmbeddingPageUrl();
       if (returnUrl) {
         url.searchParams.set('returnUrl', returnUrl);
       }
@@ -787,6 +787,49 @@
     } catch {
       return event.registerUrl || '';
     }
+  }
+
+  // The address of the guild page this feed is embedded in, which is what the
+  // app's Return button sends the member back to.
+  //
+  // window.location.href is NOT it. GoDaddy renders every HTML block into an
+  // iframe[srcdoc], so inside that frame location.href reads "about:srcdoc" -
+  // no scheme we accept, so no returnUrl was ever sent and the app fell back
+  // to its own event list. The register link also carries rel="noreferrer",
+  // so the referrer is not a second chance at it: this parameter is the only
+  // route back.
+  //
+  // document.baseURI is checked next because a srcdoc document inherits its
+  // base URL from the page that holds it, and window.parent.location is the
+  // last resort for a frame that is same-origin with its parent. Both are
+  // wrapped: a cross-origin parent throws rather than answering.
+  function getEmbeddingPageUrl() {
+    const candidates = [];
+
+    try {
+      candidates.push(window.location.href);
+      candidates.push(document.baseURI);
+    } catch {
+      // Ignored: an unreadable location simply contributes no candidate.
+    }
+
+    try {
+      if (window.parent && window.parent !== window) {
+        candidates.push(window.parent.location.href);
+      }
+    } catch {
+      // Cross-origin parent. Nothing to read, and nothing to report.
+    }
+
+    for (const candidate of candidates) {
+      const safe = getSafeReturnUrl(candidate || '');
+
+      if (safe) {
+        return safe;
+      }
+    }
+
+    return '';
   }
 
   function getExternalRegistrationUrl(event) {

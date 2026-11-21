@@ -407,6 +407,7 @@ service cloud.firestore {
         && request.resource.data.permissions.keys().hasOnly([
           'manageEvents',
           'managePrograms',
+          'manageChallenges',
           'viewRegistrations',
           'managePayments',
           'addUsers',
@@ -419,6 +420,8 @@ service cloud.firestore {
         && request.resource.data.permissions.managePayments is bool
         && (!('managePrograms' in request.resource.data.permissions)
           || request.resource.data.permissions.managePrograms is bool)
+        && (!('manageChallenges' in request.resource.data.permissions)
+          || request.resource.data.permissions.manageChallenges is bool)
         && (!('addUsers' in request.resource.data.permissions)
           || request.resource.data.permissions.addUsers is bool)
         && request.resource.data.permissions.manageMembershipStatus is bool
@@ -563,6 +566,7 @@ service cloud.firestore {
         && request.resource.data.permissions.keys().hasOnly([
           'manageEvents',
           'managePrograms',
+          'manageChallenges',
           'viewRegistrations',
           'managePayments',
           'addUsers',
@@ -595,19 +599,26 @@ service cloud.firestore {
     // (the CSV import, the Membership Profiles card) preserve them by
     // construction rather than rebuilding them.
 
+    // Every permission false, asked of the whole map at once rather than key
+    // by key.
+    //
+    // It used to be one clause per key - a == false for the four that are
+    // always written, and an "absent or false" pair for the four added later.
+    // That was about sixteen expressions, evaluated on EVERY users update,
+    // because a refusal has to evaluate every branch before it can answer
+    // "no". Adding manageChallenges to it tipped the rule set past
+    // Firestore's 1000-expression ceiling and every users update began
+    // failing with "maximum of 1000 expressions to evaluate has been
+    // reached", which surfaces as an ordinary permission denial. Fourth time
+    // that ceiling has bitten this project.
+    //
+    // values().hasOnly([false]) says the same thing in three: a map with no
+    // keys passes (nothing is true), a missing key costs nothing, and a value
+    // that is not the boolean false - another permission, a string, anything -
+    // fails. It also means a permission added later needs no edit here, which
+    // is the part that kept going wrong.
     function hasNoAdminPermissions() {
-      return request.resource.data.permissions.manageEvents == false
-        && request.resource.data.permissions.viewRegistrations == false
-        && request.resource.data.permissions.managePayments == false
-        && request.resource.data.permissions.manageMembershipStatus == false
-        && (!('managePrograms' in request.resource.data.permissions)
-          || request.resource.data.permissions.managePrograms == false)
-        && (!('addUsers' in request.resource.data.permissions)
-          || request.resource.data.permissions.addUsers == false)
-        && (!('registerOthers' in request.resource.data.permissions)
-          || request.resource.data.permissions.registerOthers == false)
-        && (!('manageWaitlist' in request.resource.data.permissions)
-          || request.resource.data.permissions.manageWaitlist == false);
+      return request.resource.data.permissions.values().hasOnly([false]);
     }
 
     function canManageMembershipStatus() {
@@ -768,6 +779,7 @@ service cloud.firestore {
           'challenges',
           'membership',
           'programs',
+          'sendCoordinatorRefundNotifications',
           'sendCoordinatorRegistrationNotifications',
           'sendRegistrationConfirmations',
           'updatedDate',
@@ -776,6 +788,7 @@ service cloud.firestore {
         && request.resource.data.challenges is string
         && request.resource.data.membership is string
         && request.resource.data.programs is string
+        && request.resource.data.sendCoordinatorRefundNotifications is bool
         && request.resource.data.sendCoordinatorRegistrationNotifications is bool
         && request.resource.data.sendRegistrationConfirmations is bool
         && request.resource.data.workshops is string
@@ -1009,7 +1022,9 @@ service cloud.firestore {
         || hasPermission('viewRegistrations');
       allow create, update: if hasPermission('viewRegistrations')
         && validEventRegistrantNames(eventId);
-      allow delete: if hasPermission('manageEvents') || hasPermission('managePrograms');
+      allow delete: if hasPermission('manageEvents')
+        || hasPermission('managePrograms')
+        || hasPermission('manageChallenges');
     }
 
     // The link between an event and its Google Sheet, plus the outcome of the
@@ -1027,7 +1042,8 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if resource.data.status == 'Published'
         || hasPermission('manageEvents')
-        || hasPermission('managePrograms');
+        || hasPermission('managePrograms')
+        || hasPermission('manageChallenges');
       // Event writes are server-only through /api/admin-manage-event.
       allow create, update, delete: if false;
     }

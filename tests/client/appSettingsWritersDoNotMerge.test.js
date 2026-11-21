@@ -79,7 +79,7 @@ const CASES = [
   },
   {
     // validEmailInstructions()
-    keys: ['challenges', 'membership', 'programs', 'sendCoordinatorRegistrationNotifications', 'sendRegistrationConfirmations', 'updatedDate', 'workshops'],
+    keys: ['challenges', 'membership', 'programs', 'sendCoordinatorRefundNotifications', 'sendCoordinatorRegistrationNotifications', 'sendRegistrationConfirmations', 'updatedDate', 'workshops'],
     name: 'emailInstructions',
     save: () => saveEmailInstructions({ sendRegistrationConfirmations: true }, ACTOR)
   }

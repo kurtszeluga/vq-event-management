@@ -158,6 +158,7 @@ export const DEFAULT_EMAIL_INSTRUCTIONS = {
   challenges: '',
   membership: '',
   programs: '',
+  sendCoordinatorRefundNotifications: false,
   sendCoordinatorRegistrationNotifications: false,
   sendRegistrationConfirmations: false,
   workshops: ''
@@ -483,6 +484,7 @@ export async function saveEmailInstructions(instructions, actorProfile) {
     challenges: cleanText(instructions.challenges),
     membership: cleanText(instructions.membership),
     programs: cleanText(instructions.programs),
+    sendCoordinatorRefundNotifications: Boolean(instructions.sendCoordinatorRefundNotifications),
     sendCoordinatorRegistrationNotifications: Boolean(instructions.sendCoordinatorRegistrationNotifications),
     sendRegistrationConfirmations: Boolean(instructions.sendRegistrationConfirmations),
     workshops: cleanText(instructions.workshops),
@@ -492,7 +494,8 @@ export async function saveEmailInstructions(instructions, actorProfile) {
   // Full set, not a merge - see the note on saveMembershipSettings. The
   // payload covers every field validEmailInstructions() allows, and every
   // server-side reader takes one of sendRegistrationConfirmations,
-  // sendCoordinatorRegistrationNotifications or membership, all written here.
+  // sendCoordinatorRegistrationNotifications,
+  // sendCoordinatorRefundNotifications or membership, all written here.
   // This document is not world-readable, so unlike the other three its stored
   // shape could not be checked from outside; a full set is the safe direction
   // either way, since it clears an orphan rather than tripping over one.

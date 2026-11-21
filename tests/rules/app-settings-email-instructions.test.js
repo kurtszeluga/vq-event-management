@@ -49,6 +49,7 @@ function validPayload(overrides = {}) {
     challenges: '',
     membership: '',
     programs: '',
+    sendCoordinatorRefundNotifications: false,
     sendCoordinatorRegistrationNotifications: false,
     sendRegistrationConfirmations: false,
     workshops: '',
@@ -92,6 +93,42 @@ describe('appSettings/emailInstructions - sendCoordinatorRegistrationNotificatio
     await seedSuperUser();
     const payload = validPayload();
     delete payload.sendCoordinatorRegistrationNotifications;
+
+    await assertFails(
+      setDoc(doc(superUserDb(), 'appSettings', 'emailInstructions'), payload)
+    );
+  });
+
+  // The same four questions for sendCoordinatorRefundNotifications, added
+  // 2026-11-21 so a coordinator hears about a refund as well as a signup.
+  // Written out rather than looped: a shared loop would pass while one of the
+  // two keys was missing from the rule, which is exactly the mistake.
+  test('the refund switch saves as true', async () => {
+    await seedSuperUser();
+
+    await assertSucceeds(
+      setDoc(
+        doc(superUserDb(), 'appSettings', 'emailInstructions'),
+        validPayload({ sendCoordinatorRefundNotifications: true })
+      )
+    );
+  });
+
+  test('a non-boolean refund switch is refused', async () => {
+    await seedSuperUser();
+
+    await assertFails(
+      setDoc(
+        doc(superUserDb(), 'appSettings', 'emailInstructions'),
+        validPayload({ sendCoordinatorRefundNotifications: 'true' })
+      )
+    );
+  });
+
+  test('a payload missing the refund switch entirely is refused', async () => {
+    await seedSuperUser();
+    const payload = validPayload();
+    delete payload.sendCoordinatorRefundNotifications;
 
     await assertFails(
       setDoc(doc(superUserDb(), 'appSettings', 'emailInstructions'), payload)

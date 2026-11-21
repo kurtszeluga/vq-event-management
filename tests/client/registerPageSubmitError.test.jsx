@@ -75,7 +75,9 @@ describe('the finished signup', () => {
 
     cleanup();
 
-    // Every other event type keeps the wording it had.
+    // Every other event type gets "Return" - not "Return To List", which
+    // named the app's own events page. Since 2026-11-21 the button goes back
+    // to the guild website the member came from, or to a page they can close.
     render(
       <RegistrationCompletion
         confirmation={confirmation}
@@ -84,6 +86,7 @@ describe('the finished signup', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /Return To List/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Return$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Return To List/i })).toBeNull();
   });
 });

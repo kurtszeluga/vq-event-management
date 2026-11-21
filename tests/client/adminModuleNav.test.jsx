@@ -101,16 +101,16 @@ describe('Manage/Edit module list', () => {
 
     // Registrations only appears as its own tab for someone who can view
     // registrations but cannot manage events - otherwise it lives inside
-    // the Events/Activities card instead. Payment Review has no tab at
+    // the Retreats/Other Events card instead. Payment Review has no tab at
     // all anymore; the Needs Attention alert chip is its only entry point.
     expect(labels).toContain('Registrations');
     expect(labels.join(' ')).not.toContain('Payment Review');
-    expect(labels.join(' ')).not.toContain('Events/Activities');
+    expect(labels.join(' ')).not.toContain('Retreats/Other Events');
     expect(labels.join(' ')).not.toContain('User Controls');
     expect(labels.join(' ')).not.toContain('Setup / System Config');
   });
 
-  it('hides the Registrations tab once the admin can also manage events - it moves into the Events/Activities card instead', () => {
+  it('hides the Registrations tab once the admin can also manage events - it moves into the event cards instead', () => {
     signInAs({ permissions: ['viewRegistrations', 'manageEvents'] });
     render(<AdminDashboardPage />);
 
@@ -119,7 +119,7 @@ describe('Manage/Edit module list', () => {
       .map((button) => button.textContent);
 
     expect(labels.join(' ')).not.toContain('Registrations');
-    expect(labels).toContain('Events/Activities');
+    expect(labels).toContain('Retreats/Other Events');
   });
 
   it('gives a super user every module, in a stable order', () => {
@@ -128,8 +128,8 @@ describe('Manage/Edit module list', () => {
 
     const list = document.getElementById('admin-module-list');
     expect([...list.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
-      'Events/Activities',
-      'Challenges',
+      'Workshops',
+      'Retreats/Other Events',
       'Business Listings',
       'For Sale',
       'Membership',
@@ -187,7 +187,7 @@ describe('the collapsible mobile toggle', () => {
     await user.click(moduleToggle());
     expect(document.getElementById('admin-module-list').className).toContain('is-open');
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
 
     expect(document.getElementById('admin-module-list').className).not.toContain('is-open');
     expect(moduleToggle()).toHaveAttribute('aria-expanded', 'false');
@@ -198,9 +198,9 @@ describe('the collapsible mobile toggle', () => {
     signInAs({ permissions: ['viewRegistrations', 'manageEvents'] });
     render(<AdminDashboardPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
 
-    expect(moduleToggle()).toHaveTextContent('Manage/Edit: Events/Activities');
+    expect(moduleToggle()).toHaveTextContent('Manage/Edit: Retreats/Other Events');
   });
 
   it('falls back to "Choose a section" while a module outside the row is open', async () => {
@@ -208,8 +208,8 @@ describe('the collapsible mobile toggle', () => {
     signInAs({ permissions: ['viewRegistrations', 'manageEvents'] });
     render(<AdminDashboardPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
-    expect(moduleToggle()).toHaveTextContent('Manage/Edit: Events/Activities');
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
+    expect(moduleToggle()).toHaveTextContent('Manage/Edit: Retreats/Other Events');
 
     // 'event-details' (the EventForm) is a real activeModule value that has no
     // button in the row, so the label must not go blank.
@@ -233,12 +233,12 @@ describe('selecting a module', () => {
     expect(screen.getByTestId('registration-panel')).toBeInTheDocument();
   });
 
-  it('opens Registrations from inside the Events/Activities card for an admin who can also manage events', async () => {
+  it('opens Registrations from inside the Retreats/Other Events card for an admin who can also manage events', async () => {
     const user = userEvent.setup();
     signInAs({ permissions: ['viewRegistrations', 'manageEvents'] });
     render(<AdminDashboardPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
     await user.click(screen.getByRole('button', { name: 'Registrations' }));
 
     expect(screen.getByTestId('registration-panel')).toBeInTheDocument();
@@ -251,7 +251,7 @@ describe('archive confirmation', () => {
     signInAs({ permissions: ['manageEvents'] });
     render(<AdminDashboardPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
     await user.click(screen.getByRole('button', { name: 'Archive Guild Retreat' }));
 
     expect(archiveEventMock).not.toHaveBeenCalled();

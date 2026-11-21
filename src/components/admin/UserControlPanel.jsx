@@ -386,6 +386,12 @@ function UserControlPanel({
         requestedRole: form.role,
         status: statusForSave
       });
+      // Only a Super User may change the tags; everyone else carries the
+      // stored ones through untouched, which is the same rule
+      // api/admin-update-user-profile.js enforces.
+      const payloadProfileTags = canManageAdminUsers
+        ? normalizeProfileTags(form.profileTags)
+        : normalizeProfileTags(user.profileTags);
       // A Super User falls through neither of the branches below, so saving one
       // used to write DEFAULT_USER_PERMISSIONS - every flag false. Nothing
       // enforcing authority reads the map for that role, so it never removed
@@ -398,9 +404,18 @@ function UserControlPanel({
             ? normalizedPermissions
             : DEFAULT_USER_PERMISSIONS;
 
+      // A service account is exempt. The guild wants to be able to strip a
+      // role mailbox of every control for a while - a coordinator stepping
+      // back, an area paused - without unticking Service Account to do it:
+      // clearing that tag is what puts the mailbox back in reach of the annual
+      // refresh, which would mark it Inactive and demote it for good. So the
+      // rule that an Admin must hold something is kept for people, where an
+      // admin with nothing ticked is a mistake, and dropped for a mailbox,
+      // where it is a deliberate state.
       if (
         canManageAdminUsers &&
         roleForSave === 'Admin' &&
+        !isServiceAccount({ profileTags: payloadProfileTags }) &&
         !hasSelectedAdminPermission(permissionsForSave)
       ) {
         throw new Error('Select at least one admin permission before saving an Admin profile.');
@@ -414,9 +429,7 @@ function UserControlPanel({
         name: displayName,
         permissions: permissionsForSave,
         phone: formatPhoneNumber(form.phone),
-        profileTags: canManageAdminUsers
-          ? normalizeProfileTags(form.profileTags)
-          : normalizeProfileTags(user.profileTags),
+        profileTags: payloadProfileTags,
         membershipStatus:
           user.role === 'Super User' ? user.membershipStatus || 'Unknown' : membershipStatusForSave,
         membershipReviewNote:
@@ -888,6 +901,7 @@ function UserControlPanel({
                 {canManageAdminUsers ? (
                   <PermissionPanel
                     canEditAdminPermissions={canProfileHoldAdminAuthority(form)}
+                    isServiceAccountProfile={formIsServiceAccount}
                     permissions={form.permissions}
                     role={form.role}
                     onChange={updatePermission}
@@ -1144,6 +1158,7 @@ function UserControlPanel({
                     {canManageAdminUsers ? (
                       <PermissionPanel
                         canEditAdminPermissions={canProfileHoldAdminAuthority(form)}
+                        isServiceAccountProfile={formIsServiceAccount}
                         permissions={form.permissions}
                         role={form.role}
                         onChange={updatePermission}
@@ -1761,13 +1776,29 @@ function SortableHeader({ label, sortKey, sortConfig, onSort }) {
   );
 }
 
-function PermissionPanel({ canEditAdminPermissions = true, permissions, role, onChange }) {
+function PermissionPanel({
+  canEditAdminPermissions = true,
+  isServiceAccountProfile = false,
+  permissions,
+  role,
+  onChange
+}) {
   return (
     <div className="permission-panel">
       <span className="field-label">Admin Permissions</span>
       {!canEditAdminPermissions ? (
         <span className="form-help">
           Admin permissions require Active membership and Active profile status.
+        </span>
+      ) : null}
+      {/* Said here because the save no longer says it. Every other Admin is
+          refused with "select at least one"; a service account can be saved
+          with none, and without this the empty state reads as something the
+          form forgot to stop. */}
+      {isServiceAccountProfile ? (
+        <span className="form-help">
+          This is a service account, so it can be saved with none of these ticked -
+          leave the tag in place while the mailbox is parked.
         </span>
       ) : null}
       {USER_PERMISSION_OPTIONS.map((permission) => (

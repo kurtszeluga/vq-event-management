@@ -79,7 +79,7 @@ describe('archiving an event blocked by pending payments', () => {
     );
     render(<AdminDashboardPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
     await user.click(screen.getByRole('button', { name: 'Archive Witch Hat Wizardry' }));
     await user.click(screen.getByRole('button', { name: 'Archive Event' }));
 
@@ -103,7 +103,7 @@ describe('archiving an event blocked by pending payments', () => {
     );
     render(<AdminDashboardPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
     await user.click(screen.getByRole('button', { name: 'Archive Witch Hat Wizardry' }));
     await user.click(screen.getByRole('button', { name: 'Archive Event' }));
     await waitFor(() => {
@@ -123,7 +123,7 @@ describe('archiving an event blocked by pending payments', () => {
       .mockResolvedValueOnce(undefined);
     render(<AdminDashboardPage />);
 
-    await user.click(screen.getByRole('button', { name: 'Events/Activities' }));
+    await user.click(screen.getByRole('button', { name: 'Retreats/Other Events' }));
     await user.click(screen.getByRole('button', { name: 'Archive Witch Hat Wizardry' }));
     await user.click(screen.getByRole('button', { name: 'Archive Event' }));
     await waitFor(() => {

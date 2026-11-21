@@ -27,6 +27,7 @@ describe('normalizeUserPermissions', () => {
 
     expect(Object.keys(result).sort()).toEqual([
       'addUsers',
+      'manageChallenges',
       'manageEvents',
       'manageMembershipStatus',
       'managePayments',

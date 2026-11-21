@@ -28,6 +28,7 @@ test('every other existing permission key is still present alongside the new one
 
   assert.deepEqual(Object.keys(result).sort(), [
     'addUsers',
+    'manageChallenges',
     'manageEvents',
     'manageMembershipStatus',
     'managePayments',

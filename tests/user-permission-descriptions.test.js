@@ -3,11 +3,11 @@ import test from 'node:test';
 import { USER_PERMISSION_OPTIONS } from '../src/data/userRoles.js';
 
 // The labels alone mislead. "Manage Events And Activities" reads as one tab
-// and actually opens six - Challenges, Business Listings, For Sale and
-// Membership are all event TYPES in the same collection, and Archive is
-// archived events - which surprised the person granting it. These descriptions
-// are what the admin screen shows under each checkbox, so a permission added
-// without one would silently go back to being a bare label.
+// and actually opens several - Business Listings, For Sale and Membership are
+// all event TYPES in the same collection, and Archive is archived events -
+// which surprised the person granting it. These descriptions are what the
+// admin screen shows under each checkbox, so a permission added without one
+// would silently go back to being a bare label.
 
 test('every permission explains itself', () => {
   assert.ok(USER_PERMISSION_OPTIONS.length >= 7);
@@ -31,8 +31,8 @@ test('the events permission names every tab it opens', () => {
   // is ever added there, this test should fail until the wording catches up -
   // the whole point is that the breadth is not guessable from the label.
   for (const tab of [
-    'Events/Activities',
-    'Challenges',
+    'Workshops',
+    'Retreats/Other Events',
     'Business Listings',
     'For Sale',
     'Membership',
@@ -43,6 +43,18 @@ test('the events permission names every tab it opens', () => {
       `the manageEvents description does not mention ${tab}`
     );
   }
+
+  // And must say what it stopped covering, or it reads as still including
+  // them: Programs was split out on 2026-11-20 and Challenges on 2026-11-21.
+  assert.match(manageEvents.description, /does NOT include Programs or Challenges/i);
+});
+
+test('the challenges permission says it is only the Challenges tab', () => {
+  const manageChallenges = USER_PERMISSION_OPTIONS
+    .find((option) => option.key === 'manageChallenges');
+
+  assert.ok(manageChallenges, 'manageChallenges is missing from the permission list');
+  assert.match(manageChallenges.description, /Challenges tab/);
 });
 
 test('the payments permission admits it opens nothing by itself', () => {

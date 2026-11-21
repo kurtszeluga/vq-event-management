@@ -2480,24 +2480,32 @@ body.nav-sheet-open {
   grid-column: 1 / -1;
 }
 
+/* The second column was `max-content` with `white-space: nowrap` on the copy,
+   which is fine for a bare label and wrong the moment one carries a
+   description: max-content asks for the longest unbroken line, nowrap refuses
+   to break it, and the sentence ran straight off the right edge of the card.
+   A `minmax(0, 1fr)` column with normal wrapping keeps the checkbox aligned
+   to the label and holds the text inside the panel at every width. */
 .permission-panel .checkbox-label {
-  align-items: center;
+  align-items: start;
   display: grid !important;
-  grid-template-columns: 18px max-content;
+  grid-template-columns: 18px minmax(0, 1fr);
   gap: 8px !important;
   justify-content: flex-start;
-  justify-self: start;
+  justify-self: stretch;
   text-align: left;
   width: auto;
 }
 
 .permission-panel .checkbox-label input {
-  margin: 0;
+  margin: 2px 0 0;
 }
 
 .permission-panel .checkbox-label span {
+  min-width: 0;
+  overflow-wrap: break-word;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .profile-address-panel,

@@ -39,6 +39,9 @@ import { formatPhoneNumber } from '../../utils/profileFormat.js';
 // Dropdown Value, which a Super User sets in Configuration - so a type here
 // whose entry has not been created yet simply falls back to Other with the
 // times left blank, exactly as an unmapped type always has.
+// The time of day a "list now" listing comes down on the day of the event.
+const LISTING_END_DEFAULT_TIME = '09:00';
+
 const eventTypeTimePresetMap = {
   'Class (Half Day)': 'half-day',
   'Class (Full Day)': 'full-day',
@@ -289,7 +292,10 @@ function EventForm({
   // admin back a field they can see and edit, seeded with whatever Now left.
   function handleListingMode(value) {
     setSuccessMessage('');
-    setForm((current) => stampNowDates({ ...current, listingMode: value }));
+    setForm((current) => stampNowDates(
+      { ...current, listingMode: value },
+      { defaultCloseAt: getRegistrationDefaultCloseAt(current) }
+    ));
     setFieldErrors((current) => {
       const next = { ...current };
       delete next.listingMode;
@@ -316,6 +322,7 @@ function EventForm({
     setSuccessMessage('');
     setForm((current) => {
       const previousEventStart = getRegistrationDefaultCloseAt(current);
+      const previousListingEnd = getListingEndDefault(current);
       const next = { ...current, [name]: value };
       const nextEventStart = getRegistrationDefaultCloseAt(next);
 
@@ -327,13 +334,27 @@ function EventForm({
         next.registrationCloseAt = nextEventStart;
       }
 
-      return next;
+      // The listing-end default is 9 a.m. on the day of the event, so it has
+      // to follow the date whichever order the admin fills the form in -
+      // picking the date after choosing Now is the common one. Carried only
+      // while the field still holds the default it was given.
+      if (
+        next.listingMode === 'now'
+        && (!current.visibleUntil || current.visibleUntil === previousListingEnd)
+      ) {
+        next.visibleUntil = getListingEndDefault(next) || next.visibleUntil;
+      }
+
+      return alignRegistrationCloseToListingEnd(next, nextEventStart);
     });
     setFieldErrors((current) => {
       const next = { ...current };
       delete next[name];
       if (name === 'date' || name === 'startTime') {
         delete next.registrationCloseAt;
+      }
+      if (name === 'date') {
+        delete next.visibleUntil;
       }
       return next;
     });
@@ -371,14 +392,17 @@ function EventForm({
       const isRegistrationEnabled = ['future', 'now'].includes(value);
       const defaultCloseAt = getRegistrationDefaultCloseAt(current);
 
-      return stampNowDates({
-        ...current,
-        registrationMode: value,
-        registrationOpenAt: isRegistrationEnabled ? current.registrationOpenAt : '',
-        registrationCloseAt: isRegistrationEnabled
-          ? defaultCloseAt || (value === 'now' ? '' : current.registrationCloseAt)
-          : ''
-      });
+      return stampNowDates(
+        {
+          ...current,
+          registrationMode: value,
+          registrationOpenAt: isRegistrationEnabled ? current.registrationOpenAt : '',
+          registrationCloseAt: isRegistrationEnabled
+            ? defaultCloseAt || (value === 'now' ? '' : current.registrationCloseAt)
+            : ''
+        },
+        { defaultCloseAt }
+      );
     });
     setFieldErrors((current) => {
       const next = { ...current };
@@ -1708,10 +1732,16 @@ function EventForm({
               <span className="form-help">
                 {isMembership
                   ? 'Membership never appears in a list on the website. These dates control whether the registration link works - after the Remove Listing date it stops accepting signups.'
-                  : 'Choose Now to show the listing as soon as it is saved.'}
+                  : 'Choose Now to show the listing as soon as it is saved. It will come down at '
+                    + '9:00 A.M. on the day of the event unless you change Remove Listing.'}
               </span>
             </label>
-            {form.listingMode === 'future' || isChallenge ? (
+            {/* Rendered for Now as well as In The Future. Remove Listing was
+                hidden for Now, so a listing told to appear immediately had no
+                stated end at all - and now that Now seeds it with 9 a.m. on
+                the day of the event, the field has to be on screen for that
+                to be a default rather than a decision made for the admin. */}
+            {['future', 'now'].includes(form.listingMode) || isChallenge ? (
               <div className="form-row-pair nested-fields">
                 {form.listingMode === 'future' ? (
                   <label>
@@ -1727,7 +1757,7 @@ function EventForm({
                 ) : null}
                 {!isForSale ? (
                   <label>
-                    <span>Remove Listing *</span>
+                    <span>Remove Listing{form.listingMode === 'future' || isChallenge ? ' *' : ''}</span>
                     <input
                       className={fieldErrors.visibleUntil ? 'field-invalid' : ''}
                       disabled={!eventTypeSelected}
@@ -2187,19 +2217,77 @@ export function validateEventForm(form) {
 // saved as "listed now" stayed invisible until that date arrived. The same
 // stale value then held the registration-open date hostage through the
 // alignment below.
-export function stampNowDates(form) {
+export function stampNowDates(form, { defaultCloseAt = '' } = {}) {
   const now = toDateTimeLocalValue(new Date());
   const next = { ...form };
 
   if (next.listingMode === 'now') {
     next.visibleFrom = now;
+
+    // Only fills a blank. Switching In The Future -> Now keeps a Remove
+    // Listing date the admin typed under the other mode, the same way the
+    // registration dates are left alone once they hold a deliberate value.
+    if (!next.visibleUntil) {
+      next.visibleUntil = getListingEndDefault(next);
+    }
   }
 
   if (next.registrationMode === 'now') {
     next.registrationOpenAt = now;
   }
 
-  return alignRegistrationOpenAt(next);
+  return alignRegistrationOpenAt(
+    alignRegistrationCloseToListingEnd(next, defaultCloseAt)
+  );
+}
+
+// 9 a.m. on the day of the event, which is where nearly every guild listing
+// should come down: members sign up right up to the day, and a listing left
+// up afterwards advertises something that has already happened. Only a
+// default - the Remove Listing field is on screen for Now as well as for In
+// The Future, so an admin who wants a different day types one.
+//
+// Returns '' for the types that have no event date to count back from
+// (Challenges and Membership collect none) and for the two listing types,
+// which carry their own expiry: For Sale is six months from the posting date
+// and a Business Listing is open-ended.
+export function getListingEndDefault(form) {
+  if (
+    !form?.date
+    || form.eventType === 'Challenges'
+    || form.eventType === 'Membership'
+    || isListingEventType(form.eventType)
+  ) {
+    return '';
+  }
+
+  return `${form.date}T${LISTING_END_DEFAULT_TIME}`;
+}
+
+// Registration is gated by the listing window as well as by its own dates -
+// isEventVisible() refuses a registration once visibleUntil has passed, on the
+// server as well as in the browser - so validateEventForm refuses a close date
+// later than the listing end. The two defaults have to agree or the form
+// refuses its own suggestion: a full-day class's close date defaults to its
+// 9:30 start, which is after the 9 a.m. listing end above.
+//
+// Only ever pulls the close date EARLIER, and only while it still holds the
+// default it was given. A close date the admin typed is left to the
+// validation, which is the existing rule: a deliberate choice is refused
+// rather than silently rewritten.
+function alignRegistrationCloseToListingEnd(form, previousDefaultCloseAt) {
+  if (
+    !['future', 'now'].includes(form.registrationMode)
+    || !form.visibleUntil
+    || !form.registrationCloseAt
+    || form.registrationCloseAt <= form.visibleUntil
+  ) {
+    return form;
+  }
+
+  const isAtDefault = form.registrationCloseAt === previousDefaultCloseAt;
+
+  return isAtDefault ? { ...form, registrationCloseAt: form.visibleUntil } : form;
 }
 
 function alignRegistrationOpenAt(form) {

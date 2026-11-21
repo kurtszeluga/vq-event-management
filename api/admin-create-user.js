@@ -279,6 +279,7 @@ function getAllowedRoleForMembership({ isSuperUser, membershipStatus, requestedR
 export function getPermissionsForRole(role, permissions = {}) {
   const normalized = {
     addUsers: Boolean(permissions.addUsers),
+    manageChallenges: Boolean(permissions.manageChallenges),
     manageEvents: Boolean(permissions.manageEvents),
     managePrograms: Boolean(permissions.managePrograms),
     managePayments: Boolean(permissions.managePayments),
@@ -288,6 +289,7 @@ export function getPermissionsForRole(role, permissions = {}) {
   };
 
   return role === 'Admin' ? normalized : {
+    manageChallenges: false,
     manageEvents: false,
     managePrograms: false,
     managePayments: false,

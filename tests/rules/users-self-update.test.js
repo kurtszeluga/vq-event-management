@@ -378,4 +378,101 @@ describe('demoting an admin who holds registerOthers', () => {
       })
     );
   });
+
+  // manageChallenges was added on 2026-11-21. hasNoAdminPermissions() no
+  // longer names any key - it asks values().hasOnly([false]) of the whole map
+  // - so these two pin that the new key is covered by that and that a
+  // permission added after it will be too, without an edit to the rule.
+  test('a demotion that leaves manageChallenges true is refused', async () => {
+    await seedDemotionFixture();
+
+    await assertRefusedOnMerit(
+      updateDoc(doc(superDb(), 'users', DEMOTED_ADMIN_UID), {
+        permissions: {
+          addUsers: false,
+          manageChallenges: true,
+          manageEvents: false,
+          manageMembershipStatus: false,
+          managePayments: false,
+          registerOthers: false,
+          viewRegistrations: false
+        },
+        role: 'General User'
+      })
+    );
+  });
+
+  test('a demotion carrying manageChallenges false is accepted', async () => {
+    await seedDemotionFixture();
+
+    await assertSucceeds(
+      updateDoc(doc(superDb(), 'users', DEMOTED_ADMIN_UID), {
+        permissions: {
+          addUsers: false,
+          manageChallenges: false,
+          manageEvents: false,
+          manageMembershipStatus: false,
+          managePayments: false,
+          registerOthers: false,
+          viewRegistrations: false
+        },
+        role: 'General User'
+      })
+    );
+  });
+});
+
+// A service account is a standing guild mailbox, and the guild wants to be
+// able to park one - strip every control for a while - without clearing the
+// Service Account tag, since clearing it is what puts the mailbox back in
+// reach of the Annual Refresh. The client stopped refusing that save on
+// 2026-11-21; this is the half that proves the rules were never the obstacle.
+describe('an Admin holding no permissions at all', () => {
+  const SUPER_UID = 'super-3';
+  const PARKED_ADMIN_UID = 'admin-3';
+
+  const NOTHING_TICKED = {
+    addUsers: false,
+    manageChallenges: false,
+    manageEvents: false,
+    manageMembershipStatus: false,
+    managePayments: false,
+    manageWaitlist: false,
+    managePrograms: false,
+    registerOthers: false,
+    viewRegistrations: false
+  };
+
+  async function seedParkedFixture() {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'users', SUPER_UID), storedProfile({
+        email: 'super3@example.com',
+        name: 'Super User Three',
+        role: 'Super User',
+        userId: SUPER_UID
+      }));
+      await setDoc(doc(db, 'users', PARKED_ADMIN_UID), storedProfile({
+        email: 'programs@villagequilters.com',
+        membershipStatus: 'Active',
+        name: 'Programs Mailbox',
+        permissions: { ...NOTHING_TICKED, manageEvents: true },
+        profileTags: ['serviceAccount'],
+        role: 'Admin',
+        status: 'Active',
+        userId: PARKED_ADMIN_UID
+      }));
+    });
+  }
+
+  test('keeps its Admin role and its tag with every control cleared', async () => {
+    await seedParkedFixture();
+
+    await assertSucceeds(
+      updateDoc(doc(testEnv.authenticatedContext(SUPER_UID).firestore(), 'users', PARKED_ADMIN_UID), {
+        permissions: NOTHING_TICKED
+      })
+    );
+  });
 });

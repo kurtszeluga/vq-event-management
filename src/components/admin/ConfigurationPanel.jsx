@@ -1041,8 +1041,27 @@ function ConfigurationPanel({ currentUserProfile }) {
           </label>
           <p className="form-help">
             Sends the area coordinator an email for every new registration or waitlist signup, with current
-            capacity/payment status and a link to print the full registrant list. Independent of the confirmation
-            emails above.
+            capacity/payment status and a link to print the full registrant list. It also covers a waitlist seat
+            being offered to the next person and the waitlist running out. Independent of the confirmation
+            emails above, and of refunds below.
+          </p>
+          <label className="checkbox-label">
+            <input
+              checked={Boolean(emailInstructions.sendCoordinatorRefundNotifications)}
+              type="checkbox"
+              onChange={(event) =>
+                setEmailInstructions((current) => ({
+                  ...current,
+                  sendCoordinatorRefundNotifications: event.target.checked
+                }))
+              }
+            />
+            <span>Notify Coordinators Of Refunds And Cancellations</span>
+          </label>
+          <p className="form-help">
+            Sends the area coordinator an email whenever a registration is cancelled or a refund is issued, naming
+            the registrant, the amount, the refund status and who recorded it. The registrant's own cancellation
+            email is part of the confirmation emails above; this is the coordinator's copy.
           </p>
           <div className="configuration-form-grid">
             {EMAIL_INSTRUCTION_AREAS.map((area) => (

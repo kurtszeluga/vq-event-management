@@ -31,6 +31,7 @@ test('every other existing permission key is still present alongside the new one
   // makes the document unwritable from the client afterwards.
   assert.deepEqual(Object.keys(result).sort(), [
     'addUsers',
+    'manageChallenges',
     'manageEvents',
     'manageMembershipStatus',
     'managePayments',

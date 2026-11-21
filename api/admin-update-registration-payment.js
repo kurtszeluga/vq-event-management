@@ -197,11 +197,13 @@ export default async function handler(request, response) {
     await syncEventRegistrantNames(db, before.eventId);
     await syncEventRegistrationSheet(db, before.eventId);
 
-    if (shouldSendRefundNotification({
+    const isRefundCancellation = isRefundCancellationUpdate({
       paymentUpdate: effectivePaymentUpdate,
       registration: before,
       statusUpdate: effectiveStatusUpdate
-    })) {
+    });
+
+    if (isRefundCancellation) {
       const updatedRegistration = {
         ...before,
         ...effectivePaymentUpdate,
@@ -209,16 +211,37 @@ export default async function handler(request, response) {
         ...effectiveStatusUpdate
       };
 
+      if (shouldSendRefundNotification({
+        paymentUpdate: effectivePaymentUpdate,
+        registration: before,
+        statusUpdate: effectiveStatusUpdate
+      })) {
+        await withTimeout(
+          sendRefundNotificationEmail(db, {
+            actorProfile,
+            registration: updatedRegistration,
+            squareRefund
+          }),
+          4000,
+          'Refund notification email timed out'
+        ).catch((emailError) => {
+          console.error('Refund notification email failed', emailError);
+        });
+      }
+
+      // Not inside the guard above: that one asks whether the REGISTRANT has
+      // an address to write to, and a refund on a registration with no email
+      // on it is still one the coordinator should hear about.
       await withTimeout(
-        sendRefundNotificationEmail(db, {
+        sendRefundCoordinatorEmail(db, {
           actorProfile,
           registration: updatedRegistration,
           squareRefund
         }),
         4000,
-        'Refund notification email timed out'
+        'Coordinator refund notification email timed out'
       ).catch((emailError) => {
-        console.error('Refund notification email failed', emailError);
+        console.error('Coordinator refund notification email failed', emailError);
       });
     }
 
@@ -669,6 +692,21 @@ async function cancelRegistrationWithoutRefund({
     });
   }
 
+  // Outside the email guard above: that one asks whether the REGISTRANT has an
+  // address to write to, and a cancellation with no registrant email is still
+  // one the coordinator should hear about.
+  await withTimeout(
+    sendRefundCoordinatorEmail(db, {
+      actorProfile,
+      registration: updatedRegistration,
+      squareRefund: null
+    }),
+    4000,
+    'Coordinator cancellation notification email timed out'
+  ).catch((emailError) => {
+    console.error('Coordinator cancellation notification email failed', emailError);
+  });
+
   response.status(200).json({
     payment: paymentUpdate,
     registrationId,
@@ -745,11 +783,20 @@ function getAuditAction(paymentUpdate, statusUpdate) {
   return 'Update';
 }
 
-function shouldSendRefundNotification({ paymentUpdate, registration, statusUpdate }) {
+// Whether this payment update is the refund-and-cancel that the notifications
+// hang off. Split out from shouldSendRefundNotification so the coordinator
+// email and the registrant email can ask different follow-up questions: the
+// registrant's needs an address on the registration, the coordinator's does
+// not.
+function isRefundCancellationUpdate({ paymentUpdate, registration, statusUpdate }) {
   const nextStatus = statusUpdate.status || registration.status || '';
 
   return ['Refunded', 'Refund Pending'].includes(paymentUpdate.paymentStatus)
-    && nextStatus === 'Cancelled'
+    && nextStatus === 'Cancelled';
+}
+
+function shouldSendRefundNotification({ paymentUpdate, registration, statusUpdate }) {
+  return isRefundCancellationUpdate({ paymentUpdate, registration, statusUpdate })
     && Boolean(cleanText(registration.email));
 }
 
@@ -790,6 +837,143 @@ async function sendRefundNotificationEmail(db, {
     }),
     to: registration.email
   });
+}
+
+// The coordinator's side of a cancellation. The member's own email
+// (sendRefundNotificationEmail above) has always existed; the coordinator was
+// only ever its reply-to address, so the person who runs the area could be
+// told about every arrival and never hear about a departure - which is what
+// was asked for on 2026-11-21.
+//
+// Gated on a switch of its own rather than on Notify Coordinators Of New
+// Registrations: that one is about signups, and a guild that wants arrival
+// email does not necessarily want refund email (or the other way round -
+// a refund is rare and worth hearing about even when every signup is not).
+// Exported for tests: the gate (a switch of its own), the recipient (the
+// area coordinator) and the silent no-op when no coordinator is assigned are
+// all things a wrong answer would make invisible - nothing fails, an email
+// simply never arrives.
+export async function sendRefundCoordinatorEmail(db, {
+  actorProfile,
+  registration,
+  squareRefund
+}) {
+  const emailSettingsSnap = await db.collection('appSettings').doc('emailInstructions').get();
+  const emailSettings = emailSettingsSnap.exists ? emailSettingsSnap.data() : {};
+
+  if (emailSettings.sendCoordinatorRefundNotifications !== true) {
+    return;
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY is not configured. Skipping coordinator refund notification email.');
+    return;
+  }
+
+  const area = getEmailInstructionArea(registration.eventType);
+  const coordinatorContact = await getCoordinatorContact(db, area.areaId);
+
+  if (!coordinatorContact.email) {
+    return;
+  }
+
+  const eventTitle = registration.eventTitle || registration.eventType || 'Event';
+  const isRefund = ['Refunded', 'Refund Pending'].includes(registration.paymentStatus);
+
+  await sendResendEmail({
+    html: buildRefundCoordinatorHtml({ actorProfile, registration, squareRefund }),
+    // The member, so a coordinator can reply straight to the person whose
+    // registration this was.
+    replyTo: cleanText(registration.email) || actorProfile.email || '',
+    subject: `${isRefund ? 'Refund Issued' : 'Registration Cancelled'}: ${eventTitle}`,
+    text: buildRefundCoordinatorText({ actorProfile, registration, squareRefund }),
+    to: coordinatorContact.email
+  });
+}
+
+function buildRefundCoordinatorHtml({ actorProfile, registration, squareRefund }) {
+  const logoUrl = `${getAppOrigin()}/assets/village-quilters-logo.png`;
+  const eventTitle = registration.eventTitle || registration.eventType || 'Event';
+  const isRefund = ['Refunded', 'Refund Pending'].includes(registration.paymentStatus);
+  const heading = isRefund ? 'Refund Issued' : 'Registration Cancelled';
+  const intro = isRefund
+    ? 'A refund has been issued on one of your registrations. The details are below.'
+    : 'A registration has been cancelled. The details are below.';
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f3eee8;color:#1d2927;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" style="width:100%;border-collapse:collapse;background:#f3eee8;padding:28px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" style="width:100%;max-width:680px;border-collapse:collapse;background:#fffdfa;border:1px solid #ded5ca;border-radius:8px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px;background:#225c56;color:#fffaf5;">
+                <table role="presentation" style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="width:58px;vertical-align:middle;">
+                      <img alt="Village Quilters" src="${escapeHtml(logoUrl)}" width="48" height="48" style="display:block;border-radius:10px;" />
+                    </td>
+                    <td style="vertical-align:middle;">
+                      <p style="margin:0 0 5px;color:#f3c6a8;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">The Village Quilters, Inc.</p>
+                      <h1 style="margin:0;color:#fffaf5;font-size:24px;line-height:1.25;">${escapeHtml(heading)}</h1>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 28px;">
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.55;">${escapeHtml(intro)}</p>
+                <section style="margin:0 0 18px;padding:16px;border:1px solid #e3d9ce;background:#fbf8f3;">
+                  <h2 style="margin:0 0 12px;color:#225c56;font-size:19px;line-height:1.3;">${escapeHtml(eventTitle)}</h2>
+                  ${buildDetailRowHtml('Registrant', registration.name || registration.email || 'Not recorded')}
+                  ${registration.email ? buildDetailRowHtml('Email', registration.email) : ''}
+                  ${hasEventDate(registration) ? buildDetailRowHtml('Event Date', formatEventDate(registration.eventDate)) : ''}
+                  ${buildDetailRowHtml('Registration Status', registration.status || 'Cancelled')}
+                  ${buildDetailRowHtml(isRefund ? 'Refund Status' : 'Payment Status', getRefundStatusText(registration, squareRefund))}
+                  ${buildDetailRowHtml('Amount', formatCurrency(registration.amountPaid || registration.amountDue || 0))}
+                  ${registration.squareRefundId ? buildDetailRowHtml('Square Refund ID', registration.squareRefundId) : ''}
+                  ${buildDetailRowHtml('Recorded By', actorProfile?.name || actorProfile?.email || 'Unknown admin')}
+                </section>
+                <p style="margin:0;font-size:14px;line-height:1.5;color:#4c5a57;">The seat this freed has already been offered to the waiting list if the event has one.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 28px;background:#225c56;color:#fffaf5;">
+                <p style="margin:0;color:#fffaf5;font-size:13px;line-height:1.5;">The Village Quilters, Inc.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function buildRefundCoordinatorText({ actorProfile, registration, squareRefund }) {
+  const isRefund = ['Refunded', 'Refund Pending'].includes(registration.paymentStatus);
+
+  return [
+    `The Village Quilters, Inc. ${isRefund ? 'Refund Issued' : 'Registration Cancelled'}`,
+    '',
+    isRefund
+      ? 'A refund has been issued on one of your registrations.'
+      : 'A registration has been cancelled.',
+    '',
+    `Event: ${registration.eventTitle || registration.eventType || 'Event'}`,
+    `Registrant: ${registration.name || registration.email || 'Not recorded'}`,
+    registration.email ? `Email: ${registration.email}` : '',
+    hasEventDate(registration) ? `Event Date: ${formatEventDate(registration.eventDate)}` : '',
+    `Registration Status: ${registration.status || 'Cancelled'}`,
+    `${isRefund ? 'Refund Status' : 'Payment Status'}: ${getRefundStatusText(registration, squareRefund)}`,
+    `Amount: ${formatCurrency(registration.amountPaid || registration.amountDue || 0)}`,
+    registration.squareRefundId ? `Square Refund ID: ${registration.squareRefundId}` : '',
+    `Recorded By: ${actorProfile?.name || actorProfile?.email || 'Unknown admin'}`,
+    '',
+    'The seat this freed has already been offered to the waiting list if the event has one.'
+  ].filter((line) => line !== '').join('\n');
 }
 
 async function sendResendEmail({ html, replyTo, subject, text, to }) {

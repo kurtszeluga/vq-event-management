@@ -43,15 +43,16 @@ function App() {
       || hasPermission('addUsers')
       || hasPermission('manageEvents')
       || hasPermission('managePrograms')
+      || hasPermission('manageChallenges')
       || hasPermission('manageMembershipStatus')
       || hasPermission('viewRegistrations'));
   const showMemberDirectoryLink =
     currentUser
     && directoryEnabled
     && userHasActiveMembership(userProfile);
-  // AdminDashboardPage builds its module list from exactly these four checks
-  // and falls back to "No Admin Modules Enabled" when none of them holds, so
-  // this is what decides whether there is anything behind the link. Note it is
+  // AdminDashboardPage builds its module list from exactly these checks and
+  // falls back to "No Admin Modules Enabled" when none of them holds, so this
+  // is what decides whether there is anything behind the link. Note it is
   // narrower than RequireAdmin, which only checks isAdmin: an Admin ticked for
   // just managePayments, registerOthers or manageWaitlist can still open
   // /admin directly, they simply have nothing waiting there.
@@ -60,6 +61,7 @@ function App() {
     && (isSuperUser
       || hasPermission('manageEvents')
       || hasPermission('managePrograms')
+      || hasPermission('manageChallenges')
       || hasPermission('addUsers')
       || hasPermission('viewRegistrations'));
   const currentYear = new Date().getFullYear();

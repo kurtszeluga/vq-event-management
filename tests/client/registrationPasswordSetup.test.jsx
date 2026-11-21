@@ -41,7 +41,10 @@ describe('the password offer on the completion screen', () => {
     renderCard();
 
     expect(screen.queryByRole('button', { name: /create your password/i })).toBeNull();
-    expect(screen.getByRole('button', { name: /return to list/i })).toBeTruthy();
+    // "Return", not "Return To List": the list it named is the app's own
+    // events page, and a member who arrived from the guild website is sent
+    // back there instead.
+    expect(screen.getByRole('button', { name: /^return$/i })).toBeTruthy();
   });
 
   it('appears when they opted in and a token was minted', () => {
