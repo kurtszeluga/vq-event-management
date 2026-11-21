@@ -272,17 +272,19 @@ function EventForm({
     });
   }
 
+  // Keyed on the event having a DATE, not on its type. It used to answer only
+  // for classes and workshops, which left a Retreat or an Other event with an
+  // empty Registration Ends box for the admin to fill in by hand - the two
+  // types where the guild is least likely to want a different answer. A type
+  // with no date of its own (Challenges, Membership) still gets nothing,
+  // because there is nothing to count back from.
   function getRegistrationDefaultCloseAt(event) {
-    if (!supportsClassWorkshopRegistrationDefault(event.eventType)) {
-      return '';
-    }
-
     const presetValue = event.timePreset || eventTypeTimePresetMap[event.eventType];
     const presetStartTime = eventTimeOptions.find(
       (option) => option.value === presetValue
     )?.startTime;
 
-    return getClassWorkshopStartDateTime({
+    return getEventStartDateTime({
       ...event,
       startTime: event.startTime || presetStartTime || ''
     });
@@ -2465,20 +2467,20 @@ export function supportsSupplyList(eventType) {
   return Boolean(eventType) && !isListingEventType(eventType);
 }
 
-function supportsClassWorkshopRegistrationDefault(eventType) {
-  return eventType?.startsWith('Class') || eventType === 'Workshop';
-}
-
-function getClassWorkshopStartDateTime(event) {
-  if (
-    !supportsClassWorkshopRegistrationDefault(event.eventType)
-    || !event.date
-    || !event.startTime
-  ) {
+// When the event itself begins, as a datetime-local string. Used as the
+// default registration close time: registration runs up to the start of the
+// thing being registered for.
+//
+// A type that collects no start time (or has not been given one yet) falls
+// back to the same 9 a.m. the listing comes down at, so "registration ends on
+// the day of the event" holds for every type with a date rather than only the
+// ones with a time preset.
+function getEventStartDateTime(event) {
+  if (!event?.date) {
     return '';
   }
 
-  return `${event.date}T${event.startTime}`;
+  return `${event.date}T${event.startTime || LISTING_END_DEFAULT_TIME}`;
 }
 
 function getEventTypeCardTitle(eventType) {
@@ -2563,7 +2565,7 @@ export function getInitialForm(editingEvent, initialEventType = '') {
     };
   }
 
-  return {
+  const form = {
     ...DEFAULT_EVENT_FORM,
     ...editingEvent,
     capacity: String(editingEvent.capacity ?? 0),
@@ -2573,6 +2575,27 @@ export function getInitialForm(editingEvent, initialEventType = '') {
     imageUrls: Array.from({ length: MAX_EVENT_IMAGES }, (_, index) => editingEvent.imageUrls?.[index] || ''),
     serviceFee: String(editingEvent.serviceFee ?? '1.00')
   };
+
+  // Seed the two end dates an older event can be missing entirely.
+  //
+  // Until Remove Listing was rendered for "list now" it was neither shown nor
+  // required in that mode, so every event saved that way carries no
+  // visibleUntil at all. The defaults applied when the admin PICKS Now, and
+  // an event already set to Now is never picked again - so opening one showed
+  // a blank box that nothing would ever fill, which is what "it doesn't
+  // default" turned out to mean. Filling it here puts the suggestion on
+  // screen, where the admin can accept it by saving or type over it.
+  //
+  // Only ever fills a blank; a date already on the event is left alone.
+  if (form.listingMode === 'now' && !form.visibleUntil) {
+    form.visibleUntil = getListingEndDefault(form);
+  }
+
+  if (['future', 'now'].includes(form.registrationMode) && !form.registrationCloseAt) {
+    form.registrationCloseAt = getEventStartDateTime(form);
+  }
+
+  return form;
 }
 
 function formatServiceFeeDefault(value) {

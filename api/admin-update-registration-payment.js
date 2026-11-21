@@ -377,12 +377,27 @@ async function processSquareRefundIfNeeded(db, {
       objectType: 'refund',
       processedAt: FieldValue.serverTimestamp(),
       receivedAt: FieldValue.serverTimestamp(),
-      reconciliationStatus: 'Refund Pending Needs Review',
+      // NOT flagged for review. A PENDING refund is the ordinary path for a
+      // card refund, not an exception: Square accepted it and will complete
+      // it on its own, and the daily sweep closes this row when it does. The
+      // status used to read "Refund Pending Needs Review", which lit the
+      // dashboard's attention chip the moment a refund was issued and asked
+      // the admin for a resolution note on something that needed no
+      // resolution. The sweep promotes this row to Refund Needs Review only
+      // if a later check finds the refund STILL not completed.
+      reconciliationStatus: 'Refund Pending',
       registrationEmail: before.email || '',
       registrationId,
       registrationName: before.name || '',
       reviewDetails: {
-        message: 'Square accepted the refund request. Waiting for Square refund webhook completion.',
+        message: 'Square accepted the refund request and is completing it. '
+          + 'The daily refund check will confirm it, or flag this for review if it has not completed by then.',
+        // The comment the admin typed on the refund card, carried through so
+        // this row says WHY the refund was issued. It was already going to
+        // Square as the refund reason and onto the registration, but not
+        // here - so an admin who reached Payment Review was asked for a note
+        // about a refund whose note they had already written.
+        refundComment: cleanText(paymentUpdate.paymentNote),
         squarePaymentId,
         squareRefundId: refund.id || '',
         squareRefundStatus: refund.status
@@ -414,6 +429,7 @@ async function processSquareRefundIfNeeded(db, {
       registrationName: before.name || '',
       reviewDetails: {
         message: 'Square accepted the refund request but did not return COMPLETED.',
+        refundComment: cleanText(paymentUpdate.paymentNote),
         squarePaymentId,
         squareRefundId: refund.id || '',
         squareRefundStatus: refund.status || 'Unknown'

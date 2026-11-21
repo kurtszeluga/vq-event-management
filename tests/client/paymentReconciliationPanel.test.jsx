@@ -221,3 +221,71 @@ describe('checking a pending refund with Square', () => {
     expect(screen.queryByRole('button', { name: 'Check With Square' })).toBeNull();
   });
 });
+
+// Reported 2026-11-21: issuing a refund put a "payment needs review" on the
+// dashboard straight away, and then asked for a resolution note on something
+// that needed no resolution. A refund Square accepts as PENDING is the
+// ordinary path, so its row is now written unflagged and only the daily sweep
+// promotes it if the refund has still not completed.
+describe('a refund that is simply waiting on Square', () => {
+  const AWAITING_SQUARE_ITEM = {
+    eventTitle: 'December Workshop',
+    id: 'refund-pending-xyz',
+    reconciliationStatus: 'Refund Pending',
+    registrationEmail: 'member@example.com',
+    registrationId: 'reg-refund',
+    registrationName: 'Ada Lovelace',
+    status: 'Processed'
+  };
+
+  it('is not counted as needing review', () => {
+    renderPanel([], [AWAITING_SQUARE_ITEM]);
+
+    // The panel opens on Needs Review, so an empty list here is the whole
+    // point: nothing is asking the admin for anything.
+    const needsReview = screen.getByRole('button', { name: /Needs Review/ });
+
+    expect(needsReview.textContent).toMatch(/\b0\b/);
+  });
+
+  it('is still reachable, under Awaiting Square', async () => {
+    // Without a bucket of its own an unflagged row would be findable only
+    // under All - in flight and invisible.
+    const user = userEvent.setup();
+    renderPanel([], [AWAITING_SQUARE_ITEM]);
+
+    await user.click(screen.getByRole('button', { name: /Awaiting Square/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the refund comment, so the row explains itself', async () => {
+    // The point of carrying it: whoever opens this should not have to go
+    // looking for why the money went back.
+    const user = userEvent.setup();
+    renderPanel([], [{
+      ...AWAITING_SQUARE_ITEM,
+      reviewDetails: {
+        message: 'Square accepted the refund request and is completing it.',
+        refundComment: 'Member cancelled, family emergency.'
+      }
+    }]);
+
+    await user.click(screen.getByRole('button', { name: /Awaiting Square/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Refund Comment: Member cancelled, family emergency\./))
+        .toBeInTheDocument();
+    });
+  });
+
+  it('counts as needing review once the sweep has flagged it', () => {
+    renderPanel([], [{ ...AWAITING_SQUARE_ITEM, reconciliationStatus: 'Refund Needs Review' }]);
+
+    const needsReview = screen.getByRole('button', { name: /Needs Review/ });
+
+    expect(needsReview.textContent).toMatch(/\b1\b/);
+  });
+});

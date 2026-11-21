@@ -25,8 +25,12 @@ function fakeDoc(id, data) {
   return doc;
 }
 
-function fakeDb({ paymentsByTransaction = {}, registrations = [] } = {}) {
-  const writes = { commits: 0, sets: [], updates: [] };
+// reviewDocs is the squareWebhookEvents collection: the follow-up rows a
+// refund request writes and the sweep later resolves or flags. Keyed by doc
+// id, read and written directly rather than through the batch, because
+// flagUnresolvedRefund has to look at what is already there before deciding.
+function fakeDb({ paymentsByTransaction = {}, registrations = [], reviewDocs = {} } = {}) {
+  const writes = { commits: 0, docSets: [], sets: [], updates: [] };
   const batch = {
     commit: async () => {
       writes.commits += 1;
@@ -37,7 +41,18 @@ function fakeDb({ paymentsByTransaction = {}, registrations = [] } = {}) {
 
   function collection(name) {
     const builder = {
-      doc: (id) => ({ id, path: `${name}/${id}` }),
+      doc: (id) => ({
+        get: async () => ({
+          data: () => reviewDocs[id],
+          exists: Object.prototype.hasOwnProperty.call(reviewDocs, id)
+        }),
+        id,
+        path: `${name}/${id}`,
+        set: async (data, options) => {
+          writes.docSets.push({ data, id, options });
+          reviewDocs[id] = { ...(reviewDocs[id] || {}), ...data };
+        }
+      }),
       get: async () => {
         if (name === 'registrations') {
           return { docs: registrations, size: registrations.length };
@@ -273,4 +288,157 @@ test('every outcome tells the admin what happens next', () => {
   );
   assert.match(describeRefundCheckOutcome({ outcome: 'error' }), /could not be reached/);
   assert.match(describeRefundCheckOutcome({ outcome: 'unknown' }), /does not act on/);
+});
+
+// Asked for on 2026-11-21, after a test refund put a "payment needs review"
+// on the dashboard the moment it was issued and then asked for a resolution
+// note on something that needed no resolution.
+//
+// A refund Square accepts as PENDING is the ordinary path. The review row is
+// written unflagged, and becomes a flagged one only when a later sweep finds
+// the refund STILL not completed - one sweep's patience, which the daily cron
+// makes about 24 hours.
+
+function pendingRefundRow(overrides = {}) {
+  return {
+    reconciliationStatus: 'Refund Pending',
+    registrationId: 'reg-waiting',
+    status: 'Processed',
+    ...overrides
+  };
+}
+
+function sweepOnce({ refundStatus = 'PENDING', reviewDocs = {}, amount = 2500 } = {}) {
+  const registration = fakeDoc('reg-waiting', {
+    amountPaid: 25,
+    email: 'member@example.com',
+    eventTitle: 'December Workshop',
+    name: 'Ada Lovelace',
+    paymentNote: 'Member cancelled, family emergency.',
+    paymentStatus: 'Refund Pending',
+    squareRefundId: 'refund-waiting'
+  });
+  const db = fakeDb({ registrations: [registration], reviewDocs });
+
+  return sweepPendingSquareRefunds(db, {
+    fetchRefund: async (refundId) => ({
+      ok: true,
+      refund: { amount_money: { amount }, id: refundId, status: refundStatus }
+    })
+  }).then((result) => ({ db, result }));
+}
+
+test('a refund still pending at the sweep is promoted to Needs Review', async () => {
+  const { db } = await sweepOnce({ reviewDocs: { 'refund-pending-refund-waiting': pendingRefundRow() } });
+  const write = db.writes.docSets.find((entry) => entry.id === 'refund-pending-refund-waiting');
+
+  assert.ok(write, 'the sweep wrote nothing to the follow-up row');
+  assert.equal(write.data.reconciliationStatus, 'Refund Needs Review');
+  // The reason has to travel with the flag. "Needs Review" with nothing
+  // attached is the state this mechanism exists to avoid.
+  assert.match(write.data.reviewDetails.message, /still reports this refund as pending/i);
+  assert.equal(write.data.reviewDetails.squareRefundStatus, 'PENDING');
+});
+
+test('it does not keep re-flagging a row it already flagged', async () => {
+  // Rewriting it every morning would keep moving its timestamps and make an
+  // old problem look like a new one.
+  const { db } = await sweepOnce({
+    reviewDocs: {
+      'refund-pending-refund-waiting': pendingRefundRow({ reconciliationStatus: 'Refund Needs Review' })
+    }
+  });
+
+  assert.equal(db.writes.docSets.length, 0);
+});
+
+test('it leaves a row the admin has already reviewed alone', async () => {
+  // They have seen it and written down what they did. Flagging it again daily
+  // would train them to ignore the chip.
+  const { db } = await sweepOnce({
+    reviewDocs: {
+      'refund-pending-refund-waiting': pendingRefundRow({
+        reconciliationStatus: 'Reviewed',
+        resolutionNote: 'Called Square, they are reprocessing it.'
+      })
+    }
+  });
+
+  assert.equal(db.writes.docSets.length, 0);
+});
+
+test('a rejected refund says the money did not go back', async () => {
+  // The dangerous one: the registration is cancelled either way, so without
+  // this the guild has a cancelled registration and a member who was never
+  // actually refunded.
+  const { db } = await sweepOnce({
+    refundStatus: 'REJECTED',
+    reviewDocs: { 'refund-pending-refund-waiting': pendingRefundRow() }
+  });
+  const write = db.writes.docSets.find((entry) => entry.id === 'refund-pending-refund-waiting');
+
+  assert.equal(write.data.reconciliationStatus, 'Refund Needs Review');
+  assert.match(write.data.reviewDetails.message, /has NOT gone back/);
+});
+
+test('a completed refund closes the row instead of flagging it', async () => {
+  // The whole point: the ordinary path never reaches the admin at all.
+  const { db, result } = await sweepOnce({ refundStatus: 'COMPLETED', amount: 2500 });
+
+  assert.equal(result.completed, 1);
+  assert.equal(db.writes.docSets.length, 0);
+
+  const batched = db.writes.sets.find(
+    (entry) => entry.ref.id === 'refund-pending-refund-waiting'
+  );
+
+  assert.equal(batched.data.reconciliationStatus, 'Refund Completed');
+});
+
+test('a flag raised with no row to promote carries the registrant with it', async () => {
+  // A refund recorded by the webhook rather than by the refund card has no
+  // follow-up row, so the sweep creates one - and a row naming nobody is not
+  // worth raising.
+  const { db } = await sweepOnce({ reviewDocs: {} });
+  const write = db.writes.docSets.find((entry) => entry.id === 'refund-pending-refund-waiting');
+
+  assert.equal(write.data.registrationName, 'Ada Lovelace');
+  assert.equal(write.data.registrationEmail, 'member@example.com');
+  assert.equal(write.data.eventTitle, 'December Workshop');
+  assert.equal(write.data.registrationId, 'reg-waiting');
+});
+
+test('the flag carries the refund comment, so the row says why', async () => {
+  // The comment typed on the refund card already went to Square as the refund
+  // reason and onto the registration. Not having it here is what made Payment
+  // Review ask for a note about a refund whose note had already been written.
+  const { db } = await sweepOnce({ reviewDocs: {} });
+  const write = db.writes.docSets.find((entry) => entry.id === 'refund-pending-refund-waiting');
+
+  assert.equal(write.data.reviewDetails.refundComment, 'Member cancelled, family emergency.');
+});
+
+test('a refund with no comment does not blank the one the row already has', async () => {
+  // reviewDetails is written whole here, so an empty value would overwrite
+  // the comment the refund request put there.
+  const registration = fakeDoc('reg-waiting', {
+    amountPaid: 25,
+    paymentStatus: 'Refund Pending',
+    squareRefundId: 'refund-waiting'
+  });
+  const db = fakeDb({
+    registrations: [registration],
+    reviewDocs: { 'refund-pending-refund-waiting': pendingRefundRow() }
+  });
+
+  await sweepPendingSquareRefunds(db, {
+    fetchRefund: async (refundId) => ({
+      ok: true,
+      refund: { amount_money: { amount: 2500 }, id: refundId, status: 'PENDING' }
+    })
+  });
+
+  const write = db.writes.docSets.find((entry) => entry.id === 'refund-pending-refund-waiting');
+
+  assert.ok(!('refundComment' in write.data.reviewDetails));
 });

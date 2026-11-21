@@ -2540,22 +2540,65 @@ body.nav-sheet-open {
   width: 100%;
 }
 
+/* Nine columns, and the min-width used to push the table past its card on a
+   laptop before any content did. The wrap still scrolls - a narrow window has
+   to do something - but at a normal desktop width the list now fits, which it
+   did not once Manage Challenges made the Permissions cell a line longer. */
 .user-table {
   border-collapse: collapse;
-  min-width: 860px;
-  width: auto;
+  min-width: 760px;
+  table-layout: auto;
+  width: 100%;
 }
 
 .user-table .card-actions {
   flex-wrap: nowrap;
+  gap: 8px;
 }
 
+/* Tighter than the other tables on purpose: 4px off each side of nine columns
+   is most of what brought this back inside the card. */
 .user-table th,
 .user-table td {
   border-bottom: 1px solid #e6ddd3;
-  padding: 14px 12px;
+  padding: 10px 8px;
   text-align: left;
   vertical-align: top;
+}
+
+/* An address is one long unbroken token, so without this the Email column
+   takes whatever width the longest one asks for - it was the widest column on
+   the screen by some way, at 252px. break-word rather than anywhere, with a
+   floor under the column: left to squeeze it as far as it liked, the browser
+   broke every address into four stacked fragments to buy width for the rest. */
+.user-table th[data-label="Email"],
+.user-table td[data-label="Email"] {
+  /* `anywhere` rather than `break-word` on purpose: only `anywhere` lowers
+     the cell's MIN-CONTENT width, which is what an auto-layout table measures
+     the column by. With break-word the column still demanded the full width
+     of the longest address (244px, the widest thing on the row) and simply
+     never used the permission to break. The min-width is the other half -
+     given `anywhere` and no floor, the browser buys width for its neighbours
+     by chopping every address into four stacked fragments. */
+  min-width: 190px;
+  overflow-wrap: anywhere;
+  width: 200px;
+}
+
+/* The longest cell in the row now that it lists nine permissions, and the one
+   that should give way first - it wraps onto as many lines as it needs. */
+.user-table td[data-label="Permissions"] {
+  min-width: 170px;
+}
+
+/* The row buttons sit inside a cell, not on a form, so they do not need the
+   44px touch target the standalone ones keep - and nine columns cannot spare
+   the width. Still comfortably clickable; the mobile card layout below
+   restores the full size, which is where the thumb actually is. */
+.user-table .button-link {
+  font-size: 0.92rem;
+  min-height: 34px;
+  padding: 7px 12px;
 }
 
 .user-table th {
@@ -4231,6 +4274,24 @@ div.csv-preview-warning {
 
   .user-table thead {
     display: none;
+  }
+
+  /* The desktop squeeze is undone here. Every row is a stacked card at this
+     width, so a column pinned to 200px is just a cell that will not fill its
+     card - and the buttons go back to a full touch target, which is the one
+     place it actually matters. */
+  .user-table th[data-label="Email"],
+  .user-table td[data-label="Email"],
+  .user-table td[data-label="Permissions"] {
+    min-width: 0;
+    overflow-wrap: break-word;
+    width: 100%;
+  }
+
+  .user-table .button-link {
+    font-size: inherit;
+    min-height: 44px;
+    padding: 13px 16px;
   }
 
   .user-table,

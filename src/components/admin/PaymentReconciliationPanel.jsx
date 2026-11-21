@@ -10,8 +10,13 @@ import {
 import { formatCurrency } from '../../utils/eventFormat.js';
 import { isCashCheckAwaitingCollection } from '../../utils/registrationEligibility.js';
 
+// Awaiting Square sits beside Needs Review because a refund that has been
+// requested and not yet completed now lands there instead: it is no longer
+// flagged on arrival, and without a bucket of its own it would be reachable
+// only under All - in flight and invisible.
 const FILTERS = [
   { label: 'Needs Review', value: 'needs-review' },
+  { label: 'Awaiting Square', value: 'awaiting-square' },
   { label: 'All', value: 'all' },
   { label: 'Completed', value: 'completed' },
   { label: 'Reviewed', value: 'reviewed' },
@@ -117,6 +122,7 @@ function PaymentReconciliationPanel() {
   const counts = useMemo(
     () => ({
       all: events.length,
+      awaitingSquare: events.filter(isAwaitingSquareEvent).length,
       completed: events.filter(isCompletedEvent).length,
       needsReview: events.filter(isNeedsReviewEvent).length,
       noAction: events.filter(isNoActionEvent).length,
@@ -432,6 +438,10 @@ function matchesFilter(event, filter) {
     return isNoActionEvent(event);
   }
 
+  if (filter === 'awaiting-square') {
+    return isAwaitingSquareEvent(event);
+  }
+
   return isNeedsReviewEvent(event);
 }
 
@@ -452,6 +462,10 @@ function getFilterCount(filter, counts) {
     return counts.noAction;
   }
 
+  if (filter === 'awaiting-square') {
+    return counts.awaitingSquare;
+  }
+
   return counts.needsReview;
 }
 
@@ -469,6 +483,13 @@ function isNoActionEvent(event) {
 
 function isNeedsReviewEvent(event) {
   return String(event.reconciliationStatus || '').includes('Needs Review');
+}
+
+// Requested, accepted by Square, not finished yet. Checked for the exact
+// status rather than for "Pending" anywhere in the string, so that the flagged
+// states keep being read by isNeedsReviewEvent alone.
+function isAwaitingSquareEvent(event) {
+  return event.reconciliationStatus === 'Refund Pending';
 }
 
 function isReviewedEvent(event) {

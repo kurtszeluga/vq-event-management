@@ -102,6 +102,18 @@ export async function resolvePendingSquareRefund(db, registrationDoc, { fetchRef
   const verdict = classifySquareRefund(lookup.refund, { recordedPaymentAmount });
 
   if (verdict.outcome !== 'completed') {
+    // The refund did not finish. THIS is the moment it becomes something the
+    // admin should look at - not the moment it was issued. A refund that
+    // Square accepts as PENDING is the ordinary path, so the row written when
+    // it was requested is deliberately unflagged; one sweep later, still not
+    // completed, is no longer ordinary.
+    await flagUnresolvedRefund(db, {
+      registration,
+      registrationId,
+      squareRefundId,
+      verdict
+    });
+
     return {
       ...base,
       outcome: verdict.outcome,
@@ -165,6 +177,79 @@ export async function resolvePendingSquareRefund(db, registrationDoc, { fetchRef
     squareRefundId,
     squareStatus: verdict.status
   };
+}
+
+// What a still-unresolved refund says, by what Square answered. Each one is a
+// different problem, and "Needs Review" with no reason attached is the state
+// this whole mechanism exists to avoid.
+function describeUnresolvedRefund(verdict) {
+  if (verdict.outcome === 'pending') {
+    return 'Square still reports this refund as pending a day after it was requested. '
+      + 'A card refund normally completes well inside that, so it is worth checking in Square.';
+  }
+
+  if (verdict.outcome === 'rejected') {
+    return `Square reports this refund as ${verdict.status}. The money has NOT gone back - `
+      + 'the registration is cancelled and still needs refunding another way.';
+  }
+
+  if (verdict.outcome === 'partial') {
+    return `Square completed a refund of ${verdict.refundAmount} against a larger recorded payment. `
+      + 'The difference needs accounting for.';
+  }
+
+  return `Square returned an unrecognised refund status (${verdict.status || 'none'}).`;
+}
+
+// Promotes the follow-up row the refund request wrote, in place, to something
+// the dashboard's attention chip picks up.
+//
+// Two rows are deliberately left alone. One an admin has already Reviewed:
+// they have seen it and written down what they did, and re-flagging it every
+// morning would train them to ignore the chip. And one already flagged:
+// rewriting it daily would keep moving its timestamps and make an old problem
+// look new.
+async function flagUnresolvedRefund(db, { registration, registrationId, squareRefundId, verdict }) {
+  const reviewRef = db.collection('squareWebhookEvents').doc(`refund-pending-${squareRefundId}`);
+  const refundComment = cleanText(registration.paymentNote);
+  const existing = await reviewRef.get();
+  const currentStatus = existing.exists ? existing.data()?.reconciliationStatus || '' : '';
+
+  if (currentStatus === 'Reviewed' || String(currentStatus).includes('Needs Review')) {
+    return;
+  }
+
+  const now = FieldValue.serverTimestamp();
+
+  await reviewRef.set(
+    {
+      eventTitle: cleanText(registration.eventTitle),
+      eventType: 'App Initiated Refund',
+      objectId: squareRefundId,
+      objectType: 'refund',
+      processedAt: now,
+      // Written only when the row is being created by this sweep - a row the
+      // refund request already wrote keeps the time Square was first asked.
+      ...(existing.exists ? {} : { receivedAt: now }),
+      reconciliationStatus: 'Refund Needs Review',
+      registrationEmail: cleanText(registration.email),
+      registrationId,
+      registrationName: cleanText(registration.name),
+      reviewDetails: {
+        message: describeUnresolvedRefund(verdict),
+        // Carried so a row this sweep CREATES still says why the refund was
+        // issued - a refund recorded by the webhook rather than by the refund
+        // card has no row for the comment to have been written onto. Omitted
+        // rather than blanked when there is nothing to say, so it cannot wipe
+        // the comment a row already carries.
+        ...(refundComment ? { refundComment } : {}),
+        squareRefundId,
+        squareRefundStatus: verdict.status || 'Unknown'
+      },
+      status: 'Processed'
+    },
+    { merge: true }
+  );
 }
 
 export async function sweepPendingSquareRefunds(db, {
