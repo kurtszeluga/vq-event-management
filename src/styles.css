@@ -2556,14 +2556,24 @@ body.nav-sheet-open {
   gap: 8px;
 }
 
-/* Tighter than the other tables on purpose: 4px off each side of nine columns
-   is most of what brought this back inside the card. */
+/* Tighter than the other tables on purpose: the horizontal padding is what
+   nine columns can least afford, and it is taken off every one of them -
+   including the gap between Permissions and Actions, which is where it reads
+   as most wasted. */
 .user-table th,
 .user-table td {
   border-bottom: 1px solid #e6ddd3;
-  padding: 10px 8px;
+  padding: 8px 6px;
   text-align: left;
   vertical-align: top;
+}
+
+/* The header words are longer than anything under them - "Membership" and
+   "Profile Status" each demanded more width than the "Active" they label - so
+   the column widths were being set by the labels rather than by the data. */
+.user-table th {
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
 }
 
 /* An address is one long unbroken token, so without this the Email column
@@ -2580,15 +2590,17 @@ body.nav-sheet-open {
      never used the permission to break. The min-width is the other half -
      given `anywhere` and no floor, the browser buys width for its neighbours
      by chopping every address into four stacked fragments. */
-  min-width: 190px;
+  font-size: 0.92rem;
+  min-width: 200px;
   overflow-wrap: anywhere;
-  width: 200px;
+  width: 235px;
 }
 
 /* The longest cell in the row now that it lists nine permissions, and the one
-   that should give way first - it wraps onto as many lines as it needs. */
+   that should give way first - it wraps onto as many lines as it needs, and
+   the space it gives up goes to Email, which should not wrap at all. */
 .user-table td[data-label="Permissions"] {
-  min-width: 170px;
+  min-width: 150px;
 }
 
 /* The row buttons sit inside a cell, not on a form, so they do not need the
@@ -2596,9 +2608,10 @@ body.nav-sheet-open {
    the width. Still comfortably clickable; the mobile card layout below
    restores the full size, which is where the thumb actually is. */
 .user-table .button-link {
-  font-size: 0.92rem;
-  min-height: 34px;
-  padding: 7px 12px;
+  font-size: 0.9rem;
+  min-height: 32px;
+  padding: 6px 10px;
+  white-space: nowrap;
 }
 
 .user-table th {

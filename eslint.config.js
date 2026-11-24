@@ -6,7 +6,16 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 export default [
   { ignores: ['dist', '.vercel', 'public/godaddy-event-feed.js'] },
   {
-    files: ['api/**/*.js', 'scripts/**/*.mjs', 'tests/*.test.js', 'tests/rules/**/*.js'],
+    files: [
+      'api/**/*.js',
+      'scripts/**/*.mjs',
+      'tests/*.test.js',
+      'tests/rules/**/*.js',
+      // Build configs run in node, not the browser - vite.config.js reads
+      // process.env to stamp the commit into the footer.
+      'vite.config.js',
+      'vitest.config.js'
+    ],
     languageOptions: {
       globals: globals.node
     }
@@ -15,7 +24,13 @@ export default [
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        // Replaced at build time by vite.config.js's `define`. Declared here
+        // so the one file that reads it is not an error, and so a typo in the
+        // name still is.
+        __APP_COMMIT_SHA__: 'readonly'
+      },
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },

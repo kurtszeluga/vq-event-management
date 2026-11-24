@@ -459,7 +459,14 @@ function EventList({
                 </button>
               ) : null}
               {wasLastSaved ? <span className="recently-saved-flag">Saved</span> : null}
-              {canViewRegistrations ? (
+              {/* A Business Listing and a For Sale listing accept no
+                  registrations at all - NON_REGISTRABLE_EVENT_TYPES, enforced
+                  on the server - so a registration list, a printable version
+                  of it and a way to sign somebody up are three controls that
+                  can only ever open something empty. They were gated on the
+                  permission alone, which is true of the admin and says
+                  nothing about the card. */}
+              {canViewRegistrations && !isListing ? (
                 <button
                   className="button-link button-reset secondary-action"
                   type="button"
@@ -468,7 +475,7 @@ function EventList({
                   Review/Edit Registrations
                 </button>
               ) : null}
-              {canViewRegistrations ? (
+              {canViewRegistrations && !isListing ? (
                 <Link
                   className="button-link secondary-action"
                   to={`/admin/events/${event.id}/registrations/print`}
@@ -478,6 +485,11 @@ function EventList({
                 </Link>
               ) : null}
             </div>
+            {/* The second row is nothing but registration controls, so a
+                listing type gets no row rather than an empty one - an empty
+                flex row still takes its gap and left a visible step under the
+                card. */}
+            {isListing ? null : (
             <div className="card-actions-row">
               {/* An unlisted signup gets one control, not two. "Register
                   Myself" and "Register A Member" are the same panel with a
@@ -552,6 +564,7 @@ function EventList({
               </>
               ))}
             </div>
+            )}
           </div>
           </article>
         );
