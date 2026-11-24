@@ -44,6 +44,13 @@ export function waitlistOfferTokenMatches(registrationId, token, tokenHash) {
 // go unclaimed, by the daily cron sweep advancing to the next person.
 export async function createNextWaitlistOffer(db, event, {
   allowUnlimitedCapacity = false,
+  // Registrations this pass must not pick, however early they joined. The
+  // sweep below passes the offers it has just expired: their offer fields are
+  // deleted a moment earlier, so without this they are the earliest candidate
+  // with no active offer and the "advance to the next person" the sweep
+  // exists for handed the same seat straight back to the person who had just
+  // let it go.
+  excludeRegistrationIds = [],
   notifyWhenExhausted = true
 } = {}) {
   const now = Date.now();
@@ -76,9 +83,11 @@ export async function createNextWaitlistOffer(db, event, {
     .where('status', '==', 'Waitlisted')
     .orderBy('registrationDate', 'asc')
     .get();
+  const excluded = new Set(excludeRegistrationIds);
   const candidate = waitlistedSnapshot.docs
     .map((docSnapshot) => ({ id: docSnapshot.id, ...docSnapshot.data() }))
-    .find((registration) => !hasActiveWaitlistOfferField(registration, now));
+    .find((registration) =>
+      !excluded.has(registration.id) && !hasActiveWaitlistOfferField(registration, now));
 
   if (!candidate) {
     // Only worth telling a coordinator when there WAS a waitlist and it could
@@ -196,7 +205,20 @@ export async function expireStaleWaitlistOffers(db) {
     const eventSnap = await db.collection('events').doc(eventId).get();
 
     if (eventSnap.exists) {
-      await createNextWaitlistOffer(db, { id: eventSnap.id, ...eventSnap.data() });
+      // The people whose offers this pass just cleared are not candidates for
+      // the seat they have already turned down by silence. Without the
+      // exclusion the query above returns them first - oldest signup, no
+      // active offer any more - and the sweep re-offers the same seat to the
+      // same person every day instead of moving down the queue.
+      //
+      // They stay Waitlisted and keep their place, so a seat freed later by a
+      // cancellation can still reach them; it is only this seat, on this
+      // pass, that moves on. If nobody else is waiting, no offer is made and
+      // the coordinator is emailed - the seat is genuinely free by then and
+      // shows as available on the listing, so anyone can simply register.
+      await createNextWaitlistOffer(db, { id: eventSnap.id, ...eventSnap.data() }, {
+        excludeRegistrationIds: expiredRegistrations.map((registration) => registration.id)
+      });
     }
   }
 

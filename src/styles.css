@@ -2200,6 +2200,18 @@ body.nav-sheet-open {
   margin: 0;
 }
 
+/* The cost breakdown is a second line under the total, not a continuation of
+   it. `.form-help` carries no base styling of its own - every other place
+   that uses it sits inside a container that styles it - so here it rendered
+   as a bare inline span flush against the total: "$13.00 total$12.00 + $1.00
+   service fee". */
+.registration-summary dd .form-help {
+  color: #5a6b67;
+  display: block;
+  font-size: 0.92rem;
+  margin-top: 2px;
+}
+
 .registration-form {
   margin-top: 0;
 }
@@ -2570,10 +2582,18 @@ body.nav-sheet-open {
 
 /* The header words are longer than anything under them - "Membership" and
    "Profile Status" each demanded more width than the "Active" they label - so
-   the column widths were being set by the labels rather than by the data. */
+   the column widths were being set by the labels rather than by the data.
+
+   The colour and uppercasing used to live in a second `.user-table th` block
+   further down the file, which restated `font-size` at 0.95rem. Equal
+   specificity, later in the file, so that one won: the 0.82rem here never
+   applied and the labels went on sizing the columns, which is why the Details
+   button still sat a little past the edge of its card. One rule now. */
 .user-table th {
+  color: #3b4b48;
   font-size: 0.82rem;
   letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 
 /* An address is one long unbroken token, so without this the Email column
@@ -2612,12 +2632,6 @@ body.nav-sheet-open {
   min-height: 32px;
   padding: 6px 10px;
   white-space: nowrap;
-}
-
-.user-table th {
-  color: #3b4b48;
-  font-size: 0.95rem;
-  text-transform: uppercase;
 }
 
 .table-sort-button {

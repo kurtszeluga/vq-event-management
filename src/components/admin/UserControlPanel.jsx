@@ -1573,9 +1573,20 @@ function UserTable({
             <SortableHeader label="Name" sortKey="lastName" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Role" sortKey="role" sortConfig={sortConfig} onSort={onSort} />
             <SortableHeader label="Email" sortKey="email" sortConfig={sortConfig} onSort={onSort} />
-            <th>Membership</th>
+            {/* "Member", not "Membership": nine columns, and this header was
+                one of the two setting a column's width from the label rather
+                than from the "Active" underneath it. The cell below carries
+                the same short label, since that is what the stacked mobile
+                layout prints in front of the value. */}
+            <th>Member</th>
             <th>Profile Status</th>
-            <th>Last Sign-In</th>
+            {/* A non-breaking hyphen (U+2011). With the ordinary one the
+                smaller header font let "LAST SIGN-" fit a line on its own and
+                the column broke as "LAST SIGN-" / "IN"; this breaks it at the
+                space instead. The cell's data-label below keeps the plain
+                hyphen, since the mobile label has a column of its own to sit
+                in. */}
+            <th>Last Sign{'\u2011'}In</th>
             <th>Permissions</th>
             <th>Actions</th>
             <th>Details</th>
@@ -1604,7 +1615,7 @@ function UserTable({
                   </td>
                   <td data-label="Role">{user.role || 'General User'}</td>
                   <td data-label="Email">{user.email || 'Email TBD'}</td>
-                  <td data-label="Membership">{displayMembership}</td>
+                  <td data-label="Member">{displayMembership}</td>
                   <td data-label="Profile Status">{displayStatus}</td>
                   <td data-label="Last Sign-In">{formatLastSignIn(authStatus[userId])}</td>
                   <td data-label="Permissions">

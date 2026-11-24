@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { FieldValue } from 'firebase-admin/firestore';
 import {
   MAX_WAITLIST_OFFERS_PER_EVENT_SAVE,
   WAITLIST_OFFER_WINDOW_MS,
   buildWaitlistOfferToken,
   createNextWaitlistOffer,
+  expireStaleWaitlistOffers,
   offerFreedSeatsToWaitlist,
   waitlistOfferTokenMatches
 } from '../api/_lib/waitlist.js';
@@ -290,6 +292,118 @@ test('a capacity increase never offers more than the cap, whatever the data says
   });
 
   assert.equal(result.offersMade, MAX_WAITLIST_OFFERS_PER_EVENT_SAVE);
+});
+
+// The sweep clears an expired offer and then asks for the next one, and the
+// record it has just cleared no longer looks offered - so "next" used to mean
+// the same person again. These two pin which way it goes now.
+//
+// A third stand-in, because neither of the two above can serve: this one needs
+// the events collection, a range query on waitlistOfferExpiresAt, and an
+// update() that honours FieldValue.delete() rather than storing the sentinel.
+function stubSweepDb({ registrations = [], events = [] } = {}) {
+  const rows = registrations.map((row) => ({ ...row }));
+
+  function snapshot(list) {
+    return { docs: list.map((row) => ({ id: row.id, data: () => row })), empty: list.length === 0 };
+  }
+
+  return {
+    rows,
+    offeredIds: () => rows.filter((row) => row.waitlistOfferExpiresAt).map((row) => row.id),
+    collection(name) {
+      if (name === 'appSettings') {
+        return { doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }) }) };
+      }
+
+      if (name === 'events') {
+        return {
+          doc: (id) => ({
+            get: async () => {
+              const event = events.find((candidate) => candidate.id === id);
+              return { exists: Boolean(event), id, data: () => event };
+            }
+          })
+        };
+      }
+
+      const filters = [];
+      const chain = {
+        where(field, operator, value) {
+          filters.push({ field, operator, value });
+          return chain;
+        },
+        orderBy: () => chain,
+        get: async () => snapshot(rows.filter((row) => filters.every(({ field, operator, value }) => {
+          if (operator === '<') {
+            const at = row[field];
+            return Boolean(at) && at.toMillis() < value.toMillis();
+          }
+
+          return row[field] === value;
+        }))),
+        doc: (id) => ({
+          update: async (fields) => {
+            const row = rows.find((candidate) => candidate.id === id);
+
+            for (const [key, value] of Object.entries(fields)) {
+              if (FieldValue.delete().isEqual(value)) {
+                delete row[key];
+              } else {
+                row[key] = value;
+              }
+            }
+          }
+        })
+      };
+
+      return chain;
+    }
+  };
+}
+
+function lapsedRow(id) {
+  const lapsedAt = Date.now() - 60_000;
+
+  return {
+    id,
+    email: `${id}@example.com`,
+    eventId: 'e1',
+    name: id,
+    status: 'Waitlisted',
+    waitlistOfferExpiresAt: { toMillis: () => lapsedAt },
+    waitlistOfferTokenHash: 'hash'
+  };
+}
+
+test('an expired offer moves down the queue instead of going round again', async () => {
+  const db = stubSweepDb({
+    registrations: [lapsedRow('waiting-0'), waitingRow('waiting-1'), waitingRow('waiting-2')],
+    events: [{ id: 'e1', capacity: 20, eventType: 'Workshop', title: 'Curved Seams' }]
+  });
+
+  const result = await expireStaleWaitlistOffers(db);
+
+  assert.equal(result.eventsProcessed, 1);
+  // The lapsed offer is cleared, and the seat goes to the next person waiting
+  // rather than straight back to the one who let it expire.
+  assert.deepEqual(db.offeredIds(), ['waiting-1']);
+  // Still on the list, and still ahead of waiting-2 for anything freed later.
+  assert.equal(db.rows.find((row) => row.id === 'waiting-0').status, 'Waitlisted');
+});
+
+test('a lapsed offer with nobody behind it is not re-sent to the same person', async () => {
+  const db = stubSweepDb({
+    registrations: [lapsedRow('waiting-0')],
+    events: [{ id: 'e1', capacity: 20, eventType: 'Workshop', title: 'Curved Seams' }]
+  });
+
+  await expireStaleWaitlistOffers(db);
+
+  // No new offer: the seat is free on the listing by now, so they can register
+  // for it like anyone else, and the coordinator has been told.
+  assert.deepEqual(db.offeredIds(), []);
+  assert.equal(db.rows.find((row) => row.id === 'waiting-0').status, 'Waitlisted');
 });
 
 test('didCapacityGrow only reports edits that actually added seats', () => {
