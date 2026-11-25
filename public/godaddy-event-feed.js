@@ -1656,44 +1656,44 @@
       }
       .vq-feed-type.is-class-half-day,
       .vq-feed-type.is-class-full-day {
-        background: #e9f2ef;
-        border-color: #c6dad5;
-        color: #225c56;
+        background: #e7f3ee;
+        border-color: #c3ded2;
+        color: #275c44;
       }
       .vq-feed-type.is-workshop {
-        background: #e6eef8;
-        border-color: #bed2ea;
-        color: #1f4e79;
+        background: #e4e7f4;
+        border-color: #c3c9e4;
+        color: #2a4e8f;
       }
       .vq-feed-type.is-retreat {
-        background: #efe7f6;
-        border-color: #d5c4e4;
-        color: #5b3a7e;
+        background: #efe4ec;
+        border-color: #ddc6d6;
+        color: #7a3e6b;
       }
       .vq-feed-type.is-lecture {
-        background: #fbf0d2;
-        border-color: #e6d08c;
-        color: #7a5a07;
+        background: #fbf0d9;
+        border-color: #ecd9a8;
+        color: #7e5306;
       }
       .vq-feed-type.is-challenges {
-        background: #fae8ec;
-        border-color: #eec6d0;
-        color: #8d2541;
+        background: #f6e3dc;
+        border-color: #e8c6ba;
+        color: #a8372c;
       }
       .vq-feed-type.is-business-listing {
-        background: #eceef2;
-        border-color: #cdd3dc;
-        color: #3c4756;
+        background: #eff3f3;
+        border-color: #d4dcdc;
+        color: #636e70;
       }
       .vq-feed-type.is-for-sale {
-        background: #f2e7de;
-        border-color: #e0c9b6;
-        color: #8f351d;
+        background: #f7e2d2;
+        border-color: #e6c3a4;
+        color: #9a5422;
       }
       .vq-feed-type.is-other {
-        background: #f0ece5;
-        border-color: #ddd5ca;
-        color: #5b544a;
+        background: #eff3f3;
+        border-color: #d4dcdc;
+        color: #636e70;
       }
       .vq-feed-status-pill {
         border-radius: 999px;

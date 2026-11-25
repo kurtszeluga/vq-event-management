@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import HomeHero from './components/HomeHero.jsx';
 import MobileNavSheet from './components/MobileNavSheet.jsx';
 import { useAuth } from './context/useAuth.js';
 import { subscribeToDirectorySettings } from './services/configurationService.js';
@@ -197,6 +198,7 @@ function App() {
         onClose={closeNavSheet}
         onSignOut={logOut}
       />
+      {location.pathname === '/' ? <HomeHero currentUser={currentUser} /> : null}
       <main className="page-content">
         <Outlet />
       </main>

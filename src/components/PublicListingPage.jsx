@@ -77,7 +77,10 @@ function PublicListingPage({
           const details = buildListingDetails(event);
 
           return (
-            <article className="public-event-card public-listing-card" key={event.id}>
+            <article
+              className={`public-event-card public-listing-card ${getEventTypeToneClass(eventType)}`}
+              key={event.id}
+            >
               <div className="card-kicker">
                 <span className={`event-type-pill ${getEventTypeToneClass(eventType)}`}>{eventType}</span>
                 {event.businessTypeLabel ? (

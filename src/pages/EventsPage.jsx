@@ -598,8 +598,13 @@ function EventsPage() {
           const registrationStartDate = getRegistrationStartDate(event);
           const registrationEndDate = getRegistrationEndDate(event);
 
+          // The tone class goes on the card as well as on the pill: it paints
+          // the card's left spine, so a season can be scanned by colour.
           return (
-            <article className="public-event-card" key={event.id}>
+            <article
+              className={`public-event-card ${getEventTypeToneClass(getEventTypeLabel(event))}`}
+              key={event.id}
+            >
               <div className="card-kicker">
                 {dateParts ? (
                   <span className="event-date-stack" aria-hidden="true">

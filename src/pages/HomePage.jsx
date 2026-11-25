@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { subscribeToUsers } from '../services/userService.js';
 
@@ -52,12 +51,9 @@ function HomePage() {
   // below.
   return (
     <section>
-      <PageHeader
-        eyebrow="Home"
-        title="The Village Quilters Network"
-        description="Use the cards below to jump into the part of the site you need."
-      />
-
+      {/* The page title now lives in the hero band above the page column (see
+          HomeHero.jsx, rendered from App.jsx on this route only), so repeating
+          a PageHeader here would state the guild's name twice in a row. */}
       {currentUser ? (
         <div className="status-panel">
           <span className="status-dot good" />

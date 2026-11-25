@@ -1,6 +1,6 @@
 :root {
-  color: #1d2927;
-  background: #f7f3ef;
+  color: #17282a;
+  background: #f5f9f9;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -26,7 +26,7 @@ a {
 }
 
 :focus-visible {
-  outline: 3px solid #cfe3de;
+  outline: 3px solid #bfdfe2;
   outline-offset: 2px;
 }
 
@@ -38,7 +38,7 @@ a {
 
 .pull-refresh-indicator {
   align-items: center;
-  background: #225c56;
+  background: #14565f;
   border-radius: 999px;
   box-shadow: 0 10px 24px rgb(29 41 39 / 18%);
   color: #fff;
@@ -60,12 +60,17 @@ a {
 
 .pull-refresh-indicator.ready,
 .pull-refresh-indicator.refreshing {
-  background: #9a4d2f;
+  background: #8a5a13;
 }
 
+/* The header is a full band of the anchor colour rather than a white bar:
+   the guild has a presence before a word is read, and the logo - a detailed
+   green-and-navy block - sits on a white chip inside it rather than floating
+   on the page. Everything in the band is therefore light-on-dark; the rules
+   below restate colours that were tuned for a white header. */
 .site-header {
-  background: #fffaf5;
-  border-bottom: 1px solid #ded5ca;
+  background: #14565f;
+  border-bottom: 1px solid #0d3c44;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -97,11 +102,17 @@ a {
   text-decoration: none;
 }
 
+/* The mark is a pieced block with a lot of detail in it, so it needs both the
+   white ground it was drawn on and a little more size than the 34px it had on
+   the old white header, or it reads as a smudge against the band. */
 .brand-logo {
+  background: #ffffff;
+  border-radius: 9px;
   display: block;
-  height: 34px;
+  height: 44px;
   object-fit: contain;
-  width: 34px;
+  padding: 4px;
+  width: 44px;
 }
 
 .brand strong,
@@ -110,12 +121,14 @@ a {
 }
 
 .brand strong {
-  font-size: 0.94rem;
-  font-weight: 800;
+  color: #ffffff;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .brand small {
-  color: #5c6966;
+  color: #bfdcde;
   font-size: 0.72rem;
   margin-top: 1px;
 }
@@ -132,32 +145,37 @@ a {
   align-items: center;
   background: none;
   border: none;
-  color: #52625f;
+  color: #cfe4e6;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
   font-size: 0.9rem;
-  font-weight: 700;
-  padding: 6px 2px;
+  font-weight: 600;
+  padding: 8px 2px 11px;
   text-decoration: none;
   transition: color 120ms ease;
 }
 
+/* Brass is the one warm accent in the scheme and it is rationed - the active
+   nav rule, the hero button, and the pending dot. An underline drawn as a
+   box-shadow rather than text-decoration so it sits clear of the descenders
+   at this size. */
 .nav-link.active {
-  color: #225c56;
-  text-decoration: underline;
-  text-underline-offset: 5px;
+  box-shadow: inset 0 -3px 0 #e8b84b;
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .nav-link:not(.active):hover {
-  color: #225c56;
+  color: #ffffff;
 }
 
 .button-link {
   align-items: center;
-  background: #225c56;
-  border: 1px solid #225c56;
-  border-radius: 8px;
+  background: #14565f;
+  border: 1px solid #14565f;
+  border-radius: 999px;
   color: #fff;
   cursor: pointer;
   display: inline-flex;
@@ -169,13 +187,13 @@ a {
 }
 
 .button-link.secondary-action {
-  background: #fffdfa;
-  border-color: #225c56;
-  color: #225c56;
+  background: #ffffff;
+  border-color: #14565f;
+  color: #14565f;
 }
 
 .button-link.secondary-action:hover {
-  background: #e9f2ef;
+  background: #e7f3ee;
 }
 
 .button-reset {
@@ -199,8 +217,9 @@ a {
    at the right of the header's top row, opposite the brand. */
 .site-identity {
   align-items: center;
-  background: #e9f2ef;
-  border: 1px solid #ccdcd7;
+  background: rgba(255, 255, 255, 0.11);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: #ffffff;
   border-radius: 999px;
   display: flex;
   flex: 0 0 auto;
@@ -210,7 +229,7 @@ a {
 
 .site-identity-avatar {
   align-items: center;
-  background: #225c56;
+  background: #2c7681;
   border-radius: 50%;
   color: #fff;
   display: flex;
@@ -234,14 +253,14 @@ a {
 }
 
 .site-identity-text span {
-  color: #5c6966;
+  color: #bfdcde;
   font-size: 0.7rem;
 }
 
 .site-identity-role {
-  background: #225c56;
+  background: #e8b84b;
   border-radius: 999px;
-  color: #fff;
+  color: #0d3c44;
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -260,7 +279,7 @@ a {
   appearance: none;
   background: none;
   border: none;
-  color: #5c6966;
+  color: #cfe4e6;
   cursor: pointer;
   font: inherit;
   font-size: 0.76rem;
@@ -271,11 +290,11 @@ a {
 }
 
 .site-identity-action:hover {
-  color: #225c56;
+  color: #ffffff;
 }
 
 .site-identity-divider {
-  color: #c9bbb0;
+  color: rgba(255, 255, 255, 0.45);
   font-size: 0.7rem;
 }
 
@@ -296,7 +315,7 @@ a {
 }
 
 .breadcrumb a {
-  color: #225c56;
+  color: #14565f;
   font-weight: 700;
   text-decoration: none;
 }
@@ -306,15 +325,108 @@ a {
 }
 
 .breadcrumb-current {
-  color: #52625f;
+  color: #45565a;
 }
 
 .breadcrumb-sep {
-  border-right: 2px solid #b9ada2;
-  border-top: 2px solid #b9ada2;
+  border-right: 2px solid #a9bdbf;
+  border-top: 2px solid #a9bdbf;
   height: 5px;
   transform: rotate(45deg);
   width: 5px;
+}
+
+/* --- Home hero --------------------------------------------------------- */
+/* Same colour as .site-header and no rule between them, so the two read as one
+   band; the header stays sticky and compact while this scrolls away. Rendered
+   by the shell on the home route only - see HomeHero.jsx. */
+.home-hero {
+  background: #14565f;
+  color: #ffffff;
+}
+
+.home-hero-inner {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 44px;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: clamp(28px, 5vw, 44px) clamp(18px, 4vw, 56px) clamp(32px, 6vw, 52px);
+}
+
+.home-hero-copy {
+  flex: 1 1 460px;
+  min-width: 0;
+}
+
+.home-hero-eyebrow {
+  color: #e8b84b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.home-hero h1 {
+  color: #ffffff;
+  font-size: clamp(2rem, 4.4vw, 3.1rem);
+  letter-spacing: -0.025em;
+  line-height: 1.06;
+  margin: 0 0 14px;
+}
+
+.home-hero-lede {
+  color: #bfdcde;
+  font-size: 1.04rem;
+  line-height: 1.6;
+  margin: 0 0 24px;
+  max-width: 50ch;
+}
+
+.home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11px;
+}
+
+/* The only place brass is used as a fill rather than a 3px rule. */
+.home-hero .button-link.hero-primary {
+  background: #e8b84b;
+  border-color: #e8b84b;
+  color: #0d3c44;
+  font-weight: 800;
+}
+
+.home-hero .button-link.hero-ghost {
+  background: transparent;
+  border-color: #5e9aa2;
+  color: #ffffff;
+}
+
+.home-hero .button-link.hero-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 552px of picture against roughly 556px of copy is an even half of the
+   1200px row, and that panel is 16:9 - the same ratio as the source file - so
+   `cover` has nothing to crop. Widening past about 640px would start to soften
+   the 1280px-wide original on a 2x display. */
+.home-hero-figure {
+  flex: 0 1 552px;
+  margin: 0;
+  min-width: 0;
+}
+
+.home-hero-figure img {
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px rgba(234, 244, 244, 0.3), 0 20px 46px rgba(6, 30, 34, 0.38);
+  display: block;
+  height: clamp(200px, 26vw, 310px);
+  object-fit: cover;
+  width: 100%;
 }
 
 .page-content {
@@ -326,9 +438,9 @@ a {
 
 .site-footer {
   align-items: center;
-  background: #fffaf5;
-  border-top: 1px solid #ded5ca;
-  color: #5c6966;
+  background: #ffffff;
+  border-top: 1px solid #dce7e8;
+  color: #64787b;
   display: flex;
   flex-wrap: wrap;
   font-size: 0.92rem;
@@ -346,11 +458,11 @@ a {
 }
 
 .site-footer strong {
-  color: #263632;
+  color: #0d3c44;
 }
 
 .site-footer a {
-  color: #225c56;
+  color: #14565f;
   font-weight: 800;
   text-decoration: none;
 }
@@ -380,7 +492,7 @@ a {
 }
 
 .viewer-eyebrow {
-  color: #9a4d2f;
+  color: #8a5a13;
   font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -401,7 +513,7 @@ a {
 }
 
 .viewer-frame {
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   height: min(80vh, 920px);
   width: 100%;
@@ -415,7 +527,7 @@ a {
 
 .viewer-pdf-page {
   background: #ffffff;
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
   max-width: 100%;
@@ -430,8 +542,8 @@ a {
 }
 
 .viewer-download-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -497,7 +609,7 @@ body.popup-mode .page-content {
 }
 
 .page-header p {
-  color: #9a4d2f;
+  color: #8a5a13;
   font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -512,7 +624,7 @@ body.popup-mode .page-content {
 }
 
 .page-header span {
-  color: #52625f;
+  color: #45565a;
   display: block;
   font-size: 1.12rem;
   line-height: 1.7;
@@ -541,8 +653,8 @@ body.popup-mode .page-content {
 .feature-grid article,
 .empty-state,
 .status-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   padding: 24px;
 }
@@ -553,7 +665,7 @@ body.popup-mode .page-content {
 }
 
 .pending-home-card {
-  border-color: #d5a14a;
+  border-color: #c98a14;
   box-shadow: inset 0 0 0 1px rgba(213, 161, 74, 0.25);
 }
 
@@ -568,7 +680,7 @@ body.popup-mode .page-content {
 
 .feature-grid p,
 .empty-state p {
-  color: #5c6966;
+  color: #64787b;
   line-height: 1.6;
   margin: 0;
 }
@@ -589,7 +701,7 @@ body.popup-mode .page-content {
 }
 
 .status-dot {
-  background: #c76b43;
+  background: #c98a14;
   border-radius: 999px;
   display: inline-flex;
   height: 12px;
@@ -597,16 +709,16 @@ body.popup-mode .page-content {
 }
 
 .status-dot.good {
-  background: #225c56;
+  background: #2f6b4f;
 }
 
 .status-dot.pending {
-  background: #d5a14a;
+  background: #c98a14;
 }
 
 .form-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 18px;
@@ -621,7 +733,7 @@ body.popup-mode .page-content {
 }
 
 .form-panel label span {
-  color: #3b4b48;
+  color: #36464a;
   font-weight: 800;
 }
 
@@ -634,9 +746,9 @@ body.popup-mode .page-content {
 .form-panel input,
 .form-panel select,
 .form-panel textarea {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   padding: 12px 14px;
   width: 100%;
@@ -649,15 +761,15 @@ body.popup-mode .page-content {
 }
 
 .form-panel .field-invalid {
-  border-color: #c24124;
-  outline: 3px solid #f8d6ca;
+  border-color: #a8372c;
+  outline: 3px solid #f3d3cd;
 }
 
 .form-panel input:focus,
 .form-panel select:focus,
 .form-panel textarea:focus {
-  border-color: #225c56;
-  outline: 3px solid #cfe3de;
+  border-color: #14565f;
+  outline: 3px solid #bfdfe2;
 }
 
 .form-panel button {
@@ -694,9 +806,9 @@ body.popup-mode .page-content {
 .admin-alert-chip {
   align-items: center;
   background: transparent;
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 999px;
-  color: #5c6966;
+  color: #64787b;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -708,12 +820,12 @@ body.popup-mode .page-content {
 }
 
 .admin-alert-chip:hover {
-  border-color: #225c56;
-  color: #225c56;
+  border-color: #14565f;
+  color: #14565f;
 }
 
 .admin-alert-dot {
-  background: #7c8b87;
+  background: #7e9093;
   border-radius: 999px;
   display: inline-block;
   flex: 0 0 auto;
@@ -722,18 +834,18 @@ body.popup-mode .page-content {
 }
 
 .admin-alert-chip.pending {
-  background: #fdf1de;
-  border-color: #f3d9a4;
-  color: #63380a;
+  background: #fbf0d9;
+  border-color: #f0dcae;
+  color: #5e4106;
 }
 
 .admin-alert-chip.pending:hover {
-  border-color: #d5a14a;
-  color: #63380a;
+  border-color: #c98a14;
+  color: #5e4106;
 }
 
 .admin-alert-chip.pending .admin-alert-dot {
-  background: #d5a14a;
+  background: #c98a14;
 }
 
 /* --- Mobile site menu -------------------------------------------------
@@ -744,8 +856,8 @@ body.popup-mode .page-content {
 
 .site-menu-button {
   align-items: center;
-  background: #fffdfa;
-  border: 1px solid #c9bbb0;
+  background: rgba(255, 255, 255, 0.11);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   cursor: pointer;
   display: none;
@@ -761,7 +873,7 @@ body.popup-mode .page-content {
 .site-menu-bars,
 .site-menu-bars::before,
 .site-menu-bars::after {
-  background: #263632;
+  background: #ffffff;
   border-radius: 2px;
   content: '';
   display: block;
@@ -805,7 +917,7 @@ body.nav-sheet-open {
 }
 
 .nav-sheet {
-  background: #f2ece5;
+  background: #eef4f4;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -824,8 +936,8 @@ body.nav-sheet-open {
 
 .nav-sheet-close {
   align-items: center;
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -845,7 +957,7 @@ body.nav-sheet-open {
 
 .nav-sheet-close-mark::before,
 .nav-sheet-close-mark::after {
-  background: #263632;
+  background: #0d3c44;
   border-radius: 2px;
   content: '';
   height: 2px;
@@ -866,7 +978,7 @@ body.nav-sheet-open {
 /* One container per group, rather than a bordered box per item. This is what
    reclaims the height: no inter-item gaps and no doubled borders. */
 .nav-sheet-card {
-  background: #fffdfa;
+  background: #ffffff;
   border-radius: 14px;
   overflow: hidden;
 }
@@ -879,24 +991,24 @@ body.nav-sheet-open {
 }
 
 .nav-sheet-account-name {
-  color: #263632;
+  color: #0d3c44;
   font-size: 1.05rem;
   font-weight: 800;
 }
 
 .nav-sheet-account-email {
-  color: #5c6966;
+  color: #64787b;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 
 .nav-sheet-account-role {
-  color: #5c6966;
+  color: #64787b;
   font-size: 16px;
 }
 
 .nav-sheet-account-profile-link {
-  color: #225c56;
+  color: #14565f;
   font-size: 0.92rem;
   font-weight: 700;
   margin-top: 6px;
@@ -908,7 +1020,7 @@ body.nav-sheet-open {
   align-items: center;
   background: transparent;
   border: 0;
-  color: #263632;
+  color: #0d3c44;
   cursor: pointer;
   display: flex;
   font: inherit;
@@ -927,7 +1039,7 @@ body.nav-sheet-open {
    starts level with the label instead of at the card edge. */
 .nav-sheet-row + .nav-sheet-row::before,
 .nav-sheet-row + .nav-sheet-row-button::before {
-  background: #e7ded3;
+  background: #e6eced;
   content: '';
   height: 1px;
   left: 18px;
@@ -937,11 +1049,11 @@ body.nav-sheet-open {
 }
 
 .nav-sheet-row.active {
-  color: #225c56;
+  color: #14565f;
 }
 
 .nav-sheet-row.active::after {
-  background: #225c56;
+  background: #14565f;
   border-radius: 0 2px 2px 0;
   bottom: 8px;
   content: '';
@@ -952,8 +1064,8 @@ body.nav-sheet-open {
 }
 
 .nav-sheet-chevron {
-  border-right: 2px solid #8d9a96;
-  border-top: 2px solid #8d9a96;
+  border-right: 2px solid #93a5a7;
+  border-top: 2px solid #93a5a7;
   display: block;
   flex: 0 0 auto;
   height: 9px;
@@ -985,7 +1097,7 @@ body.nav-sheet-open {
    (display: contents above), so the border has to live on the actual nav
    element instead. */
 .admin-tab-nav {
-  border-bottom: 1px solid #ded5ca;
+  border-bottom: 1px solid #dce7e8;
   gap: 2px;
 }
 
@@ -993,7 +1105,7 @@ body.nav-sheet-open {
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #5c6966;
+  color: #64787b;
   cursor: pointer;
   font: inherit;
   font-weight: 500;
@@ -1002,18 +1114,18 @@ body.nav-sheet-open {
 }
 
 .admin-tab-button:hover {
-  color: #225c56;
+  color: #14565f;
 }
 
 .admin-tab-button.active {
-  border-bottom-color: #225c56;
-  color: #225c56;
+  border-bottom-color: #14565f;
+  color: #14565f;
   font-weight: 700;
 }
 
 .admin-tab-divider {
   align-self: stretch;
-  background: #ded5ca;
+  background: #dce7e8;
   margin: 6px 6px;
   width: 1px;
 }
@@ -1022,8 +1134,8 @@ body.nav-sheet-open {
 .admin-list-panel,
 .detail-panel,
 .public-event-card {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   padding: 24px;
 }
@@ -1062,7 +1174,7 @@ body.nav-sheet-open {
 }
 
 .form-section-header span {
-  color: #5c6966;
+  color: #64787b;
   font-weight: 800;
 }
 
@@ -1092,16 +1204,16 @@ body.nav-sheet-open {
 .form-row-pair label span,
 .radio-field > span,
 .field-label-spacer {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 1.06rem;
   font-weight: 800;
 }
 
 .admin-form input,
 .admin-form select {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   height: 48px;
   padding: 12px 14px;
@@ -1115,9 +1227,9 @@ body.nav-sheet-open {
 }
 
 .admin-form textarea {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   min-height: 142px;
   padding: 12px 14px;
@@ -1128,35 +1240,35 @@ body.nav-sheet-open {
 .admin-form input:focus,
 .admin-form select:focus,
 .admin-form textarea:focus {
-  border-color: #225c56;
-  outline: 3px solid #cfe3de;
+  border-color: #14565f;
+  outline: 3px solid #bfdfe2;
 }
 
 .admin-form .field-invalid {
-  border-color: #b42318;
-  background: #fff6f3;
+  border-color: #a8372c;
+  background: #fdf4f3;
 }
 
 .admin-form .field-invalid:focus {
-  border-color: #b42318;
-  outline-color: #ffd7cc;
+  border-color: #a8372c;
+  outline-color: #f3d3cd;
 }
 
 .admin-form small {
-  color: #b42318;
+  color: #a8372c;
   font-weight: 800;
 }
 
 .admin-form .form-help {
-  color: #5c6966;
+  color: #64787b;
   font-size: 1rem;
   font-weight: 700;
 }
 
 .admin-form input:disabled,
 .admin-form select:disabled {
-  background: #eee8e1;
-  color: #6d7471;
+  background: #eef4f4;
+  color: #5c6d70;
 }
 
 .form-span {
@@ -1175,7 +1287,7 @@ body.nav-sheet-open {
 }
 
 .nested-fields {
-  border-left: 3px solid #e6ddd3;
+  border-left: 3px solid #e6eced;
   margin-left: 16px;
   padding-left: 16px;
 }
@@ -1214,7 +1326,7 @@ body.nav-sheet-open {
 }
 
 .form-subsection {
-  border-top: 1px solid #e6ddd3;
+  border-top: 1px solid #e6eced;
   display: grid;
   gap: 18px;
   margin-top: 24px;
@@ -1222,8 +1334,8 @@ body.nav-sheet-open {
 }
 
 .terms-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 8px;
@@ -1235,14 +1347,14 @@ body.nav-sheet-open {
 }
 
 .terms-text {
-  color: #2d241f;
+  color: #233234;
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
 .terms-page-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 18px;
@@ -1252,7 +1364,7 @@ body.nav-sheet-open {
 
 .terms-version-row {
   align-items: center;
-  border-bottom: 1px solid #e6ddd3;
+  border-bottom: 1px solid #e6eced;
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
@@ -1261,20 +1373,20 @@ body.nav-sheet-open {
 }
 
 .terms-version-row span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .muted-copy {
-  color: #5c6966;
+  color: #64787b;
   line-height: 1.55;
   margin: 0;
 }
 
 .event-type-card {
-  border: 1px solid #e6ddd3;
+  border: 1px solid #e6eced;
   border-radius: 8px;
   display: grid;
   gap: 18px;
@@ -1287,8 +1399,8 @@ body.nav-sheet-open {
 }
 
 .event-form-placeholder {
-  background: #f6f1ea;
-  border: 1px dashed #d6c8ba;
+  background: #f2f7f7;
+  border: 1px dashed #cfdcde;
   border-radius: 8px;
   display: grid;
   gap: 6px;
@@ -1301,7 +1413,7 @@ body.nav-sheet-open {
 }
 
 .event-form-placeholder p {
-  color: #5c6966;
+  color: #64787b;
   margin: 0;
 }
 
@@ -1360,7 +1472,7 @@ body.nav-sheet-open {
 }
 
 .document-upload-field {
-  border-top: 2px solid #e6ddd3;
+  border-top: 2px solid #e6eced;
   margin-top: 22px;
   padding-top: 30px;
 }
@@ -1377,23 +1489,23 @@ body.nav-sheet-open {
 
 .uploaded-image-preview {
   aspect-ratio: 4 / 3;
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   max-width: 360px;
   width: 100%;
 }
 
 .uploaded-image-preview {
-  background: #eee8e1;
+  background: #eef4f4;
   object-fit: cover;
 }
 
 .uploaded-image-placeholder {
   align-items: center;
-  background: #eee8e1;
-  border: 1px dashed #c9bbb0;
+  background: #eef4f4;
+  border: 1px dashed #c9dadc;
   border-radius: 8px;
-  color: #5c6966;
+  color: #64787b;
   display: flex;
   font-size: 0.92rem;
   font-weight: 800;
@@ -1416,21 +1528,21 @@ body.nav-sheet-open {
 }
 
 .uploaded-document-card {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
 }
 
 .uploaded-document-placeholder {
-  background: #eee8e1;
-  border: 1px dashed #c9bbb0;
-  color: #5c6966;
+  background: #eef4f4;
+  border: 1px dashed #c9dadc;
+  color: #64787b;
   font-weight: 800;
   max-width: 240px;
 }
 
 .document-file-icon {
   align-items: center;
-  background: #9a4d2f;
+  background: #8a5a13;
   border-radius: 8px;
   color: #fff;
   display: inline-flex;
@@ -1448,7 +1560,7 @@ body.nav-sheet-open {
 }
 
 .uploaded-document-card small {
-  color: #5c6966;
+  color: #64787b;
   font-weight: 700;
   margin-top: 3px;
   overflow-wrap: anywhere;
@@ -1476,7 +1588,7 @@ body.nav-sheet-open {
 }
 
 .upload-inline-success {
-  color: #225c3d;
+  color: #2f6b4f;
   font-size: 0.96rem;
   font-weight: 800;
 }
@@ -1489,8 +1601,8 @@ body.nav-sheet-open {
 }
 
 .file-preview-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 16px;
@@ -1511,7 +1623,7 @@ body.nav-sheet-open {
 }
 
 .file-preview-image {
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   max-height: 70vh;
   object-fit: contain;
@@ -1519,7 +1631,7 @@ body.nav-sheet-open {
 }
 
 .file-preview-frame {
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   height: min(72vh, 760px);
   width: 100%;
@@ -1528,7 +1640,7 @@ body.nav-sheet-open {
 .text-button {
   background: transparent;
   border: 0;
-  color: #225c56;
+  color: #14565f;
   cursor: pointer;
   font: inherit;
   font-weight: 800;
@@ -1537,10 +1649,10 @@ body.nav-sheet-open {
 }
 
 .danger-button {
-  background: #fffaf8;
-  border: 1px solid #c44c33;
+  background: #ffffff;
+  border: 1px solid #bf4436;
   border-radius: 8px;
-  color: #9a341f;
+  color: #a8372c;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -1551,7 +1663,7 @@ body.nav-sheet-open {
 }
 
 .danger-button:hover {
-  background: #fbe9e3;
+  background: #faebe8;
 }
 
 /* ConfirmDialog's tone="danger" only ever adds .archive-action to its own
@@ -1559,23 +1671,23 @@ body.nav-sheet-open {
    itself carries no color - give it the same look as .danger-button so a
    dangerous confirmation actually reads as one. */
 .app-confirm-dialog-body .form-actions .archive-action {
-  background: #fffaf8;
-  border: 1px solid #c44c33;
-  color: #9a341f;
+  background: #ffffff;
+  border: 1px solid #bf4436;
+  color: #a8372c;
 }
 
 .app-confirm-dialog-body .form-actions .archive-action:hover {
-  background: #fbe9e3;
+  background: #faebe8;
 }
 
 .text-button:disabled {
-  color: #8b9693;
+  color: #93a5a7;
   cursor: not-allowed;
 }
 
 .danger-button:disabled {
-  border-color: #d9beb5;
-  color: #8b9693;
+  border-color: #d89a91;
+  color: #93a5a7;
   cursor: not-allowed;
 }
 
@@ -1586,8 +1698,8 @@ body.nav-sheet-open {
 }
 
 .login-recovery-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -1596,7 +1708,7 @@ body.nav-sheet-open {
 }
 
 .login-recovery-panel p {
-  color: #5c6966;
+  color: #64787b;
   margin: 0;
 }
 
@@ -1612,7 +1724,7 @@ body.nav-sheet-open {
 
 .event-admin-card,
 .user-admin-card {
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 18px;
@@ -1625,9 +1737,9 @@ body.nav-sheet-open {
 }
 
 .event-admin-card.recently-saved-card {
-  background: #fff3d7;
-  border-color: #c8442f;
-  box-shadow: inset 4px 0 0 #c8442f;
+  background: #fbf0d9;
+  border-color: #bf4436;
+  box-shadow: inset 4px 0 0 #bf4436;
 }
 
 .user-admin-card .card-actions {
@@ -1635,12 +1747,12 @@ body.nav-sheet-open {
 }
 
 .user-table tbody tr.recently-edited-row {
-  background: #fff3d7;
-  box-shadow: inset 4px 0 0 #c8442f;
+  background: #fbf0d9;
+  box-shadow: inset 4px 0 0 #bf4436;
 }
 
 .user-table tbody tr.recently-edited-row td:first-child strong::after {
-  color: #b53a29;
+  color: #a8372c;
   content: " Recently edited";
   display: inline-block;
   font-size: 0.78rem;
@@ -1669,6 +1781,52 @@ body.nav-sheet-open {
   gap: 12px 18px;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
   padding: 18px;
+}
+
+/* The card's left edge carries its type, so a season can be scanned by colour
+   down a list without reading every pill. The hues are the ones
+   .event-type-pill uses above - a new type needs adding in both places, and in
+   .vq-feed-type in public/godaddy-event-feed.js, which pills the same types on
+   the guild website. A type with no tone of its own keeps the plain border. */
+.public-event-card {
+  border-left: 5px solid #dce7e8;
+}
+
+.public-event-card.is-class-half-day,
+.public-event-card.is-class-full-day {
+  border-left-color: #2f6b4f;
+}
+
+.public-event-card.is-workshop {
+  border-left-color: #2a4e8f;
+}
+
+.public-event-card.is-retreat {
+  border-left-color: #7a3e6b;
+}
+
+.public-event-card.is-lecture {
+  border-left-color: #a8701c;
+}
+
+.public-event-card.is-challenges {
+  border-left-color: #a8372c;
+}
+
+.public-event-card.is-business-listing {
+  border-left-color: #636e70;
+}
+
+.public-event-card.is-for-sale {
+  border-left-color: #9a5422;
+}
+
+.public-event-card.is-membership {
+  border-left-color: #1f6b72;
+}
+
+.public-event-card.is-other {
+  border-left-color: #93a5a7;
 }
 
 .public-listing-card {
@@ -1704,58 +1862,62 @@ body.nav-sheet-open {
    which pills the same types on the website, so a new tone needs adding in
    both places. */
 .event-type-pill {
-  background: #f0ece5;
+  background: #eff3f3;
   border-radius: 999px;
-  color: #5b544a;
+  color: #636e70;
   font-size: 0.92rem;
   letter-spacing: 0;
   padding: 5px 10px;
 }
 
+/* Green here is the mat green, not the brand teal: teal now belongs to the
+   shell and to actions, so a class pill wearing it would read as a house
+   announcement rather than a category. Both class types still share one
+   colour, which is deliberate. */
 .event-type-pill.is-class-half-day,
 .event-type-pill.is-class-full-day {
-  background: #e9f2ef;
-  color: #225c56;
+  background: #e7f3ee;
+  color: #275c44;
 }
 
 .event-type-pill.is-workshop {
-  background: #e6eef8;
-  color: #1f4e79;
+  background: #e4e7f4;
+  color: #2a4e8f;
 }
 
 .event-type-pill.is-retreat {
-  background: #efe7f6;
-  color: #5b3a7e;
+  background: #efe4ec;
+  color: #7a3e6b;
 }
 
 .event-type-pill.is-lecture {
-  background: #fbf0d2;
-  color: #7a5a07;
+  background: #fbf0d9;
+  color: #7e5306;
 }
 
 .event-type-pill.is-challenges {
-  background: #fae8ec;
-  color: #8d2541;
+  background: #f6e3dc;
+  color: #a8372c;
 }
 
 .event-type-pill.is-business-listing {
-  background: #eceef2;
-  color: #3c4756;
+  background: #eff3f3;
+  color: #636e70;
 }
 
 .event-type-pill.is-for-sale {
-  background: #f2e7de;
-  color: #8f351d;
+  background: #f7e2d2;
+  color: #9a5422;
 }
 
 .event-type-pill.is-membership {
-  background: #e2f0f2;
-  color: #15606b;
+  background: #deebea;
+  color: #1f6b72;
 }
 
 .event-type-pill.is-other {
-  background: #f0ece5;
-  color: #5b544a;
+  background: #eff3f3;
+  color: #636e70;
 }
 
 /* Sits beside the type pill at the top of a business listing card. Weighted
@@ -1763,7 +1925,7 @@ body.nav-sheet-open {
    what a reader scans a directory for, while "Business Listing" is the same on
    every card on the page. */
 .business-type-pill {
-  background: #225c56;
+  background: #14565f;
   border-radius: 999px;
   color: #ffffff;
   font-size: 0.92rem;
@@ -1775,14 +1937,14 @@ body.nav-sheet-open {
 .event-admin-card p,
 .user-admin-card p,
 .public-event-card p {
-  color: #5c6966;
+  color: #64787b;
   line-height: 1.6;
   margin: 0;
 }
 
 .card-kicker {
   align-items: center;
-  color: #9a4d2f;
+  color: #8a5a13;
   display: flex;
   flex-wrap: wrap;
   font-size: 0.84rem;
@@ -1793,25 +1955,25 @@ body.nav-sheet-open {
 }
 
 .card-kicker strong {
-  background: #e9f2ef;
+  background: #e7f3ee;
   border-radius: 999px;
-  color: #225c56;
+  color: #14565f;
   padding: 4px 9px;
 }
 
 .event-availability-pill.open {
-  background: #e9f2ef;
-  color: #225c56;
+  background: #e7f3ee;
+  color: #275c44;
 }
 
 .event-availability-pill.waitlist {
-  background: #fff3c4;
-  color: #7a5200;
+  background: #fbf0d9;
+  color: #7e5306;
 }
 
 .event-availability-pill.closed {
-  background: #fff3c4;
-  color: #7a5200;
+  background: #fbf0d9;
+  color: #7e5306;
 }
 
 .event-admin-card dl,
@@ -1829,7 +1991,7 @@ body.nav-sheet-open {
 }
 
 .event-card-date dd {
-  color: #225c56;
+  color: #14565f;
   font-size: 1.08rem;
   font-weight: 900;
 }
@@ -1838,7 +2000,7 @@ body.nav-sheet-open {
 .user-admin-card dt,
 .public-event-card dt,
 .detail-panel dt {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.92rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -1864,17 +2026,17 @@ body.nav-sheet-open {
 }
 
 .event-coordinator-contact {
-  color: #5c6966;
+  color: #64787b;
   font-size: 1rem;
   margin-top: 4px;
 }
 
 .event-coordinator-contact strong {
-  color: #1d2927;
+  color: #17282a;
 }
 
 .event-coordinator-contact a {
-  color: #225c56;
+  color: #14565f;
   font-weight: 800;
 }
 
@@ -1898,10 +2060,10 @@ body.nav-sheet-open {
 
 .event-registration-pill {
   align-items: baseline;
-  background: #f5f2ed;
-  border: 1px solid #ded5ca;
+  background: #f2f7f7;
+  border: 1px solid #dce7e8;
   border-radius: 999px;
-  color: #4d5653;
+  color: #3e4f52;
   display: inline-flex;
   font-size: 0.82rem;
   font-weight: 800;
@@ -1912,33 +2074,33 @@ body.nav-sheet-open {
 }
 
 .event-registration-pill strong {
-  color: #172421;
+  color: #0f1f21;
   font-size: 0.96rem;
 }
 
 .event-registration-pill.active {
-  background: #fff0d6;
-  border-color: #e7b96f;
-  color: #744800;
+  background: #fbf0d9;
+  border-color: #e8b84b;
+  color: #7e5306;
 }
 
 .event-registration-pill.open {
-  background: #e9f2ef;
-  border-color: #bad7cf;
-  color: #225c56;
+  background: #e7f3ee;
+  border-color: #bfdfe2;
+  color: #14565f;
 }
 
 .event-registration-pill.waitlist,
 .event-registration-pill.hold {
-  background: #fff3c4;
-  border-color: #edcf68;
-  color: #7a5200;
+  background: #fbf0d9;
+  border-color: #e8b84b;
+  color: #7e5306;
 }
 
 .event-registration-pill.full {
-  background: #fde7de;
-  border-color: #ecad97;
-  color: #9a2d17;
+  background: #faebe8;
+  border-color: #d89a91;
+  color: #8e2e24;
 }
 
 .event-type-filter {
@@ -1969,14 +2131,14 @@ body.nav-sheet-open {
      them instead: the whole image is visible, every card keeps the same 4:3
      footprint so the grid does not go ragged, and the tinted background makes
      the spare space read as a frame rather than as a broken image. */
-  background: #f4f1ec;
+  background: #f2f7f7;
   object-fit: contain;
   width: 100%;
 }
 
 .public-event-card-thumbnail .image-placeholder {
-  background: #eee8e1;
-  border: 1px dashed #c9bbb0;
+  background: #eef4f4;
+  border: 1px dashed #c9dadc;
 }
 
 .event-image-carousel {
@@ -2091,7 +2253,7 @@ body.nav-sheet-open {
 }
 
 .carousel-photo-count {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.875rem;
   font-weight: 700;
   margin: 6px 0 0;
@@ -2099,8 +2261,8 @@ body.nav-sheet-open {
 }
 
 .supply-list-view {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 14px;
@@ -2128,7 +2290,7 @@ body.nav-sheet-open {
 }
 
 .supply-list-view-frame {
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   height: min(72vh, 760px);
   width: 100%;
@@ -2166,8 +2328,8 @@ body.nav-sheet-open {
 }
 
 .registration-summary {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 16px;
@@ -2191,7 +2353,7 @@ body.nav-sheet-open {
 }
 
 .registration-summary dt {
-  color: #5a6b67;
+  color: #4a5b5e;
   font-size: 0.92rem;
   font-weight: 800;
 }
@@ -2206,7 +2368,7 @@ body.nav-sheet-open {
    as a bare inline span flush against the total: "$13.00 total$12.00 + $1.00
    service fee". */
 .registration-summary dd .form-help {
-  color: #5a6b67;
+  color: #4a5b5e;
   display: block;
   font-size: 0.92rem;
   margin-top: 2px;
@@ -2223,8 +2385,8 @@ body.nav-sheet-open {
 }
 
 .registration-payment-panel {
-  background: #f7f1e8;
-  border: 1px solid #decfbd;
+  background: #f2f7f7;
+  border: 1px solid #cfdcde;
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -2233,10 +2395,10 @@ body.nav-sheet-open {
 }
 
 .waitlist-notice {
-  background: #fff1eb;
-  border: 1px solid #e4b39e;
+  background: #faebe8;
+  border: 1px solid #d89a91;
   border-radius: 8px;
-  color: #8f351d;
+  color: #9a5422;
   font-weight: 800;
   margin: 0;
   padding: 12px;
@@ -2244,7 +2406,7 @@ body.nav-sheet-open {
 
 .square-card-container {
   background: #ffffff;
-  border: 1px solid #ded5ca;
+  border: 1px solid #dce7e8;
   border-radius: 6px;
   min-height: 96px;
   padding: 12px;
@@ -2322,8 +2484,8 @@ body.nav-sheet-open {
 
 .sandbox-card-helper {
   align-items: center;
-  background: #fffaf1;
-  border: 1px dashed #c58a2a;
+  background: #ffffff;
+  border: 1px dashed #c98a14;
   border-radius: 6px;
   display: flex;
   flex-wrap: wrap;
@@ -2332,7 +2494,7 @@ body.nav-sheet-open {
 }
 
 .sandbox-card-helper strong {
-  color: #7c3f00;
+  color: #7e5306;
 }
 
 .sandbox-card-helper .form-help {
@@ -2355,7 +2517,7 @@ body.nav-sheet-open {
 }
 
 .registration-completion-card dt {
-  color: #5a6b67;
+  color: #4a5b5e;
   font-size: 0.92rem;
   font-weight: 800;
 }
@@ -2365,8 +2527,8 @@ body.nav-sheet-open {
 }
 
 .registration-lookup-card {
-  background: #f7f4ef;
-  border: 1px solid #ded5ca;
+  background: #f4f9f9;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -2385,7 +2547,7 @@ body.nav-sheet-open {
 }
 
 .registration-lookup-card dt {
-  color: #5a6b67;
+  color: #4a5b5e;
   font-size: 0.92rem;
   font-weight: 800;
 }
@@ -2412,9 +2574,9 @@ body.nav-sheet-open {
 
 .registration-profile-edit-grid input,
 .registration-profile-edit-grid select {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   padding: 12px 14px;
   width: 100%;
@@ -2437,8 +2599,8 @@ body.nav-sheet-open {
 
 .admin-register-member-selected {
   align-items: center;
-  background: #fffaf5;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: flex;
   gap: 12px;
@@ -2477,9 +2639,9 @@ body.nav-sheet-open {
 
 .user-edit-grid input,
 .user-edit-grid select {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   height: 48px;
   padding: 12px 14px;
@@ -2522,7 +2684,7 @@ body.nav-sheet-open {
 
 .profile-address-panel,
 .password-panel {
-  border-top: 1px solid #e6ddd3;
+  border-top: 1px solid #e6eced;
   padding-top: 14px;
 }
 
@@ -2542,7 +2704,7 @@ body.nav-sheet-open {
 }
 
 .user-detail-grid strong {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.9rem;
   text-transform: uppercase;
 }
@@ -2574,7 +2736,7 @@ body.nav-sheet-open {
    as most wasted. */
 .user-table th,
 .user-table td {
-  border-bottom: 1px solid #e6ddd3;
+  border-bottom: 1px solid #e6eced;
   padding: 8px 6px;
   text-align: left;
   vertical-align: top;
@@ -2590,7 +2752,7 @@ body.nav-sheet-open {
    applied and the labels went on sizing the columns, which is why the Details
    button still sat a little past the edge of its card. One rule now. */
 .user-table th {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 0.82rem;
   letter-spacing: 0.01em;
   text-transform: uppercase;
@@ -2652,24 +2814,24 @@ body.nav-sheet-open {
 }
 
 .table-sort-button span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.76rem;
   font-weight: 800;
   text-transform: none;
 }
 
 .table-sort-button.active {
-  color: #9a341f;
+  color: #a8372c;
   font-weight: 1000;
 }
 
 .table-sort-button.active span {
-  color: #9a341f;
+  color: #a8372c;
   font-weight: 900;
 }
 
 .user-table td {
-  color: #263632;
+  color: #0d3c44;
   line-height: 1.45;
 }
 
@@ -2679,7 +2841,7 @@ body.nav-sheet-open {
 }
 
 .user-table td span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 1rem;
   font-weight: 800;
   margin-top: 3px;
@@ -2694,22 +2856,22 @@ body.nav-sheet-open {
 }
 
 .status-pill.good {
-  background: #e9f2ef;
-  color: #225c56;
+  background: #e7f3ee;
+  color: #14565f;
 }
 
 .status-pill.neutral {
-  background: #f5f2ed;
-  color: #4d5653;
+  background: #f2f7f7;
+  color: #3e4f52;
 }
 
 .status-pill.warning {
-  background: #fff0d6;
-  color: #744800;
+  background: #fbf0d9;
+  color: #7e5306;
 }
 
 .payment-review-table .payment-review-needs-attention td {
-  background: #fff7ed;
+  background: #fbf0d9;
 }
 
 .payment-review-table {
@@ -2756,16 +2918,16 @@ body.nav-sheet-open {
 }
 
 .payment-review-actions label {
-  color: #263632;
+  color: #0d3c44;
   font-size: 0.92rem;
   font-weight: 900;
 }
 
 .payment-review-actions textarea {
-  background: #fffdfa;
-  border: 1px solid #c9bbb0;
+  background: #ffffff;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #263632;
+  color: #0d3c44;
   font: inherit;
   min-height: 72px;
   padding: 9px 10px;
@@ -2782,20 +2944,20 @@ body.nav-sheet-open {
 }
 
 .payment-review-reviewed span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.95rem;
   font-weight: 800;
 }
 
 .my-registrations-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   padding: 24px;
 }
 
 .my-registrations-table .table-inline-link {
-  color: #225c56;
+  color: #14565f;
   display: inline-block;
   font-size: 0.95rem;
   font-weight: 900;
@@ -2803,7 +2965,7 @@ body.nav-sheet-open {
 }
 
 .my-registrations-table .table-subtext {
-  color: #5c6966;
+  color: #64787b;
   display: block;
   font-size: 0.95rem;
   font-weight: 800;
@@ -2811,17 +2973,17 @@ body.nav-sheet-open {
 }
 
 .my-registrations-table .selected-registration-row td {
-  background: #fff7ed;
+  background: #fbf0d9;
 }
 
 .my-registration-detail-row td {
-  background: #fffdfa;
+  background: #ffffff;
   border-top: 0;
   padding: 0 14px 16px;
 }
 
 .my-registration-details {
-  border: 2px solid #8a2f1f;
+  border: 2px solid #8e2e24;
   border-radius: 8px;
   display: grid;
   gap: 14px;
@@ -2842,18 +3004,18 @@ body.nav-sheet-open {
 }
 
 .my-registration-details-header strong {
-  color: #1d2927;
+  color: #17282a;
   font-size: 1.1rem;
 }
 
 .my-registration-details-header span {
-  color: #5c6966;
+  color: #64787b;
   font-weight: 800;
 }
 
 .member-directory-panel {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 16px;
@@ -2861,9 +3023,9 @@ body.nav-sheet-open {
 }
 
 .member-directory-note {
-  background: #fff7ed;
-  border-left: 4px solid #c2573f;
-  color: #3b4b48;
+  background: #fbf0d9;
+  border-left: 4px solid #bf4436;
+  color: #36464a;
   font-weight: 700;
   margin: 0;
   padding: 10px 12px;
@@ -2883,14 +3045,14 @@ body.nav-sheet-open {
 }
 
 .member-directory-controls span {
-  color: #3b4b48;
+  color: #36464a;
   font-weight: 900;
 }
 
 .member-directory-controls input {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   height: 44px;
   padding: 10px 12px;
@@ -2912,7 +3074,7 @@ body.nav-sheet-open {
 }
 
 .member-directory-count {
-  color: #5c6966;
+  color: #64787b;
   font-weight: 900;
   margin: 0;
 }
@@ -2924,7 +3086,7 @@ body.nav-sheet-open {
 }
 
 .member-directory-card {
-  border: 1px solid #e4dacf;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -2937,12 +3099,12 @@ body.nav-sheet-open {
 }
 
 .member-directory-card strong {
-  color: #1d2927;
+  color: #17282a;
   font-size: 1.05rem;
 }
 
 .member-directory-card span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.95rem;
   font-weight: 800;
 }
@@ -2959,19 +3121,19 @@ body.nav-sheet-open {
 }
 
 .member-directory-card dt {
-  color: #6d5b50;
+  color: #5c6d70;
   font-size: 0.88rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .member-directory-card dd {
-  color: #263632;
+  color: #0d3c44;
   margin: 0;
 }
 
 .configuration-detail-row td {
-  background: #fffaf5;
+  background: #ffffff;
   padding: 18px;
 }
 
@@ -2997,7 +3159,7 @@ body.nav-sheet-open {
 }
 
 .configuration-mini-card {
-  border-top: 1px solid #e6ddd3;
+  border-top: 1px solid #e6eced;
   display: grid;
   gap: 16px;
   padding-top: 22px;
@@ -3036,7 +3198,7 @@ body.nav-sheet-open {
 }
 
 .event-registration-link code {
-  background: #f4f1ec;
+  background: #f2f7f7;
   border-radius: 6px;
   overflow-wrap: anywhere;
   padding: 2px 6px;
@@ -3046,7 +3208,7 @@ body.nav-sheet-open {
    so it is clear they are being asked by the guild rather than needed to
    complete the payment. */
 .membership-questions {
-  border-top: 1px solid #e3ddd3;
+  border-top: 1px solid #e6eced;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -3061,7 +3223,7 @@ body.nav-sheet-open {
 /* Membership dues sit inside the Payment Settings card as their own group -
    two rates and two start dates read as one rule, not as four loose fields. */
 .membership-dues-fieldset {
-  border: 1px solid #e3ddd3;
+  border: 1px solid #e6eced;
   border-radius: 10px;
   margin: 4px 0 0;
   padding: 14px 16px 16px;
@@ -3098,7 +3260,7 @@ body.nav-sheet-open {
 }
 
 .empty-inline {
-  color: #5c6966;
+  color: #64787b;
 }
 
 .configuration-summary {
@@ -3108,10 +3270,10 @@ body.nav-sheet-open {
 }
 
 .configuration-summary span {
-  background: #e9f2ef;
-  border: 1px solid #cfe3de;
+  background: #e7f3ee;
+  border: 1px solid #bfdfe2;
   border-radius: 999px;
-  color: #225c56;
+  color: #14565f;
   font-weight: 900;
   padding: 7px 12px;
 }
@@ -3123,8 +3285,8 @@ body.nav-sheet-open {
 }
 
 .configuration-edit-window {
-  background: #fffdfa;
-  border: 2px solid #8a2f1f;
+  background: #ffffff;
+  border: 2px solid #8e2e24;
   border-radius: 8px;
   padding: 14px;
 }
@@ -3136,9 +3298,9 @@ body.nav-sheet-open {
 
 .configuration-form-grid input,
 .configuration-form-grid select {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   height: 48px;
   padding: 12px 14px;
@@ -3162,7 +3324,7 @@ body.nav-sheet-open {
 }
 
 .configuration-checkbox-panel {
-  border: 1px solid #d8c9bc;
+  border: 1px solid #cfdcde;
   border-radius: 8px;
   display: grid;
   gap: 8px;
@@ -3170,7 +3332,7 @@ body.nav-sheet-open {
 }
 
 .configuration-checkbox-panel legend {
-  color: #263632;
+  color: #0d3c44;
   font-weight: 900;
   padding: 0 6px;
 }
@@ -3198,7 +3360,7 @@ body.nav-sheet-open {
 }
 
 .coordinator-area-card {
-  border: 1px solid #d9cdc4;
+  border: 1px solid #cfdcde;
   border-radius: 8px;
   display: grid;
   gap: 14px;
@@ -3218,12 +3380,12 @@ body.nav-sheet-open {
 }
 
 .coordinator-area-heading h4 {
-  color: #1d2927;
+  color: #17282a;
   font-size: 1.05rem;
 }
 
 .coordinator-area-heading p {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.96rem;
   margin-top: 4px;
 }
@@ -3241,8 +3403,8 @@ body.nav-sheet-open {
 }
 
 .configuration-csv-preview {
-  background: #fffdfa;
-  border: 1px solid #cfe3de;
+  background: #ffffff;
+  border: 1px solid #bfdfe2;
   border-radius: 8px;
   display: grid;
   gap: 8px;
@@ -3250,19 +3412,19 @@ body.nav-sheet-open {
 }
 
 .configuration-csv-preview h4 {
-  color: #225c56;
+  color: #14565f;
   font-size: 1rem;
   margin: 0;
 }
 
 .csv-preview-warning {
-  color: #8a4b00;
+  color: #7e5306;
   font-size: 0.92rem;
   margin: 0;
 }
 
 .csv-preview-warning.csv-preview-error {
-  color: #8a2f1f;
+  color: #8e2e24;
   font-weight: 700;
 }
 
@@ -3284,7 +3446,7 @@ div.csv-preview-warning {
 }
 
 .configuration-review-list {
-  border: 1px solid #ead4c8;
+  border: 1px solid #e3c4bf;
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -3292,21 +3454,21 @@ div.csv-preview-warning {
 }
 
 .configuration-review-list h4 {
-  color: #8a2f1f;
+  color: #8e2e24;
   font-size: 1rem;
   margin: 0;
 }
 
 .configuration-review-item {
-  background: #fff7f2;
-  border-left: 4px solid #c2573f;
+  background: #fdf4f3;
+  border-left: 4px solid #bf4436;
   display: grid;
   gap: 4px;
   padding: 10px 12px;
 }
 
 .configuration-review-item span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 1rem;
 }
 
@@ -3317,16 +3479,16 @@ div.csv-preview-warning {
 
 .configuration-inline-label {
   align-items: center;
-  color: #3b4b48;
+  color: #36464a;
   display: inline-flex;
   font-weight: 800;
   gap: 8px;
 }
 
 .configuration-inline-label select {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   height: 44px;
   padding: 8px 12px;
@@ -3344,10 +3506,10 @@ div.csv-preview-warning {
 }
 
 .status-filter-button {
-  background: #fffdfa;
-  border: 1px solid #c9bbb0;
+  background: #ffffff;
+  border: 1px solid #c9dadc;
   border-radius: 999px;
-  color: #263632;
+  color: #0d3c44;
   cursor: pointer;
   font: inherit;
   font-weight: 800;
@@ -3355,26 +3517,26 @@ div.csv-preview-warning {
 }
 
 .status-filter-button.active {
-  background: #225c56;
-  border-color: #225c56;
+  background: #14565f;
+  border-color: #14565f;
   color: #fff;
 }
 
 .status-filter-button.pending-active {
-  background: #d5a14a;
-  border-color: #d5a14a;
-  color: #2a2315;
+  background: #c98a14;
+  border-color: #c98a14;
+  color: #1d2a2c;
 }
 
 .pending-review-button {
-  background: #d5a14a;
-  border-color: #d5a14a;
-  color: #2a2315;
+  background: #c98a14;
+  border-color: #c98a14;
+  color: #1d2a2c;
 }
 
 .status-filter-button.archive-active {
-  background: #9a341f;
-  border-color: #9a341f;
+  background: #a8372c;
+  border-color: #a8372c;
   color: #fff;
 }
 
@@ -3425,7 +3587,7 @@ div.csv-preview-warning {
 }
 
 .recently-saved-flag {
-  color: #b53a29;
+  color: #a8372c;
   font-size: 0.78rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -3454,7 +3616,7 @@ div.csv-preview-warning {
 }
 
 .profile-search-row label span {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 0.96rem;
   font-weight: 900;
 }
@@ -3494,24 +3656,24 @@ div.csv-preview-warning {
 }
 
 .registration-year-filter span {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 0.92rem;
   font-weight: 900;
 }
 
 .registration-year-filter select {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   height: 40px;
   padding: 7px 10px;
 }
 
 .registration-status-select {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   height: 44px;
   padding: 8px 12px;
@@ -3525,8 +3687,8 @@ div.csv-preview-warning {
 }
 
 .registration-admin-card {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 12px;
@@ -3534,10 +3696,10 @@ div.csv-preview-warning {
 }
 
 .registration-event-card {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   display: grid;
   gap: 14px;
   padding: 16px;
@@ -3546,8 +3708,8 @@ div.csv-preview-warning {
 
 .registration-event-card:hover,
 .registration-event-card:focus-within {
-  border-color: #225c56;
-  outline: 3px solid #cfe3de;
+  border-color: #14565f;
+  outline: 3px solid #bfdfe2;
 }
 
 .registration-event-card-main {
@@ -3562,7 +3724,7 @@ div.csv-preview-warning {
 }
 
 .registration-event-card-main p {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.96rem;
 }
 
@@ -3578,7 +3740,7 @@ div.csv-preview-warning {
 }
 
 .registration-event-info dt {
-  color: #66736f;
+  color: #566769;
   font-size: 0.84rem;
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -3587,7 +3749,7 @@ div.csv-preview-warning {
 }
 
 .registration-event-info dd {
-  color: #243330;
+  color: #16292b;
   font-size: 0.95rem;
   font-weight: 750;
   margin: 0;
@@ -3613,15 +3775,15 @@ div.csv-preview-warning {
 }
 
 .registration-event-stats .has-count {
-  background: #fff1df;
-  border: 1px solid #e5b77f;
-  color: #8a4b00;
+  background: #fbf0d9;
+  border: 1px solid #e8b84b;
+  color: #7e5306;
 }
 
 .registration-event-stats .no-count {
   background: transparent;
-  border: 1px solid #ded5ca;
-  color: #5c6966;
+  border: 1px solid #dce7e8;
+  color: #64787b;
 }
 
 .registration-event-edit-button {
@@ -3645,7 +3807,7 @@ div.csv-preview-warning {
 }
 
 .registration-admin-card-header p {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.96rem;
 }
 
@@ -3663,18 +3825,18 @@ div.csv-preview-warning {
    show through it, which is why each row state restates its own below. */
 .registration-table th:last-child,
 .registration-table td:last-child {
-  background: #fffdfa;
+  background: #ffffff;
   box-shadow: -8px 0 8px -8px rgba(34, 92, 86, 0.25);
   position: sticky;
   right: 0;
 }
 
 .registration-table tbody tr.recently-edited-row td:last-child {
-  background: #fff3d7;
+  background: #fbf0d9;
 }
 
 .registration-detail-row td {
-  background: #fffaf4;
+  background: #ffffff;
   padding: 8px 12px 14px;
 }
 
@@ -3733,7 +3895,7 @@ div.csv-preview-warning {
 /* Set apart from the claim controls above it with a rule, so turning the seat
    down reads as the alternative to claiming rather than another way to do it. */
 .waitlist-decline-row {
-  border-top: 1px solid #ded5ca;
+  border-top: 1px solid #dce7e8;
   display: grid;
   gap: 6px;
   justify-items: start;
@@ -3746,8 +3908,8 @@ div.csv-preview-warning {
 }
 
 .registration-inline-details {
-  background: #fffdfa;
-  border: 2px solid #7f9f99;
+  background: #ffffff;
+  border: 2px solid #5e9aa2;
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -3755,21 +3917,21 @@ div.csv-preview-warning {
 }
 
 .registration-detail-name {
-  color: #1d2927;
+  color: #17282a;
   font-size: 1.25rem;
   font-weight: 1000;
   line-height: 1.25;
 }
 
 .registration-history-list {
-  border-top: 1px solid #e6ddd3;
+  border-top: 1px solid #e6eced;
   display: grid;
   gap: 8px;
   padding-top: 10px;
 }
 
 .registration-history-list > strong {
-  color: #1d2927;
+  color: #17282a;
 }
 
 .registration-history-item {
@@ -3780,24 +3942,24 @@ div.csv-preview-warning {
 }
 
 .registration-history-item span {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 0.95rem;
 }
 
 .payment-history-list {
-  border-top: 1px solid #e6ddd3;
+  border-top: 1px solid #e6eced;
   display: grid;
   gap: 10px;
   padding-top: 10px;
 }
 
 .payment-history-list > strong {
-  color: #1d2927;
+  color: #17282a;
 }
 
 .payment-history-item {
-  background: #fffdfa;
-  border: 1px solid #e4dacf;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 6px;
@@ -3814,7 +3976,7 @@ div.csv-preview-warning {
 
 .payment-history-item span,
 .payment-history-item p {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 0.95rem;
 }
 
@@ -3827,8 +3989,8 @@ div.csv-preview-warning {
 }
 
 .registration-edit-context {
-  background: #f8f3ed;
-  border: 1px solid #e2d8ce;
+  background: #f4f9f9;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: grid;
   gap: 4px;
@@ -3836,12 +3998,12 @@ div.csv-preview-warning {
 }
 
 .registration-edit-context strong {
-  color: #1d2927;
+  color: #17282a;
   font-size: 1rem;
 }
 
 .registration-edit-context span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.96rem;
   font-weight: 800;
 }
@@ -3869,8 +4031,8 @@ div.csv-preview-warning {
 
 .app-dialog-card,
 .registration-modal-card {
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   box-shadow: 0 24px 70px rgb(29 41 39 / 0.22);
   display: grid;
@@ -3896,7 +4058,7 @@ div.csv-preview-warning {
 }
 
 .app-confirm-dialog-text {
-  color: #3b4b48;
+  color: #36464a;
   margin: 0;
 }
 
@@ -3908,13 +4070,13 @@ div.csv-preview-warning {
 }
 
 .registration-detail-item {
-  border-bottom: 1px solid #eadfd4;
+  border-bottom: 1px solid #e6eced;
   margin: 0;
   padding: 0 0 6px;
 }
 
 .registration-detail-item dt {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.88rem;
   font-weight: 900;
   margin: 0 0 2px;
@@ -3922,7 +4084,7 @@ div.csv-preview-warning {
 }
 
 .registration-detail-item dd {
-  color: #1d2927;
+  color: #17282a;
   font-size: 0.96rem;
   font-weight: 700;
   margin: 0;
@@ -3935,15 +4097,15 @@ div.csv-preview-warning {
 }
 
 .registration-modal-status span {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 0.96rem;
   font-weight: 900;
 }
 
 .registration-status-summary {
   align-items: center;
-  background: #fffdfa;
-  border: 1px solid #ded5ca;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   display: inline-flex;
   flex-wrap: wrap;
@@ -3954,18 +4116,18 @@ div.csv-preview-warning {
 }
 
 .registration-status-summary span {
-  color: #5c6966;
+  color: #64787b;
   font-size: 0.9rem;
   font-weight: 900;
 }
 
 .registration-status-summary strong {
-  color: #225c56;
+  color: #14565f;
   font-weight: 900;
 }
 
 .registration-edit-section {
-  border-top: 1px solid #e6ddd3;
+  border-top: 1px solid #e6eced;
   display: grid;
   gap: 12px;
   padding-top: 16px;
@@ -3988,7 +4150,7 @@ div.csv-preview-warning {
 }
 
 .registration-payment-grid label span {
-  color: #3b4b48;
+  color: #36464a;
   font-size: 0.96rem;
   font-weight: 900;
 }
@@ -3996,9 +4158,9 @@ div.csv-preview-warning {
 .registration-payment-grid input,
 .registration-payment-grid select,
 .registration-payment-grid textarea {
-  border: 1px solid #c9bbb0;
+  border: 1px solid #c9dadc;
   border-radius: 8px;
-  color: #1d2927;
+  color: #17282a;
   font: inherit;
   padding: 8px 12px;
   width: 100%;
@@ -4017,13 +4179,13 @@ div.csv-preview-warning {
    textarea is in neither - so without this rule the box the error tells you to
    fill in would not actually be marked. */
 .registration-payment-note .field-invalid {
-  background: #fff6f3;
-  border-color: #b42318;
+  background: #fdf4f3;
+  border-color: #a8372c;
 }
 
 .registration-payment-note .field-invalid:focus {
-  border-color: #b42318;
-  outline-color: #ffd7cc;
+  border-color: #a8372c;
+  outline-color: #f3d3cd;
 }
 
 /* Directly above the button that refused, so the reason and the control that
@@ -4067,28 +4229,28 @@ div.csv-preview-warning {
 .event-image-grid img,
 .image-placeholder {
   aspect-ratio: 4 / 3;
-  background: #eee8e1;
-  border: 1px solid #ded5ca;
+  background: #eef4f4;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
   object-fit: cover;
   width: 100%;
 }
 
 .form-error {
-  background: #fff1eb;
-  border: 1px solid #e4b39e;
+  background: #faebe8;
+  border: 1px solid #d89a91;
   border-radius: 8px;
-  color: #8f351d;
+  color: #9a5422;
   font-weight: 700;
   margin: 0;
   padding: 12px;
 }
 
 .form-success {
-  background: #edf8f1;
-  border: 1px solid #b9dfc5;
+  background: #eaf3ee;
+  border: 1px solid #b7dec6;
   border-radius: 8px;
-  color: #225c3d;
+  color: #2f6b4f;
   font-weight: 700;
   margin: 0;
   padding: 12px;
@@ -4099,10 +4261,10 @@ div.csv-preview-warning {
    status at all - so this is boxed like the other two, and carries the app's
    neutral greys rather than a colour, so "fine" cannot be mistaken for "act". */
 .form-info {
-  background: #f7f5f2;
-  border: 1px solid #ded5ca;
+  background: #f4f9f9;
+  border: 1px solid #dce7e8;
   border-radius: 8px;
-  color: #5c6966;
+  color: #64787b;
   /* Heavier than body copy so the box is read, lighter than the 700 of
      .form-notice and .form-error so "nothing to do" still looks calmer than
      the two states that want something. */
@@ -4118,10 +4280,10 @@ div.csv-preview-warning {
    cry wolf, and leaving them as muted text made them too easy to miss. Same
    box shape as .form-error so the three read as one family. */
 .form-notice {
-  background: #fdf6ec;
-  border: 1px solid #e3c9a0;
+  background: #fbf0d9;
+  border: 1px solid #f0dcae;
   border-radius: 8px;
-  color: #7a4a06;
+  color: #7e5306;
   font-weight: 700;
   margin: 0;
   padding: 12px;
@@ -4213,10 +4375,10 @@ div.csv-preview-warning {
      tab reverts to a full pill button here, matching the alert chips above
      it and every other button-link in the app. */
   .admin-module-list.is-open > .admin-tab-button {
-    background: #fffdfa;
-    border: 1px solid #225c56;
+    background: #ffffff;
+    border: 1px solid #14565f;
     border-radius: 8px;
-    color: #225c56;
+    color: #14565f;
     font-weight: 700;
     margin-bottom: 0;
     min-height: 44px;
@@ -4224,7 +4386,7 @@ div.csv-preview-warning {
   }
 
   .admin-module-list.is-open > .admin-tab-button.active {
-    background: #225c56;
+    background: #14565f;
     color: #fff;
   }
 
@@ -4330,7 +4492,7 @@ div.csv-preview-warning {
   }
 
   .user-table tr {
-    border: 1px solid #e6ddd3;
+    border: 1px solid #e6eced;
     border-radius: 8px;
     margin-bottom: 12px;
     padding: 10px;
@@ -4345,7 +4507,7 @@ div.csv-preview-warning {
   }
 
   .user-table td::before {
-    color: #5c6966;
+    color: #64787b;
     content: attr(data-label);
     font-size: 0.78rem;
     font-weight: 900;
@@ -4490,7 +4652,7 @@ div.csv-preview-warning {
    from the derived eventRegistrantNames document - see
    shared/eventRegistrantNames.js for what is deliberately not in it. */
 .event-registrant-panel {
-  border-top: 1px solid #ded5ca;
+  border-top: 1px solid #dce7e8;
   margin-top: 18px;
   padding-top: 14px;
 }
@@ -4518,10 +4680,10 @@ div.csv-preview-warning {
    aria-hidden in the markup: the same date is already in the card's Date row,
    and a screen reader should not hear "AUG 13 2026" twice. */
 .event-date-stack {
-  background: #fdf6f2;
-  border: 1px solid #e6cdbf;
+  background: #fdf4f3;
+  border: 1px solid #e3c4bf;
   border-radius: 8px;
-  color: #9a4d2f;
+  color: #8a5a13;
   display: grid;
   flex: 0 0 auto;
   justify-items: center;
@@ -4544,7 +4706,7 @@ div.csv-preview-warning {
 }
 
 .event-date-stack-year {
-  color: #b07a5f;
+  color: #9a5422;
   font-size: 0.72rem;
   font-weight: 700;
 }

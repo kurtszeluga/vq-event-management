@@ -146,7 +146,10 @@ describe('home page for an admin', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { name: 'The Village Quilters Network' })).toBeInTheDocument();
+    // The guild's name is no longer a heading on this page - it moved up into
+    // the hero band, which the shell renders on the home route (HomeHero.jsx),
+    // not HomePage itself. These two cards appear on the home page and nowhere
+    // on the admin dashboard, so they still tell the two apart.
     expect(screen.getByRole('heading', { name: 'Events / Activities' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Business Listings' })).toBeInTheDocument();
   });
