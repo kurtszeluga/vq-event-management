@@ -138,3 +138,7 @@ dist
 .yarn/install-state.gz
 .pnp.*
 .vercel
+
+# macOS Finder metadata - Finder rewrites these whenever a folder is opened,
+# so a tracked one shows up as a change nobody made.
+.DS_Store

@@ -529,7 +529,7 @@ a {
   background: #ffffff;
   border: 1px solid #dce7e8;
   border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
+  box-shadow: 0 10px 24px rgba(23, 40, 42, 0.08);
   max-width: 100%;
   overflow: auto;
   padding: 12px;
@@ -643,14 +643,6 @@ body.popup-mode .page-content {
   line-height: 1.45;
 }
 
-.feature-grid {
-  display: grid;
-  gap: 18px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 42px;
-}
-
-.feature-grid article,
 .empty-state,
 .status-panel {
   background: #ffffff;
@@ -659,26 +651,19 @@ body.popup-mode .page-content {
   padding: 24px;
 }
 
-.home-card {
-  display: grid;
-  gap: 12px;
-}
-
 .pending-home-card {
   border-color: #c98a14;
-  box-shadow: inset 0 0 0 1px rgba(213, 161, 74, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(201, 138, 20, 0.25);
 }
 
 .home-card-actions {
   justify-self: start;
 }
 
-.feature-grid h2,
 .empty-state h2 {
   margin: 0 0 10px;
 }
 
-.feature-grid p,
 .empty-state p {
   color: #64787b;
   line-height: 1.6;
@@ -688,10 +673,6 @@ body.popup-mode .page-content {
 .empty-state,
 .status-panel {
   margin-top: 36px;
-}
-
-.home-sign-in-callout {
-  margin-top: 22px;
 }
 
 /* --- Home: the season, and the side column beside it -------------------- */
@@ -1112,7 +1093,7 @@ body.nav-sheet-open {
 }
 
 .nav-sheet-backdrop {
-  background: rgba(38, 54, 50, 0.42);
+  background: rgba(13, 60, 68, 0.42);
   border: 0;
   cursor: pointer;
   display: block;
@@ -4099,7 +4080,7 @@ div.csv-preview-warning {
 .registration-table th:last-child,
 .registration-table td:last-child {
   background: #ffffff;
-  box-shadow: -8px 0 8px -8px rgba(34, 92, 86, 0.25);
+  box-shadow: -8px 0 8px -8px rgba(20, 86, 95, 0.25);
   position: sticky;
   right: 0;
 }
@@ -4665,10 +4646,6 @@ div.csv-preview-warning {
 
   .admin-module-list.is-open .admin-tab-divider {
     display: none;
-  }
-
-  .feature-grid {
-    grid-template-columns: 1fr;
   }
 
   .event-admin-card,
