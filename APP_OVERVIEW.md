@@ -26,6 +26,8 @@ The app currently supports these main areas:
 
 Members and registrants can browse available programs and activities, review event details, and register for eligible events. The registration process checks identity and membership requirements before accepting a registration.
 
+The home page opens on the guild's season rather than a menu: the next published activities in date order, broken under a heading per month, with a mark on any the signed-in member is already registered for and a banner above them when a waitlist seat is waiting on an answer. Programs and Activities groups by month the same way, with each activity collapsed to a single row - date, type, title, times and cost - until Details is opened. Register is never behind that toggle. Most members meet the guild through the event feed embedded in the GoDaddy website rather than through these pages; see DESIGN.md for why the two surfaces carry different colours on purpose.
+
 For paid events, the app can collect online card payments through embedded Square payment fields. The app does not store card numbers, security codes, or wallet payment details. Square handles the payment information.
 
 Members who forget their password or which email they signed up with can recover access from the login page with a single field - an email address or a phone number - and an emailed code, without needing to remember or guess which one they used. Verifying the code signs them in and takes them straight to their profile to set a new password.
@@ -135,6 +137,8 @@ The current system already protects direct browser registration and event creati
 
 ## Current Direction
 
-The app has entered beta testing: production data was reset to just the Super User account so a small group of invited Guild members can test with a clean slate, and the site footer now shows a build version tag (starting at Beta 1.0, bumped by hand for each significant change) so testers and admins can tell which build they're looking at.
+The app has entered beta testing: production data was reset to just the Super User account so a small group of invited Guild members can test with a clean slate, and the site footer shows the short commit hash the build was made from, so testers and admins can tell which build they are looking at and compare it against the log by eye. (It was a hand-bumped "Beta 1.x" tag until that went 195 commits without being touched; resolving it at build time removed the chance of it being confidently wrong.)
+
+The app was restyled in November 2026. The palette, the header band, the home page's season view and the collapsed programs list all date from that pass; DESIGN.md records what was chosen and, more usefully, what was deliberately left alone.
 
 The app is moving from event registration toward a broader member portal. The long-term direction includes richer membership management, member-only information, better directory print/export tools, attendance and roster workflows, reminders, reporting, and improved admin automation.

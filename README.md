@@ -8,6 +8,7 @@ Primary docs:
 - `PROJECT_UPGRADE.md` tracks completed upgrade work and remaining priorities (status source of truth).
 - `APP_OVERVIEW.md` provides a plain-language summary of the app and its major features.
 - `ROLE_CAPABILITIES_OVERVIEW.md` summarizes what visitors, members, admins, super users, and coordinators can do.
+- `DESIGN.md` records the palette and layout decisions, including why the app and the GoDaddy feed deliberately carry different colours.
 
 ## Current Production Posture
 
