@@ -77,8 +77,15 @@ function App() {
     { to: '/my-registrations', label: 'My Registrations', visible: Boolean(currentUser) },
     { to: '/member-directory', label: 'Member Directory', visible: showMemberDirectoryLink },
     // Last in the list on purpose, so it sits at the right-hand end of the nav
-    // row.
-    { to: '/admin', label: 'Admin Dashboard', visible: Boolean(showAdminDashboardLink) }
+    // row. `emphasised` sets it a step larger and heavier than its neighbours
+    // in the header row - it is the one destination an admin goes to over and
+    // over, and at the row's end it was the easiest to skip past.
+    {
+      emphasised: true,
+      label: 'Admin Dashboard',
+      to: '/admin',
+      visible: Boolean(showAdminDashboardLink)
+    }
     // My Profile lives in the identity chip/account card instead - see
     // .site-identity and MobileNavSheet.jsx's account card.
   ].filter((destination) => destination.visible);
@@ -179,7 +186,15 @@ function App() {
         <nav className="site-nav" aria-label="Primary navigation">
           {navDestinations.map((destination) => (
             <NavLink
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              className={({ isActive }) =>
+                [
+                  'nav-link',
+                  isActive ? 'active' : '',
+                  destination.emphasised ? 'is-emphasised' : ''
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+              }
               end={destination.end}
               key={destination.to}
               to={destination.to}

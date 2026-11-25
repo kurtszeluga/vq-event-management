@@ -115,6 +115,20 @@ describe('Admin Dashboard nav link', () => {
     expect(labels[labels.length - 1]).toBe('Admin Dashboard');
   });
 
+  // Sitting last in a centred row, it was the easiest link to skip past, so it
+  // is set a step larger and heavier than its neighbours. The class is what
+  // carries that, and it is the only destination that gets it.
+  it('is the only nav link set apart from its neighbours', () => {
+    renderApp(SUPER_USER);
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const emphasised = within(nav)
+      .getAllByRole('link')
+      .filter((link) => link.classList.contains('is-emphasised'))
+      .map((link) => link.textContent);
+
+    expect(emphasised).toEqual(['Admin Dashboard']);
+  });
+
   it('is absent for a signed-in non-admin', () => {
     renderApp(MEMBER);
     expect(navLabels()).not.toContain('Admin Dashboard');

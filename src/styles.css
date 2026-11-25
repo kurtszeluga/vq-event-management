@@ -149,7 +149,7 @@ a {
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   padding: 8px 2px 11px;
   text-decoration: none;
@@ -168,6 +168,21 @@ a {
 }
 
 .nav-link:not(.active):hover {
+  color: #ffffff;
+}
+
+/* Admin Dashboard sits at the end of the row and is the one destination an
+   admin uses constantly, so it is set a step up from its neighbours. Brighter
+   as well as bigger: at 600 against the row's own colour it read as the
+   faintest thing in the header rather than the most used. */
+.nav-link.is-emphasised {
+  color: #eaf4f4;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.nav-link.is-emphasised.active,
+.nav-link.is-emphasised:hover {
   color: #ffffff;
 }
 
