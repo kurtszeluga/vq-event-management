@@ -76,6 +76,15 @@ function renderPage() {
   );
 }
 
+// A row states one line until Details is opened, so everything in the card
+// body - the registrant slideout, the stat pills, the dl - has to be revealed
+// before it can be asserted on either way. The "is absent" cases open it too,
+// or they would pass simply because the whole body was still closed.
+async function openDetails() {
+  const [details] = await screen.findAllByRole('button', { name: /^details$/i });
+  await userEvent.setup().click(details);
+}
+
 beforeEach(() => {
   registrantSubscriptions.length = 0;
   directorySettings = { showEventRegistrantNames: true };
@@ -88,6 +97,7 @@ afterEach(cleanup);
 describe('the registrant slideout on an event card', () => {
   it('offers the toggle but fetches nothing until it is clicked', async () => {
     renderPage();
+    await openDetails();
 
     expect(await screen.findByRole('button', { name: /show who is registered/i })).toBeTruthy();
     expect(screen.queryByText('Ada Lovelace')).toBeNull();
@@ -98,6 +108,7 @@ describe('the registrant slideout on an event card', () => {
   it('reveals the names on click', async () => {
     const user = userEvent.setup();
     renderPage();
+    await openDetails();
 
     await user.click(await screen.findByRole('button', { name: /show who is registered/i }));
 
@@ -109,6 +120,7 @@ describe('the registrant slideout on an event card', () => {
   it('closes again', async () => {
     const user = userEvent.setup();
     renderPage();
+    await openDetails();
 
     await user.click(await screen.findByRole('button', { name: /show who is registered/i }));
     await screen.findByText('Ada Lovelace');
@@ -122,6 +134,7 @@ describe('the registrant slideout on an event card', () => {
     renderPage();
 
     await screen.findByText('Open Sew');
+    await openDetails();
     expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
   });
 
@@ -132,6 +145,7 @@ describe('the registrant slideout on an event card', () => {
     renderPage();
 
     await screen.findByText('Open Sew');
+    await openDetails();
     expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
   });
 
@@ -140,6 +154,7 @@ describe('the registrant slideout on an event card', () => {
     renderPage();
 
     await screen.findByText('Open Sew');
+    await openDetails();
     expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
   });
 });
@@ -166,6 +181,7 @@ describe('an event that takes no registrations', () => {
 
   it('shows no registration pills or seat row for a Lecture', async () => {
     await renderWithEvent({ capacityUnlimited: true, eventType: 'Lecture', registrationMode: 'none' });
+    await openDetails();
 
     expect(screen.queryByText(/^Registration closed$/i)).toBeNull();
     expect(screen.queryByText(/^Registration open$/i)).toBeNull();
@@ -177,6 +193,7 @@ describe('an event that takes no registrations', () => {
     // Nobody can register, so there is nobody to list - the toggle would only
     // ever open onto "Nobody is registered yet".
     await renderWithEvent({ capacityUnlimited: true, eventType: 'Lecture', registrationMode: 'none' });
+    await openDetails();
 
     expect(screen.queryByRole('button', { name: /who is registered/i })).toBeNull();
   });
@@ -184,6 +201,7 @@ describe('an event that takes no registrations', () => {
   it('shows none of it for a Workshop set to None either', async () => {
     // Keyed on the stored mode, not the event type, so this follows for free.
     await renderWithEvent({ eventType: 'Other', registrationMode: 'none' });
+    await openDetails();
 
     expect(screen.queryByText(/^Registration closed$/i)).toBeNull();
     expect(screen.queryByLabelText('Registration statistics')).toBeNull();
@@ -213,6 +231,7 @@ describe('an event that takes no registrations', () => {
 
   it('still shows them for an event that does take registrations', async () => {
     await renderWithEvent({});
+    await openDetails();
 
     expect(screen.getByLabelText('Registration statistics')).toBeTruthy();
     expect(screen.getByText(/^Registration (open|closed)$/i)).toBeTruthy();

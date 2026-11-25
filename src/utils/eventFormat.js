@@ -261,3 +261,46 @@ export function isEventVisible(event) {
 
   return true;
 }
+
+// A season reads as a season when it is broken by month, so both the programs
+// list and the home page group their events this way. An event with no date
+// cannot sit under a month - a Challenge carries none - so those collect in a
+// single trailing group rather than being dropped or given an invented date.
+export const UNDATED_EVENT_GROUP_KEY = 'undated';
+
+export function getEventMonthGroup(event) {
+  const parts = getEventDateParts(event?.date);
+
+  if (!parts) {
+    return { key: UNDATED_EVENT_GROUP_KEY, label: 'No set date' };
+  }
+
+  return { key: `${parts.year}-${parts.month}`, label: `${parts.month} ${parts.year}` };
+}
+
+// Groups in the order the list already arrives in, so whatever sort the caller
+// applied still decides which month comes first; only the undated tail is
+// moved, so it reads as a postscript rather than an interruption between two
+// months.
+export function groupEventsByMonth(events) {
+  const groups = [];
+  const groupsByKey = new Map();
+
+  events.forEach((event) => {
+    const { key, label } = getEventMonthGroup(event);
+    let group = groupsByKey.get(key);
+
+    if (!group) {
+      group = { events: [], key, label };
+      groupsByKey.set(key, group);
+      groups.push(group);
+    }
+
+    group.events.push(event);
+  });
+
+  return [
+    ...groups.filter((group) => group.key !== UNDATED_EVENT_GROUP_KEY),
+    ...groups.filter((group) => group.key === UNDATED_EVENT_GROUP_KEY)
+  ];
+}

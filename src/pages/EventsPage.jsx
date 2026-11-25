@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import EventImageCarousel from '../components/EventImageCarousel.jsx';
 import PageHeader from '../components/PageHeader.jsx';
@@ -13,6 +13,7 @@ import {
   getRegistrationEndDate,
   getEventDateParts,
   getEventTypeToneClass,
+  groupEventsByMonth,
   getRegistrationStartDate,
   isEventVisible
 } from '../utils/eventFormat.js';
@@ -83,6 +84,7 @@ function getEventTypeLabel(event) {
 function getEventFilter(type) {
   return EVENT_TYPE_FILTERS.find((filter) => filter.types.includes(type)) || null;
 }
+
 
 function getDescriptionPreview(description) {
   if (!description || description.length <= DESCRIPTION_PREVIEW_LENGTH) {
@@ -326,6 +328,7 @@ function EventsPage() {
   // fetched until a card is opened, so browsing the list costs no reads and a
   // page of twenty events opens no listeners.
   const [expandedRegistrants, setExpandedRegistrants] = useState({});
+  const [expandedEvents, setExpandedEvents] = useState({});
   const [registrantNames, setRegistrantNames] = useState({});
   const [showRegistrantNames, setShowRegistrantNames] = useState(false);
   // The same bar isActiveMember() enforces in the rules, so the toggle is
@@ -428,6 +431,8 @@ function EventsPage() {
     [eventTypeFilter, registerableEvents]
   );
 
+  const eventGroups = useMemo(() => groupEventsByMonth(filteredEvents), [filteredEvents]);
+
   useEffect(() => {
     if (!eventTypeFilters.some((filter) => filter.value === eventTypeFilter)) {
       setEventTypeFilter(DEFAULT_EVENT_TYPE_FILTER);
@@ -515,6 +520,18 @@ function EventsPage() {
     }));
   }
 
+  // Collapsed, a row states when it is, what it is, whether a seat is going
+  // and how to take one - which is the whole of what a list is for. Everything
+  // else about an event is a second question, so it waits behind Details.
+  // Register is never behind it: that would put a click in front of the one
+  // thing people come here to do.
+  function toggleEventDetails(eventId) {
+    setExpandedEvents((current) => ({
+      ...current,
+      [eventId]: !current[eventId]
+    }));
+  }
+
   return (
     <section>
       <PageHeader
@@ -559,7 +576,15 @@ function EventsPage() {
         </div>
       ) : null}
       <div className="public-event-list">
-        {filteredEvents.map((event) => {
+        {eventGroups.map((group) => (
+          <Fragment key={group.key}>
+            <h2 className="event-month-heading">
+              <span>{group.label}</span>
+              <span className="event-month-count">
+                {group.events.length} {group.events.length === 1 ? 'activity' : 'activities'}
+              </span>
+            </h2>
+            {group.events.map((event) => {
           const description = event.description || '';
           const descriptionIsLong = description.length > DESCRIPTION_PREVIEW_LENGTH;
           const descriptionExpanded = Boolean(expandedDescriptions[event.id]);
@@ -597,12 +622,19 @@ function EventsPage() {
           const coordinatorContact = coordinatorContacts[event.id];
           const registrationStartDate = getRegistrationStartDate(event);
           const registrationEndDate = getRegistrationEndDate(event);
+          const detailsExpanded = Boolean(expandedEvents[event.id]);
+          const timeRange = event.eventType === 'Challenges'
+            ? ''
+            : formatTimeRange(event.startTime, event.endTime);
+          const costLabel = event.isPaid
+            ? `${formatCurrency(getEventCostOn(event))}${event.cashCheckOnly ? ' (cash/check only)' : ''}`
+            : 'No Charge';
 
           // The tone class goes on the card as well as on the pill: it paints
           // the card's left spine, so a season can be scanned by colour.
           return (
             <article
-              className={`public-event-card ${getEventTypeToneClass(getEventTypeLabel(event))}`}
+              className={`public-event-card ${getEventTypeToneClass(getEventTypeLabel(event))}${detailsExpanded ? '' : ' is-collapsed'}`}
               key={event.id}
             >
               <div className="card-kicker">
@@ -640,8 +672,17 @@ function EventsPage() {
                 ) : null}
               </div>
               <div className="public-event-card-main">
-                <h2>{event.title}</h2>
-                {description ? (
+                <h3>{event.title}</h3>
+                {detailsExpanded ? null : (
+                  <p className="event-row-meta">
+                    {event.eventType === 'Challenges' ? null : (
+                      <span>{formatEventDateRange(event)}</span>
+                    )}
+                    {timeRange ? <span>{timeRange}</span> : null}
+                    <span>{costLabel}</span>
+                  </p>
+                )}
+                {detailsExpanded && description ? (
                   <div className="event-card-description">
                     <p>{descriptionExpanded ? description : getDescriptionPreview(description)}</p>
                     {descriptionIsLong ? (
@@ -655,7 +696,7 @@ function EventsPage() {
                     ) : null}
                   </div>
                 ) : null}
-                {takesRegistrations ? (
+                {detailsExpanded && takesRegistrations ? (
                 <div className="event-registration-pill-row" aria-label="Registration statistics">
                   <span
                     className={`event-registration-pill${registrationStats.primary.tone ? ` ${registrationStats.primary.tone}` : ''}`}
@@ -680,6 +721,7 @@ function EventsPage() {
                   ))}
                 </div>
                 ) : null}
+                {detailsExpanded ? (
                 <dl>
                   {event.eventType !== 'Challenges' ? (
                     <>
@@ -712,7 +754,8 @@ function EventsPage() {
                     </dd>
                   </div>
                 </dl>
-                {canSeeRegistrants && showRegistrantNames && takesRegistrations ? (
+                ) : null}
+                {detailsExpanded && canSeeRegistrants && showRegistrantNames && takesRegistrations ? (
                   <div className="event-registrant-panel">
                     <button
                       aria-expanded={registrantsExpanded}
@@ -739,7 +782,7 @@ function EventsPage() {
                     ) : null}
                   </div>
                 ) : null}
-                {coordinatorContact ? (
+                {detailsExpanded && coordinatorContact ? (
                   <p className="event-coordinator-contact">
                     <strong>For Questions Contact:</strong> {coordinatorContact.name || 'To be announced'}
                     {coordinatorContact.email ? (
@@ -751,15 +794,25 @@ function EventsPage() {
                   </p>
                 ) : null}
               </div>
-              <div className="public-event-card-thumbnail">
-                <EventImageCarousel
-                  altText={`${event.title} thumbnail`}
-                  eventType={event.eventType}
-                  imageUrls={event.imageUrls}
-                />
-              </div>
+              {detailsExpanded ? (
+                <div className="public-event-card-thumbnail">
+                  <EventImageCarousel
+                    altText={`${event.title} thumbnail`}
+                    eventType={event.eventType}
+                    imageUrls={event.imageUrls}
+                  />
+                </div>
+              ) : null}
               <div className="public-event-card-actions">
-                {listEventDocuments(event).map((eventDocument) => (
+                <button
+                  aria-expanded={detailsExpanded}
+                  className="button-link secondary-action"
+                  type="button"
+                  onClick={() => toggleEventDetails(event.id)}
+                >
+                  {detailsExpanded ? 'Hide Details' : 'Details'}
+                </button>
+                {detailsExpanded ? listEventDocuments(event).map((eventDocument) => (
                   <button
                     className="button-link secondary-action"
                     key={eventDocument.kind}
@@ -770,14 +823,16 @@ function EventsPage() {
                   >
                     View, print, or save {eventDocument.title}
                   </button>
-                ))}
-                <button
-                  className="button-link secondary-action"
-                  type="button"
-                  onClick={() => openEventPrintView(event)}
-                >
-                  Print the {getEventTypeLabel(event)}
-                </button>
+                )) : null}
+                {detailsExpanded ? (
+                  <button
+                    className="button-link secondary-action"
+                    type="button"
+                    onClick={() => openEventPrintView(event)}
+                  >
+                    Print the {getEventTypeLabel(event)}
+                  </button>
+                ) : null}
                 {externalRegistrationUrl ? (
                   <a
                     className="button-link public-event-register-action"
@@ -798,7 +853,9 @@ function EventsPage() {
               </div>
             </article>
           );
-        })}
+            })}
+          </Fragment>
+        ))}
       </div>
     </section>
   );

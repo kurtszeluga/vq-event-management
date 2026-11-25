@@ -24,6 +24,20 @@ vi.mock('../../src/services/userService.js', () => ({
 // implementation, which calls doc() on a `db` that is null without
 // VITE_FIREBASE_* set - so it passes on a machine with .env.local and fails
 // anywhere without one.
+// HomePage subscribes to both of these for the season list; without stubs the
+// real Firestore modules load and the test depends on a live config.
+vi.mock('../../src/services/eventService.js', () => ({
+  subscribeToPublishedEvents: (onNext) => {
+    onNext({ docs: [] });
+    return () => {};
+  }
+}));
+vi.mock('../../src/services/registrationService.js', () => ({
+  subscribeToUserRegistrations: (userId, onNext) => {
+    onNext({ docs: [] });
+    return () => {};
+  }
+}));
 vi.mock('../../src/services/configurationService.js', () => ({
   subscribeToDirectorySettings: () => () => {}
 }));
@@ -146,11 +160,11 @@ describe('home page for an admin', () => {
       </MemoryRouter>
     );
 
-    // The guild's name is no longer a heading on this page - it moved up into
-    // the hero band, which the shell renders on the home route (HomeHero.jsx),
-    // not HomePage itself. These two cards appear on the home page and nowhere
-    // on the admin dashboard, so they still tell the two apart.
-    expect(screen.getByRole('heading', { name: 'Events / Activities' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Business Listings' })).toBeInTheDocument();
+    // The guild's name is no longer a heading here - it moved into the hero
+    // band, which the shell renders on the home route (HomeHero.jsx), not
+    // HomePage. The season and its side column are what this page is now, and
+    // neither appears on the admin dashboard, so they tell the two apart.
+    expect(screen.getByRole('heading', { name: /what.s coming up/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Also here' })).toBeInTheDocument();
   });
 });

@@ -694,6 +694,212 @@ body.popup-mode .page-content {
   margin-top: 22px;
 }
 
+/* --- Home: the season, and the side column beside it -------------------- */
+
+/* A seat waiting on an answer is the only thing on this page with a deadline,
+   so it is the only thing above the season. */
+.home-attention {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
+  border-left: 5px solid #c98a14;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+}
+
+.home-attention-dot {
+  background: #c98a14;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 10px;
+  width: 10px;
+}
+
+.home-attention-copy {
+  display: grid;
+  flex: 1 1 320px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-attention-copy span {
+  color: #64787b;
+}
+
+.home-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px;
+}
+
+/* The season takes the room and the side column stacks under it on a phone -
+   999 against 1 so the two only sit side by side while both can hold their
+   basis. */
+.home-season {
+  flex: 999 1 520px;
+  min-width: 0;
+}
+
+.home-side {
+  display: flex;
+  flex: 1 1 280px;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.home-season-head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.home-season-head h2 {
+  margin: 0;
+}
+
+.home-season-head a {
+  font-weight: 700;
+}
+
+.home-season-list {
+  display: grid;
+  gap: 10px;
+}
+
+.home-season-list .event-month-heading {
+  margin-top: 10px;
+}
+
+.home-season-list .event-month-heading:first-child {
+  margin-top: 0;
+}
+
+.home-season-row {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
+  border-left: 5px solid #dce7e8;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 12px 16px;
+}
+
+.home-season-date {
+  flex: 0 0 auto;
+  line-height: 1.05;
+  text-align: center;
+  width: 46px;
+}
+
+.home-season-month {
+  color: #64787b;
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.home-season-day {
+  display: block;
+  font-size: 1.22rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.home-season-copy {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-season-copy a {
+  color: #17282a;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.home-season-copy a:hover {
+  text-decoration: underline;
+}
+
+.home-season-meta {
+  color: #64787b;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+  gap: 2px 10px;
+}
+
+.home-season-meta > span + span::before {
+  color: #a9bdbf;
+  content: '\00b7';
+  margin-right: 10px;
+}
+
+.home-season-mine {
+  background: #e7f3ee;
+  border-radius: 999px;
+  color: #275c44;
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 4px 11px;
+}
+
+.home-season-empty {
+  margin: 0;
+}
+
+.home-side-panel {
+  align-content: start;
+  background: #ffffff;
+  border: 1px solid #dce7e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.home-side-panel h2 {
+  font-size: 1.08rem;
+  margin: 0;
+}
+
+.home-side-panel p {
+  color: #64787b;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.home-side-panel .button-link {
+  justify-self: start;
+}
+
+.home-side-links {
+  display: grid;
+  gap: 9px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home-side-links a {
+  font-weight: 700;
+}
+
 .status-panel {
   align-items: center;
   display: flex;
@@ -1164,7 +1370,7 @@ body.nav-sheet-open {
 .form-section-header h2,
 .form-subsection h3,
 .event-admin-card h3,
-.public-event-card h2 {
+.public-event-card h3 {
   margin: 0;
 }
 
@@ -1793,39 +1999,49 @@ body.nav-sheet-open {
 }
 
 .public-event-card.is-class-half-day,
-.public-event-card.is-class-full-day {
+.public-event-card.is-class-full-day,
+.home-season-row.is-class-half-day,
+.home-season-row.is-class-full-day {
   border-left-color: #2f6b4f;
 }
 
-.public-event-card.is-workshop {
+.public-event-card.is-workshop,
+.home-season-row.is-workshop {
   border-left-color: #2a4e8f;
 }
 
-.public-event-card.is-retreat {
+.public-event-card.is-retreat,
+.home-season-row.is-retreat {
   border-left-color: #7a3e6b;
 }
 
-.public-event-card.is-lecture {
+.public-event-card.is-lecture,
+.home-season-row.is-lecture {
   border-left-color: #a8701c;
 }
 
-.public-event-card.is-challenges {
+.public-event-card.is-challenges,
+.home-season-row.is-challenges {
   border-left-color: #a8372c;
 }
 
-.public-event-card.is-business-listing {
+.public-event-card.is-business-listing,
+.home-season-row.is-business-listing {
   border-left-color: #636e70;
 }
 
-.public-event-card.is-for-sale {
+.public-event-card.is-for-sale,
+.home-season-row.is-for-sale {
   border-left-color: #9a5422;
 }
 
-.public-event-card.is-membership {
+.public-event-card.is-membership,
+.home-season-row.is-membership {
   border-left-color: #1f6b72;
 }
 
-.public-event-card.is-other {
+.public-event-card.is-other,
+.home-season-row.is-other {
   border-left-color: #93a5a7;
 }
 
@@ -1846,9 +2062,66 @@ body.nav-sheet-open {
   grid-column: 1;
 }
 
-.public-event-card h2 {
+/* The event title is an h3 because the month it sits under is the h2 - the
+   list is a season broken into months, not a flat run of equal headings. */
+.public-event-card h3 {
   font-size: 1.38rem;
   line-height: 1.2;
+}
+
+/* The month heading is itself a grid item of .public-event-list, so it takes
+   the single column on its own without any span. */
+.event-month-heading {
+  align-items: baseline;
+  border-bottom: 1px solid #dce7e8;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  justify-content: space-between;
+  margin: 12px 0 0;
+  padding-bottom: 8px;
+}
+
+.event-month-heading:first-child {
+  margin-top: 0;
+}
+
+.event-month-heading > span:first-child {
+  color: #14565f;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.event-month-count {
+  color: #64787b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Collapsed, the card carries no thumbnail, so the second column would sit
+   empty and hold the title to two thirds of the width. */
+.public-event-card.is-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The one line a collapsed row gets: when it is, how long, and what it costs.
+   Separators are drawn rather than typed so they are not read aloud. */
+.event-row-meta {
+  color: #64787b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin: 2px 0 0;
+}
+
+.event-row-meta > span + span::before {
+  color: #a9bdbf;
+  content: '\00b7';
+  margin-right: 10px;
 }
 
 /* Each event type carries its own colour, so a reader scanning a mixed list
