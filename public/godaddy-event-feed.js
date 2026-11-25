@@ -1321,20 +1321,20 @@
         width: 100%;
       }
       .vq-feed-root {
-        color: #1d2927;
+        color: #1f2a18;
         font-family: Inter, Arial, sans-serif;
       }
       .vq-feed-loading,
       .vq-feed-empty,
       .vq-feed-error {
         background: #f7f4ef;
-        border: 1px solid #ded5ca;
+        border: 1px solid #dce3d2;
         border-radius: 8px;
         padding: 18px 20px;
       }
       .vq-feed-controls {
         align-items: center;
-        border-bottom: 1px solid #ded5ca;
+        border-bottom: 1px solid #dce3d2;
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
@@ -1344,25 +1344,25 @@
       .vq-feed-category {
         appearance: none;
         background: #ffffff;
-        border: 1px solid #c8d4d0;
+        border: 1px solid #c8d7b6;
         border-radius: 999px;
-        color: #1d2927;
+        color: #1f2a18;
         cursor: pointer;
         font: inherit;
         font-weight: 700;
         padding: 10px 16px;
       }
       .vq-feed-category:hover {
-        border-color: #225c56;
+        border-color: #4f7a28;
       }
       .vq-feed-category.is-active {
-        background: #225c56;
-        border-color: #225c56;
+        background: #4f7a28;
+        border-color: #4f7a28;
         color: #ffffff;
       }
       .vq-feed-layout-controls {
         align-items: center;
-        border-bottom: 1px solid #ded5ca;
+        border-bottom: 1px solid #dce3d2;
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
@@ -1376,7 +1376,7 @@
         padding-bottom: 0;
       }
       .vq-feed-layout-label {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.86rem;
         font-weight: 700;
         letter-spacing: 0.04em;
@@ -1388,20 +1388,20 @@
       .vq-feed-layout {
         appearance: none;
         background: #ffffff;
-        border: 1px solid #c8d4d0;
+        border: 1px solid #c8d7b6;
         border-radius: 999px;
-        color: #1d2927;
+        color: #1f2a18;
         cursor: pointer;
         font: inherit;
         font-weight: 700;
         padding: 8px 14px;
       }
       .vq-feed-layout:hover {
-        border-color: #225c56;
+        border-color: #4f7a28;
       }
       .vq-feed-layout.is-active {
-        background: #225c56;
-        border-color: #225c56;
+        background: #4f7a28;
+        border-color: #4f7a28;
         color: #ffffff;
       }
       /* All three layouts render the same media + body pair; only the geometry
@@ -1453,7 +1453,7 @@
          rules below target the rows, which are descendants. */
       .vq-feed-list.is-summary {
         background: #ffffff;
-        border: 1px solid #ded5ca;
+        border: 1px solid #dce3d2;
         border-radius: 10px;
         box-shadow: 0 10px 24px rgba(29, 41, 39, 0.06);
         container-type: inline-size;
@@ -1521,7 +1521,7 @@
         min-width: 0;
       }
       .vq-feed-summary-title {
-        color: #1d2927;
+        color: #1f2a18;
         font-size: 1.22rem;
         font-weight: 700;
         line-height: 1.35;
@@ -1541,7 +1541,7 @@
         text-transform: uppercase;
       }
       .vq-feed-summary-span {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.9rem;
         font-variant-numeric: tabular-nums;
       }
@@ -1553,7 +1553,7 @@
       }
       .vq-feed-card {
         background: #ffffff;
-        border: 1px solid #ded5ca;
+        border: 1px solid #dce3d2;
         border-radius: 10px;
         box-shadow: 0 10px 24px rgba(29, 41, 39, 0.06);
         /* Every card is its own query container. The embed sits in a GoDaddy
@@ -1733,15 +1733,29 @@
         cursor: pointer;
         font-family: inherit;
       }
+      /* Green, not the app's teal, and deliberately so. These cards are
+         embedded in the guild's own website, whose headings and buttons are
+         #6a9a38 - a yellow-green. Teal buttons would sit directly under
+         yellow-green ones on the same page. The app is a different context
+         reached through a different tab, and it keeps its own colour.
+
+         #4f7a28 is that same hue, about 90 degrees, carried dark enough to
+         hold text: the website's own #6a9a38 is 3.3:1 on white, which its
+         buttons already fail, and copying the failure would be the wrong kind
+         of matching. This clears 5:1 both as white-on-green and green-on-white.
+
+         The status pills, the event type tones and the terracotta date stack
+         are left out of this on purpose - they carry meaning rather than
+         brand, and a card of nothing but green loses the distinctions. */
       .vq-feed-primary {
-        background: #225c56;
-        border: 1px solid #225c56;
+        background: #4f7a28;
+        border: 1px solid #4f7a28;
         color: #ffffff;
       }
       .vq-feed-secondary {
         background: #ffffff;
-        border: 1px solid #c8d4d0;
-        color: #225c56;
+        border: 1px solid #c8d7b6;
+        color: #4f7a28;
       }
       /* A calendar tile rather than an inline date line. A card with no date
          concept omits the block entirely and the flex gap closes up, which is
@@ -1814,7 +1828,7 @@
         width: 100%;
       }
       .vq-feed-thumb-hint {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.78rem;
         font-weight: 600;
         line-height: 1.2;
@@ -1838,7 +1852,7 @@
         background: linear-gradient(135deg, #f6efe9, #ebe3da);
       }
       .vq-feed-thumb-count {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.78rem;
         font-weight: 700;
         margin: 0;
@@ -1969,7 +1983,7 @@
         appearance: none;
         background: none;
         border: 0;
-        color: #225c56;
+        color: #4f7a28;
         cursor: pointer;
         font: inherit;
         font-weight: 700;
@@ -1987,7 +2001,7 @@
         gap: 4px;
       }
       .vq-feed-meta dt {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.82rem;
         font-weight: 700;
       }
@@ -1995,7 +2009,7 @@
         margin: 0;
       }
       .vq-feed-meta dd a {
-        color: #225c56;
+        color: #4f7a28;
         font-weight: 800;
       }
       /* Cost sits on its own below the meta grid, so it takes one left-aligned
@@ -2010,11 +2024,11 @@
       }
       .vq-feed-payment-breakdown,
       .vq-feed-payment-note {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.86rem;
       }
       .vq-feed-payment-note {
-        color: #225c56;
+        color: #4f7a28;
         font-weight: 800;
       }
       .vq-feed-seats {
@@ -2031,14 +2045,14 @@
       }
       .vq-feed-seat {
         background: #ffffff;
-        border: 1px solid #c3d3cf;
+        border: 1px solid #c8d7b6;
         border-radius: 2px;
         height: 13px;
         width: 13px;
       }
       .vq-feed-seat.is-filled {
-        background: #225c56;
-        border-color: #225c56;
+        background: #4f7a28;
+        border-color: #4f7a28;
       }
       .vq-feed-seat.is-pending {
         background: #e8c76a;
@@ -2046,7 +2060,7 @@
       }
       .vq-feed-seat-bar {
         background: #ffffff;
-        border: 1px solid #c3d3cf;
+        border: 1px solid #c8d7b6;
         border-radius: 999px;
         height: 13px;
         overflow: hidden;
@@ -2063,13 +2077,13 @@
         background: #e8c76a;
       }
       .vq-feed-seat-bar-fill {
-        background: #225c56;
+        background: #4f7a28;
       }
       /* Capacity, registered and open are always here. The meter is the quick
          read; these are the exact numbers, in tabular figures so they stay in
          column as counts change. */
       .vq-feed-seat-figures {
-        color: #5a6b67;
+        color: #5e6b55;
         display: flex;
         flex-wrap: wrap;
         font-size: 0.86rem;
@@ -2077,7 +2091,7 @@
         margin: 0;
       }
       .vq-feed-seat-figures strong {
-        color: #1d2927;
+        color: #1f2a18;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-variant-numeric: tabular-nums;
       }
@@ -2089,14 +2103,14 @@
       }
       /* For Sale leads with the price - it is the reason the card gets read. */
       .vq-feed-price {
-        color: #225c56;
+        color: #4f7a28;
         font-size: 1.7rem;
         font-weight: 800;
         letter-spacing: -0.01em;
         margin: 0;
       }
       .vq-feed-posting-ends {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.86rem;
         margin: 0;
       }
@@ -2104,8 +2118,8 @@
          business group is the one thing that differs between listings on a
          page that is otherwise all the same type. */
       .vq-feed-business-type {
-        background: #225c56;
-        border: 1px solid #225c56;
+        background: #4f7a28;
+        border: 1px solid #4f7a28;
         border-radius: 999px;
         color: #ffffff;
         display: inline-flex;
@@ -2141,7 +2155,7 @@
         min-width: 0;
       }
       .vq-feed-contact dt {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.04em;
@@ -2157,12 +2171,12 @@
         overflow-wrap: anywhere;
       }
       .vq-feed-contact dd a {
-        color: #225c56;
+        color: #4f7a28;
         font-weight: 800;
       }
       .vq-feed-coordinator {
         align-items: center;
-        color: #5a6b67;
+        color: #5e6b55;
         display: flex;
         flex-wrap: wrap;
         font-size: 0.92rem;
@@ -2170,10 +2184,10 @@
         margin-top: 10px;
       }
       .vq-feed-coordinator strong {
-        color: #1d2927;
+        color: #1f2a18;
       }
       .vq-feed-coordinator a {
-        color: #225c56;
+        color: #4f7a28;
         font-weight: 800;
       }
       .vq-feed-actions {
@@ -2433,7 +2447,7 @@
       <style>
         :root {
           background: #f4efe8;
-          color: #1d2927;
+          color: #1f2a18;
           font-family: Inter, Arial, sans-serif;
         }
         html,
@@ -2446,7 +2460,7 @@
         }
         .page {
           background: #fffdfa;
-          border: 1px solid #ded5ca;
+          border: 1px solid #dce3d2;
           border-radius: 10px;
           margin: 0 auto;
           max-width: 820px;
@@ -2480,10 +2494,10 @@
         }
         .pill,
         .stats span {
-          background: #e9f2ef;
-          border: 1px solid #c6dad5;
+          background: #eff5e6;
+          border: 1px solid #cfe0b8;
           border-radius: 999px;
-          color: #225c56;
+          color: #4f7a28;
           display: inline-flex;
           font-size: 13px;
           font-weight: 900;
@@ -2501,7 +2515,7 @@
           color: #1f6a31;
         }
         .event-image {
-          border: 1px solid #ded5ca;
+          border: 1px solid #dce3d2;
           border-radius: 8px;
           display: block;
           height: auto;
@@ -2521,7 +2535,7 @@
           grid-template-columns: 120px 1fr;
         }
         .meta-label {
-          color: #5a6b67;
+          color: #5e6b55;
           font-weight: 900;
         }
         .description {
@@ -2535,7 +2549,7 @@
           gap: 8px;
         }
         .print-status {
-          color: #5a6b67;
+          color: #5e6b55;
           font-size: 13px;
           font-weight: 700;
           margin-top: 10px;
@@ -2544,9 +2558,9 @@
         .button {
           appearance: none;
           background: #ffffff;
-          border: 1px solid #225c56;
+          border: 1px solid #4f7a28;
           border-radius: 999px;
-          color: #225c56;
+          color: #4f7a28;
           cursor: pointer;
           display: inline-flex;
           font: inherit;
@@ -2555,7 +2569,7 @@
           text-decoration: none;
         }
         .button.primary {
-          background: #225c56;
+          background: #4f7a28;
           color: #ffffff;
         }
         @media print {
@@ -2671,7 +2685,7 @@
     <title>${safeTitle}</title>
     <style>
       :root {
-        color: #1d2927;
+        color: #1f2a18;
         background: #f4efe8;
         font-family: Inter, Arial, sans-serif;
       }
@@ -2701,8 +2715,8 @@
       }
       .viewer-close {
         appearance: none;
-        background: #225c56;
-        border: 1px solid #225c56;
+        background: #4f7a28;
+        border: 1px solid #4f7a28;
         border-radius: 999px;
         color: #ffffff;
         cursor: pointer;
@@ -2712,7 +2726,7 @@
       }
       .viewer-card {
         background: #ffffff;
-        border: 1px solid #ded5ca;
+        border: 1px solid #dce3d2;
         border-radius: 12px;
         box-shadow: 0 10px 24px rgba(29, 41, 39, 0.08);
         padding: 14px;
@@ -2726,7 +2740,7 @@
         width: 100%;
       }
       .viewer-caption {
-        color: #5a6b67;
+        color: #5e6b55;
         font-size: 0.9rem;
         font-weight: 700;
         margin: 10px 0 0;
